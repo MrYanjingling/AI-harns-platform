@@ -97,4 +97,5 @@ src/
 mock/           # 开发期内存态 API(Vite 中间件)
 ```
 
-更细的约定见 [`AGENTS.md`](./AGENTS.md),仓库级后端契约见 [`../AGENTS.md`](../AGENTS.md)。
+业务规则见 [`BUSINESS.md`](./BUSINESS.md),工程约定见 [`AGENTS.md`](./AGENTS.md);
+后端契约以 [`src/api/types.ts`](./src/api/types.ts) 与仓库 `apis/` 下的接口文档为准。
