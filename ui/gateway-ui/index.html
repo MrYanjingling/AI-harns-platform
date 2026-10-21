@@ -1,30 +1,30 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f8fa" />
-    <title>Gateway · 管理控制台</title>
+    <meta name="theme-color" content="#121721" />
+    <title>AI-harns-gateway · 网关管理</title>
     <script>
+      // 在首屏渲染前应用主题,避免暗色模式闪烁。
       ;(() => {
         try {
-          const saved = localStorage.getItem('harns-gateway-theme')
-          const choice = saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
-          const effective =
-            choice === 'system'
-              ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-              : choice
-          document.documentElement.dataset.theme = effective
-          document.documentElement.style.colorScheme = effective
+          const saved = localStorage.getItem('harns-theme')
+          const dark =
+            saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+          const locale = localStorage.getItem('harns-locale')
+          if (locale === 'zh-CN' || locale === 'en-US') document.documentElement.lang = locale
         } catch {
-          /* ignore */
+          /* localStorage 不可用时忽略 */
         }
       })()
     </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="h-full">
+    <div id="root" class="min-h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

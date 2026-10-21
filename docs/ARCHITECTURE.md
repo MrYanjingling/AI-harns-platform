@@ -6,7 +6,9 @@
 
 ```
                     ┌──────────────────────┐
-   浏览器 ─────────▶│ ui/platform-ui       │  React 19 + Vite 7
+   浏览器 ─────────▶│ ui/host              │  React 19 + Vite 7
+                    │  ├ platform-ui(子应用)│
+                    │  └ gateway-ui(子应用) │
                     └──────────┬───────────┘
                                │ /api/v1/*
                 ┌──────────────┴──────────────┐
@@ -21,7 +23,8 @@
 
 - **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向 MQTT 发布待重新设计。驱动、采集器与网关身份状态持久化在 SQLite；`pkg/gateway/storage` 仅保留给旧 device 代码。
 - **platform**：账号与权限、组织、审计、OpenAPI 文档；认证依赖 Redis 会话与 MinIO 上的 RSA 密钥。
-- **platform-ui**：管理后台，开发期通过 Vite proxy 分流到后端；`VITE_USE_MOCK=true` 时完全走内存 mock。
+- **host**：前端主应用，负责登录、路由与导航装配、i18n 字典合并；开发期通过 Vite proxy 分流到后端，`VITE_USE_MOCK=true` 时走合并后的内存 mock。
+- **platform-ui / gateway-ui**：业务子应用，以源码形式被 host 构建期组合，也可各自独立启动调试。共享代码在 `ui/core`。
 
 ## 2. 目录与包职责
 
@@ -74,7 +77,12 @@ AI-harns-platform
 ├── test/                   协议模拟器：modbus、modbusrtu、s7
 ├── deploy/                 k8s 清单（platform）
 ├── cert/                   示例 TLS 证书（仅本地开发）
-└── ui/platform-ui/         前端工程（其余 ui/* 为占位）
+└── ui/                     pnpm workspace
+    ├── core/               无业务公共库（HTTP、会话、i18n、主题、UI、AppShell）
+    ├── host/               主应用：登录、路由/导航装配、合并 mock
+    ├── platform-ui/        平台子应用
+    ├── gateway-ui/         网关子应用
+    └── eam-ui, ems-ui/     占位（仅 .gitkeep）
 ```
 
 ## 3. 进程启动链
@@ -263,14 +271,14 @@ gateway 启动参数与 platform 保持一致（`--port`、`--graceful-timeout`�
 构建与发布：
 
 - `make` → `_output/bin/{gateway,platform}`。
-- `make package` → `_output/release/AI-harns-platform-<version>-<os>_<arch>.zip`，内含 `gateway|platform|eam|ems` 的 `bin/etc/log` 与 `ui/<module>` 构建产物。
+- `make package` → `_output/release/AI-harns-platform-<version>-<os>_<arch>.zip`，内含 `gateway|platform|eam|ems` 的 `bin/etc/log` 与 `ui/host`（前端主应用）构建产物；`UI_MODULES` 可覆盖打包的前端模块。
 - `Dockerfile` 通过 `ARG SERVICE` 选择 `./cmd/${SERVICE}` 构建，最终镜像仅含单个二进制。
 - `docker-compose.yml` 启动 MySQL、Redis、MinIO、platform。
 
 ## 8. 已知边界
 
-- 仓库没有 `cmd/data`（端口 32201）服务；`ui/platform-ui` 的 data 相关 proxy 与页面在真实后端下不可用，只有 mock 可用。
-- `ui/eam-ui`、`ui/ems-ui` 仅有 `.gitkeep`；`ui/gateway-ui` 已可构建，`make package` 会构建并打包它。
+- 仓库没有 `cmd/data`（端口 32201）服务；`ui/host` 只对接 gateway 与 platform。
+- `ui/eam-ui`、`ui/ems-ui` 仅有 `.gitkeep`，不在 pnpm workspace 内；`ui/gateway-ui` 与 `ui/platform-ui` 是可独立启动的子应用，由 `ui/host` 在构建期组合。
 - `pkg/tsdb` 为 Prometheus TSDB 的裁剪副本，无业务逻辑，不应按业务代码修改。
 - CI 的 vet/test 只覆盖 `cmd/...`、`pkg/platform/...`、`pkg/generic/...`、`pkg/metrics/...`、`pkg/telemetry/...`、`apis/...`；`pkg/gateway`、`pkg/audit`、`pkg/utils` 需本地自行验证。
 - `cert/` 下为本地开发的示例证书。

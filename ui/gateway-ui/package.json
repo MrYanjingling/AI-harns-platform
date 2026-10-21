@@ -1,9 +1,17 @@
 {
-  "name": "harns-gateway-ui",
+  "name": "@harns/gateway-ui",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "AI-harns-platform gateway management UI",
+  "description": "AI-harns-platform 网关子应用",
+  "exports": {
+    ".": {
+      "types": "./app.d.ts",
+      "import": "./src/app.tsx",
+      "default": "./src/app.tsx"
+    }
+  },
+  "types": "./app.d.ts",
   "engines": {
     "node": ">=20"
   },
@@ -14,13 +22,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@harns/core": "workspace:*",
     "@tanstack/react-query": "^5.90.2",
-    "clsx": "^2.1.1",
     "lucide-react": "^0.545.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3",
-    "tailwind-merge": "^3.3.1"
+    "sonner": "^2.0.7",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",

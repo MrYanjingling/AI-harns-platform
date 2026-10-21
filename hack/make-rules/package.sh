@@ -10,7 +10,9 @@ source "${HARNSGATEWAY_ROOT}/hack/lib/init.sh"
 # Package name and the module directories laid out inside the archive.
 PACKAGE_NAME="${PACKAGE_NAME:-AI-harns-platform}"
 GO_MODULES=("gateway" "platform" "eam" "ems")
-UI_MODULES="${UI_MODULES:-platform-ui eam-ui ems-ui gateway-ui}"
+# 前端工作区以 host 为主应用发布；子应用如需单独打包，可用
+# UI_MODULES="platform-ui gateway-ui" 覆盖。
+UI_MODULES="${UI_MODULES:-host}"
 UI_BUILD="${UI_BUILD:-1}"
 
 # Build the Go binaries first, reusing the standard build rules.

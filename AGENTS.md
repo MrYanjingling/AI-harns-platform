@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件是仓库的统一入口：说明项目结构、常用命令和必须遵守的规范。改动代码前先读这里，再按需阅读两份细则。
+本文件是仓库的统一入口：说明项目结构、常用命令和必须遵守的规范。改动代码前先读这里，再按需阅读相关细则。
 
 | 文档 | 适用范围 |
 |---|---|
@@ -11,7 +11,8 @@
 | `docs/device-communication.md` | 设备上下行报文书信与各 type 结构（对外） |
 | `docs/timeseries.md` | InfluxDB 3 时序存储、批量写入与配置 |
 | `pkg/platform/platform.md` | `platform` 模块唯一事实来源（分层、响应、错误码、配置、日志、存储） |
-| `ui/platform-ui/AGENTS.md` | 前端约定 |
+| `ui/README.md` | 前端工作区结构、组合方式与运行命令 |
+| `ui/platform-ui/AGENTS.md` | 前端约定（适用于 `ui/` 全部包） |
 
 冲突时以更具体的那份为准：平台后端看 `pkg/platform/platform.md`，前端看 `ui/platform-ui/AGENTS.md`。
 
@@ -23,10 +24,12 @@ AI-harns-platform 是工业物联网平台，Go module `harns-platform`，Go 1.2
 |---|---|---|---|
 | gateway | `cmd/gateway` | 32200 | 南向采集 Modbus / OPC UA / S7，北向发布 MQTT |
 | platform | `cmd/platform` | 32300 | 认证、用户/角色/组织、审计、OpenAPI |
-| platform-ui | `ui/platform-ui` | 5173（dev） | React 管理后台 |
+| host | `ui/host` | 5173（dev） | React 主应用：登录、路由/导航装配、合并 mock |
+| platform-ui | `ui/platform-ui` | 5174（dev） | 平台子应用：物模型、物、身份、审计 |
+| gateway-ui | `ui/gateway-ui` | 5175（dev） | 网关子应用：订阅、采集、插件、日志、性能 |
 
-- `ui/eam-ui`、`ui/ems-ui`、`ui/gateway-ui` 目前只有 `.gitkeep`，不可构建。
-- 仓库内没有 `cmd/data` 服务，前端 README 中的 data 服务配置属于历史遗留。
+- `ui/core` 是无业务语义的公共前端库；`ui/eam-ui`、`ui/ems-ui` 目前只有 `.gitkeep`，不可构建。
+- 仓库内没有 `cmd/data` 服务，前端只对接 gateway 与 platform。
 
 ## 2. 常用命令
 
@@ -45,13 +48,15 @@ go run ./cmd/platform     # 本地启动平台
 docker compose up --build # MySQL + Redis + MinIO + platform
 ```
 
-前端（要求 Node ≥ 20，pnpm）：
+前端（要求 Node ≥ 20，pnpm workspace）：
 
 ```bash
-cd ui/platform-ui
+cd ui
 pnpm install
-VITE_USE_MOCK=true pnpm dev   # 纯前端 mock
-VITE_USE_MOCK=false pnpm dev  # 连接真实后端
+pnpm dev                      # 主应用 host，http://localhost:5173
+pnpm dev:platform             # 仅平台子应用，5174
+pnpm dev:gateway              # 仅网关子应用，5175
+VITE_USE_MOCK=true pnpm dev   # 纯前端 mock（各包 .env 默认已开启）
 pnpm typecheck
 pnpm build
 ```
@@ -79,7 +84,7 @@ migrations/     SQL 迁移（go:embed，golang-migrate）
 etc/            配置模板
 hack/           构建/打包/校验脚本
 test/           协议模拟器（modbus、modbusrtu、s7）
-ui/platform-ui/ 前端
+ui/             pnpm workspace：core（公共库）、host（主应用）、platform-ui、gateway-ui
 deploy/         k8s 清单
 ```
 
@@ -146,16 +151,18 @@ deploy/         k8s 清单
 
 ## 6. 前端规范摘要
 
+- 结构：`ui/` 为 pnpm workspace，`@harns/core` 放无业务公共代码，`@harns/host` 是主应用，`@harns/platform-ui` / `@harns/gateway-ui` 是可独立启动的子应用。
+- 组合方式：子应用通过 `app.d.ts` 暴露 routes / nav / messages，host 在构建期直接编译子应用源码；子应用内部 `@/` 由 host 的 Vite 插件按 importer 解析。
 - 技术栈：React 19 + TypeScript + Vite 7 + Tailwind v4 + TanStack Query + React Router 7。
-- 所有 HTTP 走 `src/lib/http.ts` 的 `request(service, path, options)`，错误统一 `ApiError`，展示用 `errorMessage(error)`。
-- Query key 集中在 `src/api/query-keys.ts`，不要在组件里手写数组。
-- 每个接口一个 hook，放 `src/api/hooks.ts`；设备列表 10s、详情 5s 轮询。
-- `components/ui` 只放无业务原语；`components/shared` 放跨页面业务组件；页面代码放 `features/`。
-- 颜色只用 `index.css` 的语义令牌（`bg-surface`、`border-border`、`text-primary` 等），不写死调色板。
+- 所有 HTTP 走 `@harns/core` 的 `request(service, path, options)`，错误统一 `ApiError`，展示用 `errorMessage(error)`；两套后端响应都是 `{code,message,data}`。
+- Query key 集中在各包 `src/api/query-keys.ts`，不要在组件里手写数组。
+- 每个接口一个 hook，放 `src/api/hooks.ts`；网关设备列表 10s、详情 5s 轮询。
+- `core` 的 `components/ui` 只放无业务原语；`components/shared` 放跨应用组件；页面代码放各子应用的 `features/`。
+- 颜色只用 `core/src/styles.css` 的语义令牌（`bg-surface`、`border-border`、`text-primary` 等），不写死调色板。
 - 表单用 react-hook-form + zod；字段改动要同步 `defaultFormValues`、`toFormValues`、`toPayload`。
 - 空态用 `EmptyState`，错误用 `ErrorState`，加载用 `Skeleton`；不要只渲染 `null`。
-- `VITE_USE_MOCK=true` 时走 `mock/`，新接口必须补 mock 路由且响应形状与 Go 一致。
-- 详见 `ui/platform-ui/AGENTS.md`。
+- `VITE_USE_MOCK=true` 时走各包 `mock/`，新接口必须补 mock 路由且响应形状与 Go 一致；host mock 在同一 `/api/v1` 下分流。
+- 详见 `ui/README.md` 与 `ui/platform-ui/AGENTS.md`。
 
 ## 7. 提交前检查
 
@@ -164,7 +171,7 @@ gofmt -l cmd pkg migrations      # 应无输出
 go build ./...
 go test -vet=off ./...
 
-cd ui/platform-ui && pnpm typecheck && pnpm build   # 改了前端时
+cd ui && pnpm typecheck && pnpm build   # 改了前端时
 ```
 
 - 新增错误码：同时改 `constants.go`、`messageIDs`、`locales`。

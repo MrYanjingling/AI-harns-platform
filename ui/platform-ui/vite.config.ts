@@ -8,17 +8,22 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const useMock = env.VITE_USE_MOCK === 'true'
   const gatewayTarget = env.VITE_GATEWAY_TARGET || 'http://127.0.0.1:32200'
-  const dataTarget = env.VITE_DATA_TARGET || 'http://127.0.0.1:32201'
+  const platformTarget = env.VITE_PLATFORM_TARGET || 'http://127.0.0.1:32300'
 
   return {
     plugins: [react(), tailwindcss(), ...(useMock ? [mockApiPlugin()] : [])],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@harns/core': fileURLToPath(new URL('../core/src/index.ts', import.meta.url)),
       },
     },
+    optimizeDeps: {
+      // 工作区包以源码形式参与构建,交给 Vite 直接编译。
+      exclude: ['@harns/core'],
+    },
     server: {
-      port: 5173,
+      port: 5174,
       // 两套服务共用 /api/v1 前缀,按路径分流;网关路径必须写在前面。
       proxy: useMock
         ? undefined
@@ -28,12 +33,9 @@ export default defineConfig(({ mode }) => {
             '/api/v1/gatewayCpu': { target: gatewayTarget, changeOrigin: true },
             '/api/v1/gatewayMem': { target: gatewayTarget, changeOrigin: true },
             '/api/v1/gatewayDisk': { target: gatewayTarget, changeOrigin: true },
-            '/api/v1/metrics': { target: dataTarget, changeOrigin: true },
-            '/api/v1/kpi': { target: dataTarget, changeOrigin: true },
-            '/api/v1/kpis': { target: dataTarget, changeOrigin: true },
-            '/api/v1/tags': { target: dataTarget, changeOrigin: true },
-            '/api/v1/fmcs': { target: dataTarget, changeOrigin: true },
-            '/api/v1/escada': { target: dataTarget, changeOrigin: true },
+            // 平台服务:认证 + /iot 下的用户/角色/组织/审计/物模型/设备。
+            '/api/v1/auth': { target: platformTarget, changeOrigin: true },
+            '/api/v1/iot': { target: platformTarget, changeOrigin: true },
           },
     },
     build: {

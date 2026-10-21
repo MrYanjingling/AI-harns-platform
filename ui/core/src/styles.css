@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-header: var(--header);
+  --color-header-fg: var(--header-fg);
+  --color-header-muted: var(--header-muted);
+  --color-header-hover: var(--header-hover);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  --bg: oklch(1 0 0);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.984 0.003 247.858);
+  --surface-3: oklch(0.968 0.007 247.896);
+  --fg: oklch(0.279 0.041 260.031);
+  --muted: oklch(0.446 0.043 257.281);
+  --faint: oklch(0.704 0.04 256.788);
+  --border: oklch(0.929 0.013 255.508);
+  --border-strong: oklch(0.869 0.022 252.894);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-hover: oklch(0.488 0.243 264.376);
+  --primary-fg: oklch(0.99 0 0);
+  --primary-soft: oklch(0.97 0.014 254.604);
+  --success: oklch(0.627 0.194 149.214);
+  --warning: oklch(0.666 0.179 58.318);
+  --danger: oklch(0.577 0.245 27.325);
+  --info: oklch(0.546 0.245 262.881);
+  --header: oklch(0.208 0.042 265.755);
+  --header-fg: oklch(0.984 0.003 247.858);
+  --header-muted: oklch(0.869 0.022 252.894);
+  --header-hover: oklch(0.279 0.041 260.031);
+  color-scheme: light;
+}
+
+.dark {
+  /* 底色带蓝调并抬高亮度,避免接近纯黑后层次发闷 */
+  --bg: oklch(0.205 0.022 264);
+  --surface: oklch(0.243 0.023 264);
+  --surface-2: oklch(0.281 0.024 264);
+  --surface-3: oklch(0.32 0.025 264);
+  --fg: oklch(0.958 0.005 258);
+  --muted: oklch(0.74 0.016 258);
+  --faint: oklch(0.6 0.015 258);
+  --border: oklch(0.335 0.024 264);
+  --border-strong: oklch(0.42 0.026 264);
+  --primary: oklch(0.64 0.2 257);
+  --primary-hover: oklch(0.72 0.16 253);
+  --primary-fg: oklch(0.99 0 0);
+  --primary-soft: oklch(0.3 0.085 265);
+  --success: oklch(0.723 0.219 149.579);
+  --warning: oklch(0.769 0.188 70.08);
+  --danger: oklch(0.637 0.237 25.331);
+  --info: oklch(0.64 0.2 257);
+  --header: oklch(0.225 0.028 266);
+  --header-fg: oklch(0.984 0.003 247.858);
+  --header-muted: oklch(0.85 0.02 252.894);
+  --header-hover: oklch(0.3 0.028 264);
+
+  /* 科技感底纹专用色:透明度即强度,调整这里即可整体收敛或加强 */
+  --backdrop-grid: oklch(0.75 0.08 240 / 0.05);
+  --backdrop-grid-major: oklch(0.78 0.1 235 / 0.075);
+  --backdrop-glow: oklch(0.6 0.2 265 / 0.16);
+  --backdrop-glow-accent: oklch(0.7 0.15 205 / 0.11);
+  --backdrop-trace: oklch(0.72 0.1 225 / 0.13);
+  --backdrop-trace-pulse: oklch(0.86 0.12 200 / 0.5);
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "tnum" 1;
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--fg);
+}
+
+/* 细滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  filter: invert(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-fade-up {
+  animation: fade-up 240ms ease-out both;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   深色主题科技感底纹
+   纯装饰层:低对比度、不接收指针事件,强度由 --backdrop-* 变量统一控制。
+--------------------------------------------------------------------------- */
+.tech-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tech-backdrop__grid {
+  position: absolute;
+  inset: -25%;
+  background-image:
+    linear-gradient(to right, var(--backdrop-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--backdrop-grid) 1px, transparent 1px),
+    linear-gradient(to right, var(--backdrop-grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--backdrop-grid-major) 1px, transparent 1px);
+  background-size:
+    64px 64px,
+    64px 64px,
+    256px 256px,
+    256px 256px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
+  animation: tech-grid-drift 90s linear infinite;
+}
+
+.tech-backdrop__glow {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--backdrop-glow) 0%, transparent 68%);
+  will-change: transform;
+}
+
+.tech-backdrop__glow--a {
+  top: -34%;
+  left: -14%;
+  width: 70rem;
+  height: 70rem;
+  animation: tech-glow-drift-a 32s ease-in-out infinite alternate;
+}
+
+.tech-backdrop__glow--b {
+  right: -20%;
+  bottom: -40%;
+  width: 62rem;
+  height: 62rem;
+  background: radial-gradient(circle, var(--backdrop-glow-accent) 0%, transparent 68%);
+  animation: tech-glow-drift-b 38s ease-in-out infinite alternate;
+}
+
+.tech-backdrop__circuit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tech-backdrop__trace {
+  fill: none;
+  stroke: var(--backdrop-trace);
+  stroke-width: 1;
+}
+
+.tech-backdrop__node {
+  fill: var(--backdrop-trace);
+  animation: tech-node-breathe 6s ease-in-out infinite;
+}
+
+.tech-backdrop__pulse {
+  fill: none;
+  stroke: var(--backdrop-trace-pulse);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 5 95;
+  animation: tech-trace-flow 12s linear infinite;
+}
+
+.tech-backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, color-mix(in oklab, var(--bg) 55%, transparent), transparent 26%),
+    radial-gradient(
+      ellipse 92% 82% at 50% 42%,
+      transparent 52%,
+      color-mix(in oklab, var(--bg) 68%, transparent) 100%
+    );
+}
+
+@keyframes tech-grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(64px, 64px, 0);
+  }
+}
+
+@keyframes tech-glow-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(7%, 5%, 0) scale(1.14);
+  }
+}
+
+@keyframes tech-glow-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+  to {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+}
+
+@keyframes tech-node-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes tech-trace-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}

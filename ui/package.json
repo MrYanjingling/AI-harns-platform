@@ -1,0 +1,35 @@
+{
+  "name": "ai-harns-platform-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI-harns-platform 前端工作区:主应用 + platform / gateway 子应用 + 公共核心库",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @harns/host dev",
+    "dev:host": "pnpm --filter @harns/host dev",
+    "dev:platform": "pnpm --filter @harns/platform-ui dev",
+    "dev:gateway": "pnpm --filter @harns/gateway-ui dev",
+    "build": "pnpm --filter @harns/platform-ui build && pnpm --filter @harns/gateway-ui build && pnpm --filter @harns/host build",
+    "build:host": "pnpm --filter @harns/host build",
+    "typecheck": "pnpm --filter @harns/core typecheck && pnpm --filter @harns/platform-ui typecheck && pnpm --filter @harns/gateway-ui typecheck && pnpm --filter @harns/host typecheck",
+    "preview": "pnpm --filter @harns/host preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "4.64.10",
+    "@rollup/rollup-darwin-x64": "4.64.10",
+    "@rollup/rollup-linux-arm64-gnu": "4.64.10",
+    "@rollup/rollup-linux-x64-gnu": "4.64.10",
+    "@rollup/rollup-win32-x64-msvc": "4.64.10",
+    "@tailwindcss/oxide-darwin-arm64": "4.3.3",
+    "@tailwindcss/oxide-darwin-x64": "4.3.3",
+    "@tailwindcss/oxide-linux-arm64-gnu": "4.3.3",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
+    "@tailwindcss/oxide-win32-x64-msvc": "4.3.3"
+  }
+}

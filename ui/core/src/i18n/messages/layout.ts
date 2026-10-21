@@ -1,0 +1,43 @@
+import { defineMessages } from './define'
+
+/** 应用外壳文案:不包含任何业务菜单名称。 */
+export const layout = defineMessages({
+  'zh-CN': {
+    'layout.shell.primaryNav': '一级导航',
+    'layout.shell.openMenu': '打开菜单',
+    'layout.shell.closeMenu': '关闭菜单',
+    'layout.shell.searchMenu': '搜索菜单',
+    'layout.shell.searchMenuShortcut': '搜索菜单 (⌘K)',
+    'layout.shell.languageSwitcher': '切换语言',
+    'layout.shell.mockBadge': 'Mock',
+    'layout.shell.mobileBrand': 'HARNS',
+    'layout.shell.documentTitle': '{title} · {appName}',
+    'layout.shell.accountMenu': '账户菜单',
+    'layout.shell.preferences': '偏好设置',
+    'layout.shell.quickSearch.title': '搜索菜单',
+    'layout.shell.quickSearch.placeholder': '搜索页面或功能…',
+    'layout.shell.quickSearch.empty': '没有匹配的页面',
+    'layout.shell.quickSearch.emptyHint': '试试其他关键词。',
+    'layout.shell.quickSearch.hint': '输入关键词筛选，回车打开第一项',
+    'layout.shell.quickSearch.section': '{section} · {hint}',
+  },
+  'en-US': {
+    'layout.shell.primaryNav': 'Primary navigation',
+    'layout.shell.openMenu': 'Open menu',
+    'layout.shell.closeMenu': 'Close menu',
+    'layout.shell.searchMenu': 'Search menu',
+    'layout.shell.searchMenuShortcut': 'Search menu (⌘K)',
+    'layout.shell.languageSwitcher': 'Switch language',
+    'layout.shell.mockBadge': 'Mock',
+    'layout.shell.mobileBrand': 'HARNS',
+    'layout.shell.documentTitle': '{title} · {appName}',
+    'layout.shell.accountMenu': 'Account menu',
+    'layout.shell.preferences': 'Preferences',
+    'layout.shell.quickSearch.title': 'Search menus',
+    'layout.shell.quickSearch.placeholder': 'Search pages or features…',
+    'layout.shell.quickSearch.empty': 'No matching pages',
+    'layout.shell.quickSearch.emptyHint': 'Try a different keyword.',
+    'layout.shell.quickSearch.hint': 'Type to filter, press Enter to open the first result',
+    'layout.shell.quickSearch.section': '{section} · {hint}',
+  },
+})
