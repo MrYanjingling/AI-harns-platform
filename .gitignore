@@ -1,0 +1,9 @@
+# Build output
+/_output/
+
+# IDE
+/.idea/
+
+# UI build output
+/ui/*/node_modules/
+/ui/*/dist/
