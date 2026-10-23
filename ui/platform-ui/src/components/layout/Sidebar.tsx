@@ -5,6 +5,7 @@ import {
   ChartLine,
   Cpu,
   LayoutDashboard,
+  MonitorPlay,
   Settings,
   Target,
   Waypoints,
@@ -24,6 +25,7 @@ const GROUPS: Array<{ label?: string; items: NavItem[] }> = [
     items: [
       { to: '/', label: '概览', icon: LayoutDashboard, end: true },
       { to: '/devices', label: '设备管理', icon: Cpu },
+      { to: '/screen', label: '工厂大屏', icon: MonitorPlay },
     ],
   },
   {

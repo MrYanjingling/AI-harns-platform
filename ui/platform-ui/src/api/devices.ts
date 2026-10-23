@@ -14,6 +14,12 @@ export async function listDevices(exploded = false): Promise<DeviceSummary[]> {
   return data.devices ?? []
 }
 
+/** 一次取回全部设备详情(含变量当前值),供大屏等聚合视图使用。 */
+export async function listDeviceDetails(): Promise<DeviceDetail[]> {
+  const { data } = await request<{ devices?: DeviceDetail[] }>('gateway', '/devices?exploded=true')
+  return data.devices ?? []
+}
+
 export async function getDeviceById(id: string, exploded = true): Promise<DeviceDetail> {
   const suffix = exploded ? '?exploded=true' : ''
   const { data } = await request<DeviceDetail>('gateway', `/devices/${id}${suffix}`)

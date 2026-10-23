@@ -6,6 +6,7 @@ import {
   createDevice,
   deleteDevice,
   getDeviceById,
+  listDeviceDetails,
   listDevices,
   switchDeviceStatus,
   updateDevice,
@@ -63,6 +64,15 @@ export function useDevices(exploded = false) {
   return useQuery({
     queryKey: queryKeys.devices.list(exploded),
     queryFn: () => listDevices(exploded),
+    refetchInterval: 10_000,
+  })
+}
+
+/** 与 useDevices(true) 共用缓存:同一次请求既服务于大屏,也服务于其他聚合视图。 */
+export function useDeviceDetails() {
+  return useQuery({
+    queryKey: queryKeys.devices.list(true),
+    queryFn: listDeviceDetails,
     refetchInterval: 10_000,
   })
 }

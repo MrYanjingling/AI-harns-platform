@@ -19,6 +19,7 @@
 | 服务端状态 | TanStack Query v5 |
 | 表单 | React Hook Form 7 + Zod 3 + `@hookform/resolvers` |
 | 图表 | Recharts 3 |
+| 3D | Three.js（仅 `/screen` 大屏按需加载） |
 | UI 辅助 | lucide-react、sonner、clsx、tailwind-merge |
 
 - 统一使用 pnpm：`pnpm install`、`pnpm dev`、`pnpm typecheck`、`pnpm build`、`pnpm preview`。不要混用 npm/yarn，也不要提交其他包管理器的锁文件。
@@ -67,6 +68,13 @@ mock/
 - 表格在窄屏必须可横向滚动（`components/ui/Table.tsx` 已内置 `overflow-x-auto`）。
 - 空态用 `EmptyState`，错误用 `ErrorState`，加载用 `Skeleton`/`TableSkeleton`/`PageLoading`。不要只渲染 `null`。
 
+## 3D 大屏
+
+- `/screen` 是 `AppShell` 之外的全屏页，Three.js 必须通过路由懒加载引入，不得静态进入管理后台主包。
+- 场景生命周期是命令式的（`features/screen/FactoryScene.tsx`）：设备集合变化时重建，轮询只更新材质；标签投影与动画在 `requestAnimationFrame` 内直接操作 DOM，禁止每帧 `setState`。
+- 场景色板集中在 `features/screen/layout.ts`（three.js 只接受数值色），分区色沿用协议既有 accents（emerald / sky / amber），状态与分区颜色不得散落在组件里。
+- 必须释放 geometry / material / renderer，并在 WebGL 不可用时给出降级提示。
+
 ## 表单
 
 - 设备表单：react-hook-form + zod（`features/devices/schema.ts`），由 `zodResolver` 驱动。
@@ -81,7 +89,7 @@ mock/
 - mock 是**有状态**的：创建/更新/删除/启停/反控都会改变内存数据并递增 eTag；刷新页面重置。
 - 新接口必须同时实现 mock 路由；未实现的 `/api/v1/*` 显式返回 404，避免误判为真实后端。
 - mock 响应形状必须与 Go 一致，尤其 `eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent`、`{data,total}`。
-- mock 行为必须与 `BUSINESS.md` 第 9 节一致；业务变更时同步更新 fixtures。
+- mock 行为必须与 `BUSINESS.md` 第 10 节一致；业务变更时同步更新 fixtures。
 
 ## 样式与主题
 
@@ -141,4 +149,4 @@ pnpm build
 VITE_USE_MOCK=true pnpm dev
 ```
 
-手动走查：概览 → 设备列表（启停/删除）→ 新建设备（三种协议）→ 详情（反控）→ 指标/KPI/测点/时序 → 设置；并切换一次深色主题。业务验收项见 `BUSINESS.md` 第 11 节。
+手动走查：概览 → 设备列表（启停/删除）→ 新建设备（三种协议）→ 详情（反控）→ 指标/KPI/测点/时序 → 工厂大屏（选中/取消、全屏）→ 设置；并切换一次深色主题。业务验收项见 `BUSINESS.md` 第 12 节。

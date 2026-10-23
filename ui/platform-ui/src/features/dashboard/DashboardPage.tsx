@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Cpu,
@@ -7,6 +7,7 @@ import {
   EyeOff,
   HardDrive,
   MemoryStick,
+  MonitorPlay,
   RefreshCw,
   Router,
   Server,
@@ -53,6 +54,7 @@ const STATUS_BAR: Record<DeviceStatus, string> = {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const meta = useGatewayMeta()
   const cpu = useGatewayCpu()
   const mem = useGatewayMem()
@@ -102,9 +104,18 @@ export function DashboardPage() {
         title="概览"
         description="网关运行状态、设备采集情况与资源占用一览。"
         actions={
-          <Button variant="outline" onClick={refreshAll} icon={<RefreshCw className="size-4" />}>
-            刷新
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/screen')}
+              icon={<MonitorPlay className="size-4" />}
+            >
+              工厂大屏
+            </Button>
+            <Button variant="outline" onClick={refreshAll} icon={<RefreshCw className="size-4" />}>
+              刷新
+            </Button>
+          </div>
         }
       />
 
