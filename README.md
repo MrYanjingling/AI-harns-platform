@@ -82,7 +82,7 @@ cp etc/platform/config.yaml /etc/platform/config.yaml
 
 ### Auth
 
-- A super administrator role (`code=admin`) and account `admin / admin@qwer` are seeded by
+- A super administrator role (`code=admin`) and account `admin / harns@iot` are seeded by
   migration; change the password after first login.
 - JWT (HS256) + Redis session; password may be RSA-OAEP(SHA-256) encrypted.
 - Account locks for 60 minutes after 5 consecutive failures.

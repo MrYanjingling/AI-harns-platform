@@ -193,8 +193,8 @@ HTTP 创建/启动设备
 - `id` 为 ULID（32 列宽），`version` 每次更新 +1，`ETag` 仅作参考，不做 If-Match 校验。
 - 关联表 `user_roles`、`user_orgs` 不设外键，删除实体时同事务清理。
 - 迁移文件 `migrations/NNNNNN_name.{up,down}.sql`，通过 `migrations/embed.go` 内嵌，`pkg/platform/migrate.Run` 用 golang-migrate 执行。
-- 当前迁移：users、roles、orgs、user_relations、audit_logs、seed_admin。
-- `000006_seed_admin` 创建超级管理员角色与 `admin / admin@qwer` 账号，首次登录后必须改密。
+- 当前迁移：users、roles、orgs、user_relations、audit_logs、seed_admin、thing_models、things。
+- `000006_seed_admin` 创建超级管理员角色与账号 `admin`，密码 `harns@iot`。首次登录后必须改密。
 
 ## 7. 配置与部署产物
 

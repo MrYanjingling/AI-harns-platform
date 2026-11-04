@@ -22,19 +22,19 @@ key-file: ""
 # Redis connection.
 redis:
   addrs:
-    - 127.0.0.1:6379
+    - 8.156.72.204:8401
   username: ""
-  password: ""
-  db: 0
+  password: "kYjrLU&M0b"
+  db: 8
   read-timeout-seconds: 3
   write-timeout-seconds: 3
 
 # MySQL connection.
 mysql:
-  host: 127.0.0.1
-  port: 3306
+  host: 8.156.72.204
+  port: 8406
   username: root
-  password: ""
+  password: "i+aSroC6ak"
   database: harns
   charset: utf8mb4
   max-open-conns: 50
@@ -46,9 +46,9 @@ migrate: true
 
 # MinIO object storage connection.
 minio:
-  endpoint: 127.0.0.1:9000
-  access-key: ""
-  secret-key: ""
+  endpoint: 8.156.72.204:8438
+  access-key: "admin"
+  secret-key: "hr67jF4iXX"
   use-ssl: false
   bucket: harns
 
@@ -104,7 +104,7 @@ things:
   online-ttl-seconds: 60
   # Shared secret for the EMQX endpoints (/thingsAuth and /thingsPubMessage),
   # sent as X-Things-Auth-Secret. Leave empty to disable; set >=16 chars in production.
-  auth-secret: ""
+  auth-secret: "X-Things-Auth-Secret"
   # EMQX message callback pipeline.
   message:
     # When false, the callback is processed synchronously. When true, raw EMQX
@@ -144,8 +144,8 @@ logging:
 emqx:
   # EMQX 5 HTTP API, used for command downlink.
   api-url: "http://127.0.0.1:18083"
-  ak: ""
-  sk: ""
+  ak: "7e484b92e8ccaff4"
+  sk: "8DJFcbugqxiO39AlXa3cGgTZgFV1X7Ab9Co84QBwsEVKL"
   broker: "127.0.0.1:1883"
   timeout-ms: 10000
 
@@ -155,9 +155,9 @@ files:
 
 timeseries:
   # InfluxDB 3 Core storage. Disabled by default; enable when a server is available.
-  enabled: false
-  url: "http://127.0.0.1:8181"
-  token: ""
+  enabled: true
+  url: "http://8.156.72.204:8181"
+  token: "apiv3_yanchongbin"
   database: "harns_timeseries"
   log-database: "harns_timeseries_log"
   # Core retention is database-level and immutable after creation.

@@ -89,7 +89,7 @@
 
 > 每个功能用如下格式，序号不可跳号；未实现前保持 `状态: TODO`。
 >
-> 初始化数据：迁移会创建超级管理员角色（`code=admin`）与账号 `admin / admin@qwer`，首次登录后请修改密码。
+> 初始化数据：迁移会创建超级管理员角色（`code=admin`）与账号 `admin / harns@iot`，首次登录后请修改密码。
 
 ### F1. 用户管理（CRUD + 分页）
 - 状态：TODO
@@ -540,7 +540,7 @@
   | 字段 | Go 类型 | 约束 |
   |---|---|---|
   | deviceName | string | 必填，≤64，同一物模型内唯一 |
-  | deviceKey | string | 可选；`^[a-zA-Z][a-zA-Z0-9_-]{3,63}$`，全局唯一；为空时生成 `dk_` + 16 位随机小写字母数字 |
+  | deviceKey | string | 可选；`^[a-zA-Z][a-zA-Z0-9_-]{3,63}$`，全局唯一；为空时生成 `dk_` + 16 位随机小写字母数字，且至少包含一个字母和一个数字 |
   | deviceDesc | string | 可空，≤255 |
   | features | object | 可空；key 必须是物模型已定义特征，值只校验合法 JSON |
   | image | string | 可空，≤255；非空时必须以 `images/` 开头，不校验 MinIO 是否存在 |
@@ -567,7 +567,7 @@
   - Service 导出方法首行 `defer logging.Trace("things.Xxx", ...)`。
 - 验收标准：
   - [ ] 批量创建成功，返回完整凭证与 mqtt 字段
-  - [ ] 未传 deviceKey 时生成 `dk_`+16 位随机；重复 → 400 字段级错误
+  - [ ] 未传 deviceKey 时生成 `dk_`+16 位随机（至少含一个字母和一个数字）；重复 → 400 字段级错误
   - [ ] deviceName 同模型内重复 → 400 字段级错误
   - [ ] thingModelId 不存在 → 400 `error.thing_model_not_found`
   - [ ] 数量超限或空数组 → 400

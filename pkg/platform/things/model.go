@@ -103,13 +103,55 @@ func NewID() string {
 	return ulid.Make().String()
 }
 
+const (
+	deviceKeyCharset       = "0123456789abcdefghijklmnopqrstuvwxyz"
+	deviceKeySuffixLength  = 16
+	deviceKeyCharsetModulo = 252 // largest multiple of len(deviceKeyCharset) <= 255
+)
+
 // NewDeviceKey returns an auto-generated device key.
 func NewDeviceKey() (string, error) {
-	value, err := randomHex(8)
-	if err != nil {
-		return "", err
+	for {
+		suffix, err := newDeviceKeySuffix(deviceKeySuffixLength)
+		if err != nil {
+			return "", err
+		}
+		if hasLetterAndDigit(suffix) {
+			return DeviceKeyPrefix + suffix, nil
+		}
 	}
-	return DeviceKeyPrefix + value, nil
+}
+
+func newDeviceKeySuffix(length int) (string, error) {
+	out := make([]byte, length)
+	var buf [1]byte
+	for i := 0; i < length; {
+		if _, err := rand.Read(buf[:]); err != nil {
+			return "", err
+		}
+		if int(buf[0]) >= deviceKeyCharsetModulo {
+			continue
+		}
+		out[i] = deviceKeyCharset[int(buf[0])%len(deviceKeyCharset)]
+		i++
+	}
+	return string(out), nil
+}
+
+func hasLetterAndDigit(value string) bool {
+	hasLetter, hasDigit := false, false
+	for _, char := range value {
+		switch {
+		case char >= 'a' && char <= 'z':
+			hasLetter = true
+		case char >= '0' && char <= '9':
+			hasDigit = true
+		}
+		if hasLetter && hasDigit {
+			return true
+		}
+	}
+	return false
 }
 
 // NewDeviceSecret returns a 32-byte random secret as hex.

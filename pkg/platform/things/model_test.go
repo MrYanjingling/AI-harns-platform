@@ -1,6 +1,7 @@
 package things
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -12,11 +13,16 @@ import (
 )
 
 func TestNewDeviceKey(t *testing.T) {
-	key, err := NewDeviceKey()
-	require.NoError(t, err)
-	assert.True(t, strings.HasPrefix(key, DeviceKeyPrefix))
-	assert.Len(t, key, len(DeviceKeyPrefix)+16)
-	assert.True(t, ValidDeviceKey(key))
+	pattern := regexp.MustCompile(`^dk_[a-z0-9]{16}$`)
+	for i := 0; i < 32; i++ {
+		key, err := NewDeviceKey()
+		require.NoError(t, err)
+		assert.True(t, strings.HasPrefix(key, DeviceKeyPrefix))
+		assert.Len(t, key, len(DeviceKeyPrefix)+16)
+		assert.Regexp(t, pattern, key)
+		assert.True(t, hasLetterAndDigit(key), key)
+		assert.True(t, ValidDeviceKey(key))
+	}
 }
 
 func TestNewSecretsAreHex(t *testing.T) {

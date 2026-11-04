@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS `things` (
 |---|---|---|
 | id | 后端 | ULID |
 | deviceName | 入参 | 必填，≤64，同一物模型内唯一 |
-| deviceKey | 入参/后端 | 可选；`^[a-zA-Z][a-zA-Z0-9_-]{3,63}$`，全局唯一；为空生成 `dk_` + 16 位随机小写字母数字 |
+| deviceKey | 入参/后端 | 可选；`^[a-zA-Z][a-zA-Z0-9_-]{3,63}$`，全局唯一；为空生成 `dk_` + 16 位随机小写字母数字，且至少包含一个字母和一个数字 |
 | deviceSecret | 后端 | 32 字节 `crypto/rand` → hex 64 位；不可修改 |
 | token | 后端 | 32 字节 `crypto/rand` → hex 64 位，全局唯一；不可修改 |
 | upTopic | 后端 | `iot/` + deviceKey + `/up`（上行），不可覆盖、不可修改 |
