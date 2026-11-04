@@ -119,7 +119,7 @@ func (s *Server) InstallHandlers() error {
 
 	iot := v1.Group("/iot", authSvc.Auth(), auditMW)
 	identity.InstallHandler(iot, identitySvc)
-	thingModelSvc := thingmodel.NewService(thingmodel.NewStore(s.Config.DB))
+	thingModelSvc := thingmodel.NewService(thingmodel.NewStore(s.Config.DB), s.Config.Redis)
 	thingmodel.InstallHandler(iot, thingModelSvc)
 	emqxSvc := emqx.NewService(s.Config.EMQX)
 	thingsSvc := things.NewService(
@@ -129,6 +129,21 @@ func (s *Server) InstallHandlers() error {
 		emqxSvc,
 	)
 	things.InstallHandler(iot, thingsSvc)
+
+	var propertyTS things.PropertyTimeseries
+	var propertyLogWriter things.PropertyLogWriter
+	if s.timeseriesSvc != nil {
+		propertyTS = s.timeseriesSvc
+		propertyLogWriter = s.timeseriesSvc
+	}
+	propertyProcessor := things.NewPropertyProcessor(thingModelSvc, propertyTS)
+	propertyHandler := things.NewPropertyHandlerWithLogWriter(propertyProcessor, propertyLogWriter)
+	messageRouter := things.NewMessageRouter(map[things.MessageKind]things.MessageHandler{
+		things.MessageKindProperty:     propertyHandler,
+		things.MessageKindEvent:        things.NewEventHandler(&things.LoggingEventProcessor{}),
+		things.MessageKindCommandReply: things.NewCommandReplyHandler(&things.LoggingCommandReplyProcessor{}),
+	})
+
 	s.messagePipeline = things.NewMessagePipeline(things.MessagePipelineConfig{
 		KafkaEnabled: s.Config.Things.Message.KafkaEnabled,
 		Brokers:      s.Config.Things.Message.Kafka.Brokers,
@@ -136,7 +151,7 @@ func (s *Server) InstallHandlers() error {
 		GroupID:      s.Config.Things.Message.Kafka.GroupID,
 		BatchSize:    s.Config.Things.Message.Kafka.BatchSize,
 		MaxWait:      time.Duration(s.Config.Things.Message.Kafka.MaxWaitMs) * time.Millisecond,
-	}, things.NewDefaultMessageRouter())
+	}, messageRouter)
 	emqx := v1.Group("/iot")
 	things.InstallEMQXHandler(emqx, thingsSvc, s.messagePipeline, s.Config.Things.AuthSecret)
 	deviceHTTP := v1.Group("/iot")

@@ -228,3 +228,20 @@ func TestDecodeInboundReturnsPropertyInterface(t *testing.T) {
 	_, ok := msg.(*PropertyReport)
 	assert.True(t, ok)
 }
+
+func TestDecodePropertyReportRequiresProperty(t *testing.T) {
+	_, err := DecodePropertyReport([]byte(`{"type":"property","payload":[{"time":1,"property":{}}]}`))
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEmptyProperty)
+}
+
+func TestDecodePropertyReportAllowsEmptyPayloadAndMissingTime(t *testing.T) {
+	report, err := DecodePropertyReport([]byte(`{"type":"property","payload":[]}`))
+	require.NoError(t, err)
+	assert.Empty(t, report.Payload)
+
+	report, err = DecodePropertyReport([]byte(`{"type":"property","payload":[{"property":{"a":1}}]}`))
+	require.NoError(t, err)
+	require.Len(t, report.Payload, 1)
+	assert.Zero(t, report.Payload[0].Time)
+}

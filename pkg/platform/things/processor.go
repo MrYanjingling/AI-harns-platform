@@ -42,8 +42,8 @@ func (r *MessageRouter) Handle(ctx context.Context, msg *DeviceMessage) error {
 	return handler.Handle(ctx, msg)
 }
 
-// NewDefaultMessageRouter wires the logging processors. Replace the logging
-// processors with real business implementations when they are ready.
+// NewDefaultMessageRouter wires the logging processors. It is used by tests
+// and as a safe default when no business processors are configured.
 func NewDefaultMessageRouter() *MessageRouter {
 	return NewMessageRouter(map[MessageKind]MessageHandler{
 		MessageKindProperty:     NewPropertyHandler(&LoggingPropertyProcessor{}),

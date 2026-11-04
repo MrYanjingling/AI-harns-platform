@@ -72,7 +72,6 @@ type DataTypeDetail struct {
 	UnitName *string `json:"unitName,omitempty"`
 	Min      *string `json:"min,omitempty"`
 	Max      *string `json:"max,omitempty"`
-	Step     *string `json:"step,omitempty"`
 
 	TrueValue  *string `json:"trueValue,omitempty"`
 	FalseValue *string `json:"falseValue,omitempty"`
@@ -248,30 +247,30 @@ func (d *DataTypeDetail) Normalize() {
 		d.TrueValue, d.FalseValue, d.Length = nil, nil, nil
 		d.EnumSpec, d.ArraySpec, d.StructSpec = nil, nil, nil
 	case DataTypeBool:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.Length = nil
 		d.EnumSpec, d.ArraySpec, d.StructSpec = nil, nil, nil
 	case DataTypeEnum:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.TrueValue, d.FalseValue, d.Length = nil, nil, nil
 		d.ArraySpec, d.StructSpec = nil, nil
 	case DataTypeText:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.TrueValue, d.FalseValue = nil, nil
 		d.EnumSpec, d.ArraySpec, d.StructSpec = nil, nil, nil
 	case DataTypeTime:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.TrueValue, d.FalseValue, d.Length = nil, nil, nil
 		d.EnumSpec, d.ArraySpec, d.StructSpec = nil, nil, nil
 	case DataTypeArray:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.TrueValue, d.FalseValue, d.Length = nil, nil, nil
 		d.EnumSpec, d.StructSpec = nil, nil
 		if d.ArraySpec != nil {
 			d.ArraySpec.Element.Normalize()
 		}
 	case DataTypeStruct:
-		d.Unit, d.UnitName, d.Min, d.Max, d.Step = nil, nil, nil, nil, nil
+		d.Unit, d.UnitName, d.Min, d.Max = nil, nil, nil, nil
 		d.TrueValue, d.FalseValue, d.Length = nil, nil, nil
 		d.EnumSpec, d.ArraySpec = nil, nil
 		if d.StructSpec != nil {

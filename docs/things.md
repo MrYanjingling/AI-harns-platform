@@ -359,7 +359,7 @@ iot/<deviceKey>/down  平台 -> 设备
 ```
 
 业务处理由 `PropertyProcessor` / `EventProcessor` / `CommandReplyProcessor` 分别实现；
-`NewDefaultMessageRouter()` 当前使用日志 Processor 占位，后续替换为真实实现。
+生产环境使用 `DefaultPropertyProcessor`，`NewDefaultMessageRouter()` 仅用于测试和兜底占位。
 
 ## 10. HTTP 设备数据上报
 

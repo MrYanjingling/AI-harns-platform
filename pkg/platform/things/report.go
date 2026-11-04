@@ -12,6 +12,7 @@ var (
 	ErrUnsupportedMessageType    = errors.New("unsupported message type")
 	ErrOutboundMessageType       = errors.New("command is an outbound message type")
 	ErrEmptyEventIdentify        = errors.New("eventIdentify must not be empty")
+	ErrEmptyProperty             = errors.New("property must not be empty")
 	ErrEmptyCommandProperty      = errors.New("command property must not be empty")
 	ErrEmptyCommandReplyProperty = errors.New("command reply property must not be empty")
 	ErrMissingMessageID          = errors.New("messageId is required")
@@ -105,6 +106,11 @@ func DecodeInbound(data []byte) (InboundMessage, error) {
 		var items []PropertyReportItem
 		if err := json.Unmarshal(env.Payload, &items); err != nil {
 			return nil, err
+		}
+		for i := range items {
+			if len(items[i].Property) == 0 {
+				return nil, fmt.Errorf("%w: index %d", ErrEmptyProperty, i)
+			}
 		}
 		return &PropertyReport{Type: MessageKindProperty, Payload: items}, nil
 	case MessageKindEvent:

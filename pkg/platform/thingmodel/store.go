@@ -24,6 +24,8 @@ const (
  created_user, updated_user, created_time, updated_time`
 	propertyColumns = `id, version, thing_model_id, identifier, name, data_type, rw_flag,
  required, description, custom, sort, created_user, updated_user, created_time, updated_time`
+	propertyColumnsAliased = `p.id, p.version, p.thing_model_id, p.identifier, p.name, p.data_type, p.rw_flag,
+ p.required, p.description, p.custom, p.sort, p.created_user, p.updated_user, p.created_time, p.updated_time`
 )
 
 type rowScanner interface {
@@ -171,6 +173,37 @@ func (s *Store) ListProperties(ctx context.Context, modelID string) ([]Property,
 		list = append(list, *p)
 	}
 	return list, rows.Err()
+}
+
+// ListPropertiesByModelKey returns the properties of a model by business key.
+func (s *Store) ListPropertiesByModelKey(ctx context.Context, modelKey string) ([]Property, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+propertyColumnsAliased+` FROM thing_model_properties p
+		 JOIN thing_models m ON m.id = p.thing_model_id
+		 WHERE m.thing_model_key = ?
+		 ORDER BY p.sort ASC, p.created_time ASC, p.id ASC`, modelKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]Property, 0)
+	for rows.Next() {
+		p, err := scanProperty(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, *p)
+	}
+	return list, rows.Err()
+}
+
+// GetThingModelKey returns the business key of a model.
+func (s *Store) GetThingModelKey(ctx context.Context, id string) (string, error) {
+	var key string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT thing_model_key FROM thing_models WHERE id = ?`, id).Scan(&key)
+	return key, err
 }
 
 // GetProperty loads a single property by model and identifier.

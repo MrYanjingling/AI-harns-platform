@@ -52,8 +52,8 @@
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | collectionId | string | 否 | 采集通道 ID，预留字段，当前允许为空 |
-| time | int64 | 是 | 数据采集时间，Unix 毫秒 |
-| property | object | 是 | 属性键值对，键为物模型中的属性 identifier |
+| time | int64 | 否 | 数据采集时间，Unix 毫秒；缺失或 <= 0 时使用服务器当前时间 |
+| property | object | 是 | 属性键值对，键为物模型中的属性 identifier，不能为空 |
 
 `property` 的值支持 JSON 原始类型：
 
@@ -63,7 +63,19 @@
 - null
 - object / array（由物模型结构决定）
 
-平台按 JSON 原始值接收，后续根据物模型的 `dataType` 进行解析和校验。
+平台按 JSON 原始值接收，后续根据物模型的 `dataType` 进行解析和校验：
+
+- `required` 属性必须出现且不能为 `null`，否则整条请求失败。
+- 物模型中不存在的属性 identifier 直接忽略。
+- 值支持字符串形式（如 `"1"`、`"25.5"`）和 JSON 原生类型。
+- `int`/`long` 校验整数和 `min`/`max`；`float`/`double` 校验数值和 `min`/`max`。
+- `bool` 支持 `true/false`、`1/0`、`"1"/"0"` 以及物模型的 `trueValue`/`falseValue`。
+- `enum` 校验值在 `enumSpec.values` 中。
+- `text` 按字符数校验 `length`；`time` 按字符串存储，不校验格式。
+- `array` 的 `size` 为最大元素个数，并递归校验元素。
+- `struct` 只处理已定义字段，未知字段忽略。
+- 校验失败写 `device_property_log_<modelKey>`，`success=false`，不写时序数据。
+- 校验通过并提交时序服务后写 `success=true`。
 
 ## 4. event 上报
 

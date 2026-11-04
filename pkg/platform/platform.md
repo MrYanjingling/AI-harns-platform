@@ -390,7 +390,7 @@
 
   | type | 允许字段 | 必填校验 |
   |---|---|---|
-  | int / long / float / double | unit、unitName、min、max、step | min ≤ max（可解析时） |
+  | int / long / float / double | unit、unitName、min、max | min ≤ max（可解析时） |
   | bool | trueValue、falseValue | 无 |
   | enum | enumSpec.values[] | values 非空，value 不重复 |
   | text | length | 正整数 |
@@ -401,9 +401,9 @@
   ```go
   type DataTypeDetail struct {
       Type DataType `json:"type"` // int|long|float|double|bool|enum|text|time|array|struct
-      Unit, UnitName, Min, Max, Step *string
-      TrueValue, FalseValue          *string
-      Length                         *string
+      Unit, UnitName, Min, Max *string
+      TrueValue, FalseValue    *string
+      Length                   *string
       EnumSpec   *EnumSpec   `json:"enumSpec,omitempty"`
       ArraySpec  *ArraySpec  `json:"arraySpec,omitempty"`
       StructSpec *StructSpec `json:"structSpec,omitempty"`
@@ -806,7 +806,7 @@
 
   - `MessageRouter` 按 `Kind` 查找 `PropertyHandler` / `EventHandler` / `CommandReplyHandler`。
   - Handler 负责解码，业务逻辑放在独立的 `PropertyProcessor` / `EventProcessor` / `CommandReplyProcessor`。
-  - `NewDefaultMessageRouter()` 当前使用日志 Processor 占位，后续替换为真实实现。
+  - 生产环境由 `web` 组装 `DefaultPropertyProcessor`；`NewDefaultMessageRouter()` 仅用于测试和兜底占位。
   - 未注册的 type 记录日志后忽略。
 - 配置：
 
@@ -887,7 +887,7 @@
   - `pkg/platform/things/device_message.go`：`ResolveInboundKind`
 - 约束：
   - `type` 必填，缺失不处理并记录上报日志。
-  - `time` 为 Unix 毫秒。
+  - `time` 为 Unix 毫秒；缺失或 `<= 0` 时使用服务器当前时间。
   - `collectionId` 预留，允许为空。
   - `property`、`eventIdentify` 值保留原始 JSON（`json.RawMessage`）。
   - `eventIdentify` 每个上报项必须非空。
@@ -895,6 +895,13 @@
   - `command_reply` 的 `messageId` 必填，`property` 非空，`result` 必须出现，`time` 为毫秒。
   - 批量条数不限制，受请求体大小约束。
   - 重复数据由时序库按时间覆盖，平台不去重。
+- property 处理：
+  - 属性定义按 `thingModelKey` 获取，Redis key `iot:thingmodel:properties:<modelKey>`，TTL 24 小时；未命中回落 MySQL 并回填。
+  - 物模型属性增删改、导入、删除模型后主动删除缓存。
+  - `required` 属性必须存在且非 null；未知 identifier 忽略。
+  - 值按 `dataType` 转换校验。
+  - 校验失败写 `device_property_log_<modelKey>`（`success=false`），不写时序数据，返回 nil 不触发重试。
+  - 全部通过后提交时序数据，再写 `success=true` 日志。
 
 ### F18. 图片上传
 - 状态：TODO

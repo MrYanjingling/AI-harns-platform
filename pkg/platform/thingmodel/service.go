@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/redis/go-redis/v9"
 
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
@@ -19,13 +20,19 @@ import (
 	"harns-platform/pkg/platform/thingmodel/v1"
 )
 
+const (
+	propertiesCachePrefix = "iot:thingmodel:properties:"
+	propertiesCacheTTL    = 24 * time.Hour
+)
+
 // Service is the business layer of the thing model module.
 type Service struct {
 	store *Store
+	redis redis.UniversalClient
 }
 
-func NewService(store *Store) *Service {
-	return &Service{store: store}
+func NewService(store *Store, rdb redis.UniversalClient) *Service {
+	return &Service{store: store, redis: rdb}
 }
 
 // Create creates a thing model with optional initial properties.
@@ -82,6 +89,7 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateThingModelReq) (*v1.
 			return nil, response.ErrInternal(err)
 		}
 	}
+	s.invalidatePropertiesCache(ctx, model.ThingModelKey)
 	return s.Get(ctx, model.ID)
 }
 
@@ -110,6 +118,67 @@ func (s *Service) Get(ctx context.Context, id string) (*v1.ThingModelDetailVo, e
 		return nil, err
 	}
 	return toThingModelDetailVo(model), nil
+}
+
+// GetPropertiesByKey returns the properties of a model indexed by identifier.
+// Redis is used as a transparent cache; a miss falls back to MySQL.
+func (s *Service) GetPropertiesByKey(ctx context.Context, modelKey string) (map[string]tsl.Property, error) {
+	defer logging.Trace("thingmodel.GetPropertiesByKey", "thingModelKey", modelKey)()
+
+	modelKey = strings.TrimSpace(modelKey)
+	if modelKey == "" {
+		return nil, fmt.Errorf("thing model key is required")
+	}
+
+	cacheKey := propertiesCachePrefix + modelKey
+	if s.redis != nil {
+		if data, err := s.redis.Get(ctx, cacheKey).Bytes(); err == nil {
+			var properties map[string]tsl.Property
+			if err := json.Unmarshal(data, &properties); err == nil {
+				return properties, nil
+			} else {
+				logging.ErrorS(err, "Failed to decode cached thing model properties", "thingModelKey", modelKey)
+			}
+		} else if !errors.Is(err, redis.Nil) {
+			logging.ErrorS(err, "Failed to read cached thing model properties", "thingModelKey", modelKey)
+		}
+	}
+
+	entities, err := s.store.ListPropertiesByModelKey(ctx, modelKey)
+	if err != nil {
+		return nil, err
+	}
+	if len(entities) == 0 {
+		exists, err := s.store.ExistsThingModelKey(ctx, modelKey, "")
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, fmt.Errorf("thing model %s not found", modelKey)
+		}
+	}
+	properties := make(map[string]tsl.Property, len(entities))
+	for i := range entities {
+		properties[entities[i].Identifier] = entities[i].Property
+	}
+
+	if s.redis != nil {
+		if data, err := json.Marshal(properties); err != nil {
+			logging.ErrorS(err, "Failed to encode thing model properties", "thingModelKey", modelKey)
+		} else if err := s.redis.Set(ctx, cacheKey, data, propertiesCacheTTL).Err(); err != nil {
+			logging.ErrorS(err, "Failed to cache thing model properties", "thingModelKey", modelKey)
+		}
+	}
+	return properties, nil
+}
+
+func (s *Service) invalidatePropertiesCache(ctx context.Context, modelKey string) {
+	if s.redis == nil || modelKey == "" {
+		return
+	}
+	if err := s.redis.Del(ctx, propertiesCachePrefix+modelKey).Err(); err != nil {
+		logging.ErrorS(err, "Failed to invalidate thing model properties cache", "thingModelKey", modelKey)
+	}
 }
 
 // Update changes the mutable header fields of a thing model.
@@ -160,6 +229,13 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateThingMode
 func (s *Service) Delete(ctx context.Context, id string, cascade bool) error {
 	defer logging.Trace("thingmodel.Delete", "id", id, "cascade", cascade)()
 
+	modelKey, err := s.store.GetThingModelKey(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return response.ErrThingModelNotFound(id)
+	}
+	if err != nil {
+		return response.ErrInternal(err)
+	}
 	n, err := s.store.DeleteThingModel(ctx, id)
 	if err != nil {
 		return response.ErrInternal(err)
@@ -167,6 +243,7 @@ func (s *Service) Delete(ctx context.Context, id string, cascade bool) error {
 	if n == 0 {
 		return response.ErrThingModelNotFound(id)
 	}
+	s.invalidatePropertiesCache(ctx, modelKey)
 	return nil
 }
 
@@ -226,6 +303,7 @@ func (s *Service) AddProperties(ctx context.Context, id string, properties []tsl
 	if err := s.store.AppendProperties(ctx, model.ID, entities, operator, now); err != nil {
 		return nil, response.ErrInternal(err)
 	}
+	s.invalidatePropertiesCache(ctx, model.ThingModelKey)
 	return toPropertyVos(entities), nil
 }
 
@@ -237,6 +315,10 @@ func (s *Service) UpdateProperty(ctx context.Context, id, identifier string, pro
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, response.ErrThingModelPropertyNotFound(identifier)
 	}
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	modelKey, err := s.store.GetThingModelKey(ctx, existing.ThingModelID)
 	if err != nil {
 		return nil, response.ErrInternal(err)
 	}
@@ -283,6 +365,7 @@ func (s *Service) UpdateProperty(ctx context.Context, id, identifier string, pro
 	if n == 0 {
 		return nil, response.ErrThingModelPropertyNotFound(identifier)
 	}
+	s.invalidatePropertiesCache(ctx, modelKey)
 	existing.Version++
 	vo := toPropertyVo(existing)
 	return &vo, nil
@@ -292,7 +375,8 @@ func (s *Service) UpdateProperty(ctx context.Context, id, identifier string, pro
 func (s *Service) DeleteProperties(ctx context.Context, id string, identifiers []string) (int64, error) {
 	defer logging.Trace("thingmodel.DeleteProperties", "id", id, "count", len(identifiers))()
 
-	if _, err := s.getEntity(ctx, id); err != nil {
+	model, err := s.getEntity(ctx, id)
+	if err != nil {
 		return 0, err
 	}
 	cleaned := make([]string, 0, len(identifiers))
@@ -305,6 +389,7 @@ func (s *Service) DeleteProperties(ctx context.Context, id string, identifiers [
 	if err != nil {
 		return 0, response.ErrInternal(err)
 	}
+	s.invalidatePropertiesCache(ctx, model.ThingModelKey)
 	return n, nil
 }
 
@@ -401,6 +486,7 @@ func (s *Service) Import(ctx context.Context, id string, content []byte) (*v1.Th
 		}
 		return nil, response.ErrInternal(err)
 	}
+	s.invalidatePropertiesCache(ctx, model.ThingModelKey)
 	return s.Get(ctx, model.ID)
 }
 

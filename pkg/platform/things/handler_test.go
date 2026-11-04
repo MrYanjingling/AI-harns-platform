@@ -99,3 +99,21 @@ func TestCommandReplyHandler(t *testing.T) {
 	require.NoError(t, handler.Handle(context.Background(), msg))
 	assert.False(t, processor.called)
 }
+
+func TestPropertyHandlerWritesFailureLogOnDecodeError(t *testing.T) {
+	processor := &fakePropertyProcessor{}
+	logWriter := &fakePropertyTimeseries{}
+	handler := NewPropertyHandlerWithLogWriter(processor, logWriter)
+
+	msg := &DeviceMessage{
+		Kind:          MessageKindProperty,
+		ThingModelKey: "tm_demo",
+		DeviceKey:     "device-1",
+		Payload:       `{"type":"property","payload":[{"property":{}}]}`,
+	}
+	require.NoError(t, handler.Handle(context.Background(), msg))
+	assert.False(t, processor.called)
+	require.Len(t, logWriter.logs, 1)
+	assert.False(t, logWriter.logs[0].Success)
+	assert.Contains(t, logWriter.logs[0].ErrorMsg, "property must not be empty")
+}

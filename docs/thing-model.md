@@ -43,8 +43,7 @@
         "unit": "℃",
         "unitName": "摄氏度",
         "min": "0",
-        "max": "100",
-        "step": "0.1"
+        "max": "100"
       },
       "rwFlag": "r",
       "required": true,
@@ -156,9 +155,9 @@
 type DataTypeDetail struct {
     Type DataType `json:"type"` // int|long|float|double|bool|enum|text|time|array|struct
 
-    Unit, UnitName, Min, Max, Step *string
-    TrueValue, FalseValue          *string
-    Length                         *string
+    Unit, UnitName, Min, Max *string
+    TrueValue, FalseValue    *string
+    Length                   *string
 
     EnumSpec   *EnumSpec   `json:"enumSpec,omitempty"`
     ArraySpec  *ArraySpec  `json:"arraySpec,omitempty"`
@@ -174,7 +173,7 @@ type EnumValue   struct { Value int `json:"value"`; Desc string `json:"desc"` }
 
 | type | 允许字段 | 必填校验 |
 |---|---|---|
-| int / long / float / double | unit、unitName、min、max、step | min ≤ max（可解析时） |
+| int / long / float / double | unit、unitName、min、max | min ≤ max（可解析时） |
 | bool | trueValue、falseValue | 无 |
 | enum | enumSpec.values[] | values 非空，value 不重复 |
 | text | length | 正整数 |
