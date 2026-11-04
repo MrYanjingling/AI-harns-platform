@@ -1,0 +1,412 @@
+openapi: 3.0.1
+info:
+  description: "Thing model and property management."
+  version: "0.1.0"
+  title: "Platform Thing Model API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: ThingModel
+    description: Thing model management.
+paths:
+  /iot/thingModels:
+    get:
+      tags: [ThingModel]
+      summary: List thing models (paged).
+      operationId: listThingModels
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+        - name: keyword
+          in: query
+          schema: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Paged thing models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer, example: 1 }
+                      page: { type: integer, example: 1 }
+                      pageSize: { type: integer, example: 10 }
+                      list:
+                        type: array
+                        items: { $ref: '#/components/schemas/ThingModelVo' }
+    post:
+      tags: [ThingModel]
+      summary: Create a thing model with optional properties.
+      description: |
+        thingModelKey is optional. When omitted the backend generates "tm_" + a
+        lowercase ULID. The key is globally unique and cannot be modified later.
+      operationId: createThingModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateThingModelReq' }
+      responses:
+        '200':
+          description: Created thing model
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingModelDetailVo' }
+  /iot/thingModels/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+    get:
+      tags: [ThingModel]
+      summary: Get a thing model with its properties.
+      operationId: getThingModel
+      responses:
+        '200':
+          description: Thing model detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingModelDetailVo' }
+    put:
+      tags: [ThingModel]
+      summary: Update the thing model name or description.
+      operationId: updateThingModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateThingModelReq' }
+      responses:
+        '200':
+          description: Updated thing model
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingModelVo' }
+    delete:
+      tags: [ThingModel]
+      summary: Delete a thing model and all of its properties.
+      description: |
+        cascade is reserved for cascading to related things. Properties always
+        belong to the model and are deleted with it.
+      operationId: deleteThingModel
+      parameters:
+        - name: cascade
+          in: query
+          required: false
+          description: Reserved for related things; default false, invalid values are treated as false.
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Deleted
+  /iot/thingModels/{id}/properties:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+    post:
+      tags: [ThingModel]
+      summary: Append one or more properties.
+      description: The batch is atomic. Duplicate identifier/name inside the batch or the model fails the request.
+      operationId: addThingModelProperties
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/Property' }
+      responses:
+        '200':
+          description: Appended properties
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PropertyVo' }
+    delete:
+      tags: [ThingModel]
+      summary: Delete properties by identifier (idempotent).
+      description: Missing identifiers are ignored. The response contains the number of deleted rows.
+      operationId: deleteThingModelProperties
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { type: string }
+      responses:
+        '200':
+          description: Deleted count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    properties:
+                      deleted: { type: integer, example: 2 }
+  /iot/thingModels/{id}/properties/{identifier}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+      - name: identifier
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    put:
+      tags: [ThingModel]
+      summary: Update one property.
+      description: The path identifier is authoritative; a mismatching identifier in the body is rejected.
+      operationId: updateThingModelProperty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Property' }
+      responses:
+        '200':
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/PropertyVo' }
+  /iot/thingModels/{id}/tsl:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+    get:
+      tags: [ThingModel]
+      summary: Export the thing model as JSON.
+      responses:
+        '200':
+          description: Exported JSON document
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThingModelDocument' }
+    put:
+      tags: [ThingModel]
+      summary: Import a thing model as JSON.
+      description: |
+        Updates name/description and replaces all properties. Features are
+        replaced only when the features field is present. thingModelKey may be
+        omitted, but when present it must match the current key. Missing
+        properties fails; an empty array clears all properties.
+      operationId: importThingModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportThingModelReq' }
+      responses:
+        '200':
+          description: Imported thing model
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingModelDetailVo' }
+components:
+  schemas:
+    CreateThingModelReq:
+      type: object
+      required: [name]
+      properties:
+        thingModelKey:
+          type: string
+          description: Optional; generated when omitted; immutable after creation.
+          pattern: '^[a-zA-Z][a-zA-Z0-9_-]{3,63}$'
+        name: { type: string, maxLength: 64 }
+        description: { type: string, maxLength: 255 }
+        properties:
+          type: array
+          items: { $ref: '#/components/schemas/Property' }
+        features:
+          type: array
+          items: { $ref: '#/components/schemas/Feature' }
+    UpdateThingModelReq:
+      type: object
+      properties:
+        name: { type: string, maxLength: 64 }
+        description: { type: string, maxLength: 255 }
+    ThingModelVo:
+      type: object
+      properties:
+        id: { type: string }
+        version: { type: integer, format: int64 }
+        thingModelKey: { type: string }
+        name: { type: string }
+        description: { type: string }
+        propertyCount: { type: integer }
+        createdUser: { type: string }
+        updatedUser: { type: string }
+        createdTime: { type: string, format: date-time }
+        updatedTime: { type: string, format: date-time }
+    ThingModelDetailVo:
+      allOf:
+        - $ref: '#/components/schemas/ThingModelVo'
+        - type: object
+          properties:
+            properties:
+              type: array
+              items: { $ref: '#/components/schemas/PropertyVo' }
+            features:
+              type: array
+              items: { $ref: '#/components/schemas/Feature' }
+    Feature:
+      type: object
+      required: [identifier, name, dataType]
+      properties:
+        identifier:
+          type: string
+          pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+          maxLength: 64
+        name: { type: string, maxLength: 64 }
+        dataType: { $ref: '#/components/schemas/DataTypeDetail' }
+        description: { type: string, maxLength: 255 }
+        custom: { type: object, additionalProperties: true }
+        sort: { type: integer, default: 0 }
+    PropertyVo:
+      allOf:
+        - $ref: '#/components/schemas/Property'
+        - type: object
+          properties:
+            id: { type: string }
+            version: { type: integer, format: int64 }
+            createdUser: { type: string }
+            updatedUser: { type: string }
+            createdTime: { type: string, format: date-time }
+            updatedTime: { type: string, format: date-time }
+    Property:
+      type: object
+      required: [identifier, name, dataType]
+      properties:
+        identifier:
+          type: string
+          pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+          maxLength: 64
+        name: { type: string, maxLength: 64 }
+        dataType: { $ref: '#/components/schemas/DataTypeDetail' }
+        rwFlag: { type: string, enum: [r, w, rw], default: r }
+        required: { type: boolean, default: false }
+        description: { type: string, maxLength: 255 }
+        custom: { type: object, additionalProperties: true }
+        sort: { type: integer, default: 0 }
+    DataTypeDetail:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [int, long, float, double, bool, enum, text, time, array, struct]
+        unit: { type: string }
+        unitName: { type: string }
+        min: { type: string }
+        max: { type: string }
+        step: { type: string }
+        trueValue: { type: string }
+        falseValue: { type: string }
+        length: { type: string }
+        enumSpec: { $ref: '#/components/schemas/EnumSpec' }
+        arraySpec: { $ref: '#/components/schemas/ArraySpec' }
+        structSpec: { $ref: '#/components/schemas/StructSpec' }
+    EnumSpec:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: integer }
+              desc: { type: string }
+    ArraySpec:
+      type: object
+      required: [element]
+      properties:
+        size: { type: string, description: Optional, integer between 1 and 512. }
+        element: { $ref: '#/components/schemas/DataTypeDetail' }
+    StructSpec:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: object
+            required: [identifier]
+            properties:
+              identifier: { type: string }
+              name: { type: string }
+              dataType: { $ref: '#/components/schemas/DataTypeDetail' }
+    ImportThingModelReq:
+      type: object
+      required: [properties]
+      properties:
+        thingModelKey:
+          type: string
+          description: Optional; must match the current key when present.
+        name: { type: string, maxLength: 64 }
+        description: { type: string, maxLength: 255 }
+        properties:
+          type: array
+          items: { $ref: '#/components/schemas/Property' }
+        features:
+          type: array
+          items: { $ref: '#/components/schemas/Feature' }
+    ThingModelDocument:
+      type: object
+      properties:
+        thingModelKey: { type: string }
+        name: { type: string }
+        description: { type: string }
+        properties:
+          type: array
+          items: { $ref: '#/components/schemas/Property' }
+        features:
+          type: array
+          items: { $ref: '#/components/schemas/Feature' }

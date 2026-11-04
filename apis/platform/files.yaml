@@ -1,0 +1,57 @@
+openapi: 3.0.1
+info:
+  description: "Generic image upload backed by MinIO."
+  version: "0.1.0"
+  title: "Platform File API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: File
+    description: Image upload.
+paths:
+  /iot/files:
+    post:
+      tags: [File]
+      summary: Upload an image.
+      description: |
+        Accepts multipart/form-data with a single `file` field. Allowed types
+        are image/jpeg, image/png, image/webp and image/gif. The maximum size is
+        controlled by files.max-image-bytes (default 10 MiB). The returned key
+        can be stored in things.image.
+      operationId: uploadImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded image key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/FileVo' }
+        '400':
+          description: Invalid file type, too large, or missing file
+        '401':
+          description: Unauthorized
+        '500':
+          description: Upload failed
+components:
+  schemas:
+    FileVo:
+      type: object
+      properties:
+        key:
+          type: string
+          example: images/2026/11/01k8z3m4q7x9v2b6n1c5d0e8fg.png
