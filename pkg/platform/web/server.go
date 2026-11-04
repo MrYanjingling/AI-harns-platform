@@ -132,10 +132,10 @@ func (s *Server) InstallHandlers() error {
 	things.InstallHandler(iot, thingsSvc)
 
 	var propertyTS things.PropertyTimeseries
-	var propertyLogWriter things.PropertyLogWriter
+	var reportLogger things.PropertyReportLogger
 	if s.timeseriesSvc != nil {
 		propertyTS = s.timeseriesSvc
-		propertyLogWriter = s.timeseriesSvc
+		reportLogger = s.timeseriesSvc
 	}
 	alarmTriggerDispatcher := things.NewPropertyTriggerDispatcher(things.PropertyTriggerConfig{
 		KafkaEnabled: s.Config.Things.Message.KafkaEnabled,
@@ -159,8 +159,15 @@ func (s *Server) InstallHandlers() error {
 		ruleTriggerDispatcher,
 	)
 
-	propertyProcessor := things.NewPropertyProcessor(thingModelSvc, propertyTS, thingsSvc, triggerRouter)
-	propertyHandler := things.NewPropertyHandlerWithLogWriter(propertyProcessor, propertyLogWriter)
+	propertyProcessor := things.NewPropertyProcessor(
+		thingModelSvc,
+		propertyTS,
+		thingsSvc,
+		triggerRouter,
+		things.UnavailableGatewayCollectionResolver{},
+		reportLogger,
+	)
+	propertyHandler := things.NewPropertyHandlerWithLogger(propertyProcessor, reportLogger)
 	messageRouter := things.NewMessageRouter(map[things.MessageKind]things.MessageHandler{
 		things.MessageKindProperty:     propertyHandler,
 		things.MessageKindEvent:        things.NewEventHandler(&things.LoggingEventProcessor{}),

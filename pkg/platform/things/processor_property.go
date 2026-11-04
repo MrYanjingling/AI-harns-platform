@@ -2,6 +2,7 @@ package things
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,15 +23,15 @@ type PropertyDefinitionResolver interface {
 	GetPropertiesByKey(ctx context.Context, modelKey string) (map[string]tsl.Property, error)
 }
 
-// PropertyTimeseries writes property samples and request logs.
+// PropertyTimeseries writes property samples.
 type PropertyTimeseries interface {
 	WriteProperty(ctx context.Context, modelKey string, points []timeseries.PropertyPoint) error
-	WritePropertyLog(ctx context.Context, modelKey string, log timeseries.PropertyLog) error
 }
 
-// PropertyLogWriter writes property request logs.
-type PropertyLogWriter interface {
+// PropertyReportLogger writes device and gateway property report logs.
+type PropertyReportLogger interface {
 	WritePropertyLog(ctx context.Context, modelKey string, log timeseries.PropertyLog) error
+	WriteGatewayPropertyLog(ctx context.Context, log timeseries.GatewayPropertyLog) error
 }
 
 // ShadowUpdate is one property sample applied to the device shadow.
@@ -58,33 +59,56 @@ func (p *LoggingPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 // DefaultPropertyProcessor validates property reports and submits samples to
 // timeseries storage.
 type DefaultPropertyProcessor struct {
-	resolver PropertyDefinitionResolver
-	ts       PropertyTimeseries
-	shadow   PropertyShadow
-	trigger  PropertyTriggerSink
+	resolver        PropertyDefinitionResolver
+	ts              PropertyTimeseries
+	shadow          PropertyShadow
+	trigger         PropertyTriggerSink
+	gatewayResolver GatewayCollectionResolver
+	logs            PropertyReportLogger
 }
 
 // NewPropertyProcessor builds the default property processor.
-func NewPropertyProcessor(resolver PropertyDefinitionResolver, ts PropertyTimeseries, shadow PropertyShadow, trigger PropertyTriggerSink) *DefaultPropertyProcessor {
-	return &DefaultPropertyProcessor{resolver: resolver, ts: ts, shadow: shadow, trigger: trigger}
+func NewPropertyProcessor(
+	resolver PropertyDefinitionResolver,
+	ts PropertyTimeseries,
+	shadow PropertyShadow,
+	trigger PropertyTriggerSink,
+	gatewayResolver GatewayCollectionResolver,
+	logs PropertyReportLogger,
+) *DefaultPropertyProcessor {
+	return &DefaultPropertyProcessor{
+		resolver:        resolver,
+		ts:              ts,
+		shadow:          shadow,
+		trigger:         trigger,
+		gatewayResolver: gatewayResolver,
+		logs:            logs,
+	}
 }
 
 func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *DeviceMessage, report *PropertyReport) error {
 	if p == nil || msg == nil {
 		return nil
 	}
-	modelKey := strings.TrimSpace(msg.ThingModelKey)
 	if report == nil {
-		p.writeFailure(ctx, msg, modelKey, errors.New("property report is nil"))
+		p.writeReportFailure(ctx, msg, errors.New("property report is nil"))
 		return nil
 	}
+	if strings.TrimSpace(msg.ThingModelKey) != "" {
+		return p.processDirect(ctx, msg, report)
+	}
+	if strings.TrimSpace(msg.GatewayID) != "" {
+		return p.processGateway(ctx, msg, report)
+	}
+	logging.V(2).InfoS("Ignoring property report without thing model key or gateway id",
+		"deviceKey", msg.DeviceKey, "messageId", msg.MessageID)
+	return nil
+}
+
+func (p *DefaultPropertyProcessor) processDirect(ctx context.Context, msg *DeviceMessage, report *PropertyReport) error {
+	modelKey := strings.TrimSpace(msg.ThingModelKey)
 	if p.resolver == nil {
 		p.writeFailure(ctx, msg, modelKey, errors.New("property definition resolver is not configured"))
-		return nil
-	}
-	if modelKey == "" {
-		logging.V(2).InfoS("Ignoring property report without thing model key",
-			"deviceKey", msg.DeviceKey, "messageId", msg.MessageID)
 		return nil
 	}
 
@@ -99,34 +123,10 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 	shadowUpdates := make([]ShadowUpdate, 0, len(report.Payload))
 	triggers := make([]PropertyTrigger, 0, len(report.Payload))
 	for i, item := range report.Payload {
-		for identifier, definition := range definitions {
-			if !definition.Required {
-				continue
-			}
-			raw, ok := item.Property[identifier]
-			if !ok || tsl.IsNullValue(raw) {
-				p.writeFailure(ctx, msg, modelKey,
-					fmt.Errorf("payload[%d].property.%s: required property is missing", i, identifier))
-				return nil
-			}
-		}
-
-		values := make(map[string]any, len(item.Property))
-		for identifier, raw := range item.Property {
-			definition, ok := definitions[identifier]
-			if !ok {
-				continue
-			}
-			if tsl.IsNullValue(raw) {
-				continue
-			}
-			value, err := tsl.ConvertValue(definition.DataType, raw)
-			if err != nil {
-				p.writeFailure(ctx, msg, modelKey,
-					fmt.Errorf("payload[%d].property.%s: %w", i, identifier, err))
-				return nil
-			}
-			values[identifier] = value
+		values, err := p.convertPropertyValues(definitions, item.Property, nil)
+		if err != nil {
+			p.writeFailure(ctx, msg, modelKey, fmt.Errorf("payload[%d]: %w", i, err))
+			return nil
 		}
 
 		timestamp := item.Time
@@ -177,7 +177,7 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 		}
 	}
 
-	if p.ts != nil {
+	if p.logs != nil {
 		log := timeseries.PropertyLog{
 			ModelID:   msg.ThingModelID,
 			DeviceID:  msg.ThingID,
@@ -186,7 +186,7 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 			Success:   true,
 			Payload:   msg.Payload,
 		}
-		if err := p.ts.WritePropertyLog(ctx, modelKey, log); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
+		if err := p.logs.WritePropertyLog(ctx, modelKey, log); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
 			logging.ErrorS(err, "Failed to write property log",
 				"deviceKey", msg.DeviceKey, "thingModelKey", modelKey)
 		}
@@ -194,11 +194,75 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 	return nil
 }
 
+func (p *DefaultPropertyProcessor) convertPropertyValues(
+	definitions map[string]tsl.Property,
+	raw map[string]json.RawMessage,
+	mapping map[string]string,
+) (map[string]any, error) {
+	properties := raw
+	if len(mapping) > 0 {
+		properties = make(map[string]json.RawMessage, len(raw))
+		for rawKey, value := range raw {
+			identifier := strings.TrimSpace(mapping[rawKey])
+			if identifier == "" {
+				continue
+			}
+			if _, exists := properties[identifier]; exists {
+				return nil, fmt.Errorf("duplicate mapping for property %s", identifier)
+			}
+			properties[identifier] = value
+		}
+	}
+
+	for identifier, definition := range definitions {
+		if !definition.Required {
+			continue
+		}
+		value, ok := properties[identifier]
+		if !ok || tsl.IsNullValue(value) {
+			return nil, fmt.Errorf("required property is missing: %s", identifier)
+		}
+	}
+
+	values := make(map[string]any, len(properties))
+	for identifier, rawValue := range properties {
+		definition, ok := definitions[identifier]
+		if !ok {
+			continue
+		}
+		if tsl.IsNullValue(rawValue) {
+			continue
+		}
+		value, err := tsl.ConvertValue(definition.DataType, rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("property %s: %w", identifier, err)
+		}
+		values[identifier] = value
+	}
+	return values, nil
+}
+
+func (p *DefaultPropertyProcessor) writeReportFailure(ctx context.Context, msg *DeviceMessage, cause error) {
+	if msg == nil {
+		return
+	}
+	if modelKey := strings.TrimSpace(msg.ThingModelKey); modelKey != "" {
+		p.writeFailure(ctx, msg, modelKey, cause)
+		return
+	}
+	if gatewayID := strings.TrimSpace(msg.GatewayID); gatewayID != "" {
+		p.writeGatewayLog(ctx, msg, false, cause.Error())
+		return
+	}
+	logging.V(2).InfoS("Property report validation failed",
+		"deviceKey", msg.DeviceKey, "messageId", msg.MessageID, "err", cause)
+}
+
 func (p *DefaultPropertyProcessor) writeFailure(ctx context.Context, msg *DeviceMessage, modelKey string, cause error) {
 	if msg == nil {
 		return
 	}
-	if p == nil || p.ts == nil || modelKey == "" {
+	if p == nil || p.logs == nil || modelKey == "" {
 		logging.V(2).InfoS("Property report validation failed",
 			"deviceKey", msg.DeviceKey, "messageId", msg.MessageID, "err", cause)
 		return
@@ -212,7 +276,7 @@ func (p *DefaultPropertyProcessor) writeFailure(ctx context.Context, msg *Device
 		Payload:   msg.Payload,
 		ErrorMsg:  cause.Error(),
 	}
-	if err := p.ts.WritePropertyLog(ctx, modelKey, log); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
+	if err := p.logs.WritePropertyLog(ctx, modelKey, log); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
 		logging.ErrorS(err, "Failed to write property failure log",
 			"deviceKey", msg.DeviceKey, "thingModelKey", modelKey)
 	}

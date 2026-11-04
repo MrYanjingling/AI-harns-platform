@@ -92,8 +92,12 @@ func (p *MessagePipeline) Handle(ctx context.Context, msg *DeviceMessage) error 
 	if traceID := generic.TraceIDFromContext(ctx); traceID != "" {
 		headers = append(headers, kafka.Header{Key: generic.TraceHeader, Value: []byte(traceID)})
 	}
+	key := msg.DeviceKey
+	if key == "" {
+		key = msg.GatewayID
+	}
 	return p.writer.WriteMessages(ctx, kafka.Message{
-		Key:     []byte(msg.DeviceKey),
+		Key:     []byte(key),
 		Value:   value,
 		Headers: headers,
 	})

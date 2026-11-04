@@ -103,7 +103,7 @@ func TestCommandReplyHandler(t *testing.T) {
 func TestPropertyHandlerWritesFailureLogOnDecodeError(t *testing.T) {
 	processor := &fakePropertyProcessor{}
 	logWriter := &fakePropertyTimeseries{}
-	handler := NewPropertyHandlerWithLogWriter(processor, logWriter)
+	handler := NewPropertyHandlerWithLogger(processor, logWriter)
 
 	msg := &DeviceMessage{
 		Kind:          MessageKindProperty,
@@ -116,4 +116,24 @@ func TestPropertyHandlerWritesFailureLogOnDecodeError(t *testing.T) {
 	require.Len(t, logWriter.logs, 1)
 	assert.False(t, logWriter.logs[0].Success)
 	assert.Contains(t, logWriter.logs[0].ErrorMsg, "property must not be empty")
+}
+
+func TestPropertyHandlerWritesGatewayFailureLogOnDecodeError(t *testing.T) {
+	processor := &fakePropertyProcessor{}
+	gatewayLogs := &fakeGatewayLogWriter{}
+	handler := NewPropertyHandlerWithLogger(processor, gatewayLogs)
+
+	msg := &DeviceMessage{
+		Kind:        MessageKindProperty,
+		GatewayType: "modbusTcp",
+		GatewayID:   "gw-1",
+		Payload:     `{"type":"property","payload":[{"collectionId":"c1","property":{}}]}`,
+	}
+	require.NoError(t, handler.Handle(context.Background(), msg))
+	assert.False(t, processor.called)
+	require.Len(t, gatewayLogs.logs, 1)
+	assert.False(t, gatewayLogs.logs[0].Success)
+	assert.Equal(t, "gw-1", gatewayLogs.logs[0].GatewayID)
+	assert.Equal(t, "modbusTcp", gatewayLogs.logs[0].GatewayType)
+	assert.Contains(t, gatewayLogs.logs[0].ErrorMsg, "property must not be empty")
 }

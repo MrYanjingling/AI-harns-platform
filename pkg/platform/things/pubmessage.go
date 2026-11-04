@@ -33,6 +33,22 @@ func (e *EmqxPubEventMessage) DeviceKey() string {
 	return strings.TrimSpace(e.ClientAttrs[ClientAttrsDeviceKey])
 }
 
+// GatewayType returns the gateway type carried in client_attrs.
+func (e *EmqxPubEventMessage) GatewayType() string {
+	if e == nil || e.ClientAttrs == nil {
+		return ""
+	}
+	return strings.TrimSpace(e.ClientAttrs[ClientAttrsGatewayType])
+}
+
+// GatewayID returns the gateway id carried in client_attrs.
+func (e *EmqxPubEventMessage) GatewayID() string {
+	if e == nil || e.ClientAttrs == nil {
+		return ""
+	}
+	return strings.TrimSpace(e.ClientAttrs[ClientAttrsGatewayID])
+}
+
 // ReceivedAt returns the message receive time in Unix milliseconds.
 func (e *EmqxPubEventMessage) ReceivedAt() int64 {
 	if e == nil {

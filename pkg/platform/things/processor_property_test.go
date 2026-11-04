@@ -27,11 +27,12 @@ func (r *fakePropertyResolver) GetPropertiesByKey(ctx context.Context, modelKey 
 }
 
 type fakePropertyTimeseries struct {
-	points   []timeseries.PropertyPoint
-	logs     []timeseries.PropertyLog
-	writeErr error
-	logErr   error
-	order    *[]string
+	points      []timeseries.PropertyPoint
+	logs        []timeseries.PropertyLog
+	gatewayLogs []timeseries.GatewayPropertyLog
+	writeErr    error
+	logErr      error
+	order       *[]string
 }
 
 func (f *fakePropertyTimeseries) WriteProperty(ctx context.Context, modelKey string, points []timeseries.PropertyPoint) error {
@@ -47,17 +48,24 @@ func (f *fakePropertyTimeseries) WritePropertyLog(ctx context.Context, modelKey 
 	return f.logErr
 }
 
+func (f *fakePropertyTimeseries) WriteGatewayPropertyLog(ctx context.Context, log timeseries.GatewayPropertyLog) error {
+	f.gatewayLogs = append(f.gatewayLogs, log)
+	return f.logErr
+}
+
 type fakePropertyShadow struct {
-	updates []ShadowUpdate
-	thingID string
-	calls   int
-	err     error
-	order   *[]string
+	updates  []ShadowUpdate
+	thingIDs []string
+	thingID  string
+	calls    int
+	err      error
+	order    *[]string
 }
 
 func (f *fakePropertyShadow) UpdateReported(ctx context.Context, thingID string, updates []ShadowUpdate) error {
 	f.calls++
 	f.thingID = thingID
+	f.thingIDs = append(f.thingIDs, thingID)
 	f.updates = append(f.updates, updates...)
 	if f.order != nil {
 		*f.order = append(*f.order, "shadow")
@@ -101,7 +109,7 @@ func decodeProperty(t *testing.T, payload string) *PropertyReport {
 func TestDefaultPropertyProcessorSuccess(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{
 		"type":"property",
@@ -127,7 +135,7 @@ func TestDefaultPropertyProcessorSuccess(t *testing.T) {
 func TestDefaultPropertyProcessorRequiredMissing(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"status":"running"}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo", DeviceKey: "device-1"}
@@ -142,7 +150,7 @@ func TestDefaultPropertyProcessorRequiredMissing(t *testing.T) {
 func TestDefaultPropertyProcessorRequiredNull(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":null}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -156,7 +164,7 @@ func TestDefaultPropertyProcessorRequiredNull(t *testing.T) {
 func TestDefaultPropertyProcessorInvalidValue(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":"abc"}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -171,7 +179,7 @@ func TestDefaultPropertyProcessorInvalidValue(t *testing.T) {
 func TestDefaultPropertyProcessorOptionalNullIsSkipped(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":20,"status":null}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -185,7 +193,7 @@ func TestDefaultPropertyProcessorOptionalNullIsSkipped(t *testing.T) {
 func TestDefaultPropertyProcessorResolverError(t *testing.T) {
 	resolver := &fakePropertyResolver{err: errors.New("db down")}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -200,7 +208,7 @@ func TestDefaultPropertyProcessorResolverError(t *testing.T) {
 func TestDefaultPropertyProcessorWriteError(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{writeErr: errors.New("queue closed")}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -214,7 +222,7 @@ func TestDefaultPropertyProcessorWriteError(t *testing.T) {
 func TestDefaultPropertyProcessorEmptyPayload(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -228,7 +236,7 @@ func TestDefaultPropertyProcessorEmptyPayload(t *testing.T) {
 func TestDefaultPropertyProcessorZeroTimeUsesNow(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo"}
@@ -247,7 +255,7 @@ func TestDefaultPropertyProcessorUpdatesShadowBeforeTimeseries(t *testing.T) {
 	ts := &fakePropertyTimeseries{order: &order}
 	shadow := &fakePropertyShadow{order: &order}
 	trigger := &fakePropertyTriggerSink{order: &order}
-	processor := NewPropertyProcessor(resolver, ts, shadow, trigger)
+	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1773827321000,"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{
@@ -276,7 +284,7 @@ func TestDefaultPropertyProcessorSkipsShadowOnValidationFailure(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
 	shadow := &fakePropertyShadow{}
-	processor := NewPropertyProcessor(resolver, ts, shadow, nil)
+	processor := NewPropertyProcessor(resolver, ts, shadow, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":"abc"}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo", ThingID: "thing-1"}
@@ -290,7 +298,7 @@ func TestDefaultPropertyProcessorShadowErrorContinues(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
 	shadow := &fakePropertyShadow{err: errors.New("redis down")}
-	processor := NewPropertyProcessor(resolver, ts, shadow, nil)
+	processor := NewPropertyProcessor(resolver, ts, shadow, nil, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":1,"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo", ThingID: "thing-1"}
@@ -306,7 +314,7 @@ func TestDefaultPropertyProcessorDispatchesOneTriggerPerItem(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
 	trigger := &fakePropertyTriggerSink{}
-	processor := NewPropertyProcessor(resolver, ts, nil, trigger)
+	processor := NewPropertyProcessor(resolver, ts, nil, trigger, nil, ts)
 
 	report := decodeProperty(t, `{
 		"type":"property",
@@ -330,7 +338,7 @@ func TestDefaultPropertyProcessorDispatchesWhenShadowFails(t *testing.T) {
 	ts := &fakePropertyTimeseries{}
 	shadow := &fakePropertyShadow{err: errors.New("redis down")}
 	trigger := &fakePropertyTriggerSink{}
-	processor := NewPropertyProcessor(resolver, ts, shadow, trigger)
+	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":100,"property":{"temperature":20}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo", ThingID: "thing-1", DeviceKey: "device-1"}
@@ -344,7 +352,7 @@ func TestDefaultPropertyProcessorDoesNotDispatchOnValidationFailure(t *testing.T
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
 	trigger := &fakePropertyTriggerSink{}
-	processor := NewPropertyProcessor(resolver, ts, nil, trigger)
+	processor := NewPropertyProcessor(resolver, ts, nil, trigger, nil, ts)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":100,"property":{"temperature":"bad"}}]}`)
 	msg := &DeviceMessage{ThingModelKey: "tm_demo", ThingID: "thing-1"}

@@ -95,6 +95,27 @@ func (s *Service) WritePropertyLog(ctx context.Context, modelKey string, log Pro
 	return s.store.EnqueueLog(ctx, point)
 }
 
+// WriteGatewayPropertyLog writes one gateway property request log.
+func (s *Service) WriteGatewayPropertyLog(ctx context.Context, log GatewayPropertyLog) error {
+	if s.store == nil {
+		return ErrDisabled
+	}
+	point := &Point{
+		Measurement: GatewayPropertyLogMeasurement,
+		Tags: map[string]string{
+			TagGatewayType: log.GatewayType,
+			TagGatewayID:   log.GatewayID,
+		},
+		Fields: map[string]any{
+			FieldSuccess:  log.Success,
+			FieldPayload:  log.Payload,
+			FieldErrorMsg: log.ErrorMsg,
+		},
+		Time: pointTime(log.Time),
+	}
+	return s.store.EnqueueLog(ctx, point)
+}
+
 // WriteEvent writes event samples.
 func (s *Service) WriteEvent(ctx context.Context, modelKey string, points []EventPoint) error {
 	if s.store == nil {

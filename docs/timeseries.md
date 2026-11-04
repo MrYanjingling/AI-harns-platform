@@ -35,7 +35,7 @@ Content-Type: application/json
 
 ## 3. 表结构
 
-所有表列名使用 snake_case，均包含 `model_id`、`device_id`、`device_key` 三个 tag，时间列 `time` 使用毫秒精度。
+设备类表列名使用 snake_case，包含 `model_id`、`device_id`、`device_key` 三个 tag；`gateway_property_log` 使用 `gateway_type`、`gateway_id`；时间列 `time` 使用毫秒精度。
 
 ### 3.1 `device_property_<modelKey>`
 
@@ -58,6 +58,18 @@ Content-Type: application/json
 | fields | `success`, `payload`, `error_msg` |
 
 - 按请求一条，`payload` 为本次请求原始 JSON。
+- 保留：`harns_timeseries_log`
+
+### 3.2.1 `gateway_property_log`
+
+| 角色 | 列 |
+|---|---|
+| tags | `gateway_type`, `gateway_id` |
+| time | `time` |
+| fields | `success`, `payload`, `error_msg` |
+
+- 网关属性报文每次请求一条。
+- `payload` 为整条网关请求原始 JSON。
 - 保留：`harns_timeseries_log`
 
 ### 3.3 `device_event_<modelKey>`

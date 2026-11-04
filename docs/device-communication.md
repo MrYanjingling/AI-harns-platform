@@ -51,7 +51,7 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| collectionId | string | 否 | 采集通道 ID，预留字段，当前允许为空 |
+| collectionId | string | 否 | 采集通道 ID；直连可空，网关上报必填 |
 | time | int64 | 否 | 数据采集时间，Unix 毫秒；缺失或 <= 0 时使用服务器当前时间 |
 | property | object | 是 | 属性键值对，键为物模型中的属性 identifier，不能为空 |
 
@@ -79,6 +79,46 @@
 - 设备影子 `reported` 按属性合并；`item.time` 早于影子 `timestamp` 的批次整批跳过。
 - 如果 `desired` 中的属性值与 `reported` 相等，则从 `desired` 中删除。
 - 影子更新后，每个 property item 先判断是否存在告警和规则条件，只对命中的目标异步分发；Kafka 开启时分别投递到告警/规则触发 topic，否则调用对应本地 handler。
+
+
+### 3.1 网关上报
+
+网关使用同一套 `type=property` 信封，但不带物模型信息，而是通过 EMQX `client_attrs` 携带：
+
+```json
+{
+  "gateway_type": "modbusTcp",
+  "gateway_id": "gw-1"
+}
+```
+
+报文 item 必须带 `collectionId`：
+
+```json
+{
+  "type": "property",
+  "payload": [
+    {
+      "collectionId": "meter-channel-1",
+      "time": 1773827321000,
+      "property": {
+        "t1": 20,
+        "t2": 21,
+        "s": "on"
+      }
+    }
+  ]
+}
+```
+
+处理规则：
+
+- `modelKey` 为空且 `gatewayId` 非空时进入网关分支。
+- 一个 `collectionId` 可解析出多个设备 binding；每个 binding 有自己的物模型和属性键映射。
+- 每个 binding 独立处理，某个设备失败不影响同报文其他设备。
+- 网关报文只写一条 `gateway_property_log`，不写对应设备的属性日志表。
+- 网关子设备在线状态暂不更新。
+- `collectionId` 映射当前为 Resolver 占位实现，未配置时网关日志为 `success=false`。
 
 ## 4. event 上报
 

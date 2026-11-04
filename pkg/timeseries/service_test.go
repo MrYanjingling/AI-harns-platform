@@ -1,10 +1,13 @@
 package timeseries
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTableNames(t *testing.T) {
@@ -13,6 +16,7 @@ func TestTableNames(t *testing.T) {
 	assert.Equal(t, "device_event_tm_1", EventTable("tm_1"))
 	assert.Equal(t, "device_event_log_tm_1", EventLogTable("tm_1"))
 	assert.Equal(t, "device_command_record_tm_1", CommandRecordTable("tm_1"))
+	assert.Equal(t, "gateway_property_log", GatewayPropertyLogMeasurement)
 }
 
 func TestNormalizeValue(t *testing.T) {
@@ -47,4 +51,38 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, 10000, cfg.BatchSize)
 	assert.Equal(t, 20000, cfg.QueueSize)
 	assert.Equal(t, 3000, cfg.FlushIntervalMs)
+}
+
+type capturePointWriter struct {
+	points []*Point
+}
+
+func (w *capturePointWriter) WritePoints(ctx context.Context, points []*Point) error {
+	w.points = append(w.points, points...)
+	return nil
+}
+
+func TestWriteGatewayPropertyLog(t *testing.T) {
+	writer := &capturePointWriter{}
+	store := &Store{log: newBatcher(writer, 1, time.Millisecond, time.Second, 10)}
+	store.log.start()
+	service := &Service{store: store}
+	t.Cleanup(func() { _ = store.Close() })
+
+	err := service.WriteGatewayPropertyLog(context.Background(), GatewayPropertyLog{
+		GatewayType: "modbusTcp",
+		GatewayID:   "gw-1",
+		Time:        time.UnixMilli(1000),
+		Success:     false,
+		Payload:     `{"type":"property"}`,
+		ErrorMsg:    "boom",
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
+	require.Len(t, writer.points, 1)
+	assert.Equal(t, GatewayPropertyLogMeasurement, writer.points[0].Measurement)
+	assert.Equal(t, "modbusTcp", writer.points[0].Tags[TagGatewayType])
+	assert.Equal(t, "gw-1", writer.points[0].Tags[TagGatewayID])
+	assert.Equal(t, false, writer.points[0].Fields[FieldSuccess])
+	assert.Equal(t, "boom", writer.points[0].Fields[FieldErrorMsg])
 }

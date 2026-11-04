@@ -12,6 +12,8 @@ const (
 	ClientAttrsThingModelID  = "thing_model_id"
 	ClientAttrsThingModelKey = "thing_model_key"
 	ClientAttrsDeviceName    = "device_name"
+	ClientAttrsGatewayType   = "gateway_type"
+	ClientAttrsGatewayID     = "gateway_id"
 )
 
 // MessageKind is the business category carried in the payload type field.
@@ -25,7 +27,7 @@ const (
 )
 
 // DeviceMessage is the platform-level message passed to processors and Kafka.
-// It is intentionally free of transport-specific fields such as client_attrs.
+// It is independent of transport-specific structures such as raw client_attrs.
 type DeviceMessage struct {
 	Kind          MessageKind `json:"kind"`
 	Topic         string      `json:"topic"`
@@ -34,6 +36,8 @@ type DeviceMessage struct {
 	ThingModelID  string      `json:"thingModelId"`
 	ThingModelKey string      `json:"thingModelKey"`
 	DeviceName    string      `json:"deviceName"`
+	GatewayType   string      `json:"gatewayType"`
+	GatewayID     string      `json:"gatewayId"`
 	Payload       string      `json:"payload"`
 	Timestamp     int64       `json:"timestamp"`
 	MessageID     string      `json:"messageId"`
@@ -66,7 +70,7 @@ func ResolveInboundKind(payload string) (MessageKind, bool) {
 
 // BuildDeviceMessageFromEvent converts an EMQX event into a platform message.
 func BuildDeviceMessageFromEvent(event *EmqxPubEventMessage) (*DeviceMessage, bool) {
-	if event == nil || event.Event != EmqxEventMessagePublish || event.DeviceKey() == "" {
+	if event == nil || event.Event != EmqxEventMessagePublish {
 		return nil, false
 	}
 	kind, ok := ResolveInboundKind(event.Payload)
@@ -74,14 +78,21 @@ func BuildDeviceMessageFromEvent(event *EmqxPubEventMessage) (*DeviceMessage, bo
 		return nil, false
 	}
 	attrs := event.ClientAttrs
+	deviceKey := event.DeviceKey()
+	gatewayID := strings.TrimSpace(attrs[ClientAttrsGatewayID])
+	if deviceKey == "" && gatewayID == "" {
+		return nil, false
+	}
 	return &DeviceMessage{
 		Kind:          kind,
 		Topic:         event.Topic,
-		DeviceKey:     event.DeviceKey(),
+		DeviceKey:     deviceKey,
 		ThingID:       attrs[ClientAttrsThingID],
 		ThingModelID:  attrs[ClientAttrsThingModelID],
 		ThingModelKey: attrs[ClientAttrsThingModelKey],
 		DeviceName:    attrs[ClientAttrsDeviceName],
+		GatewayType:   strings.TrimSpace(attrs[ClientAttrsGatewayType]),
+		GatewayID:     gatewayID,
 		Payload:       event.Payload,
 		Timestamp:     event.ReceivedAt(),
 		MessageID:     event.ID,

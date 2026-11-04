@@ -189,3 +189,23 @@ func TestPubMessageHandler(t *testing.T) {
 	rec = do(`{"event":"message.publish","topic":"iot/device_001/up","client_attrs":{"device_key":"device_001"},"payload":"{\"type\":\"property\"}"}`)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
+
+func TestBuildDeviceMessageFromEventGateway(t *testing.T) {
+	event := &EmqxPubEventMessage{
+		Event: EmqxEventMessagePublish,
+		Topic: "data/gw-1/v1/meter-1",
+		ClientAttrs: map[string]string{
+			ClientAttrsGatewayType: "modbusTcp",
+			ClientAttrsGatewayID:   "gw-1",
+		},
+		Payload: `{"type":"property","payload":[]}`,
+	}
+
+	msg, ok := BuildDeviceMessageFromEvent(event)
+	require.True(t, ok)
+	assert.Empty(t, msg.DeviceKey)
+	assert.Empty(t, msg.ThingModelKey)
+	assert.Equal(t, "modbusTcp", msg.GatewayType)
+	assert.Equal(t, "gw-1", msg.GatewayID)
+	assert.Equal(t, "data/gw-1/v1/meter-1", msg.Topic)
+}

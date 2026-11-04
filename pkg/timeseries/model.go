@@ -17,12 +17,17 @@ const (
 	CommandRecordTablePrefix = "device_command_record_"
 )
 
+// GatewayPropertyLogMeasurement is the fixed measurement for gateway reports.
+const GatewayPropertyLogMeasurement = "gateway_property_log"
+
 // Tag keys.
 const (
 	TagModelID       = "model_id"
 	TagDeviceID      = "device_id"
 	TagDeviceKey     = "device_key"
 	TagEventIdentify = "event_identify"
+	TagGatewayType   = "gateway_type"
+	TagGatewayID     = "gateway_id"
 )
 
 // Field keys.
@@ -77,6 +82,16 @@ type PropertyLog struct {
 	Success   bool
 	Payload   string
 	ErrorMsg  string
+}
+
+// GatewayPropertyLog is one gateway property report request log.
+type GatewayPropertyLog struct {
+	GatewayType string
+	GatewayID   string
+	Time        time.Time
+	Success     bool
+	Payload     string
+	ErrorMsg    string
 }
 
 // EventPoint is one event sample.

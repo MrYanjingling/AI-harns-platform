@@ -763,7 +763,7 @@
 - 输入：EMQX 原始 `EmqxPubEventMessage`，字段与 EMQX webhook 对齐。
 - 处理：
   1. 校验共享密钥 Header；
-  2. 仅处理 `event == "message.publish"` 且 `client_attrs.device_key` 非空的事件，其余返回 204；
+  2. 仅处理 `event == "message.publish"` 且 `client_attrs.device_key` 或 `client_attrs.gateway_id` 非空的事件，其余返回 204；
   3. 把事件转换为平台 `DeviceMessage`，`things.message.kafka-enabled=true` 时写入 Kafka：
      `key = deviceKey`，保证同一设备进入同一分区；
   4. 后台 consumer 批量消费，按 `DeviceMessage.Kind` 路由到 Handler；
@@ -789,6 +789,8 @@
       ThingModelID  string
       ThingModelKey string
       DeviceName    string
+      GatewayType   string
+      GatewayID     string
       Payload       string
       Timestamp     int64
       MessageID     string
@@ -836,7 +838,7 @@
   - 日志禁止打印完整 payload。
 - 验收标准：
   - [ ] 非 `message.publish` 返回 204
-  - [ ] 缺少 `client_attrs.device_key` 返回 204
+  - [ ] 缺少 `client_attrs.device_key` 和 `client_attrs.gateway_id` 返回 204
   - [ ] Kafka 开启时按 deviceKey 分区写入 DeviceMessage
   - [ ] consumer 批量消费并正确分类到 property/command_reply/event
   - [ ] Kafka 关闭时同步调用 Router
@@ -892,7 +894,7 @@
 - 约束：
   - `type` 必填，缺失不处理并记录上报日志。
   - `time` 为 Unix 毫秒；缺失或 `<= 0` 时使用服务器当前时间。
-  - `collectionId` 预留，允许为空。
+  - `collectionId` 直连允许为空；网关分支必须非空。
   - `property`、`eventIdentify` 值保留原始 JSON（`json.RawMessage`）。
   - `eventIdentify` 每个上报项必须非空。
   - `command` 的 `messageId` 必填且唯一，`property` 非空。
@@ -916,6 +918,14 @@
   - Kafka 开启时，告警投递到 `things.message.kafka.alarm-property-trigger-topic`（默认 `iot.alarm.property.trigger`），规则投递到 `things.message.kafka.rule-property-trigger-topic`（默认 `iot.rule.property.trigger`），key 为 `deviceKey`。
   - Kafka 关闭时分别调用本地 `PropertyTriggerHandler`；当前使用 `LoggingPropertyTriggerHandler{Name}` 占位。
   - 告警和规则使用两个独立 dispatcher，各自一个 worker + 有界队列 `things.message.trigger-queue-size`（默认 1024）；队列满只丢弃该目标并记录日志。
+- 网关属性上报：
+  - `modelKey` 非空走直连分支；`modelKey` 为空且 `gatewayId` 非空走网关分支。
+  - 网关身份来自 EMQX `client_attrs.gateway_type` / `client_attrs.gateway_id`；当前 `/thingsAuth` 只处理 thing，网关认证属性需由 EMQX/后续认证补齐。
+  - 网关 item 必须带 `collectionId`；`GatewayCollectionResolver` 可返回一个或多个 `GatewayPropertyBinding`。
+  - 每个 binding 独立做属性映射、required/dataType 校验、时序、影子和告警/规则触发；单设备失败不影响其他设备。
+  - 网关报文只写一条 `gateway_property_log`（tags `gateway_type`、`gateway_id`），不写设备属性日志表。
+  - 网关子设备在线状态暂不更新。
+  - Resolver 当前为 `UnavailableGatewayCollectionResolver` 占位实现，未配置时网关日志 `success=false`。
   - 触发数据异步分发，不阻塞属性校验、影子和时序写入；分发失败只记录日志。
   - JSON：
 

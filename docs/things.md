@@ -309,7 +309,8 @@ X-Things-Auth-Secret: <things.auth-secret>
 ```
 
 - 与 `/thingsAuth` 同一组，不经过平台用户认证。
-- 只处理 `event == "message.publish"` 且 `client_attrs.device_key` 非空的事件；其余返回 204。
+- 只处理 `event == "message.publish"`，且 `client_attrs.device_key` 或 `client_attrs.gateway_id` 非空的事件；其余返回 204。
+- 网关连接需在 `client_attrs` 中携带 `gateway_type` / `gateway_id`；`/thingsAuth` 当前只返回 thing 的属性。
 - 入口把 EMQX 事件转换为平台 `DeviceMessage`，再交给 Router。
 
 ### 9.1 处理链路
@@ -321,7 +322,7 @@ EMQX 事件
   -> 转换 DeviceMessage
   -> 刷新在线状态
   -> Kafka 关闭：Router.Handle
-  -> Kafka 开启：Kafka(topic, key=deviceKey) -> consumer 批量消费 -> Router.Handle
+  -> Kafka 开启：Kafka(topic, key=deviceKey 或 gatewayId) -> consumer 批量消费 -> Router.Handle
 ```
 
 `DeviceMessage`：
@@ -335,6 +336,8 @@ type DeviceMessage struct {
     ThingModelID  string
     ThingModelKey string
     DeviceName    string
+    GatewayType   string
+    GatewayID     string
     Payload       string
     Timestamp     int64
     MessageID     string
@@ -403,7 +406,7 @@ TTL   = 30 分钟，命中时刷新
 token -> ThingIdentity -> 校验 JSON -> 刷新在线状态
   -> 构造 DeviceMessage(Kind=取自 payload type，Source=http, Topic=upTopic)
   -> Kafka 关闭：Router.Handle
-  -> Kafka 开启：Kafka(topic, key=deviceKey) -> consumer -> Router.Handle
+  -> Kafka 开启：Kafka(topic, key=deviceKey 或 gatewayId) -> consumer -> Router.Handle
 ```
 
 响应使用平台风格：
