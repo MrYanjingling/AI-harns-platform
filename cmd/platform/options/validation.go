@@ -78,6 +78,65 @@ func Validate(o *Options) []error {
 		errs = append(errs, fmt.Errorf("security.captcha-ttl-seconds must be greater than 0"))
 	}
 
+	if o.Things.OnlineTTLSeconds <= 0 {
+		errs = append(errs, fmt.Errorf("things.online-ttl-seconds must be greater than 0"))
+	}
+	if o.Things.AuthSecret != "" && len(o.Things.AuthSecret) < 16 {
+		errs = append(errs, fmt.Errorf("things.auth-secret must be at least 16 bytes when set"))
+	}
+	if o.Things.Message.KafkaEnabled {
+		if len(o.Things.Message.Kafka.Brokers) == 0 {
+			errs = append(errs, fmt.Errorf("things.message.kafka.brokers must not be empty when kafka is enabled"))
+		}
+		if strings.TrimSpace(o.Things.Message.Kafka.Topic) == "" {
+			errs = append(errs, fmt.Errorf("things.message.kafka.topic must not be empty when kafka is enabled"))
+		}
+		if strings.TrimSpace(o.Things.Message.Kafka.GroupID) == "" {
+			errs = append(errs, fmt.Errorf("things.message.kafka.group-id must not be empty when kafka is enabled"))
+		}
+		if o.Things.Message.Kafka.BatchSize <= 0 {
+			errs = append(errs, fmt.Errorf("things.message.kafka.batch-size must be greater than 0"))
+		}
+		if o.Things.Message.Kafka.MaxWaitMs <= 0 {
+			errs = append(errs, fmt.Errorf("things.message.kafka.max-wait-ms must be greater than 0"))
+		}
+	}
+
+	if strings.TrimSpace(o.EMQX.APIURL) == "" {
+		errs = append(errs, fmt.Errorf("emqx.api-url must not be empty"))
+	}
+	if (strings.TrimSpace(o.EMQX.AK) == "") != (strings.TrimSpace(o.EMQX.SK) == "") {
+		errs = append(errs, fmt.Errorf("emqx.ak and emqx.sk must be set together"))
+	}
+	if o.EMQX.TimeoutMs <= 0 {
+		errs = append(errs, fmt.Errorf("emqx.timeout-ms must be greater than 0"))
+	}
+
+	if o.Files.MaxImageBytes <= 0 {
+		errs = append(errs, fmt.Errorf("files.max-image-bytes must be greater than 0"))
+	}
+
+	if o.Timeseries.Enabled {
+		if strings.TrimSpace(o.Timeseries.URL) == "" {
+			errs = append(errs, fmt.Errorf("timeseries.url must not be empty when enabled"))
+		}
+		if strings.TrimSpace(o.Timeseries.Token) == "" {
+			errs = append(errs, fmt.Errorf("timeseries.token must not be empty when enabled"))
+		}
+		if strings.TrimSpace(o.Timeseries.Database) == "" || strings.TrimSpace(o.Timeseries.LogDatabase) == "" {
+			errs = append(errs, fmt.Errorf("timeseries.database and timeseries.log-database must be set"))
+		}
+		if strings.TrimSpace(o.Timeseries.DataRetention) == "" || strings.TrimSpace(o.Timeseries.LogRetention) == "" {
+			errs = append(errs, fmt.Errorf("timeseries retention values must be set"))
+		}
+		if o.Timeseries.BatchSize <= 0 || o.Timeseries.QueueSize <= 0 {
+			errs = append(errs, fmt.Errorf("timeseries batch-size and queue-size must be greater than 0"))
+		}
+		if o.Timeseries.FlushIntervalMs <= 0 || o.Timeseries.WriteTimeoutMs <= 0 {
+			errs = append(errs, fmt.Errorf("timeseries flush-interval-ms and write-timeout-ms must be greater than 0"))
+		}
+	}
+
 	if o.Telemetry.Enabled && strings.TrimSpace(o.Telemetry.Endpoint) == "" {
 		errs = append(errs, fmt.Errorf("telemetry.endpoint must not be empty when enabled"))
 	}

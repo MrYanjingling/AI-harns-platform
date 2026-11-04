@@ -45,6 +45,22 @@ const (
 	ErrCodeNotFound                           // 10039
 	ErrCodeMethodNotAllowed                   // 10040
 	ErrCodeValidationFailed                   // 10041
+	ErrCodeThingModelNotFound                 // 10042
+	ErrCodeThingModelNameExists               // 10043
+	ErrCodeThingModelPropertyNotFound         // 10044
+	ErrCodeThingModelInvalid                  // 10045
+	ErrCodeThingModelImportInvalid            // 10046
+	ErrCodeThingModelKeyExists                // 10047
+	ErrCodeThingNotFound                      // 10048
+	ErrCodeThingDeviceNameExists              // 10049
+	ErrCodeThingDeviceKeyExists               // 10050
+	ErrCodeThingTopicExists                   // 10051
+	ErrCodeThingMQTTClientIDExists            // 10052
+	ErrCodeThingMQTTUsernameExists            // 10053
+	ErrCodeThingInvalid                       // 10054
+	ErrCodeFileTooLarge                       // 10055
+	ErrCodeFileTypeInvalid                    // 10056
+	ErrCodeFileUploadFailed                   // 10057
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

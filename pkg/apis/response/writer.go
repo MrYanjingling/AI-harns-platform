@@ -103,3 +103,23 @@ func ErrorCode(err error) int {
 	}
 	return 0
 }
+
+// NewFieldItem builds a single field-level error item with a localized message.
+func NewFieldItem(lang string, code ErrCode, field, msgID string, args ...interface{}) ErrorItem {
+	return ErrorItem{
+		Code:    int(code),
+		Field:   field,
+		Message: i18n.Translate(lang, msgID, args...),
+	}
+}
+
+// WriteFieldErrors writes field-level validation failures. The summary message
+// is derived from code, while each item keeps its own field path and message.
+func WriteFieldErrors(c *gin.Context, status int, code ErrCode, items []ErrorItem) {
+	lang := i18n.Lang(c)
+	c.JSON(status, Result{
+		Code:    int(code),
+		Message: i18n.Translate(lang, messageID(code)),
+		Errors:  items,
+	})
+}

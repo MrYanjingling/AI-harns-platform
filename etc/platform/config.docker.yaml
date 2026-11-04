@@ -61,6 +61,45 @@ audit:
   batch-size: 100
   flush-interval-ms: 1000
 
+things:
+  online-ttl-seconds: 60
+  auth-secret: ""
+  message:
+    kafka-enabled: false
+    kafka:
+      brokers: []
+      topic: "iot.things.pub-message"
+      group-id: "harns-platform-things-message"
+      batch-size: 100
+      max-wait-ms: 1000
+
+emqx:
+  # EMQX 5 HTTP API, used for command downlink.
+  api-url: "http://127.0.0.1:18083"
+  ak: ""
+  sk: ""
+  broker: "127.0.0.1:1883"
+  timeout-ms: 10000
+
+files:
+  # Maximum image upload size in bytes (10 MiB).
+  max-image-bytes: 10485760
+
+timeseries:
+  # InfluxDB 3 Core storage. Disabled by default; enable when a server is available.
+  enabled: false
+  url: "http://127.0.0.1:8181"
+  token: ""
+  database: "harns_timeseries"
+  log-database: "harns_timeseries_log"
+  # Core retention is database-level and immutable after creation.
+  timeseries_data_retention: "730d"
+  timeseries_log_retention: "1d"
+  batch-size: 10000
+  flush-interval-ms: 3000
+  queue-size: 20000
+  write-timeout-ms: 10000
+
 telemetry:
   enabled: false
   endpoint: localhost:4318

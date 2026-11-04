@@ -15,12 +15,15 @@ import (
 
 	"harns-platform/cmd/platform/config"
 	"harns-platform/pkg/audit"
+	"harns-platform/pkg/emqx"
 	"harns-platform/pkg/generic"
 	baseoptions "harns-platform/pkg/generic/options"
 	"harns-platform/pkg/logging"
 	"harns-platform/pkg/platform/auth"
+	"harns-platform/pkg/platform/files"
 	"harns-platform/pkg/platform/migrate"
 	"harns-platform/pkg/telemetry"
+	"harns-platform/pkg/timeseries"
 )
 
 type Options struct {
@@ -34,10 +37,14 @@ type Options struct {
 	Security auth.Config          `json:"security"`
 	CORS     generic.CORSConfig   `json:"cors"`
 	Audit    audit.Config         `json:"audit"`
+	Things   ThingsOptions        `json:"things"`
 	// Migrate runs the embedded database migrations on startup. Default: true.
-	Migrate      bool             `json:"migrate"`
-	MaxBodyBytes int64            `json:"max-body-bytes"`
-	Telemetry    telemetry.Config `json:"telemetry"`
+	Migrate      bool              `json:"migrate"`
+	MaxBodyBytes int64             `json:"max-body-bytes"`
+	Telemetry    telemetry.Config  `json:"telemetry"`
+	Timeseries   timeseries.Config `json:"timeseries"`
+	Files        files.Config      `json:"files"`
+	EMQX         emqx.Config       `json:"emqx"`
 	baseoptions.BaseOptions
 }
 
@@ -62,6 +69,27 @@ type MySQLOptions struct {
 	ConnMaxLifetimeMinutes int    `json:"conn-max-lifetime-minutes"`
 }
 
+type ThingsOptions struct {
+	// OnlineTTLSeconds is the window used to decide whether a thing is online.
+	OnlineTTLSeconds int `json:"online-ttl-seconds"`
+	// AuthSecret protects the EMQX endpoints. Empty disables the check.
+	AuthSecret string         `json:"auth-secret"`
+	Message    MessageOptions `json:"message"`
+}
+
+type MessageOptions struct {
+	KafkaEnabled bool         `json:"kafka-enabled"`
+	Kafka        KafkaOptions `json:"kafka"`
+}
+
+type KafkaOptions struct {
+	Brokers   []string `json:"brokers"`
+	Topic     string   `json:"topic"`
+	GroupID   string   `json:"group-id"`
+	BatchSize int      `json:"batch-size"`
+	MaxWaitMs int      `json:"max-wait-ms"`
+}
+
 type MinIOOptions struct {
 	Endpoint  string `json:"endpoint"`
 	AccessKey string `json:"access-key"`
@@ -84,6 +112,11 @@ const (
 	_defaultMinIOEndpoint                     = "127.0.0.1:9000"
 	_defaultMinIOBucket                       = "harns"
 	_defaultMaxBodyBytes                int64 = 1 << 20
+	_defaultOnlineTTLSeconds                  = 60
+	_defaultKafkaTopic                        = "iot.things.pub-message"
+	_defaultKafkaGroupID                      = "harns-platform-things-message"
+	_defaultKafkaBatchSize                    = 100
+	_defaultKafkaMaxWaitMs                    = 1000
 )
 
 var (
@@ -116,12 +149,26 @@ func NewDefaultOptions() *Options {
 			Endpoint: _defaultMinIOEndpoint,
 			Bucket:   _defaultMinIOBucket,
 		},
-		Security:     auth.DefaultConfig(),
-		CORS:         generic.DefaultCORSConfig(),
-		Audit:        audit.DefaultConfig(),
+		Security: auth.DefaultConfig(),
+		CORS:     generic.DefaultCORSConfig(),
+		Audit:    audit.DefaultConfig(),
+		Things: ThingsOptions{
+			OnlineTTLSeconds: _defaultOnlineTTLSeconds,
+			Message: MessageOptions{
+				Kafka: KafkaOptions{
+					Topic:     _defaultKafkaTopic,
+					GroupID:   _defaultKafkaGroupID,
+					BatchSize: _defaultKafkaBatchSize,
+					MaxWaitMs: _defaultKafkaMaxWaitMs,
+				},
+			},
+		},
 		Migrate:      true,
 		MaxBodyBytes: _defaultMaxBodyBytes,
 		Telemetry:    telemetry.DefaultConfig(),
+		Timeseries:   timeseries.DefaultConfig(),
+		Files:        files.DefaultConfig(),
+		EMQX:         emqx.DefaultConfig(),
 	}
 }
 
@@ -134,12 +181,29 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c := &config.Config{
-		CertFile:     o.CertFile,
-		KeyFile:      o.KeyFile,
-		MinIOBucket:  o.MinIO.Bucket,
-		Security:     o.Security,
-		CORS:         o.CORS,
-		Audit:        o.Audit,
+		CertFile:    o.CertFile,
+		KeyFile:     o.KeyFile,
+		MinIOBucket: o.MinIO.Bucket,
+		Security:    o.Security,
+		CORS:        o.CORS,
+		Audit:       o.Audit,
+		Timeseries:  o.Timeseries,
+		Files:       o.Files,
+		EMQX:        o.EMQX,
+		Things: config.ThingsConfig{
+			OnlineTTLSeconds: o.Things.OnlineTTLSeconds,
+			AuthSecret:       o.Things.AuthSecret,
+			Message: config.MessageConfig{
+				KafkaEnabled: o.Things.Message.KafkaEnabled,
+				Kafka: config.KafkaConfig{
+					Brokers:   o.Things.Message.Kafka.Brokers,
+					Topic:     o.Things.Message.Kafka.Topic,
+					GroupID:   o.Things.Message.Kafka.GroupID,
+					BatchSize: o.Things.Message.Kafka.BatchSize,
+					MaxWaitMs: o.Things.Message.Kafka.MaxWaitMs,
+				},
+			},
+		},
 		MaxBodyBytes: o.MaxBodyBytes,
 	}
 

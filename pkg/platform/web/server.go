@@ -12,20 +12,27 @@ import (
 	"harns-platform/cmd/platform/options"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/audit"
+	"harns-platform/pkg/emqx"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
 	"harns-platform/pkg/platform/auditapi"
 	"harns-platform/pkg/platform/auth"
+	"harns-platform/pkg/platform/files"
 	"harns-platform/pkg/platform/httpx"
 	"harns-platform/pkg/platform/identity"
+	"harns-platform/pkg/platform/thingmodel"
+	"harns-platform/pkg/platform/things"
 	"harns-platform/pkg/telemetry"
+	"harns-platform/pkg/timeseries"
 )
 
 type Server struct {
 	*generic.Server
 	*config.Config
-	audit       *audit.Module
-	maintenance *audit.Maintenance
+	audit           *audit.Module
+	maintenance     *audit.Maintenance
+	messagePipeline *things.MessagePipeline
+	timeseriesSvc   *timeseries.Service
 }
 
 func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*Server, error) {
@@ -73,6 +80,20 @@ func (s *Server) InstallHandlers() error {
 		return nil
 	}
 
+	if s.Config.Timeseries.Enabled {
+		tsSvc, err := timeseries.NewService(s.Config.Timeseries)
+		if err != nil {
+			return fmt.Errorf("init timeseries service failed: %w", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		err = tsSvc.Start(ctx)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("start timeseries service failed: %w", err)
+		}
+		s.timeseriesSvc = tsSvc
+	}
+
 	identitySvc := identity.NewService(identity.NewStore(s.Config.DB))
 	authSvc, err := auth.NewService(identitySvc, s.Config.Redis, s.Config.MinIO, s.Config.MinIOBucket, s.Config.Security)
 	if err != nil {
@@ -98,6 +119,35 @@ func (s *Server) InstallHandlers() error {
 
 	iot := v1.Group("/iot", authSvc.Auth(), auditMW)
 	identity.InstallHandler(iot, identitySvc)
+	thingModelSvc := thingmodel.NewService(thingmodel.NewStore(s.Config.DB))
+	thingmodel.InstallHandler(iot, thingModelSvc)
+	emqxSvc := emqx.NewService(s.Config.EMQX)
+	thingsSvc := things.NewService(
+		things.NewStore(s.Config.DB),
+		s.Config.Redis,
+		time.Duration(s.Config.Things.OnlineTTLSeconds)*time.Second,
+		emqxSvc,
+	)
+	things.InstallHandler(iot, thingsSvc)
+	s.messagePipeline = things.NewMessagePipeline(things.MessagePipelineConfig{
+		KafkaEnabled: s.Config.Things.Message.KafkaEnabled,
+		Brokers:      s.Config.Things.Message.Kafka.Brokers,
+		Topic:        s.Config.Things.Message.Kafka.Topic,
+		GroupID:      s.Config.Things.Message.Kafka.GroupID,
+		BatchSize:    s.Config.Things.Message.Kafka.BatchSize,
+		MaxWait:      time.Duration(s.Config.Things.Message.Kafka.MaxWaitMs) * time.Millisecond,
+	}, things.NewDefaultMessageRouter())
+	emqx := v1.Group("/iot")
+	things.InstallEMQXHandler(emqx, thingsSvc, s.messagePipeline, s.Config.Things.AuthSecret)
+	deviceHTTP := v1.Group("/iot")
+	things.InstallHTTPReportHandler(deviceHTTP, thingsSvc, s.messagePipeline)
+
+	if s.Config.MinIO != nil {
+		filesSvc := files.NewService(s.Config.MinIO, s.Config.MinIOBucket, s.Config.Files)
+		filesGroup := s.Router.Group("/api/v1/iot")
+		filesGroup.Use(authSvc.Auth(), auditMW, generic.BodyLimit(s.Config.Files.MaxImageBytes))
+		files.InstallHandler(filesGroup, filesSvc)
+	}
 	iot.GET("/auditLogs", httpx.WithOperation(httpx.OpQuery, "查询审计日志"), auditapi.List(reader))
 	return nil
 }
@@ -141,7 +191,19 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		}()
 	}
 
+	pipelineCtx, pipelineCancel := context.WithCancel(context.Background())
+	if s.messagePipeline != nil {
+		s.messagePipeline.Start(pipelineCtx)
+	}
+
 	return func(ctx context.Context) {
+		pipelineCancel()
+		if s.messagePipeline != nil {
+			_ = s.messagePipeline.Close()
+		}
+		if s.timeseriesSvc != nil {
+			_ = s.timeseriesSvc.Close()
+		}
 		srv.SetKeepAlivesEnabled(false)
 		// Stop accepting new requests and drain in-flight ones first.
 		if err := srv.Shutdown(ctx); err != nil {

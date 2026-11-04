@@ -46,6 +46,22 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeNotFound:                   "error.not_found",
 	ErrCodeMethodNotAllowed:           "error.method_not_allowed",
 	ErrCodeValidationFailed:           "error.validation_failed",
+	ErrCodeThingModelNotFound:         "error.thing_model_not_found",
+	ErrCodeThingModelNameExists:       "error.thing_model_name_exists",
+	ErrCodeThingModelPropertyNotFound: "error.thing_model_property_not_found",
+	ErrCodeThingModelInvalid:          "error.thing_model_invalid",
+	ErrCodeThingModelImportInvalid:    "error.thing_model_import_invalid",
+	ErrCodeThingModelKeyExists:        "error.thing_model_key_exists",
+	ErrCodeThingNotFound:              "error.thing_not_found",
+	ErrCodeThingDeviceNameExists:      "error.thing_device_name_exists",
+	ErrCodeThingDeviceKeyExists:       "error.thing_device_key_exists",
+	ErrCodeThingTopicExists:           "error.thing_topic_exists",
+	ErrCodeThingMQTTClientIDExists:    "error.thing_mqtt_client_id_exists",
+	ErrCodeThingMQTTUsernameExists:    "error.thing_mqtt_username_exists",
+	ErrCodeThingInvalid:               "error.thing_invalid",
+	ErrCodeFileTooLarge:               "error.file_too_large",
+	ErrCodeFileTypeInvalid:            "error.file_type_invalid",
+	ErrCodeFileUploadFailed:           "error.file_upload_failed",
 }
 
 func messageID(code ErrCode) string {

@@ -8,10 +8,32 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"harns-platform/pkg/audit"
+	"harns-platform/pkg/emqx"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/platform/auth"
+	"harns-platform/pkg/platform/files"
 	"harns-platform/pkg/telemetry"
+	"harns-platform/pkg/timeseries"
 )
+
+type ThingsConfig struct {
+	OnlineTTLSeconds int
+	AuthSecret       string
+	Message          MessageConfig
+}
+
+type MessageConfig struct {
+	KafkaEnabled bool
+	Kafka        KafkaConfig
+}
+
+type KafkaConfig struct {
+	Brokers   []string
+	Topic     string
+	GroupID   string
+	BatchSize int
+	MaxWaitMs int
+}
 
 type Config struct {
 	CertFile     string
@@ -25,7 +47,11 @@ type Config struct {
 	Security    auth.Config
 	CORS        generic.CORSConfig
 	Audit       audit.Config
+	Things      ThingsConfig
 	Telemetry   telemetry.Config
+	Timeseries  timeseries.Config
+	Files       files.Config
+	EMQX        emqx.Config
 
 	TelemetryShutdown func(context.Context) error
 }

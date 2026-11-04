@@ -345,3 +345,83 @@ func ErrFloat64Invalid(infos ...string) *responseError {
 	}
 	return generateError(ErrCodeFloat64Invalid, convert(infos)...)
 }
+
+// ErrThingModelNotFound reports that a thing model does not exist.
+func ErrThingModelNotFound(id string) *responseError {
+	return generateError(ErrCodeThingModelNotFound, id)
+}
+
+// ErrThingModelNameExists reports that a thing model name is already taken.
+func ErrThingModelNameExists(name string) *responseError {
+	return generateError(ErrCodeThingModelNameExists, name)
+}
+
+// ErrThingModelPropertyNotFound reports that a thing model property does not exist.
+func ErrThingModelPropertyNotFound(identifier string) *responseError {
+	return generateError(ErrCodeThingModelPropertyNotFound, identifier)
+}
+
+// ErrThingModelInvalid reports that the thing model failed validation.
+func ErrThingModelInvalid() *responseError {
+	return generateError(ErrCodeThingModelInvalid)
+}
+
+// ErrThingModelImportInvalid reports that the imported thing model cannot be parsed.
+func ErrThingModelImportInvalid(reason string) *responseError {
+	return generateError(ErrCodeThingModelImportInvalid, reason)
+}
+
+// ErrThingModelKeyExists reports that a thing model key is already taken.
+func ErrThingModelKeyExists(key string) *responseError {
+	return generateError(ErrCodeThingModelKeyExists, key)
+}
+
+// ErrThingNotFound reports that a thing does not exist.
+func ErrThingNotFound(id string) *responseError {
+	return generateError(ErrCodeThingNotFound, id)
+}
+
+// ErrThingDeviceNameExists reports that a device name is already taken in the model.
+func ErrThingDeviceNameExists(name string) *responseError {
+	return generateError(ErrCodeThingDeviceNameExists, name)
+}
+
+// ErrThingDeviceKeyExists reports that a device key is already taken.
+func ErrThingDeviceKeyExists(key string) *responseError {
+	return generateError(ErrCodeThingDeviceKeyExists, key)
+}
+
+// ErrThingTopicExists reports that a topic is already taken.
+func ErrThingTopicExists(topic string) *responseError {
+	return generateError(ErrCodeThingTopicExists, topic)
+}
+
+// ErrThingMQTTClientIDExists reports that an MQTT client id is already taken.
+func ErrThingMQTTClientIDExists(id string) *responseError {
+	return generateError(ErrCodeThingMQTTClientIDExists, id)
+}
+
+// ErrThingMQTTUsernameExists reports that an MQTT username is already taken.
+func ErrThingMQTTUsernameExists(username string) *responseError {
+	return generateError(ErrCodeThingMQTTUsernameExists, username)
+}
+
+// ErrThingInvalid reports that the thing failed validation.
+func ErrThingInvalid() *responseError {
+	return generateError(ErrCodeThingInvalid)
+}
+
+// ErrFileTooLarge reports that an uploaded file exceeds the configured limit.
+func ErrFileTooLarge(limit int64) *responseError {
+	return generateError(ErrCodeFileTooLarge, limit)
+}
+
+// ErrFileTypeInvalid reports that an uploaded file type is not allowed.
+func ErrFileTypeInvalid() *responseError {
+	return generateError(ErrCodeFileTypeInvalid)
+}
+
+// ErrFileUploadFailed wraps an unexpected upload failure.
+func ErrFileUploadFailed(err error) *responseError {
+	return generateErrorWrapper(ErrCodeFileUploadFailed, err)
+}
