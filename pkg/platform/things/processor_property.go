@@ -33,6 +33,17 @@ type PropertyLogWriter interface {
 	WritePropertyLog(ctx context.Context, modelKey string, log timeseries.PropertyLog) error
 }
 
+// ShadowUpdate is one property sample applied to the device shadow.
+type ShadowUpdate struct {
+	Time   time.Time
+	Values map[string]any
+}
+
+// PropertyShadow merges reported property values into the device shadow.
+type PropertyShadow interface {
+	UpdateReported(ctx context.Context, thingID string, updates []ShadowUpdate) error
+}
+
 // LoggingPropertyProcessor is a placeholder that only logs the report.
 type LoggingPropertyProcessor struct{}
 
@@ -49,11 +60,13 @@ func (p *LoggingPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 type DefaultPropertyProcessor struct {
 	resolver PropertyDefinitionResolver
 	ts       PropertyTimeseries
+	shadow   PropertyShadow
+	trigger  PropertyTriggerSink
 }
 
 // NewPropertyProcessor builds the default property processor.
-func NewPropertyProcessor(resolver PropertyDefinitionResolver, ts PropertyTimeseries) *DefaultPropertyProcessor {
-	return &DefaultPropertyProcessor{resolver: resolver, ts: ts}
+func NewPropertyProcessor(resolver PropertyDefinitionResolver, ts PropertyTimeseries, shadow PropertyShadow, trigger PropertyTriggerSink) *DefaultPropertyProcessor {
+	return &DefaultPropertyProcessor{resolver: resolver, ts: ts, shadow: shadow, trigger: trigger}
 }
 
 func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *DeviceMessage, report *PropertyReport) error {
@@ -81,7 +94,10 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 		return nil
 	}
 
+	nowMillis := time.Now().UnixMilli()
 	points := make([]timeseries.PropertyPoint, 0, len(report.Payload))
+	shadowUpdates := make([]ShadowUpdate, 0, len(report.Payload))
+	triggers := make([]PropertyTrigger, 0, len(report.Payload))
 	for i, item := range report.Payload {
 		for identifier, definition := range definitions {
 			if !definition.Required {
@@ -115,15 +131,43 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 
 		timestamp := item.Time
 		if timestamp <= 0 {
-			timestamp = time.Now().UnixMilli()
+			timestamp = nowMillis
 		}
+		pointTime := time.UnixMilli(timestamp)
 		points = append(points, timeseries.PropertyPoint{
 			ModelID:   msg.ThingModelID,
 			DeviceID:  msg.ThingID,
 			DeviceKey: msg.DeviceKey,
-			Time:      time.UnixMilli(timestamp),
+			Time:      pointTime,
 			Values:    values,
 		})
+		if len(values) > 0 {
+			shadowUpdates = append(shadowUpdates, ShadowUpdate{Time: pointTime, Values: values})
+			triggers = append(triggers, PropertyTrigger{
+				Time:       timestamp,
+				DeviceID:   msg.ThingID,
+				DeviceKey:  msg.DeviceKey,
+				DeviceName: msg.DeviceName,
+				ModelKey:   modelKey,
+				Values:     values,
+			})
+		}
+	}
+
+	if p.shadow != nil && len(shadowUpdates) > 0 {
+		if msg.ThingID == "" {
+			logging.V(2).InfoS("Cannot update thing shadow without thing id",
+				"deviceKey", msg.DeviceKey, "messageId", msg.MessageID)
+		} else if err := p.shadow.UpdateReported(ctx, msg.ThingID, shadowUpdates); err != nil {
+			logging.ErrorS(err, "Failed to update thing shadow",
+				"deviceKey", msg.DeviceKey, "thingId", msg.ThingID)
+		}
+	}
+
+	if p.trigger != nil {
+		for _, trigger := range triggers {
+			p.trigger.Dispatch(ctx, trigger)
+		}
 	}
 
 	if p.ts != nil {

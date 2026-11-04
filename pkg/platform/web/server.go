@@ -29,10 +29,11 @@ import (
 type Server struct {
 	*generic.Server
 	*config.Config
-	audit           *audit.Module
-	maintenance     *audit.Maintenance
-	messagePipeline *things.MessagePipeline
-	timeseriesSvc   *timeseries.Service
+	audit                      *audit.Module
+	maintenance                *audit.Maintenance
+	messagePipeline            *things.MessagePipeline
+	propertyTriggerDispatchers []*things.PropertyTriggerDispatcher
+	timeseriesSvc              *timeseries.Service
 }
 
 func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*Server, error) {
@@ -136,7 +137,29 @@ func (s *Server) InstallHandlers() error {
 		propertyTS = s.timeseriesSvc
 		propertyLogWriter = s.timeseriesSvc
 	}
-	propertyProcessor := things.NewPropertyProcessor(thingModelSvc, propertyTS)
+	alarmTriggerDispatcher := things.NewPropertyTriggerDispatcher(things.PropertyTriggerConfig{
+		KafkaEnabled: s.Config.Things.Message.KafkaEnabled,
+		Brokers:      s.Config.Things.Message.Kafka.Brokers,
+		Topic:        s.Config.Things.Message.Kafka.AlarmPropertyTriggerTopic,
+		QueueSize:    s.Config.Things.Message.TriggerQueueSize,
+	}, &things.LoggingPropertyTriggerHandler{Name: "alarm"})
+	ruleTriggerDispatcher := things.NewPropertyTriggerDispatcher(things.PropertyTriggerConfig{
+		KafkaEnabled: s.Config.Things.Message.KafkaEnabled,
+		Brokers:      s.Config.Things.Message.Kafka.Brokers,
+		Topic:        s.Config.Things.Message.Kafka.RulePropertyTriggerTopic,
+		QueueSize:    s.Config.Things.Message.TriggerQueueSize,
+	}, &things.LoggingPropertyTriggerHandler{Name: "rule"})
+	s.propertyTriggerDispatchers = []*things.PropertyTriggerDispatcher{
+		alarmTriggerDispatcher,
+		ruleTriggerDispatcher,
+	}
+	triggerRouter := things.NewPropertyTriggerRouter(
+		things.AllowAllPropertyTriggerMatcher{},
+		alarmTriggerDispatcher,
+		ruleTriggerDispatcher,
+	)
+
+	propertyProcessor := things.NewPropertyProcessor(thingModelSvc, propertyTS, thingsSvc, triggerRouter)
 	propertyHandler := things.NewPropertyHandlerWithLogWriter(propertyProcessor, propertyLogWriter)
 	messageRouter := things.NewMessageRouter(map[things.MessageKind]things.MessageHandler{
 		things.MessageKindProperty:     propertyHandler,
@@ -215,6 +238,9 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		pipelineCancel()
 		if s.messagePipeline != nil {
 			_ = s.messagePipeline.Close()
+		}
+		for _, dispatcher := range s.propertyTriggerDispatchers {
+			_ = dispatcher.Close()
 		}
 		if s.timeseriesSvc != nil {
 			_ = s.timeseriesSvc.Close()

@@ -84,6 +84,9 @@ func Validate(o *Options) []error {
 	if o.Things.AuthSecret != "" && len(o.Things.AuthSecret) < 16 {
 		errs = append(errs, fmt.Errorf("things.auth-secret must be at least 16 bytes when set"))
 	}
+	if o.Things.Message.TriggerQueueSize <= 0 {
+		errs = append(errs, fmt.Errorf("things.message.trigger-queue-size must be greater than 0"))
+	}
 	if o.Things.Message.KafkaEnabled {
 		if len(o.Things.Message.Kafka.Brokers) == 0 {
 			errs = append(errs, fmt.Errorf("things.message.kafka.brokers must not be empty when kafka is enabled"))
@@ -99,6 +102,12 @@ func Validate(o *Options) []error {
 		}
 		if o.Things.Message.Kafka.MaxWaitMs <= 0 {
 			errs = append(errs, fmt.Errorf("things.message.kafka.max-wait-ms must be greater than 0"))
+		}
+		if strings.TrimSpace(o.Things.Message.Kafka.AlarmPropertyTriggerTopic) == "" {
+			errs = append(errs, fmt.Errorf("things.message.kafka.alarm-property-trigger-topic must not be empty when kafka is enabled"))
+		}
+		if strings.TrimSpace(o.Things.Message.Kafka.RulePropertyTriggerTopic) == "" {
+			errs = append(errs, fmt.Errorf("things.message.kafka.rule-property-trigger-topic must not be empty when kafka is enabled"))
 		}
 	}
 

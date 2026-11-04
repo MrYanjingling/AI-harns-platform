@@ -23,16 +23,19 @@ type ThingsConfig struct {
 }
 
 type MessageConfig struct {
-	KafkaEnabled bool
-	Kafka        KafkaConfig
+	KafkaEnabled     bool
+	TriggerQueueSize int
+	Kafka            KafkaConfig
 }
 
 type KafkaConfig struct {
-	Brokers   []string
-	Topic     string
-	GroupID   string
-	BatchSize int
-	MaxWaitMs int
+	Brokers                   []string
+	Topic                     string
+	GroupID                   string
+	BatchSize                 int
+	MaxWaitMs                 int
+	AlarmPropertyTriggerTopic string
+	RulePropertyTriggerTopic  string
 }
 
 type Config struct {

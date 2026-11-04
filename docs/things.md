@@ -164,7 +164,13 @@ online = enable == 1 && score != null && now - score <= onlineTTL
 - 不做 retention 清理，成员数受 thing 总数约束。
 - Redis 不可用：降级为离线并记录日志，不影响列表返回。
 - `enable=0`：强制离线。
-- 设备影子 `iot:thing:shadow:<id>` 同时保存 `lastReportTime`（与 score 相同的 clamped 值）以及 `reported/desired/version`，但不参与在线判定。
+- 设备影子 `iot:thing:shadow:<id>` 不参与在线判定，Hash 字段如下：
+  - `reported`：已上报属性，JSON object，按属性 map 合并；
+  - `desired`：期望属性，JSON object；
+  - `version`：影子变更版本；
+  - `timestamp`：最新已应用的 `property item.time`，不是平台接收时间。
+- `TouchThingOnline` 只维护 `iot:thing:last-active` ZSET，不写影子。
+- 上报时间早于影子 `timestamp` 的批次整批跳过；较新批次合并 `reported`，并把与 `reported` 相等的 `desired` 属性删除。
 
 响应示例：
 

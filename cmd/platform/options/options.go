@@ -78,16 +78,19 @@ type ThingsOptions struct {
 }
 
 type MessageOptions struct {
-	KafkaEnabled bool         `json:"kafka-enabled"`
-	Kafka        KafkaOptions `json:"kafka"`
+	KafkaEnabled     bool         `json:"kafka-enabled"`
+	TriggerQueueSize int          `json:"trigger-queue-size"`
+	Kafka            KafkaOptions `json:"kafka"`
 }
 
 type KafkaOptions struct {
-	Brokers   []string `json:"brokers"`
-	Topic     string   `json:"topic"`
-	GroupID   string   `json:"group-id"`
-	BatchSize int      `json:"batch-size"`
-	MaxWaitMs int      `json:"max-wait-ms"`
+	Brokers                   []string `json:"brokers"`
+	Topic                     string   `json:"topic"`
+	GroupID                   string   `json:"group-id"`
+	BatchSize                 int      `json:"batch-size"`
+	MaxWaitMs                 int      `json:"max-wait-ms"`
+	AlarmPropertyTriggerTopic string   `json:"alarm-property-trigger-topic"`
+	RulePropertyTriggerTopic  string   `json:"rule-property-trigger-topic"`
 }
 
 type MinIOOptions struct {
@@ -117,6 +120,9 @@ const (
 	_defaultKafkaGroupID                      = "harns-platform-things-message"
 	_defaultKafkaBatchSize                    = 100
 	_defaultKafkaMaxWaitMs                    = 1000
+	_defaultAlarmPropertyTriggerTopic         = "iot.alarm.property.trigger"
+	_defaultRulePropertyTriggerTopic          = "iot.rule.property.trigger"
+	_defaultTriggerQueueSize                  = 1024
 )
 
 var (
@@ -155,11 +161,14 @@ func NewDefaultOptions() *Options {
 		Things: ThingsOptions{
 			OnlineTTLSeconds: _defaultOnlineTTLSeconds,
 			Message: MessageOptions{
+				TriggerQueueSize: _defaultTriggerQueueSize,
 				Kafka: KafkaOptions{
-					Topic:     _defaultKafkaTopic,
-					GroupID:   _defaultKafkaGroupID,
-					BatchSize: _defaultKafkaBatchSize,
-					MaxWaitMs: _defaultKafkaMaxWaitMs,
+					Topic:                     _defaultKafkaTopic,
+					GroupID:                   _defaultKafkaGroupID,
+					BatchSize:                 _defaultKafkaBatchSize,
+					MaxWaitMs:                 _defaultKafkaMaxWaitMs,
+					AlarmPropertyTriggerTopic: _defaultAlarmPropertyTriggerTopic,
+					RulePropertyTriggerTopic:  _defaultRulePropertyTriggerTopic,
 				},
 			},
 		},
@@ -194,13 +203,16 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 			OnlineTTLSeconds: o.Things.OnlineTTLSeconds,
 			AuthSecret:       o.Things.AuthSecret,
 			Message: config.MessageConfig{
-				KafkaEnabled: o.Things.Message.KafkaEnabled,
+				KafkaEnabled:     o.Things.Message.KafkaEnabled,
+				TriggerQueueSize: o.Things.Message.TriggerQueueSize,
 				Kafka: config.KafkaConfig{
-					Brokers:   o.Things.Message.Kafka.Brokers,
-					Topic:     o.Things.Message.Kafka.Topic,
-					GroupID:   o.Things.Message.Kafka.GroupID,
-					BatchSize: o.Things.Message.Kafka.BatchSize,
-					MaxWaitMs: o.Things.Message.Kafka.MaxWaitMs,
+					Brokers:                   o.Things.Message.Kafka.Brokers,
+					Topic:                     o.Things.Message.Kafka.Topic,
+					GroupID:                   o.Things.Message.Kafka.GroupID,
+					BatchSize:                 o.Things.Message.Kafka.BatchSize,
+					MaxWaitMs:                 o.Things.Message.Kafka.MaxWaitMs,
+					AlarmPropertyTriggerTopic: o.Things.Message.Kafka.AlarmPropertyTriggerTopic,
+					RulePropertyTriggerTopic:  o.Things.Message.Kafka.RulePropertyTriggerTopic,
 				},
 			},
 		},

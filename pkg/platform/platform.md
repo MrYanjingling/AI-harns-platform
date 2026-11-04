@@ -599,7 +599,8 @@
   - MQTT 断开**不删除**成员，由 TTL 判定离线。
   - 删除设备：`ZREM iot:thing:last-active <id>`。
   - 不做 retention 清理，成员数受 thing 总数约束。
-  - 设备影子 `iot:thing:shadow:<id>` 同时保存 `lastReportTime`（与 score 相同的 clamped 值），以及 `reported/desired/version`；影子不参与在线判定。
+  - 设备影子 `iot:thing:shadow:<id>` 不参与在线判定，Hash 字段为 `reported`、`desired`、`version`、`timestamp`。
+  - `timestamp` 是最新已应用的 `property item.time`；`TouchThingOnline` 只写 ZSET，不写影子。
 
   在线判定：
 
@@ -815,12 +816,15 @@
     auth-secret: ""
     message:
       kafka-enabled: false
+      trigger-queue-size: 1024
       kafka:
         brokers: []
         topic: "iot.things.pub-message"
         group-id: "harns-platform-things-message"
         batch-size: 100
         max-wait-ms: 1000
+        alarm-property-trigger-topic: "iot.alarm.property.trigger"
+        rule-property-trigger-topic: "iot.rule.property.trigger"
   ```
 
 - 约束：
@@ -846,7 +850,7 @@
 - 处理：
   1. 从 `X-Things-Token` 取 token，先查 Redis 缓存，未命中再查 MySQL 并回填；
   2. 校验 body 为合法 JSON；
-  3. 更新在线状态（`iot:thing:last-active` + `iot:thing:shadow:<id>.lastReportTime`）；
+  3. 更新在线状态（只更新 `iot:thing:last-active` ZSET）；
   4. 构造 `DeviceMessage`（`Kind` 取自 payload `type`，缺失则拒绝；`Source=http`；`Topic=upTopic`）；
   5. 交给同一个 `MessageSink`（Kafka 开启则投递 Kafka，否则直接 Dispatch）。
 - 输出：HTTP 上报接口。
@@ -872,7 +876,7 @@
   - [ ] 非法 JSON 返回 400
   - [ ] 缓存命中不查库，命中后 TTL 刷新
   - [ ] 更新/删除设备后缓存 key 被删除
-  - [ ] 上报后 ZSET 与影子 `lastReportTime` 更新
+  - [ ] 上报后 ZSET 更新；property 校验通过后影子 `timestamp` 更新
   - [ ] Kafka 开启时走 Kafka，关闭时直接调用 Router
   - [ ] 日志不含 token
 
@@ -901,7 +905,30 @@
   - `required` 属性必须存在且非 null；未知 identifier 忽略。
   - 值按 `dataType` 转换校验。
   - 校验失败写 `device_property_log_<modelKey>`（`success=false`），不写时序数据，返回 nil 不触发重试。
-  - 全部通过后提交时序数据，再写 `success=true` 日志。
+  - 全部通过后先合并设备影子，再提交时序数据，最后写 `success=true` 日志。
+  - 影子 `reported` 按属性 map 合并；较旧批次按 `item.time` 整批跳过；与 `reported` 相等的 `desired` 属性删除。
+  - 影子更新失败只记录日志，继续写时序。
+- 告警属性触发器：
+  - 影子更新后，每个 property item 生成一条触发数据，`values` 仅包含该 item 本次上报的属性。
+  - 条件判断在入队前完成：`PropertyTriggerMatcher` 返回 `alarm`、`rule` 两个布尔值；占位实现默认都返回 true。
+  - matcher 在属性处理线程同步执行，真实实现应使用缓存或轻量查询，避免阻塞属性处理。
+  - 只对命中的目标分发；条件判断失败记录日志，两个目标都不发。
+  - Kafka 开启时，告警投递到 `things.message.kafka.alarm-property-trigger-topic`（默认 `iot.alarm.property.trigger`），规则投递到 `things.message.kafka.rule-property-trigger-topic`（默认 `iot.rule.property.trigger`），key 为 `deviceKey`。
+  - Kafka 关闭时分别调用本地 `PropertyTriggerHandler`；当前使用 `LoggingPropertyTriggerHandler{Name}` 占位。
+  - 告警和规则使用两个独立 dispatcher，各自一个 worker + 有界队列 `things.message.trigger-queue-size`（默认 1024）；队列满只丢弃该目标并记录日志。
+  - 触发数据异步分发，不阻塞属性校验、影子和时序写入；分发失败只记录日志。
+  - JSON：
+
+    ```json
+    {
+      "time": 1793170000000,
+      "deviceId": "01...",
+      "deviceKey": "DK-xxx",
+      "deviceName": "",
+      "modelKey": "",
+      "values": {"temperature": 26.0, "mode": 2, "switch": true}
+    }
+    ```
 
 ### F18. 图片上传
 - 状态：TODO

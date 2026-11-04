@@ -110,12 +110,18 @@ things:
     # When false, the callback is processed synchronously. When true, raw EMQX
     # events are produced to Kafka and a background consumer processes them.
     kafka-enabled: false
+    # Bounded queue for alarm property trigger dispatch. Full queues drop and log.
+    trigger-queue-size: 1024
     kafka:
       brokers: []
       topic: "iot.things.pub-message"
       group-id: "harns-platform-things-message"
       batch-size: 100
       max-wait-ms: 1000
+      # Kafka topics for alarm and rule property trigger events. Names must
+      # contain the corresponding alarm/rule, property, and trigger words.
+      alarm-property-trigger-topic: "iot.alarm.property.trigger"
+      rule-property-trigger-topic: "iot.rule.property.trigger"
 
 # Logging configuration.
 logging:

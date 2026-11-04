@@ -29,15 +29,6 @@ const (
 	shadowKeyPrefix  = "iot:thing:shadow:"
 )
 
-var touchShadowScript = redis.NewScript(`
-local current = tonumber(redis.call('HGET', KEYS[1], 'lastReportTime') or '0')
-local next = tonumber(ARGV[1])
-if next > current then
-  redis.call('HSET', KEYS[1], 'lastReportTime', ARGV[1])
-end
-return 1
-`)
-
 // Service is the business layer of the things module.
 type Service struct {
 	store     *Store
@@ -327,7 +318,8 @@ func (s *Service) GetThingByToken(ctx context.Context, token string) (*ThingIden
 	return identity, nil
 }
 
-// TouchThingOnline refreshes the online index and shadow lastReportTime.
+// TouchThingOnline refreshes the online index. The shadow timestamp is
+// maintained by property processing and uses the device data time instead.
 func (s *Service) TouchThingOnline(ctx context.Context, thingID string, dataTime int64) {
 	if s.redis == nil || thingID == "" {
 		return
@@ -343,9 +335,6 @@ func (s *Service) TouchThingOnline(ctx context.Context, thingID string, dataTime
 		Members: []redis.Z{{Score: float64(score), Member: thingID}},
 	}).Err(); err != nil {
 		logging.V(2).InfoS("Failed to refresh thing online index", "err", err)
-	}
-	if err := touchShadowScript.Run(ctx, s.redis, []string{shadowKeyPrefix + thingID}, score).Err(); err != nil {
-		logging.V(2).InfoS("Failed to refresh thing shadow", "err", err)
 	}
 }
 
