@@ -1,4 +1,13 @@
-import type { DeviceStatus, DeviceStatusAction, DeviceType, DataType } from '@/api/types'
+import type {
+  DeviceStatus,
+  DeviceStatusAction,
+  DeviceType,
+  DataType,
+  OperationType,
+  PlatformStatus,
+  RwFlag,
+  ThingDataType,
+} from '@/api/types'
 
 export interface StatusMeta {
   label: string
@@ -134,3 +143,72 @@ export const STOP_BITS = [
   { value: '1.5', label: '1.5' },
   { value: '2', label: '2' },
 ]
+
+/* ---------------- 平台服务 ---------------- */
+
+export const PLATFORM_STATUS: Record<PlatformStatus, StatusMeta> = {
+  enabled: {
+    label: '启用',
+    className: 'bg-emerald-500/10 text-emerald-700 border-emerald-600/20 dark:text-emerald-300',
+    dotClassName: 'bg-emerald-500',
+    description: '账号或资源处于启用状态',
+  },
+  disabled: {
+    label: '禁用',
+    className: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20 dark:text-zinc-300',
+    dotClassName: 'bg-zinc-400',
+    description: '账号或资源处于禁用状态',
+  },
+}
+
+/** 物模型 dataType.type 的展示与规格能力。 */
+export const THING_DATA_TYPES: Array<{
+  value: ThingDataType
+  label: string
+  description: string
+}> = [
+  { value: 'int', label: 'int', description: '32 位整数' },
+  { value: 'long', label: 'long', description: '64 位整数' },
+  { value: 'float', label: 'float', description: '单精度浮点' },
+  { value: 'double', label: 'double', description: '双精度浮点' },
+  { value: 'bool', label: 'bool', description: '布尔值' },
+  { value: 'enum', label: 'enum', description: '枚举值' },
+  { value: 'text', label: 'text', description: '文本' },
+  { value: 'time', label: 'time', description: '时间' },
+  { value: 'array', label: 'array', description: '数组' },
+  { value: 'struct', label: 'struct', description: '结构体' },
+]
+
+/** 需要 unit / min / max 的数值类型。 */
+export const NUMERIC_DATA_TYPES: ThingDataType[] = ['int', 'long', 'float', 'double']
+
+export const RW_FLAGS: Array<{ value: RwFlag; label: string; description: string }> = [
+  { value: 'r', label: '只读 r', description: '仅设备上报' },
+  { value: 'w', label: '只写 w', description: '仅平台下发' },
+  { value: 'rw', label: '读写 rw', description: '平台与设备双向' },
+]
+
+export const OPERATION_TYPES: Array<{ value: OperationType; label: string }> = [
+  { value: 'LOGIN', label: '登录' },
+  { value: 'LOGOUT', label: '退出' },
+  { value: 'CREATE', label: '创建' },
+  { value: 'UPDATE', label: '更新' },
+  { value: 'DELETE', label: '删除' },
+  { value: 'QUERY', label: '查询' },
+]
+
+export const AUDIT_APPS = ['IOT', 'EMS', 'EAM'] as const
+export const AUDIT_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const
+
+export const GENDERS: Array<{ value: 'male' | 'female'; label: string }> = [
+  { value: 'male', label: '男' },
+  { value: 'female', label: '女' },
+]
+
+export const AUTH_MODES: Array<{ value: 'local' | 'ldap' | 'radius'; label: string }> = [
+  { value: 'local', label: '本地认证' },
+  { value: 'ldap', label: 'LDAP' },
+  { value: 'radius', label: 'RADIUS' },
+]
+
+export const PAGE_SIZES = [10, 20, 50, 100] as const

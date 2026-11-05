@@ -1,16 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Moon, Sun } from 'lucide-react'
+import { LogOut, Menu, Moon, Sun } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useTheme } from '@/providers/ThemeProvider'
+import { useAuth } from '@/providers/AuthProvider'
 import { useGatewayMeta } from '@/api/hooks'
 import { Button } from '@/components/ui/Button'
 import { Sidebar } from './Sidebar'
 
 const TITLES: Record<string, string> = {
   '/': '概览',
-  '/devices': '设备管理',
+  '/devices': '网关设备',
   '/devices/new': '新建设备',
+  '/platform/thing-models': '物模型',
+  '/platform/thing-models/new': '新建物模型',
+  '/platform/things': '平台设备',
+  '/platform/things/new': '批量新建设备',
+  '/platform/users': '用户管理',
+  '/platform/roles': '角色管理',
+  '/platform/orgs': '组织管理',
+  '/platform/audit-logs': '审计日志',
   '/data/metrics': '统计指标',
   '/data/kpis': 'KPI',
   '/data/tags': '测点',
@@ -23,16 +32,29 @@ function usePageTitle() {
   if (TITLES[pathname]) return TITLES[pathname]
   if (pathname.startsWith('/devices/') && pathname.endsWith('/edit')) return '编辑设备'
   if (pathname.startsWith('/devices/')) return '设备详情'
+  if (pathname.startsWith('/platform/thing-models/')) return '物模型详情'
+  if (pathname.startsWith('/platform/things/')) return '平台设备详情'
   return 'AI-harns-platform'
 }
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const { theme, toggle } = useTheme()
+  const { user, signOut } = useAuth()
   const { pathname } = useLocation()
   const title = usePageTitle()
   const meta = useGatewayMeta()
   const isMock = import.meta.env.VITE_USE_MOCK === 'true'
+
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    try {
+      await signOut()
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   useEffect(() => {
     setMobileOpen(false)
@@ -116,6 +138,24 @@ export function AppShell() {
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="切换主题">
               {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
+            <div className="flex items-center gap-2 border-l border-border pl-2">
+              <div className="hidden text-right sm:block">
+                <p className="text-xs leading-tight font-medium">
+                  {user?.nickName || user?.userName || '—'}
+                </p>
+                <p className="text-[10px] leading-tight text-faint">{user?.userNo || ''}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                loading={signingOut}
+                aria-label="退出登录"
+                title="退出登录"
+              >
+                {signingOut ? null : <LogOut className="size-4" />}
+              </Button>
+            </div>
           </div>
         </header>
 

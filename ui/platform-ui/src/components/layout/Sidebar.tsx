@@ -1,13 +1,19 @@
 import { NavLink } from 'react-router-dom'
 import {
   Activity,
+  Boxes,
   ChartColumn,
   ChartLine,
   Cpu,
   LayoutDashboard,
   MonitorPlay,
+  Network,
+  RadioTower,
+  ScrollText,
   Settings,
+  ShieldCheck,
   Target,
+  UsersRound,
   Waypoints,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -24,8 +30,19 @@ const GROUPS: Array<{ label?: string; items: NavItem[] }> = [
   {
     items: [
       { to: '/', label: '概览', icon: LayoutDashboard, end: true },
-      { to: '/devices', label: '设备管理', icon: Cpu },
+      { to: '/devices', label: '网关设备', icon: Cpu },
       { to: '/screen', label: '工厂大屏', icon: MonitorPlay },
+    ],
+  },
+  {
+    label: '平台管理',
+    items: [
+      { to: '/platform/thing-models', label: '物模型', icon: Boxes },
+      { to: '/platform/things', label: '平台设备', icon: RadioTower },
+      { to: '/platform/users', label: '用户', icon: UsersRound },
+      { to: '/platform/roles', label: '角色', icon: ShieldCheck },
+      { to: '/platform/orgs', label: '组织', icon: Network },
+      { to: '/platform/audit-logs', label: '审计日志', icon: ScrollText },
     ],
   },
   {

@@ -1,16 +1,23 @@
-export type Service = 'gateway' | 'data'
+import { getSessionToken, notifySessionExpired } from './session'
+
+export type Service = 'gateway' | 'data' | 'platform'
 
 const BASES: Record<Service, string> = {
   gateway: import.meta.env.VITE_GATEWAY_BASE || '/api/v1',
   data: import.meta.env.VITE_DATA_BASE || '/api/v1',
+  platform: import.meta.env.VITE_PLATFORM_BASE || '/api/v1',
 }
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
-  /** 乐观锁:写入设备时必须携带最近一次读取到的 eTag。 */
+  /** multipart 上传;与 body 互斥,设置后不再写 Content-Type。 */
+  formData?: FormData
+  /** 乐观锁:网关设备写入时必须携带最近一次读取到的 eTag。 */
   ifMatch?: string
   headers?: Record<string, string>
+  /** 登录、验证码等公开接口不携带 Authorization。 */
+  skipAuth?: boolean
   signal?: AbortSignal
 }
 
@@ -19,40 +26,55 @@ export interface ApiResponse<T> {
   etag?: string
 }
 
+export interface ApiFieldError {
+  code?: number
+  message?: string
+  field?: string
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly code?: number
+  readonly errors: ApiFieldError[]
 
-  constructor(message: string, status: number, code?: number) {
+  constructor(message: string, status: number, code?: number, errors: ApiFieldError[] = []) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.errors = errors
   }
 }
 
 interface ErrorPayload {
   code?: number
   message?: string
-  errors?: Array<{ code?: number; message?: string }>
+  errors?: ApiFieldError[]
   data?: unknown
 }
 
-function extractMessage(payload: unknown, status: number): { message: string; code?: number } {
+function extractMessage(
+  payload: unknown,
+  status: number,
+): { message: string; code?: number; errors: ApiFieldError[] } {
   if (payload && typeof payload === 'object') {
     const p = payload as ErrorPayload
     if (Array.isArray(p.errors) && p.errors.length > 0) {
       const messages = p.errors.map((e) => e?.message).filter(Boolean)
-      if (messages.length > 0) return { message: messages.join(';'), code: p.errors[0]?.code }
+      if (messages.length > 0) {
+        return { message: messages.join(';'), code: p.errors[0]?.code, errors: p.errors }
+      }
     }
-    if (typeof p.message === 'string' && p.message) return { message: p.message, code: p.code }
-    if (typeof p.data === 'string' && p.data) return { message: p.data }
+    if (typeof p.message === 'string' && p.message) {
+      return { message: p.message, code: p.code, errors: p.errors ?? [] }
+    }
+    if (typeof p.data === 'string' && p.data) return { message: p.data, errors: [] }
     if (p.data && typeof p.data === 'object' && 'message' in p.data) {
       const m = (p.data as { message?: unknown }).message
-      if (typeof m === 'string') return { message: m }
+      if (typeof m === 'string') return { message: m, errors: [] }
     }
   }
-  return { message: statusMessage(status) }
+  return { message: statusMessage(status), errors: [] }
 }
 
 function statusMessage(status: number): string {
@@ -86,11 +108,19 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<ApiResponse<T>> {
-  const { method = 'GET', body, ifMatch, headers = {}, signal } = options
+  const { method = 'GET', body, formData, ifMatch, headers = {}, skipAuth, signal } = options
   const url = `${BASES[service]}${path.startsWith('/') ? path : `/${path}`}`
 
   const finalHeaders: Record<string, string> = { Accept: 'application/json', ...headers }
-  if (body !== undefined) finalHeaders['Content-Type'] = 'application/json'
+  if (service === 'platform' && !skipAuth) {
+    const token = getSessionToken()
+    if (token) finalHeaders.Authorization = `Bearer ${token}`
+  }
+  if (formData) {
+    delete finalHeaders['Content-Type']
+  } else if (body !== undefined) {
+    finalHeaders['Content-Type'] = 'application/json'
+  }
   if (ifMatch) finalHeaders['If-Match'] = ifMatch
 
   let response: Response
@@ -98,12 +128,12 @@ export async function request<T>(
     response = await fetch(url, {
       method,
       headers: finalHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
       signal,
     })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new ApiError('无法连接到后端服务,请确认网关服务已启动', 0)
+    throw new ApiError('无法连接到后端服务,请确认服务已启动', 0)
   }
 
   const text = await response.text()
@@ -117,14 +147,29 @@ export async function request<T>(
   }
 
   if (!response.ok) {
-    const { message, code } = extractMessage(payload, response.status)
-    throw new ApiError(message, response.status, code)
+    const { message, code, errors } = extractMessage(payload, response.status)
+    // 平台服务统一使用 Bearer 会话;401 表示会话过期,清理后由上层跳转登录。
+    if (service === 'platform' && response.status === 401 && !skipAuth) {
+      notifySessionExpired()
+    }
+    throw new ApiError(message, response.status, code, errors)
   }
 
   return {
     data: payload as T,
     etag: response.headers.get('ETag') ?? undefined,
   }
+}
+
+/** 拼接查询串,自动忽略空值。 */
+export function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    search.set(key, String(value))
+  }
+  const query = search.toString()
+  return query ? `?${query}` : ''
 }
 
 export function isApiError(error: unknown): error is ApiError {

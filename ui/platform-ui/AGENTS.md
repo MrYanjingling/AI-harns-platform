@@ -31,32 +31,46 @@
 src/
 ├── main.tsx / router.tsx / index.css
 ├── api/          # types.ts（后端契约）、endpoints、query-keys、hooks
-├── lib/          # http、format、constants、cn、query-client
-├── providers/    # ThemeProvider
+├── lib/          # http、session、format、constants、cn、query-client
+├── providers/    # ThemeProvider、AuthProvider
 ├── components/
 │   ├── layout/   # AppShell + Sidebar
 │   ├── ui/       # 无业务语义的原语：Button/Card/Field/Dialog/Table/Badge…
 │   ├── charts/   # GaugeRing 等
-│   └── shared/   # 跨页面复用的业务组件：PageHeader/StatCard/StatusBadge…
-└── features/     # 按页面域组织：dashboard/devices/metrics/kpi/tags/timeseries/settings
+│   └── shared/   # 跨页面复用的业务组件：PageHeader/StatCard/StatusBadge/Pagination…
+└── features/     # 按页面域组织：auth/dashboard/devices/thing-models/things/identity/audit/metrics/kpi/tags/timeseries/settings
 mock/
-├── index.ts      # Vite 中间件，内存态 API
+├── index.ts      # Vite 中间件，内存态 API（网关与数据）
+├── platform.ts   # 平台服务中间件（auth + /iot/**）
+├── utils.ts      # send/readJson 等共享工具
 └── fixtures.ts   # 种子数据
 ```
+
+## 登录态
+
+- token 存放于 `localStorage['harns-session-token']`，读写集中在 `src/lib/session.ts`。
+- `request('platform', …)` 自动附加 `Authorization: Bearer <token>`；登录、验证码等公开接口传 `skipAuth: true`。
+- 平台接口返回 401 时 `http.ts` 清理 token 并派发 `SESSION_EXPIRED_EVENT`，`AuthProvider` 清空查询缓存，`RequireAuth` 跳转 `/login`。
+- `/login` 在 `AppShell` 外；`/screen` 保持独立，其余管理页由 `RequireAuth` 包裹。
+- 会话状态交给 `AuthProvider` + TanStack Query（`useCurrentUser`）；组件里不要自行读写 token。
 
 ## 数据请求
 
 - 所有 HTTP 走 `src/lib/http.ts` 的 `request(service, path, options)`：
-  - `service` 为 `'gateway'` 或 `'data'`，基址默认都是 `/api/v1`，由 Vite proxy 或生产反向代理分流。
+  - `service` 为 `'gateway'`、`'data'` 或 `'platform'`。网关/数据服务基址默认 `/api/v1`，平台服务基址由 `VITE_PLATFORM_BASE` 决定（默认 `/api/v1`），由 Vite proxy 或生产反向代理分流。
   - 错误统一抛 `ApiError`，展示时用 `errorMessage(error)`。
-  - 更新/删除设备必须传 `ifMatch`（来自 `DeviceSummary.eTag` / `DeviceDetail.eTag`）；启停与反控接口按后端契约不要求。
+  - 更新/删除网关设备必须传 `ifMatch`（来自 `DeviceSummary.eTag` / `DeviceDetail.eTag`）；启停与反控接口按后端契约不要求。
+  - 上传图片用 `request('platform', path, { formData })`，不要手写 multipart 头。
 - 后端契约类型集中在 `src/api/types.ts`；改类型前核对 `apis/` 与 Go 源码，不在组件里临时声明接口。
 - Query key 集中定义在 `src/api/query-keys.ts`；组件中禁止手写 key 数组。
 - 每个接口一个函数（`src/api/*.ts`），每个接口一个 hook（`src/api/hooks.ts`）：
-  - 设备列表/网关资源 10s 轮询，设备详情 5s 轮询；其余查询按需配置。
-  - 写设备成功后失效设备列表与相关详情缓存。
+  - 网关设备列表/资源 10s 轮询、详情 5s 轮询；平台设备列表 10s、详情 5s；其余查询按需配置。
+  - 写操作成功后按域失效列表与相关详情缓存（`platform.things` / `thingModels` / `users` 等）。
   - 412/404 冲突时先失效缓存，让用户看到最新版本，不静默覆盖。
 - 数据服务响应统一 `{ data, total }`，解包逻辑集中在 `src/api/data.ts`。
+- 平台服务响应统一 `{ code, message, data }`，分页为 `{ total, page, pageSize, list }`：
+  - 成功解包由 `src/api/platform.ts` 的 `platformData` / `platformPage` 完成，页面只拿业务数据。
+  - 业务失败 HTTP 400，以 body `code` 区分，`ApiError` 需保留 `errors[]`；401 视为会话失效。
 
 ## 组件
 
@@ -82,13 +96,18 @@ mock/
 - 默认值必须避开 Go `binding:"required"` 的零值：采集周期 1 秒、slave 1、functionCode 3、namespace 2。
 - 编辑时 `deviceType`/`deviceModel` 不可切换；从 `?exploded=true` 载入后用 `toFormValues` 转回表单。
 - 新增变量字段时，同时更新 `schema.ts` 的三处映射：`defaultFormValues`、`toFormValues`、`toPayload`，并同步 `BUSINESS.md`。
+- 平台表单（登录、用户、角色、组织、物模型、设备）统一 RHF + zod；编辑用户不提交 `roleIds/orgIds`（后端不支持），批量创建设备按行维护数组字段。
+- 物模型属性的 `dataType` 是递归结构，`features/thing-models/DataTypeEditor.tsx` 与 `PropertyDialog.tsx` 使用受控状态 + `data-type.ts` 中的 zod 校验函数，字段错误路径需与后端一致（如 `dataType.enumSpec`）。
+- 属性/功能标识符规则：`^[A-Za-z][A-Za-z0-9_]*$`，保留字 `time`、`device_id`；前端校验只是提前反馈，最终以后端为准。
 
 ## Mock
 
 - `VITE_USE_MOCK=true` 时启用 `mock/index.ts`，同时不注册 Vite proxy。
 - mock 是**有状态**的：创建/更新/删除/启停/反控都会改变内存数据并递增 eTag；刷新页面重置。
+- 平台接口在 `mock/platform.ts`：维护内存会话、默认密码、种子用户/角色/组织/物模型/设备/审计日志；`/auth/publicKey` 返回空串以便走明文登录回退。
 - 新接口必须同时实现 mock 路由；未实现的 `/api/v1/*` 显式返回 404，避免误判为真实后端。
-- mock 响应形状必须与 Go 一致，尤其 `eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent`、`{data,total}`。
+- mock 响应形状必须与 Go 一致，尤其 `eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent`、`{data,total}`、平台 `{code,message,data}` 与 `{total,page,pageSize,list}`。
+- 设备在线状态由 mock 按 `enable === 1 && 最近 60s 有活动` 派生，不要存成静态字段。
 - mock 行为必须与 `BUSINESS.md` 第 10 节一致；业务变更时同步更新 fixtures。
 
 ## 样式与主题
@@ -149,4 +168,4 @@ pnpm build
 VITE_USE_MOCK=true pnpm dev
 ```
 
-手动走查：概览 → 设备列表（启停/删除）→ 新建设备（三种协议）→ 详情（反控）→ 指标/KPI/测点/时序 → 工厂大屏（选中/取消、全屏）→ 设置；并切换一次深色主题。业务验收项见 `BUSINESS.md` 第 12 节。
+手动走查：登录/退出/会话过期跳转 → 概览 → 网关设备列表（启停/删除）→ 新建设备（三种协议）→ 详情（反控）→ 物模型（属性/TSL 导入导出）→ 平台设备（批量创建/凭证/图片/启停）→ 用户/角色/组织 → 审计日志 → 指标/KPI/测点/时序 → 工厂大屏（选中/取消、全屏）→ 设置；并切换一次深色主题。业务验收项见 `BUSINESS.md` 第 17 节。

@@ -11,6 +11,8 @@ import {
   tags,
   type StoredDevice,
 } from './fixtures'
+import { handlePlatform } from './platform'
+import { readJson, send } from './utils'
 
 /**
  * 仅开发期生效的 mock API。
@@ -23,44 +25,8 @@ const LATENCY_MS = 120
 
 let devices: StoredDevice[] = structuredClone(seedDevices)
 
-function send(
-  res: ServerResponse,
-  status: number,
-  body?: unknown,
-  headers?: Record<string, string>,
-) {
-  if (headers) {
-    for (const [key, value] of Object.entries(headers)) res.setHeader(key, value)
-  }
-  if (body === undefined) {
-    res.statusCode = status
-    res.end()
-    return
-  }
-  res.statusCode = status
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.end(JSON.stringify(body))
-}
-
 function sendErrors(res: ServerResponse, status: number, messages: string[], code = 10001) {
   send(res, status, { errors: messages.map((message) => ({ code, message })) })
-}
-
-function readJson(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
-    req.on('end', () => {
-      const raw = Buffer.concat(chunks).toString('utf8')
-      if (!raw) return resolve(undefined)
-      try {
-        resolve(JSON.parse(raw))
-      } catch {
-        reject(new Error('malformed json'))
-      }
-    })
-    req.on('error', reject)
-  })
 }
 
 function toSummary(device: StoredDevice) {
@@ -148,6 +114,15 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolea
 
   const pathname = path.slice(PREFIX.length) || '/'
   const query = url.searchParams
+
+  // 平台服务(auth + /iot/**)由独立的有状态 mock 处理。
+  if (
+    pathname.startsWith('/auth/') ||
+    pathname === '/iot' ||
+    pathname.startsWith('/iot/')
+  ) {
+    return handlePlatform(req, res, method, pathname, query)
+  }
 
   /* ---------------- 网关 ---------------- */
 
