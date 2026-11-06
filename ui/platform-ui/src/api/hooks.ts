@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isApiError } from '@/lib/http'
 import { getCurrentUser, login, logout } from './auth'
 import { listAuditLogs } from './audit'
-import { listKpis, listMetrics, listTags, queryKpi, queryMetrics, queryTimeSeries } from './data'
 import {
   controlDevice,
   createDevice,
@@ -63,13 +62,9 @@ import type {
   DeviceAction,
   DevicePayload,
   DeviceStatusAction,
-  KpiQueryRequest,
   LoginRequest,
-  MetricsQueryRequest,
-  TagTimeSeriesRequest,
   ThingModelDocument,
   ThingModelPropertyInput,
-  TimeSeriesSource,
   UpdateOrgRequest,
   UpdateRoleRequest,
   UpdateThingModelRequest,
@@ -198,50 +193,6 @@ export function useControlDevice() {
       controlDevice(vars.id, vars.actions),
     onSuccess: (_data, vars) =>
       queryClient.invalidateQueries({ queryKey: queryKeys.devices.detail(vars.id) }),
-  })
-}
-
-/* ---------------- 数据服务 ---------------- */
-
-export function useMetrics() {
-  return useQuery({ queryKey: queryKeys.data.metrics, queryFn: listMetrics })
-}
-
-export function useKpis() {
-  return useQuery({ queryKey: queryKeys.data.kpis, queryFn: listKpis })
-}
-
-export function useTags() {
-  return useQuery({ queryKey: queryKeys.data.tags, queryFn: listTags })
-}
-
-export function useMetricsValues(req: MetricsQueryRequest | null) {
-  return useQuery({
-    queryKey: queryKeys.data.metricsValues(req ?? { metricsCodes: [], startTime: '', endTime: '', granularity: 'h' }),
-    queryFn: () => queryMetrics(req as MetricsQueryRequest),
-    enabled: Boolean(req && req.metricsCodes.length > 0),
-    staleTime: 60_000,
-  })
-}
-
-export function useKpiValues(req: KpiQueryRequest | null) {
-  return useQuery({
-    queryKey: queryKeys.data.kpiValues(req ?? { ids: [], startTime: '', endTime: '', granularity: 'h' }),
-    queryFn: () => queryKpi(req as KpiQueryRequest),
-    enabled: Boolean(req && req.ids.length > 0),
-    staleTime: 60_000,
-  })
-}
-
-export function useTimeSeries(
-  source: TimeSeriesSource,
-  req: TagTimeSeriesRequest | null,
-) {
-  return useQuery({
-    queryKey: queryKeys.data.timeSeries(source, req ?? { select: '' }),
-    queryFn: () => queryTimeSeries(source, req as TagTimeSeriesRequest),
-    enabled: Boolean(req?.select),
-    staleTime: 60_000,
   })
 }
 

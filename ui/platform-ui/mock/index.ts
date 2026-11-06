@@ -1,14 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import {
-  buildTimeSeries,
   createDeviceId,
   gatewayMeta,
-  kpis,
-  metrics,
   nowIso,
   seedDevices,
-  tags,
   type StoredDevice,
 } from './fixtures'
 import { handlePlatform } from './platform'
@@ -64,45 +60,6 @@ function checkPrecondition(
     return false
   }
   return true
-}
-
-function baseValue(code: string): number {
-  switch (code) {
-    case 'energy_total':
-      return 48213.5
-    case 'power_factor':
-      return 0.93
-    case 'water_total':
-      return 1862.4
-    case 'steam_total':
-      return 342.8
-    case 'run_hours':
-      return 720
-    default:
-      return 0
-  }
-}
-
-function kpiValue(id: string): number {
-  switch (id) {
-    case 'kpi_001':
-      return 48213.5
-    case 'kpi_002':
-      return 1.72
-    case 'kpi_003':
-      return 86.4
-    case 'kpi_004':
-      return 37.8
-    default:
-      return 0
-  }
-}
-
-function hourRange(body: Record<string, unknown>, keys: ['startTime', 'endTime'] | ['start', 'end']) {
-  return {
-    start: typeof body[keys[0]] === 'string' ? (body[keys[0]] as string) : '',
-    end: typeof body[keys[1]] === 'string' ? (body[keys[1]] as string) : '',
-  }
 }
 
 async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
@@ -278,77 +235,6 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolea
     bump(updated)
     devices = devices.map((d) => (d.id === device.id ? updated : d))
     send(res, 200, updated, { ETag: updated.eTag })
-    return true
-  }
-
-  /* ---------------- 数据服务 ---------------- */
-
-  if (method === 'GET' && pathname === '/metrics') {
-    send(res, 200, { data: metrics, total: metrics.length })
-    return true
-  }
-
-  if (method === 'GET' && pathname === '/kpis') {
-    send(res, 200, { data: kpis, total: kpis.length })
-    return true
-  }
-
-  if (method === 'GET' && pathname === '/tags') {
-    send(res, 200, { data: tags, total: tags.length })
-    return true
-  }
-
-  if (method === 'POST' && pathname === '/metricsData') {
-    const body = (await readJson(req)) as Record<string, unknown> | undefined
-    const codes = Array.isArray(body?.metricsCodes) ? (body?.metricsCodes as string[]) : []
-    if (codes.length === 0) {
-      sendErrors(res, 400, ["Field validation for 'metricsCodes' failed on the 'required' tag"])
-      return true
-    }
-    const { start, end } = hourRange(body as Record<string, unknown>, ['startTime', 'endTime'])
-    const jitter = Math.sin(new Date().getHours()) * 0.01 + 1
-    send(res, 200, {
-      data: codes.map((metricsCode) => ({
-        metricsCode,
-        startTime: start,
-        endTime: end,
-        value: Number((baseValue(metricsCode) * jitter).toFixed(2)),
-      })),
-      total: codes.length,
-    })
-    return true
-  }
-
-  if (method === 'POST' && pathname === '/kpi') {
-    const body = (await readJson(req)) as Record<string, unknown> | undefined
-    const ids = Array.isArray(body?.ids) ? (body?.ids as string[]) : []
-    if (ids.length === 0) {
-      sendErrors(res, 400, ["Field validation for 'Ids' failed on the 'required' tag"])
-      return true
-    }
-    const { start, end } = hourRange(body as Record<string, unknown>, ['startTime', 'endTime'])
-    send(res, 200, {
-      data: ids.map((id) => ({
-        id,
-        startTime: start,
-        endTime: end,
-        value: kpiValue(id),
-      })),
-      total: ids.length,
-    })
-    return true
-  }
-
-  const seriesMatch = pathname.match(/^\/(fmcs|escada)\/tagTimeSeries$/)
-  if (method === 'POST' && seriesMatch) {
-    const body = (await readJson(req)) as Record<string, unknown> | undefined
-    const select = typeof body?.select === 'string' ? body.select : ''
-    if (!select) {
-      sendErrors(res, 400, ["Field validation for 'Select' failed on the 'required' tag"])
-      return true
-    }
-    const limit = typeof body?.limit === 'number' ? body.limit : 48
-    send(res, 200, { data: buildTimeSeries(select, limit) })
     return true
   }
 

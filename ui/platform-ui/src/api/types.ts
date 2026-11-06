@@ -1,6 +1,6 @@
 /* ============================================================
  * 后端契约类型 — 严格对应 Go 结构体的 JSON 输出。
- * 来源:pkg/runtime、pkg/v1、pkg/gateway、pkg/data、pkg/protocol/*。
+ * 来源:pkg/runtime、pkg/v1、pkg/gateway、pkg/protocol/*。
  * 修改前请先阅读对应 server.go 与 type.go。
  * ============================================================ */
 
@@ -247,126 +247,6 @@ export interface GatewayMemResponse {
 export interface GatewayDiskResponse {
   disk?: Record<string, UsageInfo>
 }
-
-/* ---------- 数据服务统一响应 ---------- */
-
-export interface DataResponse<T> {
-  data?: T
-  total?: number
-}
-
-export interface MetricsInfo {
-  id: string
-  tenantId?: string | null
-  revision?: number | null
-  createdBy?: string | null
-  createdTime?: string | null
-  updatedBy?: string | null
-  updatedTime?: string | null
-  dataPoint?: string | null
-  metricsCode?: string | null
-  metricsName?: string | null
-  measureType?: string | null
-  enable?: boolean | null
-  metricsType?: string | null
-  calculateType?: string | null
-  note?: string | null
-}
-
-export interface KpiInfo {
-  id: string
-  tenantId?: string | null
-  revision?: number | null
-  createdBy?: string | null
-  createdTime?: string | null
-  updatedBy?: string | null
-  updatedTime?: string | null
-  name: string
-  formula?: string | null
-  formulaDataName?: string | null
-  formulaOri: string
-  timeGranularity: string
-  targetData?: string | null
-  singleQuota: boolean
-  defaultTag: boolean
-  canDelete: boolean
-  unit?: string | null
-  targetDataType: string
-  status: string
-}
-
-export interface TagInfo {
-  id: string
-  tenantId?: string | null
-  revision?: number | null
-  createdBy?: string | null
-  createdTime?: string | null
-  updatedBy?: string | null
-  updatedTime?: string | null
-  tagId?: string | null
-  tagName?: string | null
-  tagDesc?: string | null
-  lastSynTime?: string | null
-  tagType?: string | null
-  tagAttribute?: string | null
-  enable?: number | null
-  scadaId: string
-  operator?: string | null
-  operateValue?: string | null
-}
-
-export interface MetricsQueryRequest {
-  metricsCodes: string[]
-  startTime: string
-  endTime: string
-  granularity: 'h'
-}
-
-export interface MetricsResult {
-  metricsCode: string
-  startTime: string
-  endTime: string
-  value: number
-}
-
-export interface KpiQueryRequest {
-  ids: string[]
-  startTime: string
-  endTime: string
-  granularity: 'h'
-}
-
-export interface KpiResult {
-  id: string
-  startTime: string
-  endTime: string
-  value: number
-}
-
-export type TimeSeriesMode = 'raw' | 'mean' | 'usage'
-
-export interface TagTimeSeriesRequest {
-  select: string
-  start?: string
-  end?: string
-  latest?: boolean
-  limit?: number
-  mode?: TimeSeriesMode
-}
-
-export interface TimeSeriesPoint {
-  time: string
-  value: string
-}
-
-export interface DataPointTimeSeries {
-  tagId: string
-  tagName: string
-  tagDesc: string
-  data: TimeSeriesPoint[]
-}
-
-export type TimeSeriesSource = 'fmcs' | 'escada'
 
 /* ============================================================
  * 平台服务(platform)契约 — 对应 pkg/platform/{auth,identity,thingmodel,things,files}

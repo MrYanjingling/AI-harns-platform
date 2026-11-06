@@ -26,7 +26,7 @@ AI-harns-platform 是工业物联网平台，Go module `harns-platform`，Go 1.2
 | platform-ui | `ui/platform-ui` | 5173（dev） | React 管理后台 |
 
 - `ui/eam-ui`、`ui/ems-ui`、`ui/gateway-ui` 目前只有 `.gitkeep`，不可构建。
-- 仓库内没有 `cmd/data` 服务，前端 README 中的 data 服务配置属于历史遗留。
+- 仓库内没有 `cmd/data` 服务，前端只对接 gateway 与 platform。
 
 ## 2. 常用命令
 

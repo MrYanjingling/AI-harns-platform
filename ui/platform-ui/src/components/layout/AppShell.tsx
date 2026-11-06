@@ -23,11 +23,6 @@ const TITLES: Record<string, MessageKey> = {
   '/platform/roles': 'layout.title.roles',
   '/platform/orgs': 'layout.title.orgs',
   '/platform/audit-logs': 'layout.title.audit',
-  '/data/metrics': 'layout.title.metrics',
-  '/data/kpis': 'layout.title.kpis',
-  '/data/tags': 'layout.title.tags',
-  '/data/timeseries': 'layout.title.timeseries',
-  '/settings': 'layout.title.settings',
 }
 
 function usePageTitle(): string {

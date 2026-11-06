@@ -12,8 +12,6 @@
 | 样式 | Tailwind CSS v4（CSS-first，`@tailwindcss/vite`） |
 | 服务端状态 | TanStack Query v5 |
 | 表单 | React Hook Form 7 + Zod 3 + `@hookform/resolvers` |
-| 图表 | Recharts 3 |
-| 3D | Three.js（仅 `/screen` 大屏按需加载） |
 | UI 辅助 | lucide-react、sonner、clsx、tailwind-merge |
 
 - 统一使用 pnpm：`pnpm install`、`pnpm dev`、`pnpm typecheck`、`pnpm build`、`pnpm preview`。不要混用 npm/yarn，也不要提交其他包管理器的锁文件。
@@ -33,9 +31,9 @@ src/
 │   ├── ui/       # 无业务语义的原语：Button/Card/Field/Dialog/Table/Badge…
 │   ├── charts/   # GaugeRing 等
 │   └── shared/   # 跨页面复用的业务组件：PageHeader/StatCard/StatusBadge/Pagination…
-└── features/     # 按页面域组织：auth/dashboard/devices/thing-models/things/identity/audit/metrics/kpi/tags/timeseries/settings
+└── features/     # 按页面域组织：auth/dashboard/devices/thing-models/things/identity/audit
 mock/
-├── index.ts      # Vite 中间件，内存态 API（网关与数据）
+├── index.ts      # Vite 中间件，内存态 API（网关）
 ├── platform.ts   # 平台服务中间件（auth + /iot/**）
 ├── utils.ts      # send/readJson 等共享工具
 └── fixtures.ts   # 种子数据
@@ -46,13 +44,13 @@ mock/
 - token 存放于 `localStorage['harns-session-token']`，读写集中在 `src/lib/session.ts`。
 - `request('platform', …)` 自动附加 `Authorization: Bearer <token>`；登录、验证码等公开接口传 `skipAuth: true`。
 - 平台接口返回 401 时 `http.ts` 清理 token 并派发 `SESSION_EXPIRED_EVENT`，`AuthProvider` 清空查询缓存，`RequireAuth` 跳转 `/login`。
-- `/login` 在 `AppShell` 外；`/screen` 保持独立，其余管理页由 `RequireAuth` 包裹。
+- `/login` 在 `AppShell` 外，其余管理页由 `RequireAuth` 包裹。
 - 会话状态交给 `AuthProvider` + TanStack Query（`useCurrentUser`）；组件里不要自行读写 token。
 
 ## 数据请求
 
 - 所有 HTTP 走 `src/lib/http.ts` 的 `request(service, path, options)`：
-  - `service` 为 `'gateway'`、`'data'` 或 `'platform'`。网关/数据服务基址默认 `/api/v1`，平台服务基址由 `VITE_PLATFORM_BASE` 决定（默认 `/api/v1`），由 Vite proxy 或生产反向代理分流。
+  - `service` 为 `'gateway'` 或 `'platform'`。网关服务基址默认 `/api/v1`，平台服务基址由 `VITE_PLATFORM_BASE` 决定（默认 `/api/v1`），由 Vite proxy 或生产反向代理分流。
   - 错误统一抛 `ApiError`，展示时用 `errorMessage(error)`。
   - 更新/删除网关设备必须传 `ifMatch`（来自 `DeviceSummary.eTag` / `DeviceDetail.eTag`）；启停与反控接口按后端契约不要求。
   - 上传图片用 `request('platform', path, { formData })`，不要手写 multipart 头。
@@ -62,7 +60,6 @@ mock/
   - 网关设备列表/资源 10s 轮询、详情 5s 轮询；平台设备列表 10s、详情 5s；其余查询按需配置。
   - 写操作成功后按域失效列表与相关详情缓存（`platform.things` / `thingModels` / `users` 等）。
   - 412/404 冲突时先失效缓存，让用户看到最新版本，不静默覆盖。
-- 数据服务响应统一 `{ data, total }`，解包逻辑集中在 `src/api/data.ts`。
 - 平台服务响应统一 `{ code, message, data }`，分页为 `{ total, page, pageSize, list }`：
   - 成功解包由 `src/api/platform.ts` 的 `platformData` / `platformPage` 完成，页面只拿业务数据。
   - 业务失败 HTTP 400，以 body `code` 区分，`ApiError` 需保留 `errors[]`；401 视为会话失效。
@@ -76,13 +73,6 @@ mock/
 - 弹窗使用原生 `<dialog>`（`components/ui/Dialog.tsx`），自带焦点陷阱；危险操作使用 `ConfirmDialog`。
 - 表格在窄屏必须可横向滚动（`components/ui/Table.tsx` 已内置 `overflow-x-auto`）。
 - 空态用 `EmptyState`，错误用 `ErrorState`，加载用 `Skeleton`/`TableSkeleton`/`PageLoading`。不要只渲染 `null`。
-
-## 3D 大屏
-
-- `/screen` 是 `AppShell` 之外的全屏页，Three.js 必须通过路由懒加载引入，不得静态进入管理后台主包。
-- 场景生命周期是命令式的（`features/screen/FactoryScene.tsx`）：设备集合变化时重建，轮询只更新材质；标签投影与动画在 `requestAnimationFrame` 内直接操作 DOM，禁止每帧 `setState`。
-- 场景色板集中在 `features/screen/layout.ts`（three.js 只接受数值色），分区色沿用协议既有 accents（emerald / sky / amber），状态与分区颜色不得散落在组件里。
-- 必须释放 geometry / material / renderer，并在 WebGL 不可用时给出降级提示。
 
 ## 表单
 
@@ -101,7 +91,7 @@ mock/
 - mock 是**有状态**的：创建/更新/删除/启停/反控都会改变内存数据并递增 eTag；刷新页面重置。
 - 平台接口在 `mock/platform.ts`：维护内存会话、默认密码、种子用户/角色/组织/物模型/设备/审计日志；`/auth/publicKey` 返回空串以便走明文登录回退。
 - 新接口必须同时实现 mock 路由；未实现的 `/api/v1/*` 显式返回 404，避免误判为真实后端。
-- mock 响应形状必须与 Go 一致，尤其 `eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent`、`{data,total}`、平台 `{code,message,data}` 与 `{total,page,pageSize,list}`。
+- mock 响应形状必须与 Go 一致，尤其 `eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent`、平台 `{code,message,data}` 与 `{total,page,pageSize,list}`。
 - 设备在线状态由 mock 按 `enable === 1 && 最近 60s 有活动` 派生，不要存成静态字段。
 - mock 行为必须与 `BUSINESS.md` 第 10 节一致；业务变更时同步更新 fixtures。
 
@@ -109,7 +99,6 @@ mock/
 
 - Tailwind v4 CSS-first：`index.css` 中 `@theme inline` 把语义变量映射为工具类。
 - 深色模式通过 `<html class="dark">`；`ThemeProvider` 持久化到 `localStorage['harns-theme']`，首屏脚本在 `index.html` 内联，避免闪烁。
-- 图表配色使用固定色板（`features/timeseries` 中的 `SERIES_COLORS`），保证明暗主题下都可辨识。
 - 重复出现的类名组合用 `cn()` 合并或抽成常量，不在 JSX 中堆叠大段重复样式。
 
 ## 国际化

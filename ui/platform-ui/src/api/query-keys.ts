@@ -1,10 +1,4 @@
-import type {
-  AuditQuery,
-  KpiQueryRequest,
-  MetricsQueryRequest,
-  TagTimeSeriesRequest,
-  TimeSeriesSource,
-} from './types'
+import type { AuditQuery } from './types'
 import type { IdentityQuery } from './identity'
 import type { ThingModelQuery } from './thing-models'
 import type { ThingQuery } from './things'
@@ -21,15 +15,6 @@ export const queryKeys = {
     all: ['devices'] as const,
     list: (exploded: boolean) => ['devices', 'list', exploded] as const,
     detail: (id: string) => ['devices', 'detail', id] as const,
-  },
-  data: {
-    metrics: ['data', 'metrics'] as const,
-    kpis: ['data', 'kpis'] as const,
-    tags: ['data', 'tags'] as const,
-    metricsValues: (req: MetricsQueryRequest) => ['data', 'metricsValues', req] as const,
-    kpiValues: (req: KpiQueryRequest) => ['data', 'kpiValues', req] as const,
-    timeSeries: (source: TimeSeriesSource, req: TagTimeSeriesRequest) =>
-      ['data', 'timeSeries', source, req] as const,
   },
   platform: {
     currentUser: ['platform', 'current-user'] as const,

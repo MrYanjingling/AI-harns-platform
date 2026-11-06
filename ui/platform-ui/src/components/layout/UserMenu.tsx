@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Languages, LogOut, Moon, Settings, Sun } from 'lucide-react'
+import { Languages, LogOut, Moon, Sun } from 'lucide-react'
 import { LOCALES, useI18n } from '@/i18n'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/providers/AuthProvider'
@@ -68,15 +67,6 @@ export function UserMenu() {
             <p className="truncate text-sm font-medium">{name}</p>
             <p className="truncate text-xs text-faint">{user?.userNo || user?.userName || ''}</p>
           </div>
-          <Link
-            to="/settings"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-          >
-            <Settings className="size-3.5" />
-            {t('common.user.settings')}
-          </Link>
           <button
             type="button"
             role="menuitem"

@@ -1,6 +1,6 @@
 import type { MessageKey } from '@/i18n'
 
-export type NavSectionKey = 'platform' | 'identity' | 'system'
+export type NavSectionKey = 'platform' | 'identity'
 
 export interface NavLeaf {
   to: string
@@ -31,7 +31,7 @@ export const NAV_SECTIONS: NavSection[] = [
     key: 'platform',
     labelKey: 'layout.section.platform',
     entry: '/',
-    prefixes: ['/', '/devices', '/platform/things', '/platform/thing-models', '/data', '/screen'],
+    prefixes: ['/', '/devices', '/platform/things', '/platform/thing-models'],
     groups: [
       {
         items: [{ to: '/', labelKey: 'layout.item.home', hintKey: 'layout.hint.home', end: true }],
@@ -44,20 +44,6 @@ export const NAV_SECTIONS: NavSection[] = [
             to: '/platform/thing-models',
             labelKey: 'layout.item.thingModels',
             hintKey: 'layout.hint.thingModels',
-          },
-        ],
-      },
-      {
-        labelKey: 'layout.group.data',
-        items: [
-          { to: '/screen', labelKey: 'layout.item.screen', hintKey: 'layout.hint.screen' },
-          { to: '/data/metrics', labelKey: 'layout.item.metrics', hintKey: 'layout.hint.metrics' },
-          { to: '/data/kpis', labelKey: 'layout.item.kpis', hintKey: 'layout.hint.kpis' },
-          { to: '/data/tags', labelKey: 'layout.item.tags', hintKey: 'layout.hint.tags' },
-          {
-            to: '/data/timeseries',
-            labelKey: 'layout.item.timeseries',
-            hintKey: 'layout.hint.timeseries',
           },
         ],
       },
@@ -79,24 +65,6 @@ export const NAV_SECTIONS: NavSection[] = [
             to: '/platform/audit-logs',
             labelKey: 'layout.item.audit',
             hintKey: 'layout.hint.audit',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    key: 'system',
-    labelKey: 'layout.section.system',
-    entry: '/settings',
-    prefixes: ['/settings'],
-    groups: [
-      {
-        labelKey: 'layout.group.system',
-        items: [
-          {
-            to: '/settings',
-            labelKey: 'layout.item.settings',
-            hintKey: 'layout.hint.settings',
           },
         ],
       },

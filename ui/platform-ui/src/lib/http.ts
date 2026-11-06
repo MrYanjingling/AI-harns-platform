@@ -1,11 +1,10 @@
 import { getLocale, translate } from '@/i18n/translate'
 import { getSessionToken, notifySessionExpired } from './session'
 
-export type Service = 'gateway' | 'data' | 'platform'
+export type Service = 'gateway' | 'platform'
 
 const BASES: Record<Service, string> = {
   gateway: import.meta.env.VITE_GATEWAY_BASE || '/api/v1',
-  data: import.meta.env.VITE_DATA_BASE || '/api/v1',
   platform: import.meta.env.VITE_PLATFORM_BASE || '/api/v1',
 }
 

@@ -1,4 +1,4 @@
-import { getLocale, translate } from '@/i18n/translate'
+import { translate } from '@/i18n/translate'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -81,16 +81,6 @@ export function percentValue(value: string | number | null | undefined): number 
   const n = typeof value === 'number' ? value : Number.parseFloat(value.replace('%', ''))
   if (!Number.isFinite(n)) return 0
   return Math.min(100, Math.max(0, n))
-}
-
-export function formatNumber(value: number | string | null | undefined, digits = 2): string {
-  if (value === null || value === undefined || value === '') return '—'
-  const n = typeof value === 'number' ? value : Number(value)
-  if (!Number.isFinite(n)) return String(value)
-  return new Intl.NumberFormat(getLocale(), {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: 0,
-  }).format(n)
 }
 
 export function formatBytes(value: number): string {

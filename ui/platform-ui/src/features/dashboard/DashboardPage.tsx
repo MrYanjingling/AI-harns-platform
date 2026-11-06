@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   Cpu,
@@ -7,7 +7,6 @@ import {
   EyeOff,
   HardDrive,
   MemoryStick,
-  MonitorPlay,
   RefreshCw,
   Router,
   Server,
@@ -62,7 +61,6 @@ const CPU_GAUGES: Array<{ key: '1min' | '5min' | '15min'; labelKey: MessageKey }
 
 export function DashboardPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const meta = useGatewayMeta()
   const cpu = useGatewayCpu()
   const mem = useGatewayMem()
@@ -112,18 +110,9 @@ export function DashboardPage() {
         title={t('dashboard.title')}
         description={t('dashboard.description')}
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/screen')}
-              icon={<MonitorPlay className="size-4" />}
-            >
-              {t('dashboard.openScreen')}
-            </Button>
-            <Button variant="outline" onClick={refreshAll} icon={<RefreshCw className="size-4" />}>
-              {t('common.action.refresh')}
-            </Button>
-          </div>
+          <Button variant="outline" onClick={refreshAll} icon={<RefreshCw className="size-4" />}>
+            {t('common.action.refresh')}
+          </Button>
         }
       />
 

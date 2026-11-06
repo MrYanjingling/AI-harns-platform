@@ -4,7 +4,6 @@ export const dashboard = defineMessages({
   'zh-CN': {
     'dashboard.title': '概览',
     'dashboard.description': '网关运行状态、设备采集情况与资源占用一览。',
-    'dashboard.openScreen': '工厂大屏',
     'dashboard.refreshSuccess': '已刷新',
 
     'dashboard.gateway.unavailable': '网关不可用',
@@ -66,7 +65,6 @@ export const dashboard = defineMessages({
   'en-US': {
     'dashboard.title': 'Overview',
     'dashboard.description': 'Gateway health, device acquisition status and resource usage at a glance.',
-    'dashboard.openScreen': 'Factory screen',
     'dashboard.refreshSuccess': 'Refreshed',
 
     'dashboard.gateway.unavailable': 'Gateway unavailable',
