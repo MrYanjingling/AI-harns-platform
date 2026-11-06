@@ -13,8 +13,6 @@ import { UserMenu } from './UserMenu'
 
 const TITLES: Record<string, MessageKey> = {
   '/': 'layout.title.dashboard',
-  '/devices': 'layout.title.devices',
-  '/devices/new': 'layout.title.deviceNew',
   '/platform/thing-models': 'layout.title.thingModels',
   '/platform/thing-models/new': 'layout.title.thingModelNew',
   '/platform/things': 'layout.title.things',
@@ -29,10 +27,6 @@ function usePageTitle(): string {
   const { pathname } = useLocation()
   const { t } = useI18n()
   if (TITLES[pathname]) return t(TITLES[pathname])
-  if (pathname.startsWith('/devices/') && pathname.endsWith('/edit')) {
-    return t('layout.title.deviceEdit')
-  }
-  if (pathname.startsWith('/devices/')) return t('layout.title.deviceDetail')
   if (pathname.startsWith('/platform/thing-models/')) return t('layout.title.thingModelDetail')
   if (pathname.startsWith('/platform/things/')) return t('layout.title.thingDetail')
   return 'AI-harns-platform'

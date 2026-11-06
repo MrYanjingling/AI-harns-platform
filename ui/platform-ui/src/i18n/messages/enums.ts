@@ -2,42 +2,10 @@ import { defineMessages } from './define'
 
 export const enums = defineMessages({
   'zh-CN': {
-    'enums.deviceStatus.collecting.label': '采集中',
-    'enums.deviceStatus.collecting.description': '设备连接正常,正在采集数据',
-    'enums.deviceStatus.collectingError.label': '采集异常',
-    'enums.deviceStatus.collectingError.description': '设备可连接,但部分数据采集失败',
-    'enums.deviceStatus.unconnected.label': '未连接',
-    'enums.deviceStatus.unconnected.description': '网关无法连接到设备',
-    'enums.deviceStatus.emptyVariable.label': '无变量',
-    'enums.deviceStatus.emptyVariable.description': '设备没有配置任何采集变量',
-    'enums.deviceStatus.stopped.label': '已停止',
-    'enums.deviceStatus.stopped.description': '采集已停止',
-    'enums.deviceStatus.error.label': '错误',
-    'enums.deviceStatus.error.description': '设备运行发生错误',
-    'enums.deviceStatus.unknown.label': '未知',
-    'enums.deviceStatus.unknown.description': '未知状态',
-
     'enums.platformStatus.enabled.label': '启用',
     'enums.platformStatus.enabled.description': '账号或资源处于启用状态',
     'enums.platformStatus.disabled.label': '禁用',
     'enums.platformStatus.disabled.description': '账号或资源处于禁用状态',
-
-    'enums.protocol.modbus.description': 'Modbus TCP / RTU / RTU over TCP',
-    'enums.protocol.modbus.model.modbusTcp.hint': '以太网,默认端口 502',
-    'enums.protocol.modbus.model.modbusRtu.hint': '串口 (RS-485/232)',
-    'enums.protocol.modbus.model.modbusRtuOverTcp.hint': '串口协议经 TCP 透传',
-    'enums.protocol.opcUa.description': 'OPC UA 二进制协议',
-    'enums.protocol.opcUa.model.opcUa.hint': 'Endpoint: opc.tcp://host:port',
-    'enums.protocol.s7.description': '西门子 S7-1500',
-    'enums.protocol.s7.model.s71500.hint': 'ISO-on-TCP,默认端口 102',
-
-    'enums.deviceAction.start': '启动',
-    'enums.deviceAction.restart': '重启',
-    'enums.deviceAction.stop': '停止',
-
-    'enums.parity.none': '无校验 (None)',
-    'enums.parity.odd': '奇校验 (Odd)',
-    'enums.parity.even': '偶校验 (Even)',
 
     'enums.thingDataType.int': '32 位整数',
     'enums.thingDataType.long': '64 位整数',
@@ -72,43 +40,10 @@ export const enums = defineMessages({
     'enums.authMode.radius': 'RADIUS',
   },
   'en-US': {
-    'enums.deviceStatus.collecting.label': 'Collecting',
-    'enums.deviceStatus.collecting.description': 'Device connected and collecting data',
-    'enums.deviceStatus.collectingError.label': 'Acquisition error',
-    'enums.deviceStatus.collectingError.description':
-      'Device reachable, but some data points failed to collect',
-    'enums.deviceStatus.unconnected.label': 'Disconnected',
-    'enums.deviceStatus.unconnected.description': 'Gateway cannot reach the device',
-    'enums.deviceStatus.emptyVariable.label': 'No variables',
-    'enums.deviceStatus.emptyVariable.description': 'No acquisition variables configured',
-    'enums.deviceStatus.stopped.label': 'Stopped',
-    'enums.deviceStatus.stopped.description': 'Acquisition stopped',
-    'enums.deviceStatus.error.label': 'Error',
-    'enums.deviceStatus.error.description': 'Device runtime error',
-    'enums.deviceStatus.unknown.label': 'Unknown',
-    'enums.deviceStatus.unknown.description': 'Unknown status',
-
     'enums.platformStatus.enabled.label': 'Enabled',
     'enums.platformStatus.enabled.description': 'Account or resource is enabled',
     'enums.platformStatus.disabled.label': 'Disabled',
     'enums.platformStatus.disabled.description': 'Account or resource is disabled',
-
-    'enums.protocol.modbus.description': 'Modbus TCP / RTU / RTU over TCP',
-    'enums.protocol.modbus.model.modbusTcp.hint': 'Ethernet, default port 502',
-    'enums.protocol.modbus.model.modbusRtu.hint': 'Serial (RS-485/232)',
-    'enums.protocol.modbus.model.modbusRtuOverTcp.hint': 'Serial protocol tunneled over TCP',
-    'enums.protocol.opcUa.description': 'OPC UA binary protocol',
-    'enums.protocol.opcUa.model.opcUa.hint': 'Endpoint: opc.tcp://host:port',
-    'enums.protocol.s7.description': 'Siemens S7-1500',
-    'enums.protocol.s7.model.s71500.hint': 'ISO-on-TCP, default port 102',
-
-    'enums.deviceAction.start': 'Start',
-    'enums.deviceAction.restart': 'Restart',
-    'enums.deviceAction.stop': 'Stop',
-
-    'enums.parity.none': 'None',
-    'enums.parity.odd': 'Odd',
-    'enums.parity.even': 'Even',
 
     'enums.thingDataType.int': '32-bit integer',
     'enums.thingDataType.long': '64-bit integer',

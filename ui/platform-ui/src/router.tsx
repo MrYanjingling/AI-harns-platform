@@ -5,10 +5,6 @@ import { AuditLogsPage } from '@/features/audit/AuditLogsPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
-import { DeviceManagementPage } from '@/features/devices/DeviceManagementPage'
-import { DeviceCreatePage } from '@/features/devices/DeviceCreatePage'
-import { DeviceDetailPage } from '@/features/devices/DeviceDetailPage'
-import { DeviceEditPage } from '@/features/devices/DeviceEditPage'
 import { OrgsPage } from '@/features/identity/OrgsPage'
 import { RolesPage } from '@/features/identity/RolesPage'
 import { UsersPage } from '@/features/identity/UsersPage'
@@ -37,9 +33,6 @@ export const router = createBrowserRouter([
         element: <PagePad />,
         children: [
           { index: true, element: <DashboardPage /> },
-          { path: 'devices/new', element: <DeviceCreatePage /> },
-          { path: 'devices/:id', element: <DeviceDetailPage /> },
-          { path: 'devices/:id/edit', element: <DeviceEditPage /> },
           { path: 'platform/thing-models', element: <ThingModelsPage /> },
           { path: 'platform/thing-models/new', element: <ThingModelCreatePage /> },
           { path: 'platform/thing-models/:id', element: <ThingModelDetailPage /> },
@@ -53,7 +46,6 @@ export const router = createBrowserRouter([
           { path: '*', element: <NotFoundPage /> },
         ],
       },
-      { path: 'devices', element: <DeviceManagementPage /> },
     ],
   },
 ])

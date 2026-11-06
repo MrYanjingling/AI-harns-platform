@@ -40,7 +40,7 @@ paths:
     get:
       tags: [Thing]
       summary: List things (paged).
-      description: keyword matches deviceName and deviceKey. Secrets are not returned in the list.
+      description: keyword matches deviceName and deviceKey; thingModelId narrows to one model. Secrets are not returned in the list.
       operationId: listThings
       parameters:
         - name: page
@@ -52,6 +52,10 @@ paths:
         - name: keyword
           in: query
           schema: { type: string, maxLength: 64 }
+        - name: thingModelId
+          in: query
+          description: Return only things created from this thing model.
+          schema: { type: string, maxLength: 32 }
       responses:
         '200':
           description: Paged things

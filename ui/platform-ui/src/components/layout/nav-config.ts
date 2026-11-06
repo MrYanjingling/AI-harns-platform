@@ -31,7 +31,7 @@ export const NAV_SECTIONS: NavSection[] = [
     key: 'platform',
     labelKey: 'layout.section.platform',
     entry: '/',
-    prefixes: ['/', '/devices', '/platform/things', '/platform/thing-models'],
+    prefixes: ['/', '/platform/things', '/platform/thing-models'],
     groups: [
       {
         items: [{ to: '/', labelKey: 'layout.item.home', hintKey: 'layout.hint.home', end: true }],
@@ -39,7 +39,7 @@ export const NAV_SECTIONS: NavSection[] = [
       {
         labelKey: 'layout.group.assets',
         items: [
-          { to: '/devices', labelKey: 'layout.item.devices', hintKey: 'layout.hint.devices' },
+          { to: '/platform/things', labelKey: 'layout.item.things', hintKey: 'layout.hint.things' },
           {
             to: '/platform/thing-models',
             labelKey: 'layout.item.thingModels',

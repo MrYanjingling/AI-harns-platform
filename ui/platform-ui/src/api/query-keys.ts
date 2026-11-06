@@ -11,11 +11,6 @@ export const queryKeys = {
     mem: ['gateway', 'mem'] as const,
     disk: ['gateway', 'disk'] as const,
   },
-  devices: {
-    all: ['devices'] as const,
-    list: (exploded: boolean) => ['devices', 'list', exploded] as const,
-    detail: (id: string) => ['devices', 'detail', id] as const,
-  },
   platform: {
     currentUser: ['platform', 'current-user'] as const,
     users: {

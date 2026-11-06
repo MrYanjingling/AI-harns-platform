@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS `things` (
 
 ```
 GET /api/v1/iot/things?page=1&pageSize=10&keyword=设备
+GET /api/v1/iot/things?page=1&pageSize=10&thingModelId=01k8z3m4q7x9v2b6n1c5d0e8fg
 GET /api/v1/iot/things/:id/basic
 GET /api/v1/iot/things/:id/features
 GET /api/v1/iot/things/:id/shadow
@@ -125,6 +126,7 @@ POST /api/v1/iot/things/timeseries
 ```
 
 - `keyword` 同时模糊匹配 `deviceName` 与 `deviceKey`。
+- `thingModelId` 只返回基于该物模型创建的物，可与 `keyword` 组合使用。
 - 按 `created_time DESC` 排序。
 - 列表不返回 `deviceSecret`、`token`、`mqttPassword`、`features`、`image`；基本信息详情返回完整字段、模型 key/name、MQTT broker、上传格式和创建人/更新人。
 - `/features` 返回设备特征值原始 map；模型中定义但设备未设置的特征返回 `null`。

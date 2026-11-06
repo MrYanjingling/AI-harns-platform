@@ -40,7 +40,8 @@ type UpdateThingReq struct {
 // ThingQuery is the paged query of things.
 type ThingQuery struct {
 	apis.PageQuery
-	Keyword string `json:"keyword" form:"keyword" binding:"omitempty,max=64"`
+	Keyword      string `json:"keyword" form:"keyword" binding:"omitempty,max=64"`
+	ThingModelID string `json:"thingModelId" form:"thingModelId" binding:"omitempty,max=32"`
 }
 
 // ThingShadowQuery is the paged query of merged shadow properties.

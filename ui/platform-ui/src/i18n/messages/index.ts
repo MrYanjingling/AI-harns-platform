@@ -3,7 +3,6 @@ import { auth } from './auth'
 import { common } from './common'
 import { components } from './components'
 import { dashboard } from './dashboard'
-import { devices } from './devices'
 import { enums } from './enums'
 import { identity } from './identity'
 import { layout } from './layout'
@@ -18,7 +17,6 @@ export const messages = {
     ...common['zh-CN'],
     ...components['zh-CN'],
     ...dashboard['zh-CN'],
-    ...devices['zh-CN'],
     ...enums['zh-CN'],
     ...identity['zh-CN'],
     ...layout['zh-CN'],
@@ -31,7 +29,6 @@ export const messages = {
     ...common['en-US'],
     ...components['en-US'],
     ...dashboard['en-US'],
-    ...devices['en-US'],
     ...enums['en-US'],
     ...identity['en-US'],
     ...layout['en-US'],

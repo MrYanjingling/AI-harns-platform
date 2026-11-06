@@ -13,6 +13,7 @@ export interface ThingQuery {
   page: number
   pageSize: number
   keyword?: string
+  thingModelId?: string
 }
 
 export function listThings(query: ThingQuery): Promise<PlatformPage<ThingInfo>> {
@@ -20,6 +21,7 @@ export function listThings(query: ThingQuery): Promise<PlatformPage<ThingInfo>> 
     page: query.page,
     pageSize: query.pageSize,
     keyword: query.keyword,
+    thingModelId: query.thingModelId,
   })
 }
 

@@ -278,9 +278,13 @@ func (s *Store) GetThingByToken(ctx context.Context, token string) (*ThingIdenti
 	return item, nil
 }
 
-// ListThings returns a page of things filtered by keyword.
-func (s *Store) ListThings(ctx context.Context, q apis.PageQuery, keyword string) ([]*Thing, int64, error) {
+// ListThings returns a page of things filtered by keyword and thing model.
+func (s *Store) ListThings(ctx context.Context, q apis.PageQuery, keyword, thingModelID string) ([]*Thing, int64, error) {
 	where, args := "1=1", []interface{}{}
+	if thingModelID != "" {
+		where += " AND thing_model_id = ?"
+		args = append(args, thingModelID)
+	}
 	if keyword != "" {
 		where += " AND (device_name LIKE ? OR device_key LIKE ?)"
 		kw := "%" + keyword + "%"

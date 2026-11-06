@@ -3,7 +3,7 @@ import { defineMessages } from './define'
 export const dashboard = defineMessages({
   'zh-CN': {
     'dashboard.title': '概览',
-    'dashboard.description': '网关运行状态、设备采集情况与资源占用一览。',
+    'dashboard.description': '网关运行状态与资源占用一览。',
     'dashboard.refreshSuccess': '已刷新',
 
     'dashboard.gateway.unavailable': '网关不可用',
@@ -20,16 +20,6 @@ export const dashboard = defineMessages({
     'dashboard.gateway.hideSecret': '隐藏密钥',
     'dashboard.gateway.secretCopied': '密钥已复制',
 
-    'dashboard.stats.total': '设备总数',
-    'dashboard.stats.totalHint': '已接入网关的采集设备',
-    'dashboard.stats.healthy': '采集中',
-    'dashboard.stats.healthyHint': '占比 {percent}%',
-    'dashboard.stats.abnormal': '采集异常',
-    'dashboard.stats.abnormalHint': '需要关注连接或采集错误',
-    'dashboard.stats.inactive': '未运行',
-    'dashboard.stats.inactiveHint': '已停止、未连接或无变量',
-    'dashboard.stats.noDevices': '暂无设备',
-
     'dashboard.resources.title': '资源使用',
     'dashboard.resources.description': '每 10 秒自动刷新',
     'dashboard.resources.cpu': 'CPU',
@@ -42,29 +32,10 @@ export const dashboard = defineMessages({
     'dashboard.resources.cpu1m': '1 分钟',
     'dashboard.resources.cpu5m': '5 分钟',
     'dashboard.resources.cpu15m': '15 分钟',
-
-    'dashboard.status.title': '设备状态分布',
-    'dashboard.status.description': '按采集状态统计',
-    'dashboard.status.viewAll': '查看全部',
-    'dashboard.status.emptyTitle': '还没有设备',
-    'dashboard.status.emptyDescription': '创建第一台设备后即可查看状态分布。',
-
-    'dashboard.recent.title': '最近更新设备',
-    'dashboard.recent.description': '按最后修改时间排序',
-    'dashboard.recent.link': '设备管理',
-    'dashboard.recent.emptyTitle': '暂无设备',
-    'dashboard.recent.emptyDescription': '创建 Modbus、OPC UA 或 S7 设备,开始采集数据。',
-    'dashboard.recent.create': '新建设备',
-
-    'dashboard.table.name': '设备名称',
-    'dashboard.table.protocol': '协议',
-    'dashboard.table.status': '状态',
-    'dashboard.table.code': '设备编码',
-    'dashboard.table.updatedAt': '更新时间',
   },
   'en-US': {
     'dashboard.title': 'Overview',
-    'dashboard.description': 'Gateway health, device acquisition status and resource usage at a glance.',
+    'dashboard.description': 'Gateway health and resource usage at a glance.',
     'dashboard.refreshSuccess': 'Refreshed',
 
     'dashboard.gateway.unavailable': 'Gateway unavailable',
@@ -81,16 +52,6 @@ export const dashboard = defineMessages({
     'dashboard.gateway.hideSecret': 'Hide secret',
     'dashboard.gateway.secretCopied': 'Secret copied',
 
-    'dashboard.stats.total': 'Total devices',
-    'dashboard.stats.totalHint': 'Devices connected to the gateway',
-    'dashboard.stats.healthy': 'Collecting',
-    'dashboard.stats.healthyHint': '{percent}% of devices',
-    'dashboard.stats.abnormal': 'Acquisition errors',
-    'dashboard.stats.abnormalHint': 'Connection or acquisition issues to review',
-    'dashboard.stats.inactive': 'Inactive',
-    'dashboard.stats.inactiveHint': 'Stopped, disconnected or without variables',
-    'dashboard.stats.noDevices': 'No devices',
-
     'dashboard.resources.title': 'Resource usage',
     'dashboard.resources.description': 'Refreshes every 10 seconds',
     'dashboard.resources.cpu': 'CPU',
@@ -103,26 +64,5 @@ export const dashboard = defineMessages({
     'dashboard.resources.cpu1m': '1 min',
     'dashboard.resources.cpu5m': '5 min',
     'dashboard.resources.cpu15m': '15 min',
-
-    'dashboard.status.title': 'Device status',
-    'dashboard.status.description': 'Grouped by acquisition status',
-    'dashboard.status.viewAll': 'View all',
-    'dashboard.status.emptyTitle': 'No devices yet',
-    'dashboard.status.emptyDescription':
-      'Create your first device to see the status distribution here.',
-
-    'dashboard.recent.title': 'Recently updated devices',
-    'dashboard.recent.description': 'Sorted by last modified time',
-    'dashboard.recent.link': 'Device management',
-    'dashboard.recent.emptyTitle': 'No devices yet',
-    'dashboard.recent.emptyDescription':
-      'Create a Modbus, OPC UA or S7 device to start collecting data.',
-    'dashboard.recent.create': 'New device',
-
-    'dashboard.table.name': 'Device name',
-    'dashboard.table.protocol': 'Protocol',
-    'dashboard.table.status': 'Status',
-    'dashboard.table.code': 'Device code',
-    'dashboard.table.updatedAt': 'Updated',
   },
 })

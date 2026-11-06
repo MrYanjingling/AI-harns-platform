@@ -12,7 +12,7 @@ import type {
   UserInfo,
 } from '../src/api/types'
 import {
-  createDeviceId,
+  createHexId,
   seedAuditLogs,
   seedOrgs,
   seedRoles,
@@ -40,7 +40,7 @@ const passwords = new Map<string, string>(
 )
 
 const nowIso = () => new Date().toISOString()
-const newId = () => createDeviceId()
+const newId = () => createHexId()
 const IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/
 const DEVICE_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{3,63}$/
 
@@ -1026,7 +1026,9 @@ async function route(
 
   if (pathname === '/iot/things' && method === 'GET') {
     const keyword = (query.get('keyword') ?? '').toLowerCase()
+    const thingModelId = query.get('thingModelId') ?? ''
     const filtered = things
+      .filter((thing) => (thingModelId ? thing.thingModelId === thingModelId : true))
       .filter((thing) =>
         keyword
           ? [thing.deviceName, thing.deviceKey].some((value) =>
