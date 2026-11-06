@@ -8,6 +8,7 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { NAV_SECTIONS, sectionForPath } from './nav-config'
 import { QuickSearchDialog } from './QuickSearchDialog'
 import { Sidebar } from './Sidebar'
+import { TechBackdrop } from './TechBackdrop'
 import { UserMenu } from './UserMenu'
 
 const TITLES: Record<string, MessageKey> = {
@@ -71,8 +72,9 @@ export function AppShell() {
   }, [])
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
-      <header className="flex h-11 shrink-0 items-center bg-header text-header-fg">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-fg">
+      <TechBackdrop />
+      <header className="relative z-10 flex h-11 shrink-0 items-center bg-header text-header-fg">
         <Button
           variant="ghost"
           size="icon"
@@ -125,7 +127,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative z-10 flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
           <Sidebar sectionKey={section.key} />
         </aside>

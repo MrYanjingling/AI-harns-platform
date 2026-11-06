@@ -8,6 +8,7 @@ import { useLogin } from '@/api/hooks'
 import { useI18n, type MessageKey } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { useAuth } from '@/providers/AuthProvider'
+import { TechBackdrop } from '@/components/layout/TechBackdrop'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 
@@ -69,8 +70,9 @@ export function LoginPage() {
   })
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-bg px-4 py-10">
-      <div className="grid w-full max-w-4xl overflow-hidden rounded border border-border bg-surface shadow-xl lg:grid-cols-[1.05fr_1fr]">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg px-4 py-10">
+      <TechBackdrop />
+      <div className="relative z-10 grid w-full max-w-4xl overflow-hidden rounded border border-border bg-surface shadow-xl lg:grid-cols-[1.05fr_1fr]">
         <div className="relative hidden flex-col justify-between bg-gradient-to-br from-primary via-primary-hover to-header p-9 text-white lg:flex">
           <div className="flex items-center gap-2.5">
             <div className="flex size-9 items-center justify-center rounded bg-white/15 backdrop-blur">

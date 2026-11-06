@@ -15,11 +15,9 @@
 - **工厂大屏** (`/screen`):独立全屏页,按协议分区展示 3D 工厂场景与设备实时变量
 - **设置**:主题、运行环境、服务连通性
 
-技术栈:React 19 · TypeScript 5.9 · Vite 7 · Tailwind CSS v4 · TanStack Query 5 · React Router 7 · React Hook Form + Zod · Recharts · Three.js。
 
 ## 快速开始
 
-要求 Node.js ≥ 20(推荐 22 LTS)与 pnpm。
 
 ```bash
 pnpm install

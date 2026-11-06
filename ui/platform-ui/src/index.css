@@ -55,27 +55,36 @@
 }
 
 .dark {
-  --bg: oklch(0.165 0.009 258);
-  --surface: oklch(0.205 0.011 258);
-  --surface-2: oklch(0.245 0.012 258);
-  --surface-3: oklch(0.29 0.013 258);
-  --fg: oklch(0.955 0.004 258);
-  --muted: oklch(0.715 0.012 258);
-  --faint: oklch(0.585 0.012 258);
-  --border: oklch(0.305 0.013 258);
-  --border-strong: oklch(0.39 0.014 258);
-  --primary: oklch(0.623 0.214 259.815);
-  --primary-hover: oklch(0.707 0.165 254.624);
+  /* 底色带蓝调并抬高亮度,避免接近纯黑后层次发闷 */
+  --bg: oklch(0.205 0.022 264);
+  --surface: oklch(0.243 0.023 264);
+  --surface-2: oklch(0.281 0.024 264);
+  --surface-3: oklch(0.32 0.025 264);
+  --fg: oklch(0.958 0.005 258);
+  --muted: oklch(0.74 0.016 258);
+  --faint: oklch(0.6 0.015 258);
+  --border: oklch(0.335 0.024 264);
+  --border-strong: oklch(0.42 0.026 264);
+  --primary: oklch(0.64 0.2 257);
+  --primary-hover: oklch(0.72 0.16 253);
   --primary-fg: oklch(0.99 0 0);
-  --primary-soft: oklch(0.282 0.091 267.935);
+  --primary-soft: oklch(0.3 0.085 265);
   --success: oklch(0.723 0.219 149.579);
   --warning: oklch(0.769 0.188 70.08);
   --danger: oklch(0.637 0.237 25.331);
-  --info: oklch(0.623 0.214 259.815);
-  --header: oklch(0.19 0.02 260);
+  --info: oklch(0.64 0.2 257);
+  --header: oklch(0.225 0.028 266);
   --header-fg: oklch(0.984 0.003 247.858);
-  --header-muted: oklch(0.869 0.022 252.894);
-  --header-hover: oklch(0.279 0.041 260.031);
+  --header-muted: oklch(0.85 0.02 252.894);
+  --header-hover: oklch(0.3 0.028 264);
+
+  /* 科技感底纹专用色:透明度即强度,调整这里即可整体收敛或加强 */
+  --backdrop-grid: oklch(0.75 0.08 240 / 0.05);
+  --backdrop-grid-major: oklch(0.78 0.1 235 / 0.075);
+  --backdrop-glow: oklch(0.6 0.2 265 / 0.16);
+  --backdrop-glow-accent: oklch(0.7 0.15 205 / 0.11);
+  --backdrop-trace: oklch(0.72 0.1 225 / 0.13);
+  --backdrop-trace-pulse: oklch(0.86 0.12 200 / 0.5);
   color-scheme: dark;
 }
 
@@ -159,4 +168,142 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   深色主题科技感底纹
+   纯装饰层:低对比度、不接收指针事件,强度由 --backdrop-* 变量统一控制。
+--------------------------------------------------------------------------- */
+.tech-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tech-backdrop__grid {
+  position: absolute;
+  inset: -25%;
+  background-image:
+    linear-gradient(to right, var(--backdrop-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--backdrop-grid) 1px, transparent 1px),
+    linear-gradient(to right, var(--backdrop-grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--backdrop-grid-major) 1px, transparent 1px);
+  background-size:
+    64px 64px,
+    64px 64px,
+    256px 256px,
+    256px 256px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
+  animation: tech-grid-drift 90s linear infinite;
+}
+
+.tech-backdrop__glow {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--backdrop-glow) 0%, transparent 68%);
+  will-change: transform;
+}
+
+.tech-backdrop__glow--a {
+  top: -34%;
+  left: -14%;
+  width: 70rem;
+  height: 70rem;
+  animation: tech-glow-drift-a 32s ease-in-out infinite alternate;
+}
+
+.tech-backdrop__glow--b {
+  right: -20%;
+  bottom: -40%;
+  width: 62rem;
+  height: 62rem;
+  background: radial-gradient(circle, var(--backdrop-glow-accent) 0%, transparent 68%);
+  animation: tech-glow-drift-b 38s ease-in-out infinite alternate;
+}
+
+.tech-backdrop__circuit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tech-backdrop__trace {
+  fill: none;
+  stroke: var(--backdrop-trace);
+  stroke-width: 1;
+}
+
+.tech-backdrop__node {
+  fill: var(--backdrop-trace);
+  animation: tech-node-breathe 6s ease-in-out infinite;
+}
+
+.tech-backdrop__pulse {
+  fill: none;
+  stroke: var(--backdrop-trace-pulse);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 5 95;
+  animation: tech-trace-flow 12s linear infinite;
+}
+
+.tech-backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, color-mix(in oklab, var(--bg) 55%, transparent), transparent 26%),
+    radial-gradient(
+      ellipse 92% 82% at 50% 42%,
+      transparent 52%,
+      color-mix(in oklab, var(--bg) 68%, transparent) 100%
+    );
+}
+
+@keyframes tech-grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(64px, 64px, 0);
+  }
+}
+
+@keyframes tech-glow-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(7%, 5%, 0) scale(1.14);
+  }
+}
+
+@keyframes tech-glow-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+  to {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+}
+
+@keyframes tech-node-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes tech-trace-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
 }
