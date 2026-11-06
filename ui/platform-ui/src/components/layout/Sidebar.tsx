@@ -1,97 +1,38 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import {
-  Activity,
-  Boxes,
-  ChartColumn,
-  ChartLine,
-  Cpu,
-  LayoutDashboard,
-  MonitorPlay,
-  Network,
-  RadioTower,
-  ScrollText,
-  Settings,
-  ShieldCheck,
-  Target,
-  UsersRound,
-  Waypoints,
-} from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/cn'
-import { useGatewayMeta } from '@/api/hooks'
+import { NAV_SECTIONS, type NavGroup, type NavSection } from './nav-config'
 
-interface NavItem {
-  to: string
-  label: string
-  icon: typeof Cpu
-  end?: boolean
+function groupKey(section: NavSection, group: NavGroup, index: number) {
+  return `${section.key}-${group.labelKey ?? 'flat'}-${index}`
 }
 
-const GROUPS: Array<{ label?: string; items: NavItem[] }> = [
-  {
-    items: [
-      { to: '/', label: '概览', icon: LayoutDashboard, end: true },
-      { to: '/devices', label: '网关设备', icon: Cpu },
-      { to: '/screen', label: '工厂大屏', icon: MonitorPlay },
-    ],
-  },
-  {
-    label: '平台管理',
-    items: [
-      { to: '/platform/thing-models', label: '物模型', icon: Boxes },
-      { to: '/platform/things', label: '平台设备', icon: RadioTower },
-      { to: '/platform/users', label: '用户', icon: UsersRound },
-      { to: '/platform/roles', label: '角色', icon: ShieldCheck },
-      { to: '/platform/orgs', label: '组织', icon: Network },
-      { to: '/platform/audit-logs', label: '审计日志', icon: ScrollText },
-    ],
-  },
-  {
-    label: '数据服务',
-    items: [
-      { to: '/data/metrics', label: '统计指标', icon: ChartColumn },
-      { to: '/data/kpis', label: 'KPI', icon: Target },
-      { to: '/data/tags', label: '测点', icon: Waypoints },
-      { to: '/data/timeseries', label: '时序查询', icon: ChartLine },
-    ],
-  },
-  {
-    label: '系统',
-    items: [{ to: '/settings', label: '设置', icon: Settings }],
-  },
-]
+export function Sidebar({
+  sectionKey,
+  onNavigate,
+}: {
+  sectionKey: NavSection['key']
+  onNavigate?: () => void
+}) {
+  const { t } = useI18n()
+  const section = NAV_SECTIONS.find((item) => item.key === sectionKey) ?? NAV_SECTIONS[0]
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const meta = useGatewayMeta()
+  const toggle = (key: string) => {
+    setCollapsed((current) => ({ ...current, [key]: !current[key] }))
+  }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center gap-2.5 px-5">
-        <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 text-white shadow-sm">
-          <svg viewBox="0 0 24 24" className="size-4.5" fill="none" aria-hidden="true">
-            <path
-              d="M7 15V8m0 3.5h5M12 15V8m0 3.5h5V15"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold leading-tight tracking-tight">AI-harns-platform</p>
-          <p className="text-[10px] leading-tight text-faint">边缘网关管理后台</p>
-        </div>
-      </div>
+    <nav className="flex h-full flex-col overflow-y-auto py-1" aria-label={t(section.labelKey)}>
+      {section.groups.map((group, index) => {
+        const key = groupKey(section, group, index)
+        const open = !collapsed[key]
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-3">
-        {GROUPS.map((group, index) => (
-          <div key={group.label ?? index}>
-            {group.label ? (
-              <p className="mb-1.5 px-2 text-[10px] font-medium tracking-wider text-faint uppercase">
-                {group.label}
-              </p>
-            ) : null}
-            <div className="space-y-0.5">
+        if (!group.labelKey) {
+          return (
+            <div key={key} className="py-0.5">
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
@@ -100,50 +41,61 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
-                      'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                      'block px-4 py-2.5 text-sm transition-colors',
                       isActive
-                        ? 'bg-primary-soft font-medium text-primary'
-                        : 'text-muted hover:bg-surface-2 hover:text-fg',
+                        ? 'bg-primary font-medium text-primary-fg'
+                        : 'text-fg hover:bg-surface-2',
                     )
                   }
                 >
-                  <item.icon className="size-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
             </div>
-          </div>
-        ))}
-      </nav>
+          )
+        }
 
-      <div className="border-t border-border p-3">
-        <div className="rounded-xl border border-border bg-surface-2 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-xs font-medium">
-            <Activity className="size-3.5 text-primary" />
-            网关状态
+        return (
+          <div key={key} className="py-0.5">
+            <button
+              type="button"
+              onClick={() => toggle(key)}
+              aria-expanded={open}
+              className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-fg transition-colors hover:bg-surface-2"
+            >
+              <span>{t(group.labelKey)}</span>
+              <ChevronDown
+                className={cn(
+                  'size-3.5 text-faint transition-transform',
+                  open ? 'rotate-0' : '-rotate-90',
+                )}
+              />
+            </button>
+            {open ? (
+              <div>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      cn(
+                        'block py-2 pr-4 pl-8 text-sm transition-colors',
+                        isActive
+                          ? 'bg-primary font-medium text-primary-fg'
+                          : 'text-muted hover:bg-surface-2 hover:text-fg',
+                      )
+                    }
+                  >
+                    {t(item.labelKey)}
+                  </NavLink>
+                ))}
+              </div>
+            ) : null}
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
-            <span
-              className={cn(
-                'size-1.5 rounded-full',
-                meta.isError
-                  ? 'bg-rose-500'
-                  : meta.isSuccess
-                    ? 'bg-emerald-500'
-                    : 'animate-pulse bg-amber-500',
-              )}
-            />
-            <span className="truncate">
-              {meta.isError ? '服务不可用' : meta.isSuccess ? '服务运行中' : '正在连接…'}
-            </span>
-          </div>
-          {meta.data ? (
-            <p className="mt-1 truncate font-mono text-[10px] text-faint" title={meta.data.id}>
-              ID {meta.data.id}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </div>
+        )
+      })}
+    </nav>
   )
 }

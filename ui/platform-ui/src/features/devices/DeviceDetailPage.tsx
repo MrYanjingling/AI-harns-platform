@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner'
 import { useDeleteDevice, useDevice, useSwitchDeviceStatus } from '@/api/hooks'
 import type { DeviceStatusAction } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { DEVICE_STATUS, PROTOCOLS } from '@/lib/constants'
 import { errorMessage } from '@/lib/http'
 import { formatDateTime } from '@/lib/format'
@@ -36,6 +37,7 @@ function displayValue(value: unknown): string {
 }
 
 export function DeviceDetailPage() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const device = useDevice(id)
@@ -62,7 +64,7 @@ export function DeviceDetailPage() {
         name: variable.name,
         dataType: variable.dataType,
         address: String(variable.address),
-        detail: `FC${variable.functionCode}${variable.dataType === 'bool' ? ` · bit ${variable.bits}` : ''} · ×${variable.rate} · 数量 ${variable.amount}`,
+        detail: `FC${variable.functionCode}${variable.dataType === 'bool' ? ` · bit ${variable.bits}` : ''} · ×${variable.rate} · ${t('devices.detail.amount', { value: variable.amount })}`,
         accessMode: variable.accessMode,
         value: variable.value,
       }))
@@ -85,16 +87,20 @@ export function DeviceDetailPage() {
       accessMode: variable.accessMode,
       value: variable.value,
     }))
-  }, [detail])
+  }, [detail, t])
 
   if (device.isLoading) {
-    return <PageLoading label="正在加载设备详情…" />
+    return <PageLoading label={t('devices.detail.loading')} />
   }
 
   if (device.isError || !detail) {
     return (
       <div>
-        <PageHeader backTo="/devices" backLabel="返回设备列表" title="设备详情" />
+        <PageHeader
+          backTo="/devices"
+          backLabel={t('devices.backToList')}
+          title={t('layout.title.deviceDetail')}
+        />
         <ErrorState error={device.error} onRetry={device.refetch} />
       </div>
     )
@@ -106,15 +112,18 @@ export function DeviceDetailPage() {
   const writableCount = rows.filter((row) => row.accessMode === 'rw').length
 
   const runAction = (action: DeviceStatusAction) => {
-    const labels: Record<DeviceStatusAction, string> = {
-      start: '启动',
-      restart: '重启',
-      stop: '停止',
-    }
+    const label = t(
+      action === 'stop'
+        ? 'enums.deviceAction.stop'
+        : action === 'restart'
+          ? 'enums.deviceAction.restart'
+          : 'enums.deviceAction.start',
+    )
     switchStatus.mutate(
       { id: detail.id, action },
       {
-        onSuccess: () => toast.success(`${detail.name} 已${labels[action]}`),
+        onSuccess: () =>
+          toast.success(t('devices.detail.actionDone', { name: detail.name, action: label })),
         onError: (error) => toast.error(errorMessage(error)),
       },
     )
@@ -130,7 +139,7 @@ export function DeviceDetailPage() {
       { id: detail.id, etag: detail.eTag },
       {
         onSuccess: () => {
-          toast.success(`已删除 ${detail.name}`)
+          toast.success(t('devices.detail.deleted', { name: detail.name }))
           navigate('/devices')
         },
         onError: (error) => toast.error(errorMessage(error)),
@@ -142,7 +151,7 @@ export function DeviceDetailPage() {
     <div>
       <PageHeader
         backTo="/devices"
-        backLabel="返回设备列表"
+        backLabel={t('devices.backToList')}
         title={
           <span className="flex flex-wrap items-center gap-3">
             {detail.name}
@@ -156,7 +165,11 @@ export function DeviceDetailPage() {
             <span className="text-faint">·</span>
             <span className="font-mono text-xs">{detail.deviceCode}</span>
             <span className="text-faint">·</span>
-            <span>{DEVICE_STATUS[detail.collectStatus]?.description}</span>
+            <span>
+              {DEVICE_STATUS[detail.collectStatus]
+                ? t(DEVICE_STATUS[detail.collectStatus].descriptionKey)
+                : ''}
+            </span>
           </span>
         }
         actions={
@@ -167,7 +180,7 @@ export function DeviceDetailPage() {
                 icon={<SlidersHorizontal className="size-4" />}
                 onClick={() => openControl()}
               >
-                反控
+                {t('devices.detail.control')}
               </Button>
             ) : null}
             <Button
@@ -175,7 +188,7 @@ export function DeviceDetailPage() {
               icon={<Pencil className="size-4" />}
               onClick={() => navigate(`/devices/${detail.id}/edit`)}
             >
-              编辑
+              {t('common.action.edit')}
             </Button>
             {running ? (
               <>
@@ -185,7 +198,7 @@ export function DeviceDetailPage() {
                   disabled={switchStatus.isPending}
                   onClick={() => runAction('restart')}
                 >
-                  重启
+                  {t('common.action.restart')}
                 </Button>
                 <Button
                   variant="outline"
@@ -193,7 +206,7 @@ export function DeviceDetailPage() {
                   disabled={switchStatus.isPending}
                   onClick={() => runAction('stop')}
                 >
-                  停止
+                  {t('common.action.stop')}
                 </Button>
               </>
             ) : (
@@ -203,7 +216,7 @@ export function DeviceDetailPage() {
                 disabled={switchStatus.isPending}
                 onClick={() => runAction('start')}
               >
-                启动
+                {t('common.action.start')}
               </Button>
             )}
             <Button
@@ -213,7 +226,7 @@ export function DeviceDetailPage() {
               disabled={deleteDevice.isPending}
               onClick={() => setConfirmDelete(true)}
             >
-              删除
+              {t('common.action.delete')}
             </Button>
           </>
         }
@@ -223,38 +236,55 @@ export function DeviceDetailPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div>
-              <CardTitle>设备信息</CardTitle>
-              <CardDescription>标识、采集参数与版本信息</CardDescription>
+              <CardTitle>{t('devices.detail.info')}</CardTitle>
+              <CardDescription>{t('devices.detail.infoDescription')}</CardDescription>
             </div>
             {device.isFetching ? (
               <span className="flex items-center gap-1.5 text-[11px] text-faint">
                 <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                同步中
+                {t('devices.detail.syncing')}
               </span>
             ) : null}
           </CardHeader>
           <CardContent>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-              <InfoItem label="设备编码" value={detail.deviceCode} mono />
+              <InfoItem label={t('devices.detail.deviceCode')} value={detail.deviceCode} mono />
               <InfoItem
-                label="协议 / 型号"
+                label={t('devices.detail.protocolModel')}
                 value={`${protocol.label} / ${detail.deviceModel}`}
               />
-              <InfoItem label="采集周期" value={`${detail.collectorCycle} 秒`} />
               <InfoItem
-                label="变量间隔"
-                value={detail.variableInterval > 0 ? `${detail.variableInterval} 毫秒` : '不等待'}
+                label={t('devices.detail.collectorCycle')}
+                value={t('devices.detail.seconds', { value: detail.collectorCycle })}
               />
-              <InfoItem label="Topic" value={detail.topic || '默认规则'} mono />
-              <InfoItem label="变量数量" value={`${rows.length} 个`} />
               <InfoItem
-                label="设备 ID"
+                label={t('devices.detail.variableInterval')}
+                value={
+                  detail.variableInterval > 0
+                    ? t('devices.detail.milliseconds', { value: detail.variableInterval })
+                    : t('devices.detail.noWait')
+                }
+              />
+              <InfoItem
+                label={t('devices.detail.topic')}
+                value={detail.topic || t('devices.defaultTopic')}
+                mono
+              />
+              <InfoItem
+                label={t('devices.detail.variableQuantity')}
+                value={t('devices.detail.variableCount', { count: rows.length })}
+              />
+              <InfoItem
+                label={t('devices.detail.deviceId')}
                 value={detail.id}
                 mono
                 copyValue={detail.id}
               />
               <InfoItem label="eTag" value={detail.eTag} mono copyValue={detail.eTag} />
-              <InfoItem label="最后修改" value={formatDateTime(detail.modTime)} />
+              <InfoItem
+                label={t('devices.detail.lastModified')}
+                value={formatDateTime(detail.modTime)}
+              />
             </dl>
           </CardContent>
         </Card>
@@ -262,8 +292,8 @@ export function DeviceDetailPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>连接参数</CardTitle>
-              <CardDescription>{protocol.description}</CardDescription>
+              <CardTitle>{t('devices.detail.connection')}</CardTitle>
+              <CardDescription>{t(protocol.descriptionKey)}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
@@ -271,36 +301,64 @@ export function DeviceDetailPage() {
               {detail.deviceType === 'modbus' ? (
                 <>
                   <InfoItem
-                    label={detail.deviceModel === 'modbusRtu' ? '串口设备' : '设备地址'}
+                    label={
+                      detail.deviceModel === 'modbusRtu'
+                        ? t('devices.detail.serialDevice')
+                        : t('devices.detail.deviceAddress')
+                    }
                     value={detail.address.location}
                     mono
                   />
                   {detail.deviceModel === 'modbusRtu' ? (
                     <InfoItem
-                      label="串口参数"
-                      value={`${detail.address.option?.baudRate ?? '—'} baud · ${detail.address.option?.dataBits ?? '—'} 数据位 · ${detail.address.option?.parity ?? '—'} · ${detail.address.option?.stopBits ?? '—'} 停止位`}
+                      label={t('devices.detail.serialParams')}
+                      value={t('devices.detail.serialValue', {
+                        baud: detail.address.option?.baudRate ?? '—',
+                        dataBits: detail.address.option?.dataBits ?? '—',
+                        parity: detail.address.option?.parity ?? '—',
+                        stopBits: detail.address.option?.stopBits ?? '—',
+                      })}
                     />
                   ) : (
-                    <InfoItem label="端口" value={String(detail.address.option?.port ?? '—')} mono />
+                    <InfoItem
+                      label={t('devices.detail.port')}
+                      value={String(detail.address.option?.port ?? '—')}
+                      mono
+                    />
                   )}
-                  <InfoItem label="从站地址" value={String(detail.slave)} />
-                  <InfoItem label="内存布局" value={detail.memoryLayout} mono />
-                  <InfoItem label="起始偏移" value={String(detail.positionAddress)} />
+                  <InfoItem label={t('devices.detail.slave')} value={String(detail.slave)} />
+                  <InfoItem
+                    label={t('devices.detail.memoryLayout')}
+                    value={detail.memoryLayout}
+                    mono
+                  />
+                  <InfoItem
+                    label={t('devices.detail.startOffset')}
+                    value={String(detail.positionAddress)}
+                  />
                 </>
               ) : null}
 
               {detail.deviceType === 'opcUa' ? (
                 <>
                   <InfoItem label="Endpoint" value={detail.address.location} mono />
-                  <InfoItem label="端口" value={String(detail.address.option?.port ?? '—')} mono />
                   <InfoItem
-                    label="用户名"
-                    value={detail.address.option?.username || '匿名'}
+                    label={t('devices.detail.port')}
+                    value={String(detail.address.option?.port ?? '—')}
                     mono
                   />
                   <InfoItem
-                    label="密码"
-                    value={detail.address.option?.password ? '••••••••' : '未设置'}
+                    label={t('devices.detail.username')}
+                    value={detail.address.option?.username || t('devices.detail.anonymous')}
+                    mono
+                  />
+                  <InfoItem
+                    label={t('devices.detail.password')}
+                    value={
+                      detail.address.option?.password
+                        ? '••••••••'
+                        : t('common.state.unset')
+                    }
                     mono
                   />
                 </>
@@ -308,8 +366,16 @@ export function DeviceDetailPage() {
 
               {detail.deviceType === 's7' ? (
                 <>
-                  <InfoItem label="PLC 地址" value={detail.address.location} mono />
-                  <InfoItem label="端口" value={String(detail.address.option?.port ?? '—')} mono />
+                  <InfoItem
+                    label={t('devices.detail.plcAddress')}
+                    value={detail.address.location}
+                    mono
+                  />
+                  <InfoItem
+                    label={t('devices.detail.port')}
+                    value={String(detail.address.option?.port ?? '—')}
+                    mono
+                  />
                   <InfoItem
                     label="Rack / Slot"
                     value={`${detail.address.option?.rack ?? 0} / ${detail.address.option?.slot ?? 1}`}
@@ -325,25 +391,25 @@ export function DeviceDetailPage() {
       <Card className="mt-4 overflow-hidden">
         <CardHeader>
           <div>
-            <CardTitle>采集变量</CardTitle>
-            <CardDescription>
-              当前值来自设备最近一次采集;标记为 rw 的变量支持反控写入
-            </CardDescription>
+            <CardTitle>{t('devices.detail.variables')}</CardTitle>
+            <CardDescription>{t('devices.detail.variablesDescription')}</CardDescription>
           </div>
-          <Badge tone="neutral">{rows.length} 个变量</Badge>
+          <Badge tone="neutral">
+            {t('devices.detail.variablesBadge', { count: rows.length })}
+          </Badge>
         </CardHeader>
 
         {rows.length === 0 ? (
           <EmptyState
-            title="没有采集变量"
-            description="编辑设备并添加至少一个变量后,设备才能开始采集。"
+            title={t('devices.detail.noVariables')}
+            description={t('devices.detail.noVariablesDescription')}
             action={
               <Button
                 variant="outline"
                 onClick={() => navigate(`/devices/${detail.id}/edit`)}
                 icon={<Pencil className="size-4" />}
               >
-                添加变量
+                {t('devices.detail.addVariable')}
               </Button>
             }
           />
@@ -351,13 +417,13 @@ export function DeviceDetailPage() {
           <Table>
             <THead>
               <tr>
-                <TH>变量名</TH>
-                <TH>类型</TH>
-                <TH>地址</TH>
-                <TH>采集参数</TH>
-                <TH>当前值</TH>
-                <TH>读写</TH>
-                <TH className="text-right">操作</TH>
+                <TH>{t('devices.detail.variableName')}</TH>
+                <TH>{t('devices.detail.variableType')}</TH>
+                <TH>{t('devices.detail.variableAddress')}</TH>
+                <TH>{t('devices.detail.variableParams')}</TH>
+                <TH>{t('devices.detail.currentValue')}</TH>
+                <TH>{t('devices.detail.access')}</TH>
+                <TH className="text-right">{t('common.field.actions')}</TH>
               </tr>
             </THead>
             <TBody>
@@ -390,10 +456,12 @@ export function DeviceDetailPage() {
                           onClick={() => openControl(row.name)}
                           icon={<SlidersHorizontal className="size-3.5" />}
                         >
-                          下发
+                          {t('devices.detail.write')}
                         </Button>
                       ) : (
-                        <span className="text-[11px] text-faint">只读</span>
+                        <span className="text-[11px] text-faint">
+                          {t('devices.detail.readOnly')}
+                        </span>
                       )}
                     </div>
                   </TD>
@@ -404,9 +472,7 @@ export function DeviceDetailPage() {
         )}
       </Card>
 
-      <p className="mt-3 text-[11px] text-faint">
-        设备详情每 5 秒自动刷新。修改设备时若提示版本冲突,请返回详情页重新加载后再编辑。
-      </p>
+      <p className="mt-3 text-[11px] text-faint">{t('devices.detail.footer')}</p>
 
       <ControlDialog
         open={controlOpen}
@@ -417,9 +483,9 @@ export function DeviceDetailPage() {
 
       <ConfirmDialog
         open={confirmDelete}
-        title="删除设备"
-        description={`确定删除「${detail.name}」吗?删除后该设备将停止采集,此操作不可撤销。`}
-        confirmText="删除"
+        title={t('devices.detail.deleteTitle')}
+        description={t('devices.detail.deleteDescription', { name: detail.name })}
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteDevice.isPending}
         onConfirm={confirmRemove}

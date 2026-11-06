@@ -1,24 +1,46 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useUpdateThing } from '@/api/hooks'
 import type { ThingDetail } from '@/api/types'
+import { useI18n, type Translate } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Textarea } from '@/components/ui/Field'
 
-const schema = z.object({
-  deviceName: z.string().trim().min(1, '请输入设备名称').max(64, '名称不能超过 64 个字符'),
-  deviceDesc: z.string().trim().max(255, '描述不能超过 255 个字符'),
-  mqttClientId: z.string().trim().max(64, '不能超过 64 个字符'),
-  mqttUsername: z.string().trim().max(64, '不能超过 64 个字符'),
-  mqttPassword: z.string().max(64, '不能超过 64 个字符'),
-})
+type FormValues = {
+  deviceName: string
+  deviceDesc: string
+  mqttClientId: string
+  mqttUsername: string
+  mqttPassword: string
+}
 
-type FormValues = z.infer<typeof schema>
+function createEditThingSchema(t: Translate): z.ZodType<FormValues> {
+  return z.object({
+    deviceName: z
+      .string()
+      .trim()
+      .min(1, t('editThing.validation.nameRequired'))
+      .max(64, t('editThing.validation.nameMax')),
+    deviceDesc: z
+      .string()
+      .trim()
+      .max(255, t('editThing.validation.descMax')),
+    mqttClientId: z
+      .string()
+      .trim()
+      .max(64, t('editThing.validation.fieldMax')),
+    mqttUsername: z
+      .string()
+      .trim()
+      .max(64, t('editThing.validation.fieldMax')),
+    mqttPassword: z.string().max(64, t('editThing.validation.fieldMax')),
+  })
+}
 
 export function EditThingDialog({
   open,
@@ -29,7 +51,9 @@ export function EditThingDialog({
   onClose: () => void
   thing: ThingDetail
 }) {
+  const { t } = useI18n()
   const mutation = useUpdateThing()
+  const schema = useMemo(() => createEditThingSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -69,7 +93,7 @@ export function EditThingDialog({
           ...(values.mqttPassword ? { mqttPassword: values.mqttPassword } : {}),
         },
       })
-      toast.success('设备已更新')
+      toast.success(t('editThing.updatedToast'))
       onClose()
     } catch (error) {
       toast.error(errorMessage(error))
@@ -81,37 +105,51 @@ export function EditThingDialog({
       open={open}
       onClose={onClose}
       size="lg"
-      title="编辑设备"
-      description="Device Key、Device Secret、Token 与 Topic 创建后不可修改。"
+      title={t('editThing.title')}
+      description={t('editThing.description')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button variant="primary" onClick={onSubmit} loading={mutation.isPending}>
-            保存
+            {t('common.action.save')}
           </Button>
         </>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="设备名称" htmlFor="thing-name" required error={errors.deviceName?.message}>
+          <Field
+            label={t('editThing.deviceName')}
+            htmlFor="thing-name"
+            required
+            error={errors.deviceName?.message}
+          >
             <Input id="thing-name" {...register('deviceName')} />
           </Field>
-          <Field
-            label="Device Key"
-            hint="不可修改"
-          >
+          <Field label={t('editThing.deviceKey')} hint={t('editThing.immutable')}>
             <Input value={thing.deviceKey} readOnly disabled className="font-mono" />
           </Field>
-          <Field label="MQTT Client ID" htmlFor="thing-client" error={errors.mqttClientId?.message}>
+          <Field
+            label="MQTT Client ID"
+            htmlFor="thing-client"
+            error={errors.mqttClientId?.message}
+          >
             <Input id="thing-client" className="font-mono" {...register('mqttClientId')} />
           </Field>
-          <Field label="MQTT Username" htmlFor="thing-username" error={errors.mqttUsername?.message}>
+          <Field
+            label="MQTT Username"
+            htmlFor="thing-username"
+            error={errors.mqttUsername?.message}
+          >
             <Input id="thing-username" className="font-mono" {...register('mqttUsername')} />
           </Field>
-          <Field label="MQTT Password" htmlFor="thing-password" error={errors.mqttPassword?.message}>
+          <Field
+            label="MQTT Password"
+            htmlFor="thing-password"
+            error={errors.mqttPassword?.message}
+          >
             <Input
               id="thing-password"
               type="text"
@@ -121,7 +159,11 @@ export function EditThingDialog({
             />
           </Field>
         </div>
-        <Field label="描述" htmlFor="thing-desc" error={errors.deviceDesc?.message}>
+        <Field
+          label={t('editThing.descriptionField')}
+          htmlFor="thing-desc"
+          error={errors.deviceDesc?.message}
+        >
           <Textarea id="thing-desc" {...register('deviceDesc')} />
         </Field>
       </form>

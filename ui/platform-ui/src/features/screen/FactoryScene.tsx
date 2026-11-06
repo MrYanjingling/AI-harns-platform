@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { DeviceStatus } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { DEVICE_STATUS, PROTOCOLS, UNKNOWN_STATUS } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import {
@@ -37,6 +38,7 @@ interface DeviceObjects {
 const RUNNING: DeviceStatus[] = ['collecting', 'collectingError']
 
 export function FactoryScene({ devices, selectedId, onSelect }: FactorySceneProps) {
+  const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const labelsRef = useRef(new Map<string, HTMLButtonElement>())
   const zoneLabelsRef = useRef(new Map<string, HTMLSpanElement>())
@@ -459,8 +461,8 @@ export function FactoryScene({ devices, selectedId, onSelect }: FactorySceneProp
   if (failed) {
     return (
       <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 px-6 text-center">
-        <p className="text-sm font-medium text-fg">无法渲染 3D 场景</p>
-        <p className="text-xs text-muted">当前浏览器或显卡不支持 WebGL,请更换浏览器后重试。</p>
+        <p className="text-sm font-medium text-fg">{t('screen.noWebgl.title')}</p>
+        <p className="text-xs text-muted">{t('screen.noWebgl.description')}</p>
       </div>
     )
   }

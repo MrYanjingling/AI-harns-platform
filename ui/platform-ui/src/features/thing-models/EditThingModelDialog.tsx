@@ -1,21 +1,31 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useUpdateThingModel } from '@/api/hooks'
 import type { ThingModelInfo } from '@/api/types'
+import { useI18n, type Translate } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Textarea } from '@/components/ui/Field'
 
-const schema = z.object({
-  name: z.string().trim().min(1, '请输入物模型名称').max(64, '名称不能超过 64 个字符'),
-  description: z.string().trim().max(255, '描述不能超过 255 个字符'),
-})
+type FormValues = { name: string; description: string }
 
-type FormValues = z.infer<typeof schema>
+function createEditThingModelSchema(t: Translate): z.ZodType<FormValues> {
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t('thingModelCreate.validation.nameRequired'))
+      .max(64, t('thingModelCreate.validation.nameMax')),
+    description: z
+      .string()
+      .trim()
+      .max(255, t('thingModelCreate.validation.descriptionMax')),
+  })
+}
 
 export function EditThingModelDialog({
   open,
@@ -26,7 +36,9 @@ export function EditThingModelDialog({
   onClose: () => void
   model: ThingModelInfo
 }) {
+  const { t } = useI18n()
   const mutation = useUpdateThingModel()
+  const schema = useMemo(() => createEditThingModelSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -44,7 +56,7 @@ export function EditThingModelDialog({
   const onSubmit = handleSubmit(async (values) => {
     try {
       await mutation.mutateAsync({ id: model.id, payload: values })
-      toast.success('物模型已更新')
+      toast.success(t('editThingModel.updatedToast'))
       onClose()
     } catch (error) {
       toast.error(errorMessage(error))
@@ -55,24 +67,33 @@ export function EditThingModelDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="编辑物模型"
-      description={`Key ${model.thingModelKey} 不可修改。`}
+      title={t('editThingModel.title')}
+      description={t('editThingModel.description', { key: model.thingModelKey })}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button variant="primary" onClick={onSubmit} loading={mutation.isPending}>
-            保存
+            {t('common.action.save')}
           </Button>
         </>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        <Field label="名称" htmlFor="model-name" required error={errors.name?.message}>
+        <Field
+          label={t('editThingModel.name')}
+          htmlFor="model-name"
+          required
+          error={errors.name?.message}
+        >
           <Input id="model-name" {...register('name')} />
         </Field>
-        <Field label="描述" htmlFor="model-description" error={errors.description?.message}>
+        <Field
+          label={t('editThingModel.descriptionField')}
+          htmlFor="model-description"
+          error={errors.description?.message}
+        >
           <Textarea id="model-description" {...register('description')} />
         </Field>
       </form>

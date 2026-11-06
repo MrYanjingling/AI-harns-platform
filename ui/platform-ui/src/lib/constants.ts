@@ -1,3 +1,4 @@
+import type { MessageKey } from '@/i18n'
 import type {
   DeviceStatus,
   DeviceStatusAction,
@@ -10,66 +11,73 @@ import type {
 } from '@/api/types'
 
 export interface StatusMeta {
-  label: string
+  labelKey: MessageKey
   /** tailwind 类:文本 + 背景 + 边框 */
   className: string
   dotClassName: string
-  description: string
+  descriptionKey: MessageKey
 }
 
 export const DEVICE_STATUS: Record<DeviceStatus, StatusMeta> = {
   collecting: {
-    label: '采集中',
-    className: 'bg-emerald-500/10 text-emerald-700 border-emerald-600/20 dark:text-emerald-300',
+    labelKey: 'enums.deviceStatus.collecting.label',
+    className:
+      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-600/30',
     dotClassName: 'bg-emerald-500',
-    description: '设备连接正常,正在采集数据',
+    descriptionKey: 'enums.deviceStatus.collecting.description',
   },
   collectingError: {
-    label: '采集异常',
-    className: 'bg-amber-500/10 text-amber-700 border-amber-600/20 dark:text-amber-300',
+    labelKey: 'enums.deviceStatus.collectingError.label',
+    className:
+      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-600/30',
     dotClassName: 'bg-amber-500',
-    description: '设备可连接,但部分数据采集失败',
+    descriptionKey: 'enums.deviceStatus.collectingError.description',
   },
   unconnected: {
-    label: '未连接',
-    className: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20 dark:text-zinc-300',
+    labelKey: 'enums.deviceStatus.unconnected.label',
+    className:
+      'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-500/10 dark:text-zinc-300 dark:border-zinc-600/30',
     dotClassName: 'bg-zinc-400',
-    description: '网关无法连接到设备',
+    descriptionKey: 'enums.deviceStatus.unconnected.description',
   },
   emptyVariable: {
-    label: '无变量',
-    className: 'bg-violet-500/10 text-violet-700 border-violet-600/20 dark:text-violet-300',
+    labelKey: 'enums.deviceStatus.emptyVariable.label',
+    className:
+      'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-600/30',
     dotClassName: 'bg-violet-500',
-    description: '设备没有配置任何采集变量',
+    descriptionKey: 'enums.deviceStatus.emptyVariable.description',
   },
   stopped: {
-    label: '已停止',
-    className: 'bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-300',
+    labelKey: 'enums.deviceStatus.stopped.label',
+    className:
+      'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-600/30',
     dotClassName: 'bg-slate-400',
-    description: '采集已停止',
+    descriptionKey: 'enums.deviceStatus.stopped.description',
   },
   error: {
-    label: '错误',
-    className: 'bg-rose-500/10 text-rose-700 border-rose-600/20 dark:text-rose-300',
+    labelKey: 'enums.deviceStatus.error.label',
+    className:
+      'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-600/30',
     dotClassName: 'bg-rose-500',
-    description: '设备运行发生错误',
+    descriptionKey: 'enums.deviceStatus.error.description',
   },
 }
 
 export const UNKNOWN_STATUS: StatusMeta = {
-  label: '未知',
-  className: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20 dark:text-zinc-300',
+  labelKey: 'enums.deviceStatus.unknown.label',
+  className:
+    'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-500/10 dark:text-zinc-300 dark:border-zinc-600/30',
   dotClassName: 'bg-zinc-400',
-  description: '未知状态',
+  descriptionKey: 'enums.deviceStatus.unknown.description',
 }
 
 export interface ProtocolMeta {
   type: DeviceType
   label: string
   short: string
-  description: string
+  descriptionKey: MessageKey
   defaultModel: string
-  models: Array<{ value: string; label: string; hint: string }>
+  models: Array<{ value: string; label: string; hintKey: MessageKey }>
   /** 用于徽标配色 */
   accent: string
 }
@@ -79,12 +87,24 @@ export const PROTOCOLS: Record<DeviceType, ProtocolMeta> = {
     type: 'modbus',
     label: 'Modbus',
     short: 'MB',
-    description: 'Modbus TCP / RTU / RTU over TCP',
+    descriptionKey: 'enums.protocol.modbus.description',
     defaultModel: 'modbusTcp',
     models: [
-      { value: 'modbusTcp', label: 'Modbus TCP', hint: '以太网,默认端口 502' },
-      { value: 'modbusRtu', label: 'Modbus RTU', hint: '串口 (RS-485/232)' },
-      { value: 'modbusRtuOverTcp', label: 'Modbus RTU over TCP', hint: '串口协议经 TCP 透传' },
+      {
+        value: 'modbusTcp',
+        label: 'Modbus TCP',
+        hintKey: 'enums.protocol.modbus.model.modbusTcp.hint',
+      },
+      {
+        value: 'modbusRtu',
+        label: 'Modbus RTU',
+        hintKey: 'enums.protocol.modbus.model.modbusRtu.hint',
+      },
+      {
+        value: 'modbusRtuOverTcp',
+        label: 'Modbus RTU over TCP',
+        hintKey: 'enums.protocol.modbus.model.modbusRtuOverTcp.hint',
+      },
     ],
     accent: 'emerald',
   },
@@ -92,29 +112,31 @@ export const PROTOCOLS: Record<DeviceType, ProtocolMeta> = {
     type: 'opcUa',
     label: 'OPC UA',
     short: 'UA',
-    description: 'OPC UA 二进制协议',
+    descriptionKey: 'enums.protocol.opcUa.description',
     defaultModel: 'opcUa',
-    models: [{ value: 'opcUa', label: 'OPC UA', hint: 'Endpoint: opc.tcp://host:port' }],
+    models: [
+      { value: 'opcUa', label: 'OPC UA', hintKey: 'enums.protocol.opcUa.model.opcUa.hint' },
+    ],
     accent: 'sky',
   },
   s7: {
     type: 's7',
     label: 'S7',
     short: 'S7',
-    description: '西门子 S7-1500',
+    descriptionKey: 'enums.protocol.s7.description',
     defaultModel: 's71500',
-    models: [{ value: 's71500', label: 'S7-1500', hint: 'ISO-on-TCP,默认端口 102' }],
+    models: [{ value: 's71500', label: 'S7-1500', hintKey: 'enums.protocol.s7.model.s71500.hint' }],
     accent: 'amber',
   },
 }
 
 export const DEVICE_STATUS_ACTIONS: Array<{
   action: DeviceStatusAction
-  label: string
+  labelKey: MessageKey
 }> = [
-  { action: 'start', label: '启动' },
-  { action: 'restart', label: '重启' },
-  { action: 'stop', label: '停止' },
+  { action: 'start', labelKey: 'enums.deviceAction.start' },
+  { action: 'restart', labelKey: 'enums.deviceAction.restart' },
+  { action: 'stop', labelKey: 'enums.deviceAction.stop' },
 ]
 
 export const DATA_TYPES: Array<{ value: DataType; label: string }> = [
@@ -133,10 +155,10 @@ export const MEMORY_LAYOUTS = ['ABCD', 'BADC', 'CDAB', 'DCBA'] as const
 
 export const BAUD_RATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
 export const DATA_BITS = [5, 6, 7, 8]
-export const PARITIES = [
-  { value: 'noParity', label: '无校验 (None)' },
-  { value: 'oddParity', label: '奇校验 (Odd)' },
-  { value: 'evenParity', label: '偶校验 (Even)' },
+export const PARITIES: Array<{ value: string; labelKey: MessageKey }> = [
+  { value: 'noParity', labelKey: 'enums.parity.none' },
+  { value: 'oddParity', labelKey: 'enums.parity.odd' },
+  { value: 'evenParity', labelKey: 'enums.parity.even' },
 ]
 export const STOP_BITS = [
   { value: '1', label: '1' },
@@ -148,16 +170,18 @@ export const STOP_BITS = [
 
 export const PLATFORM_STATUS: Record<PlatformStatus, StatusMeta> = {
   enabled: {
-    label: '启用',
-    className: 'bg-emerald-500/10 text-emerald-700 border-emerald-600/20 dark:text-emerald-300',
+    labelKey: 'enums.platformStatus.enabled.label',
+    className:
+      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-600/30',
     dotClassName: 'bg-emerald-500',
-    description: '账号或资源处于启用状态',
+    descriptionKey: 'enums.platformStatus.enabled.description',
   },
   disabled: {
-    label: '禁用',
-    className: 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20 dark:text-zinc-300',
+    labelKey: 'enums.platformStatus.disabled.label',
+    className:
+      'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-500/10 dark:text-zinc-300 dark:border-zinc-600/30',
     dotClassName: 'bg-zinc-400',
-    description: '账号或资源处于禁用状态',
+    descriptionKey: 'enums.platformStatus.disabled.description',
   },
 }
 
@@ -165,50 +189,63 @@ export const PLATFORM_STATUS: Record<PlatformStatus, StatusMeta> = {
 export const THING_DATA_TYPES: Array<{
   value: ThingDataType
   label: string
-  description: string
+  descriptionKey: MessageKey
 }> = [
-  { value: 'int', label: 'int', description: '32 位整数' },
-  { value: 'long', label: 'long', description: '64 位整数' },
-  { value: 'float', label: 'float', description: '单精度浮点' },
-  { value: 'double', label: 'double', description: '双精度浮点' },
-  { value: 'bool', label: 'bool', description: '布尔值' },
-  { value: 'enum', label: 'enum', description: '枚举值' },
-  { value: 'text', label: 'text', description: '文本' },
-  { value: 'time', label: 'time', description: '时间' },
-  { value: 'array', label: 'array', description: '数组' },
-  { value: 'struct', label: 'struct', description: '结构体' },
+  { value: 'int', label: 'int', descriptionKey: 'enums.thingDataType.int' },
+  { value: 'long', label: 'long', descriptionKey: 'enums.thingDataType.long' },
+  { value: 'float', label: 'float', descriptionKey: 'enums.thingDataType.float' },
+  { value: 'double', label: 'double', descriptionKey: 'enums.thingDataType.double' },
+  { value: 'bool', label: 'bool', descriptionKey: 'enums.thingDataType.bool' },
+  { value: 'enum', label: 'enum', descriptionKey: 'enums.thingDataType.enum' },
+  { value: 'text', label: 'text', descriptionKey: 'enums.thingDataType.text' },
+  { value: 'time', label: 'time', descriptionKey: 'enums.thingDataType.time' },
+  { value: 'array', label: 'array', descriptionKey: 'enums.thingDataType.array' },
+  { value: 'struct', label: 'struct', descriptionKey: 'enums.thingDataType.struct' },
 ]
 
 /** 需要 unit / min / max 的数值类型。 */
 export const NUMERIC_DATA_TYPES: ThingDataType[] = ['int', 'long', 'float', 'double']
 
-export const RW_FLAGS: Array<{ value: RwFlag; label: string; description: string }> = [
-  { value: 'r', label: '只读 r', description: '仅设备上报' },
-  { value: 'w', label: '只写 w', description: '仅平台下发' },
-  { value: 'rw', label: '读写 rw', description: '平台与设备双向' },
-]
+export const RW_FLAGS: Array<{ value: RwFlag; labelKey: MessageKey; descriptionKey: MessageKey }> =
+  [
+    {
+      value: 'r',
+      labelKey: 'enums.rw.r.label',
+      descriptionKey: 'enums.rw.r.description',
+    },
+    {
+      value: 'w',
+      labelKey: 'enums.rw.w.label',
+      descriptionKey: 'enums.rw.w.description',
+    },
+    {
+      value: 'rw',
+      labelKey: 'enums.rw.rw.label',
+      descriptionKey: 'enums.rw.rw.description',
+    },
+  ]
 
-export const OPERATION_TYPES: Array<{ value: OperationType; label: string }> = [
-  { value: 'LOGIN', label: '登录' },
-  { value: 'LOGOUT', label: '退出' },
-  { value: 'CREATE', label: '创建' },
-  { value: 'UPDATE', label: '更新' },
-  { value: 'DELETE', label: '删除' },
-  { value: 'QUERY', label: '查询' },
+export const OPERATION_TYPES: Array<{ value: OperationType; labelKey: MessageKey }> = [
+  { value: 'LOGIN', labelKey: 'enums.operation.login' },
+  { value: 'LOGOUT', labelKey: 'enums.operation.logout' },
+  { value: 'CREATE', labelKey: 'enums.operation.create' },
+  { value: 'UPDATE', labelKey: 'enums.operation.update' },
+  { value: 'DELETE', labelKey: 'enums.operation.delete' },
+  { value: 'QUERY', labelKey: 'enums.operation.query' },
 ]
 
 export const AUDIT_APPS = ['IOT', 'EMS', 'EAM'] as const
 export const AUDIT_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const
 
-export const GENDERS: Array<{ value: 'male' | 'female'; label: string }> = [
-  { value: 'male', label: '男' },
-  { value: 'female', label: '女' },
+export const GENDERS: Array<{ value: 'male' | 'female'; labelKey: MessageKey }> = [
+  { value: 'male', labelKey: 'enums.gender.male' },
+  { value: 'female', labelKey: 'enums.gender.female' },
 ]
 
-export const AUTH_MODES: Array<{ value: 'local' | 'ldap' | 'radius'; label: string }> = [
-  { value: 'local', label: '本地认证' },
-  { value: 'ldap', label: 'LDAP' },
-  { value: 'radius', label: 'RADIUS' },
+export const AUTH_MODES: Array<{ value: 'local' | 'ldap' | 'radius'; labelKey: MessageKey }> = [
+  { value: 'local', labelKey: 'enums.authMode.local' },
+  { value: 'ldap', labelKey: 'enums.authMode.ldap' },
+  { value: 'radius', labelKey: 'enums.authMode.radius' },
 ]
 
 export const PAGE_SIZES = [10, 20, 50, 100] as const

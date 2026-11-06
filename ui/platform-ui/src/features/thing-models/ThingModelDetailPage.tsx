@@ -8,6 +8,7 @@ import {
   useThingModel,
 } from '@/api/hooks'
 import type { ThingModelProperty } from '@/api/types'
+import { useI18n, type MessageKey } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Badge } from '@/components/ui/Badge'
@@ -28,13 +29,14 @@ import { describeDataType } from './data-type'
 
 type TabValue = 'properties' | 'features' | 'tsl'
 
-const TABS: Array<{ value: TabValue; label: string }> = [
-  { value: 'properties', label: '属性' },
-  { value: 'features', label: '特征' },
-  { value: 'tsl', label: 'TSL 导入导出' },
+const TABS: Array<{ value: TabValue; labelKey: MessageKey }> = [
+  { value: 'properties', labelKey: 'thingModelDetail.tab.properties' },
+  { value: 'features', labelKey: 'thingModelDetail.tab.features' },
+  { value: 'tsl', labelKey: 'thingModelDetail.tab.tsl' },
 ]
 
 export function ThingModelDetailPage() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const model = useThingModel(id)
@@ -50,11 +52,18 @@ export function ThingModelDetailPage() {
   const [deleteModelOpen, setDeleteModelOpen] = useState(false)
   const [deleteProperty, setDeleteProperty] = useState<ThingModelProperty | null>(null)
 
-  if (model.isLoading) return <PageLoading label="正在载入物模型…" />
+  if (model.isLoading) return <PageLoading label={t('thingModelDetail.loading')} />
   if (model.isError) {
     return <ErrorState error={model.error} onRetry={model.refetch} />
   }
-  if (!model.data) return <ErrorState error={new Error('物模型不存在')} onRetry={model.refetch} />
+  if (!model.data) {
+    return (
+      <ErrorState
+        error={new Error(t('thingModelDetail.notFound'))}
+        onRetry={model.refetch}
+      />
+    )
+  }
 
   const detail = model.data
   const properties = detail.properties ?? []
@@ -63,7 +72,7 @@ export function ThingModelDetailPage() {
   const confirmDeleteModel = async () => {
     try {
       await deleteMutation.mutateAsync(detail.id)
-      toast.success('物模型已删除')
+      toast.success(t('thingModelDetail.modelDeleted'))
       navigate('/platform/thing-models', { replace: true })
     } catch (error) {
       toast.error(errorMessage(error))
@@ -77,7 +86,7 @@ export function ThingModelDetailPage() {
         id: detail.id,
         identifiers: [deleteProperty.identifier],
       })
-      toast.success('属性已删除')
+      toast.success(t('thingModelDetail.propertyDeleted'))
       setDeleteProperty(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -88,9 +97,9 @@ export function ThingModelDetailPage() {
     <div>
       <PageHeader
         title={detail.name}
-        description={detail.description || '未填写描述'}
+        description={detail.description || t('thingModelDetail.noDescription')}
         backTo="/platform/thing-models"
-        backLabel="返回物模型列表"
+        backLabel={t('thingModelDetail.back')}
         actions={
           <>
             <Button
@@ -98,21 +107,21 @@ export function ThingModelDetailPage() {
               icon={<RadioTower className="size-4" />}
               onClick={() => navigate(`/platform/things/new?thingModelId=${detail.id}`)}
             >
-              基于此模型创建设备
+              {t('thingModelDetail.createThing')}
             </Button>
             <Button
               variant="outline"
               icon={<Pencil className="size-4" />}
               onClick={() => setEditOpen(true)}
             >
-              编辑
+              {t('common.action.edit')}
             </Button>
             <Button
               variant="ghost"
               icon={<Trash2 className="size-4 text-danger" />}
               onClick={() => setDeleteModelOpen(true)}
             >
-              删除
+              {t('common.action.delete')}
             </Button>
           </>
         }
@@ -120,34 +129,41 @@ export function ThingModelDetailPage() {
 
       <Card className="mb-4 grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="text-[11px] text-faint">物模型 Key</p>
+          <p className="text-[11px] text-faint">{t('thingModelDetail.key')}</p>
           <p className="mt-1 font-mono text-sm">{detail.thingModelKey}</p>
         </div>
         <div>
-          <p className="text-[11px] text-faint">属性 / 特征</p>
+          <p className="text-[11px] text-faint">{t('thingModelDetail.propsFeatures')}</p>
           <p className="mt-1 text-sm tabular">
-            {properties.length} 个属性 · {features.length} 个特征
+            {t('thingModelDetail.counts', {
+              properties: properties.length,
+              features: features.length,
+            })}
           </p>
         </div>
         <div>
-          <p className="text-[11px] text-faint">创建时间</p>
+          <p className="text-[11px] text-faint">{t('common.field.createdAt')}</p>
           <p className="mt-1 text-sm">{formatDateTime(detail.createdTime)}</p>
         </div>
         <div>
-          <p className="text-[11px] text-faint">更新时间</p>
+          <p className="text-[11px] text-faint">{t('common.field.updatedAt')}</p>
           <p className="mt-1 text-sm">{formatDateTime(detail.updatedTime)}</p>
         </div>
       </Card>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Tabs items={TABS} value={tab} onChange={setTab} />
+        <Tabs
+          items={TABS.map((item) => ({ value: item.value, label: t(item.labelKey) }))}
+          value={tab}
+          onChange={setTab}
+        />
         {tab === 'properties' ? (
           <Button
             variant="primary"
             icon={<Plus className="size-4" />}
             onClick={() => setPropertyDialog({ open: true })}
           >
-            添加属性
+            {t('thingModelDetail.addProperty')}
           </Button>
         ) : null}
       </div>
@@ -159,15 +175,15 @@ export function ThingModelDetailPage() {
           ) : properties.length === 0 ? (
             <EmptyState
               icon={<Boxes className="size-5" />}
-              title="还没有属性"
-              description="添加属性后,设备即可按标识符上报动态数据。"
+              title={t('thingModelDetail.noProperties')}
+              description={t('thingModelDetail.noPropertiesDescription')}
               action={
                 <Button
                   variant="primary"
                   icon={<Plus className="size-4" />}
                   onClick={() => setPropertyDialog({ open: true })}
                 >
-                  添加属性
+                  {t('thingModelDetail.addProperty')}
                 </Button>
               }
             />
@@ -175,13 +191,13 @@ export function ThingModelDetailPage() {
             <Table>
               <THead>
                 <tr>
-                  <TH>属性</TH>
-                  <TH>标识符</TH>
-                  <TH>数据类型</TH>
-                  <TH>读写</TH>
-                  <TH>必填</TH>
-                  <TH>排序</TH>
-                  <TH className="text-right">操作</TH>
+                  <TH>{t('thingModelDetail.table.property')}</TH>
+                  <TH>{t('thingModelDetail.table.identifier')}</TH>
+                  <TH>{t('thingModelDetail.table.dataType')}</TH>
+                  <TH>{t('thingModelDetail.table.rw')}</TH>
+                  <TH>{t('thingModelDetail.table.required')}</TH>
+                  <TH>{t('thingModelDetail.table.sort')}</TH>
+                  <TH className="text-right">{t('common.field.actions')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -204,7 +220,9 @@ export function ThingModelDetailPage() {
                         {property.rwFlag ?? 'r'}
                       </Badge>
                     </TD>
-                    <TD className="text-xs text-muted">{property.required ? '是' : '否'}</TD>
+                    <TD className="text-xs text-muted">
+                      {property.required ? t('common.state.yes') : t('common.state.no')}
+                    </TD>
                     <TD className="text-xs text-muted tabular">{property.sort ?? 0}</TD>
                     <TD>
                       <div className="flex justify-end gap-1">
@@ -213,12 +231,14 @@ export function ThingModelDetailPage() {
                           variant="ghost"
                           onClick={() => setPropertyDialog({ open: true, property })}
                         >
-                          编辑
+                          {t('common.action.edit')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`删除属性 ${property.name}`}
+                          aria-label={t('thingModelDetail.deletePropertyAria', {
+                            name: property.name,
+                          })}
                           onClick={() => setDeleteProperty(property)}
                         >
                           <Trash2 className="size-3.5 text-danger" />
@@ -237,11 +257,11 @@ export function ThingModelDetailPage() {
         <Card className="overflow-hidden">
           {features.length === 0 ? (
             <EmptyState
-              title="没有特征定义"
-              description="特征定义只能在创建物模型或导入 TSL 时维护;设备可为其填写静态值。"
+              title={t('thingModelDetail.noFeatures')}
+              description={t('thingModelDetail.noFeaturesDescription')}
               action={
                 <Button variant="outline" onClick={() => setTab('tsl')}>
-                  前往 TSL 导入
+                  {t('thingModelDetail.gotoTsl')}
                 </Button>
               }
             />
@@ -249,11 +269,11 @@ export function ThingModelDetailPage() {
             <Table>
               <THead>
                 <tr>
-                  <TH>特征</TH>
-                  <TH>标识符</TH>
-                  <TH>数据类型</TH>
-                  <TH>描述</TH>
-                  <TH>排序</TH>
+                  <TH>{t('thingModelDetail.table.feature')}</TH>
+                  <TH>{t('thingModelDetail.table.identifier')}</TH>
+                  <TH>{t('thingModelDetail.table.dataType')}</TH>
+                  <TH>{t('thingModelDetail.table.description')}</TH>
+                  <TH>{t('thingModelDetail.table.sort')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -287,9 +307,12 @@ export function ThingModelDetailPage() {
 
       <ConfirmDialog
         open={deleteModelOpen}
-        title="删除物模型"
-        description={`确定删除「${detail.name}」及其 ${properties.length} 个属性吗?该操作不可恢复。`}
-        confirmText="删除"
+        title={t('thingModelDetail.deleteModelTitle')}
+        description={t('thingModelDetail.deleteModelDescription', {
+          name: detail.name,
+          count: properties.length,
+        })}
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDeleteModel}
@@ -298,13 +321,16 @@ export function ThingModelDetailPage() {
 
       <ConfirmDialog
         open={Boolean(deleteProperty)}
-        title="删除属性"
+        title={t('thingModelDetail.deletePropertyTitle')}
         description={
           deleteProperty
-            ? `确定删除属性「${deleteProperty.name}」(${deleteProperty.identifier})吗?`
+            ? t('thingModelDetail.deletePropertyDescription', {
+                name: deleteProperty.name,
+                identifier: deleteProperty.identifier,
+              })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteProperties.isPending}
         onConfirm={confirmDeleteProperty}

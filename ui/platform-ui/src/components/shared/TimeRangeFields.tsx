@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useI18n, type MessageKey } from '@/i18n'
 import { Field, Input } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { formatApiTime, fromDateTimeLocal, toDateTimeLocal } from '@/lib/format'
@@ -31,10 +32,10 @@ export function useTimeRange(hours = 24) {
   return { start, end, setStart, setEnd, applyPreset, toApi, valid: Boolean(toApi()) }
 }
 
-const PRESETS = [
-  { hours: 1, label: '1 小时' },
-  { hours: 24, label: '24 小时' },
-  { hours: 24 * 7, label: '7 天' },
+const PRESETS: Array<{ hours: number; labelKey: MessageKey }> = [
+  { hours: 1, labelKey: 'components.timeRange.hours1' },
+  { hours: 24, labelKey: 'components.timeRange.hours24' },
+  { hours: 24 * 7, labelKey: 'components.timeRange.days7' },
 ]
 
 export function TimeRangeFields({
@@ -42,16 +43,17 @@ export function TimeRangeFields({
 }: {
   range: ReturnType<typeof useTimeRange>
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Field label="开始时间" className="w-52">
+      <Field label={t('components.timeRange.start')} className="w-52">
         <Input
           type="datetime-local"
           value={range.start}
           onChange={(event) => range.setStart(event.target.value)}
         />
       </Field>
-      <Field label="结束时间" className="w-52">
+      <Field label={t('components.timeRange.end')} className="w-52">
         <Input
           type="datetime-local"
           value={range.end}
@@ -66,12 +68,12 @@ export function TimeRangeFields({
             variant="ghost"
             onClick={() => range.applyPreset(preset.hours)}
           >
-            {preset.label}
+            {t(preset.labelKey)}
           </Button>
         ))}
       </div>
       {!range.valid ? (
-        <p className="pb-2 text-xs text-danger">开始时间必须早于结束时间</p>
+        <p className="pb-2 text-xs text-danger">{t('components.timeRange.invalid')}</p>
       ) : null}
     </div>
   )

@@ -1,12 +1,14 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
+import { useI18n } from '@/i18n'
 import { AppShell } from '@/components/layout/AppShell'
+import { PagePad } from '@/components/layout/PagePad'
 import { PageLoading } from '@/components/ui/Spinner'
 import { AuditLogsPage } from '@/features/audit/AuditLogsPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
-import { DevicesPage } from '@/features/devices/DevicesPage'
+import { DeviceManagementPage } from '@/features/devices/DeviceManagementPage'
 import { DeviceCreatePage } from '@/features/devices/DeviceCreatePage'
 import { DeviceDetailPage } from '@/features/devices/DeviceDetailPage'
 import { DeviceEditPage } from '@/features/devices/DeviceEditPage'
@@ -33,6 +35,15 @@ const FactoryScreenPage = lazy(() =>
   })),
 )
 
+function ScreenFallback() {
+  const { t } = useI18n()
+  return (
+    <div className="dark flex min-h-dvh items-center justify-center bg-bg">
+      <PageLoading label={t('common.loading.screen')} />
+    </div>
+  )
+}
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -41,13 +52,7 @@ export const router = createBrowserRouter([
   {
     path: '/screen',
     element: (
-      <Suspense
-        fallback={
-          <div className="dark flex min-h-dvh items-center justify-center bg-bg">
-            <PageLoading label="正在加载工厂大屏…" />
-          </div>
-        }
-      >
+      <Suspense fallback={<ScreenFallback />}>
         <FactoryScreenPage />
       </Suspense>
     ),
@@ -60,27 +65,32 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'devices', element: <DevicesPage /> },
-      { path: 'devices/new', element: <DeviceCreatePage /> },
-      { path: 'devices/:id', element: <DeviceDetailPage /> },
-      { path: 'devices/:id/edit', element: <DeviceEditPage /> },
-      { path: 'platform/thing-models', element: <ThingModelsPage /> },
-      { path: 'platform/thing-models/new', element: <ThingModelCreatePage /> },
-      { path: 'platform/thing-models/:id', element: <ThingModelDetailPage /> },
-      { path: 'platform/things', element: <ThingsPage /> },
-      { path: 'platform/things/new', element: <ThingCreatePage /> },
-      { path: 'platform/things/:id', element: <ThingDetailPage /> },
-      { path: 'platform/users', element: <UsersPage /> },
-      { path: 'platform/roles', element: <RolesPage /> },
-      { path: 'platform/orgs', element: <OrgsPage /> },
-      { path: 'platform/audit-logs', element: <AuditLogsPage /> },
-      { path: 'data/metrics', element: <MetricsPage /> },
-      { path: 'data/kpis', element: <KpiPage /> },
-      { path: 'data/tags', element: <TagsPage /> },
-      { path: 'data/timeseries', element: <TimeSeriesPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      {
+        element: <PagePad />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'devices/new', element: <DeviceCreatePage /> },
+          { path: 'devices/:id', element: <DeviceDetailPage /> },
+          { path: 'devices/:id/edit', element: <DeviceEditPage /> },
+          { path: 'platform/thing-models', element: <ThingModelsPage /> },
+          { path: 'platform/thing-models/new', element: <ThingModelCreatePage /> },
+          { path: 'platform/thing-models/:id', element: <ThingModelDetailPage /> },
+          { path: 'platform/things', element: <ThingsPage /> },
+          { path: 'platform/things/new', element: <ThingCreatePage /> },
+          { path: 'platform/things/:id', element: <ThingDetailPage /> },
+          { path: 'platform/users', element: <UsersPage /> },
+          { path: 'platform/roles', element: <RolesPage /> },
+          { path: 'platform/orgs', element: <OrgsPage /> },
+          { path: 'platform/audit-logs', element: <AuditLogsPage /> },
+          { path: 'data/metrics', element: <MetricsPage /> },
+          { path: 'data/kpis', element: <KpiPage /> },
+          { path: 'data/tags', element: <TagsPage /> },
+          { path: 'data/timeseries', element: <TimeSeriesPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
+      { path: 'devices', element: <DeviceManagementPage /> },
     ],
   },
 ])

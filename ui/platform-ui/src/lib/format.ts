@@ -1,3 +1,5 @@
+import { getLocale, translate } from '@/i18n/translate'
+
 const pad = (n: number) => String(n).padStart(2, '0')
 
 /** 把任意后端时间解析为 Date;兼容 "2026-07-01 10:00:00"。 */
@@ -36,15 +38,15 @@ export function formatRelative(value: string | number | Date | null | undefined)
   const d = parseDate(value)
   if (!d) return '—'
   const diff = Date.now() - d.getTime()
-  if (diff < 0) return '刚刚'
+  if (diff < 0) return translate('common.time.justNow')
   const sec = Math.floor(diff / 1000)
-  if (sec < 60) return `${sec} 秒前`
+  if (sec < 60) return translate('common.time.secondsAgo', { count: sec })
   const min = Math.floor(sec / 60)
-  if (min < 60) return `${min} 分钟前`
+  if (min < 60) return translate('common.time.minutesAgo', { count: min })
   const hour = Math.floor(min / 60)
-  if (hour < 24) return `${hour} 小时前`
+  if (hour < 24) return translate('common.time.hoursAgo', { count: hour })
   const day = Math.floor(hour / 24)
-  if (day < 30) return `${day} 天前`
+  if (day < 30) return translate('common.time.daysAgo', { count: day })
   return formatDateTimeShort(d)
 }
 
@@ -85,7 +87,7 @@ export function formatNumber(value: number | string | null | undefined, digits =
   if (value === null || value === undefined || value === '') return '—'
   const n = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(n)) return String(value)
-  return new Intl.NumberFormat('zh-CN', {
+  return new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: digits,
     minimumFractionDigits: 0,
   }).format(n)
@@ -99,7 +101,7 @@ export function formatBytes(value: number): string {
 }
 
 export function maskSecret(value: string | null | undefined): string {
-  if (!value) return '未设置'
+  if (!value) return translate('common.state.unset')
   if (value.length <= 8) return '••••••••'
   return `${value.slice(0, 4)}••••••••${value.slice(-4)}`
 }

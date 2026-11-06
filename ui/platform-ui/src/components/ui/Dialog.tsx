@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/cn'
 import { Button } from './Button'
 
@@ -31,6 +32,7 @@ export function Dialog({
   size = 'md',
   closeOnBackdrop = true,
 }: DialogProps) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function Dialog({
         if (closeOnBackdrop && event.target === ref.current) onClose()
       }}
       className={cn(
-        'm-auto w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-0 text-fg shadow-2xl',
+        'm-auto w-[calc(100vw-2rem)] rounded border border-border bg-surface p-0 text-fg shadow-2xl',
         'backdrop:bg-black/45 backdrop:backdrop-blur-[2px]',
         'open:animate-fade-up',
         sizes[size],
@@ -72,7 +74,7 @@ export function Dialog({
             <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
           ) : null}
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭">
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('components.dialog.close')}>
           <X className="size-4" />
         </Button>
       </div>

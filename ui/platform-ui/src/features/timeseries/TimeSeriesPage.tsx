@@ -13,6 +13,7 @@ import {
 import { AreaChart, Search } from 'lucide-react'
 import { useTags, useTimeSeries } from '@/api/hooks'
 import type { DataPointTimeSeries, TagTimeSeriesRequest, TimeSeriesMode, TimeSeriesSource } from '@/api/types'
+import { useI18n, type MessageKey } from '@/i18n'
 import { formatDateTimeShort, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
@@ -39,10 +40,10 @@ const SERIES_COLORS = [
   '#06b6d4',
 ]
 
-const MODES: Array<{ value: TimeSeriesMode; label: string; hint: string }> = [
-  { value: 'raw', label: '原始值', hint: '逐点返回原始采集值' },
-  { value: 'mean', label: '平均值', hint: '按时间桶计算平均值' },
-  { value: 'usage', label: '差值', hint: '用于累计量,返回桶内差值' },
+const MODES: Array<{ value: TimeSeriesMode; labelKey: MessageKey; hintKey: MessageKey }> = [
+  { value: 'raw', labelKey: 'timeseries.mode.raw.label', hintKey: 'timeseries.mode.raw.hint' },
+  { value: 'mean', labelKey: 'timeseries.mode.mean.label', hintKey: 'timeseries.mode.mean.hint' },
+  { value: 'usage', labelKey: 'timeseries.mode.usage.label', hintKey: 'timeseries.mode.usage.hint' },
 ]
 
 /**
@@ -80,6 +81,7 @@ function summarize(series: DataPointTimeSeries) {
 }
 
 export function TimeSeriesPage() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const tags = useTags()
   const range = useTimeRange(24)
@@ -147,8 +149,8 @@ export function TimeSeriesPage() {
   return (
     <div>
       <PageHeader
-        title="时序查询"
-        description="按测点与时间范围查询历史数据,支持原始值、平均值与差值模式。"
+        title={t('timeseries.title')}
+        description={t('timeseries.description')}
         actions={
           <Button
             variant="primary"
@@ -156,7 +158,7 @@ export function TimeSeriesPage() {
             disabled={!canQuery}
             onClick={runQuery}
           >
-            查询时序
+            {t('timeseries.query')}
           </Button>
         }
       />
@@ -165,28 +167,23 @@ export function TimeSeriesPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>查询条件</CardTitle>
-              <p className="mt-0.5 text-xs text-muted">
-                多个测点用英文逗号分隔,最多建议 10 个
-              </p>
+              <CardTitle>{t('timeseries.conditions')}</CardTitle>
+              <p className="mt-0.5 text-xs text-muted">{t('timeseries.conditionsHint')}</p>
             </div>
-            <Badge tone="neutral">{selectedIds.length} 个测点</Badge>
+            <Badge tone="neutral">{t('timeseries.tagCount', { count: selectedIds.length })}</Badge>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Field
-              label="测点 (select)"
-              hint="支持直接粘贴测点 ID,或从下方列表勾选"
-            >
+            <Field label={t('timeseries.selectLabel')} hint={t('timeseries.selectHint')}>
               <Input
                 value={selectText}
                 onChange={(event) => setSelectText(event.target.value)}
-                placeholder="例如: SCADA.compressor.pressure,SCADA.chiller.flow"
+                placeholder={t('timeseries.selectPlaceholder')}
                 className="font-mono text-xs"
               />
             </Field>
 
             <div className="flex flex-wrap items-end gap-3">
-              <Field label="数据源" className="w-36">
+              <Field label={t('timeseries.source')} className="w-36">
                 <Select
                   value={source}
                   onChange={(event) => setSource(event.target.value as TimeSeriesSource)}
@@ -195,19 +192,23 @@ export function TimeSeriesPage() {
                   <option value="escada">Escada</option>
                 </Select>
               </Field>
-              <Field label="模式" className="w-36">
+              <Field label={t('timeseries.mode')} className="w-36">
                 <Select
                   value={mode}
                   onChange={(event) => setMode(event.target.value as TimeSeriesMode)}
                 >
                   {MODES.map((item) => (
                     <option key={item.value} value={item.value}>
-                      {item.label}
+                      {t(item.labelKey)}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field label="条数上限" className="w-28" error={limit < 2 ? '至少 2 条' : undefined}>
+              <Field
+                label={t('timeseries.limit')}
+                className="w-28"
+                error={limit < 2 ? t('timeseries.limitError') : undefined}
+              >
                 <Input
                   type="number"
                   min={2}
@@ -221,9 +222,10 @@ export function TimeSeriesPage() {
             <TimeRangeFields range={range} />
 
             <p className="text-[11px] leading-relaxed text-faint">
-              {MODES.find((item) => item.value === mode)?.hint}。请求会发送到{' '}
-              <code className="font-mono">POST /{source}/tagTimeSeries</code>,时间格式为{' '}
-              <code className="font-mono">yyyy-MM-dd HH:mm:ss.SSS</code>。
+              {t('timeseries.requestHint', {
+                hint: t(MODES.find((item) => item.value === mode)?.hintKey ?? 'timeseries.mode.raw.hint'),
+                source,
+              })}
             </p>
 
             <Button
@@ -233,7 +235,9 @@ export function TimeSeriesPage() {
               disabled={!canQuery}
               onClick={runQuery}
             >
-              查询 {selectedIds.length > 0 ? `${selectedIds.length} 个测点` : '时序'}
+              {selectedIds.length > 0
+                ? t('timeseries.queryCount', { count: selectedIds.length })
+                : t('timeseries.queryPlain')}
             </Button>
           </CardContent>
         </Card>
@@ -241,25 +245,27 @@ export function TimeSeriesPage() {
         <Card className="flex flex-col">
           <CardHeader>
             <div>
-              <CardTitle>可用测点</CardTitle>
-              <p className="mt-0.5 text-xs text-muted">点击勾选,自动写入 select</p>
+              <CardTitle>{t('timeseries.available')}</CardTitle>
+              <p className="mt-0.5 text-xs text-muted">{t('timeseries.availableHint')}</p>
             </div>
             <Input
               value={tagSearch}
               onChange={(event) => setTagSearch(event.target.value)}
-              placeholder="筛选测点"
+              placeholder={t('timeseries.filterTags')}
               className="h-8 w-36 text-xs"
             />
           </CardHeader>
           <div className="max-h-96 overflow-y-auto px-2 pb-2">
             {tags.isLoading ? (
-              <PageLoading label="加载测点…" />
+              <PageLoading label={t('timeseries.loadingTags')} />
             ) : tags.isError ? (
               <div className="p-3">
                 <ErrorState error={tags.error} onRetry={tags.refetch} compact />
               </div>
             ) : filteredTags.length === 0 ? (
-              <p className="px-3 py-8 text-center text-xs text-muted">没有匹配的测点</p>
+              <p className="px-3 py-8 text-center text-xs text-muted">
+                {t('timeseries.noMatchingTags')}
+              </p>
             ) : (
               <ul className="space-y-0.5">
                 {filteredTags.map((tag) => {
@@ -300,17 +306,20 @@ export function TimeSeriesPage() {
       <Card className="mt-4">
         <CardHeader>
           <div>
-            <CardTitle>趋势图</CardTitle>
+            <CardTitle>{t('timeseries.chartTitle')}</CardTitle>
             <p className="mt-0.5 text-xs text-muted">
               {chartSeries.length > 0
-                ? `${chartSeries.length} 条曲线 · ${chartData.length} 个时间点`
-                : '查询后展示多测点折线'}
+                ? t('timeseries.chartSummary', {
+                    curves: chartSeries.length,
+                    points: chartData.length,
+                  })
+                : t('timeseries.chartEmptyHint')}
             </p>
           </div>
           {request && series.isFetching ? (
             <span className="flex items-center gap-1.5 text-[11px] text-faint">
               <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-              加载中
+              {t('timeseries.loading')}
             </span>
           ) : null}
         </CardHeader>
@@ -318,17 +327,17 @@ export function TimeSeriesPage() {
           {!request ? (
             <EmptyState
               icon={<AreaChart className="size-5" />}
-              title="尚未查询"
-              description="选择测点、时间范围与模式后点击查询。"
+              title={t('timeseries.notQueried.title')}
+              description={t('timeseries.notQueried.description')}
             />
           ) : series.isLoading ? (
-            <PageLoading label="正在查询时序数据…" />
+            <PageLoading label={t('timeseries.querying')} />
           ) : series.isError ? (
             <ErrorState error={series.error} onRetry={series.refetch} compact />
           ) : chartSeries.length === 0 || chartData.length === 0 ? (
             <EmptyState
-              title="没有时序数据"
-              description="该测点在所选时间范围内没有数据,请调整时间范围或测点。"
+              title={t('timeseries.noData.title')}
+              description={t('timeseries.noData.description')}
             />
           ) : (
             <div className="h-[340px] w-full">
@@ -391,18 +400,18 @@ export function TimeSeriesPage() {
       {request && chartSeries.length > 0 ? (
         <Card className="mt-4 overflow-hidden">
           <CardHeader>
-            <CardTitle>测点概览</CardTitle>
+            <CardTitle>{t('timeseries.summaryTitle')}</CardTitle>
             <Badge tone="neutral">{source.toUpperCase()}</Badge>
           </CardHeader>
           <Table>
             <THead>
               <tr>
-                <TH>测点</TH>
+                <TH>{t('timeseries.table.tag')}</TH>
                 <TH>ID</TH>
-                <TH className="text-right">数据点</TH>
-                <TH className="text-right">最小值</TH>
-                <TH className="text-right">最大值</TH>
-                <TH className="text-right">最新值</TH>
+                <TH className="text-right">{t('timeseries.table.dataPoints')}</TH>
+                <TH className="text-right">{t('timeseries.table.min')}</TH>
+                <TH className="text-right">{t('timeseries.table.max')}</TH>
+                <TH className="text-right">{t('timeseries.table.latest')}</TH>
               </tr>
             </THead>
             <TBody>

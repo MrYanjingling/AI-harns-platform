@@ -15,6 +15,8 @@
             saved === 'dark' ||
             (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.classList.toggle('dark', dark)
+          const locale = localStorage.getItem('harns-locale')
+          if (locale === 'zh-CN' || locale === 'en-US') document.documentElement.lang = locale
         } catch {
           /* localStorage 不可用时忽略 */
         }

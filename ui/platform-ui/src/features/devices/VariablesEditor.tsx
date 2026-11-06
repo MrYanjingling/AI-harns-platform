@@ -1,6 +1,7 @@
 import { useFieldArray, type UseFormReturn } from 'react-hook-form'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import type { DataType, DeviceType } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { DATA_TYPES } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/Button'
@@ -24,6 +25,7 @@ export function VariablesEditor({
   form: UseFormReturn<DeviceFormValues>
   type: DeviceType
 }) {
+  const { t } = useI18n()
   const { fields, append, insert, remove } = useFieldArray({
     control: form.control,
     name: 'variables',
@@ -42,8 +44,8 @@ export function VariablesEditor({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs text-muted">
-            共 <span className="font-medium text-fg tabular">{fields.length}</span> 个变量
-            {type === 'modbus' && ' · 地址从 0 开始'}
+            {t('variables.count', { count: fields.length })}
+            {type === 'modbus' && t('variables.addressFromZero')}
           </p>
         </div>
         <Button
@@ -52,30 +54,30 @@ export function VariablesEditor({
           icon={<Plus className="size-3.5" />}
           onClick={() => append(emptyVariable(type))}
         >
-          添加变量
+          {t('variables.add')}
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="overflow-x-auto rounded border border-border">
         <table className="w-full min-w-[860px] border-collapse text-xs">
           <thead>
             <tr className="border-b border-border bg-surface-2/70 text-left text-[10px] font-medium tracking-wide text-muted uppercase">
               <th className="w-9 px-2 py-2 text-center">#</th>
-              <th className="min-w-36 px-2 py-2">变量名</th>
-              <th className="w-28 px-2 py-2">数据类型</th>
-              <th className="w-28 px-2 py-2">地址</th>
+              <th className="min-w-36 px-2 py-2">{t('variables.column.name')}</th>
+              <th className="w-28 px-2 py-2">{t('variables.column.dataType')}</th>
+              <th className="w-28 px-2 py-2">{t('variables.column.address')}</th>
               {type === 'modbus' ? (
                 <>
-                  <th className="w-24 px-2 py-2">功能码</th>
-                  <th className="w-20 px-2 py-2">位</th>
-                  <th className="w-20 px-2 py-2">倍率</th>
-                  <th className="w-20 px-2 py-2">数量</th>
+                  <th className="w-24 px-2 py-2">{t('variables.column.functionCode')}</th>
+                  <th className="w-20 px-2 py-2">{t('variables.column.bits')}</th>
+                  <th className="w-20 px-2 py-2">{t('variables.column.rate')}</th>
+                  <th className="w-20 px-2 py-2">{t('variables.column.amount')}</th>
                 </>
               ) : null}
               {type === 'opcUa' ? <th className="w-24 px-2 py-2">Namespace</th> : null}
-              {type === 's7' ? <th className="w-20 px-2 py-2">倍率</th> : null}
-              <th className="w-24 px-2 py-2">读写</th>
-              <th className="w-20 px-2 py-2 text-right">操作</th>
+              {type === 's7' ? <th className="w-20 px-2 py-2">{t('variables.column.rate')}</th> : null}
+              <th className="w-24 px-2 py-2">{t('variables.column.accessMode')}</th>
+              <th className="w-20 px-2 py-2 text-right">{t('variables.column.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -88,7 +90,7 @@ export function VariablesEditor({
                   <td className="px-2 py-2">
                     <input
                       {...register(`variables.${index}.name`)}
-                      placeholder="例如: 排气压力"
+                      placeholder={t('variables.namePlaceholder')}
                       className={cn(cellInput, err?.name && 'border-danger')}
                     />
                     <CellError message={err?.name?.message} />
@@ -191,8 +193,8 @@ export function VariablesEditor({
                       className="h-8.5 rounded-md px-2 text-xs"
                       {...register(`variables.${index}.accessMode`)}
                     >
-                      <option value="r">只读 (r)</option>
-                      <option value="rw">读写 (rw)</option>
+                      <option value="r">{t('variables.access.readOnly')}</option>
+                      <option value="rw">{t('variables.access.readWrite')}</option>
                     </Select>
                     <CellError message={err?.accessMode?.message} />
                   </td>
@@ -201,10 +203,13 @@ export function VariablesEditor({
                     <div className="flex items-center justify-end gap-0.5">
                       <button
                         type="button"
-                        title="复制"
+                        title={t('variables.copy')}
                         onClick={() => {
                           const row = form.getValues(`variables.${index}`)
-                          insert(index + 1, { ...row, name: `${row.name} 副本` })
+                          insert(index + 1, {
+                            ...row,
+                            name: `${row.name} ${t('variables.copySuffix')}`,
+                          })
                         }}
                         className="rounded-md p-1.5 text-faint transition-colors hover:bg-surface-2 hover:text-fg"
                       >
@@ -212,7 +217,7 @@ export function VariablesEditor({
                       </button>
                       <button
                         type="button"
-                        title="删除"
+                        title={t('variables.delete')}
                         disabled={fields.length <= 1}
                         onClick={() => remove(index)}
                         className="rounded-md p-1.5 text-faint transition-colors hover:bg-danger/10 hover:text-danger disabled:pointer-events-none disabled:opacity-30"

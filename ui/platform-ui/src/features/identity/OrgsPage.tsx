@@ -3,6 +3,7 @@ import { Network, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteOrg, useOrgTree } from '@/api/hooks'
 import type { OrgInfo } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -17,6 +18,7 @@ import { OrgFormDialog } from './OrgFormDialog'
 import { findOrg, flattenOrgs } from './org-utils'
 
 export function OrgsPage() {
+  const { t } = useI18n()
   const orgTree = useOrgTree()
   const deleteMutation = useDeleteOrg()
   const [formState, setFormState] = useState<{
@@ -33,7 +35,7 @@ export function OrgsPage() {
     if (!deleteTarget) return
     try {
       await deleteMutation.mutateAsync(deleteTarget.id)
-      toast.success(`组织「${deleteTarget.name}」已删除`)
+      toast.success(t('identity.orgs.deletedToast', { name: deleteTarget.name }))
       setDeleteTarget(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -43,15 +45,15 @@ export function OrgsPage() {
   return (
     <div>
       <PageHeader
-        title="组织管理"
-        description="按树状结构维护部门与层级;存在子组织时不能删除,需先删除子组织。"
+        title={t('identity.orgs.title')}
+        description={t('identity.orgs.description')}
         actions={
           <Button
             variant="primary"
             icon={<Plus className="size-4" />}
             onClick={() => setFormState({ open: true })}
           >
-            新建根组织
+            {t('identity.orgs.createRoot')}
           </Button>
         }
       />
@@ -66,15 +68,15 @@ export function OrgsPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<Network className="size-5" />}
-            title="还没有组织"
-            description="创建根组织后,可继续添加下级部门。"
+            title={t('identity.orgs.emptyTitle')}
+            description={t('identity.orgs.emptyDescription')}
             action={
               <Button
                 variant="primary"
                 icon={<Plus className="size-4" />}
                 onClick={() => setFormState({ open: true })}
               >
-                新建根组织
+                {t('identity.orgs.createRoot')}
               </Button>
             }
           />
@@ -82,12 +84,12 @@ export function OrgsPage() {
           <Table>
             <THead>
               <tr>
-                <TH>组织</TH>
-                <TH>编码</TH>
-                <TH>排序</TH>
-                <TH>状态</TH>
-                <TH>描述</TH>
-                <TH className="text-right">操作</TH>
+                <TH>{t('identity.orgs.table.org')}</TH>
+                <TH>{t('common.field.code')}</TH>
+                <TH>{t('identity.orgs.table.order')}</TH>
+                <TH>{t('common.field.status')}</TH>
+                <TH>{t('common.field.description')}</TH>
+                <TH className="text-right">{t('common.field.actions')}</TH>
               </tr>
             </THead>
             <TBody>
@@ -104,7 +106,7 @@ export function OrgsPage() {
                         </span>
                         {(org.children?.length ?? 0) > 0 ? (
                           <span className="ml-1.5 text-[10px] text-faint">
-                            {org.children?.length} 个子组织
+                            {t('identity.orgs.childCount', { count: org.children?.length ?? 0 })}
                           </span>
                         ) : null}
                       </div>
@@ -126,19 +128,19 @@ export function OrgsPage() {
                             setFormState({ open: true, parentId: org.id })
                           }
                         >
-                          添加下级
+                          {t('identity.orgs.addChild')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setFormState({ open: true, org })}
                         >
-                          编辑
+                          {t('common.action.edit')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`删除 ${org.name}`}
+                          aria-label={t('identity.orgs.deleteAria', { name: org.name })}
                           onClick={() => setDeleteTarget(org)}
                         >
                           <Trash2 className="size-3.5 text-danger" />
@@ -165,13 +167,13 @@ export function OrgsPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="删除组织"
+        title={t('identity.orgs.deleteTitle')}
         description={
           deleteTarget
-            ? `确定删除组织「${deleteTarget.name}」吗?用户绑定会一并清理;若仍有子组织,后端会拒绝删除。`
+            ? t('identity.orgs.deleteDescription', { name: deleteTarget.name })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}

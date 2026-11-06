@@ -9,9 +9,9 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 const controlBase =
-  'w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg placeholder:text-faint ' +
-  'transition-colors hover:border-border-strong focus:border-primary focus:outline-none ' +
-  'focus:ring-3 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60'
+  'w-full rounded border border-border-strong bg-surface px-2.5 text-sm text-fg placeholder:text-faint ' +
+  'transition-colors hover:border-faint focus:border-primary focus:outline-none ' +
+  'focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60'
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (
@@ -20,7 +20,7 @@ export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElem
 }
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(controlBase, 'h-9.5', className)} {...props} />
+  return <input className={cn(controlBase, 'h-8', className)} {...props} />
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -31,12 +31,12 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <div className="relative">
       <select
-        className={cn(controlBase, 'h-9.5 cursor-pointer appearance-none pr-9', className)}
+        className={cn(controlBase, 'h-8 cursor-pointer appearance-none pr-8', className)}
         {...props}
       >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-faint" />
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-faint" />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, RadioTower, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteThings, useThingModels, useThings } from '@/api/hooks'
+import { useI18n } from '@/i18n'
 import { formatRelative } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Badge } from '@/components/ui/Badge'
@@ -20,6 +21,7 @@ import { Pagination } from '@/components/shared/Pagination'
 const MODEL_LOOKUP_SIZE = 100
 
 export function ThingsPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -76,7 +78,7 @@ export function ThingsPage() {
     const ids = Array.from(selected)
     try {
       const result = await deleteMutation.mutateAsync(ids)
-      toast.success(`已删除 ${result.deleted} 台设备`)
+      toast.success(t('things.deletedToast', { count: result.deleted }))
       setSelected(new Set())
       setDeleteOpen(false)
     } catch (error) {
@@ -87,26 +89,26 @@ export function ThingsPage() {
   return (
     <div>
       <PageHeader
-        title="平台设备"
-        description="基于物模型接入的设备(Thing),凭据由后端生成,支持 MQTT 与 HTTP 上报。"
+        title={t('things.title')}
+        description={t('things.description')}
         actions={
           <Button
             variant="primary"
             icon={<Plus className="size-4" />}
             onClick={() => navigate('/platform/things/new')}
           >
-            批量新建设备
+            {t('things.create')}
           </Button>
         }
       />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
-        <Field label="搜索" className="min-w-56 flex-1">
+        <Field label={t('common.action.search')} className="min-w-56 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={keywordInput}
-              placeholder="设备名称 / Device Key"
+              placeholder={t('things.searchPlaceholder')}
               className="pl-9"
               onChange={(event) => setKeywordInput(event.target.value)}
               onKeyDown={(event) => {
@@ -116,19 +118,21 @@ export function ThingsPage() {
           </div>
         </Field>
         <Button variant="outline" onClick={applySearch}>
-          查询
+          {t('common.action.query')}
         </Button>
         <Button variant="ghost" onClick={reset}>
-          重置
+          {t('common.action.reset')}
         </Button>
       </Card>
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
           <p className="text-xs text-muted">
-            共 <span className="font-medium text-fg tabular">{total}</span> 台设备
+            {t('things.count', { count: total })}
             {selected.size > 0 ? (
-              <span className="ml-2 text-primary">已选 {selected.size} 台</span>
+              <span className="ml-2 text-primary">
+                {t('things.selected', { count: selected.size })}
+              </span>
             ) : null}
           </p>
           {selected.size > 0 ? (
@@ -138,7 +142,7 @@ export function ThingsPage() {
               icon={<Trash2 className="size-3.5 text-danger" />}
               onClick={() => setDeleteOpen(true)}
             >
-              批量删除
+              {t('things.batchDelete')}
             </Button>
           ) : null}
         </div>
@@ -152,16 +156,16 @@ export function ThingsPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon={<RadioTower className="size-5" />}
-            title={keyword ? '没有匹配的设备' : '还没有平台设备'}
+            title={keyword ? t('things.emptyMatch') : t('things.emptyNone')}
             description={
               keyword
-                ? '尝试更换关键词,或清空搜索条件。'
-                : '先创建物模型,再批量创建设备并获取接入凭证。'
+                ? t('things.emptyMatchDescription')
+                : t('things.emptyNoneDescription')
             }
             action={
               keyword ? (
                 <Button variant="outline" onClick={reset}>
-                  清除搜索
+                  {t('things.clearSearch')}
                 </Button>
               ) : (
                 <Button
@@ -169,7 +173,7 @@ export function ThingsPage() {
                   icon={<Plus className="size-4" />}
                   onClick={() => navigate('/platform/things/new')}
                 >
-                  批量新建设备
+                  {t('things.create')}
                 </Button>
               )
             }
@@ -182,18 +186,18 @@ export function ThingsPage() {
                   <TH className="w-10">
                     <input
                       type="checkbox"
-                      aria-label="全选当前页设备"
+                      aria-label={t('things.selectPageAria')}
                       checked={allSelected}
                       onChange={toggleAll}
                       className="size-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </TH>
-                  <TH>设备</TH>
-                  <TH>物模型</TH>
-                  <TH>状态</TH>
-                  <TH>最后上报</TH>
-                  <TH>上行 Topic</TH>
-                  <TH className="text-right">操作</TH>
+                  <TH>{t('things.table.device')}</TH>
+                  <TH>{t('things.table.model')}</TH>
+                  <TH>{t('common.field.status')}</TH>
+                  <TH>{t('things.table.lastActive')}</TH>
+                  <TH>{t('things.table.upTopic')}</TH>
+                  <TH className="text-right">{t('common.field.actions')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -208,7 +212,7 @@ export function ThingsPage() {
                       <TD onClick={(event) => event.stopPropagation()}>
                         <input
                           type="checkbox"
-                          aria-label={`选择 ${thing.deviceName}`}
+                          aria-label={t('things.selectAria', { name: thing.deviceName })}
                           checked={selected.has(thing.id)}
                           onChange={() => toggle(thing.id)}
                           className="size-4 cursor-pointer accent-[var(--primary)]"
@@ -225,19 +229,19 @@ export function ThingsPage() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           {thing.enable === 1 ? (
                             <Badge tone="success" dot>
-                              启用
+                              {t('things.enabled')}
                             </Badge>
                           ) : (
                             <Badge tone="neutral" dot>
-                              禁用
+                              {t('things.disabled')}
                             </Badge>
                           )}
                           {online ? (
                             <Badge tone="info" dot>
-                              在线
+                              {t('things.online')}
                             </Badge>
                           ) : (
-                            <Badge tone="neutral">离线</Badge>
+                            <Badge tone="neutral">{t('things.offline')}</Badge>
                           )}
                         </div>
                       </TD>
@@ -257,12 +261,12 @@ export function ThingsPage() {
                             variant="ghost"
                             onClick={() => navigate(`/platform/things/${thing.id}`)}
                           >
-                            详情
+                            {t('common.action.view')}
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            aria-label={`删除 ${thing.deviceName}`}
+                            aria-label={t('things.deleteAria', { name: thing.deviceName })}
                             onClick={() => {
                               setSelected(new Set([thing.id]))
                               setDeleteOpen(true)
@@ -298,9 +302,9 @@ export function ThingsPage() {
 
       <ConfirmDialog
         open={deleteOpen}
-        title="删除设备"
-        description={`确定删除选中的 ${selected.size} 台设备吗?删除后设备凭证立即失效,该操作不可恢复。`}
-        confirmText="删除"
+        title={t('things.deleteTitle')}
+        description={t('things.deleteDescription', { count: selected.size })}
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}

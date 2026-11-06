@@ -31,10 +31,11 @@
 src/
 ├── main.tsx / router.tsx / index.css
 ├── api/          # types.ts（后端契约）、endpoints、query-keys、hooks
+├── i18n/         # 消息字典（zh-CN / en-US）、Provider、translate
 ├── lib/          # http、session、format、constants、cn、query-client
 ├── providers/    # ThemeProvider、AuthProvider
 ├── components/
-│   ├── layout/   # AppShell + Sidebar
+│   ├── layout/   # AppShell + Sidebar + nav-config + PagePad
 │   ├── ui/       # 无业务语义的原语：Button/Card/Field/Dialog/Table/Badge…
 │   ├── charts/   # GaugeRing 等
 │   └── shared/   # 跨页面复用的业务组件：PageHeader/StatCard/StatusBadge/Pagination…
@@ -116,6 +117,17 @@ mock/
 - 深色模式通过 `<html class="dark">`；`ThemeProvider` 持久化到 `localStorage['harns-theme']`，首屏脚本在 `index.html` 内联，避免闪烁。
 - 图表配色使用固定色板（`features/timeseries` 中的 `SERIES_COLORS`），保证明暗主题下都可辨识。
 - 重复出现的类名组合用 `cn()` 合并或抽成常量，不在 JSX 中堆叠大段重复样式。
+
+## 国际化
+
+- 界面文案只支持 `zh-CN` / `en-US`，默认 `zh-CN`；语言持久化到 `localStorage['harns-locale']`，切换时同步 `<html lang>`，并随请求发送 `Accept-Language`。
+- 组件内使用 `useI18n()` 的 `t(key, vars?)`；非组件模块（`lib/format.ts`、`lib/http.ts`、`schema.ts`）使用 `translate(key, vars?)`。禁止在 JSX、toast、校验提示里硬编码中英文。
+- 消息字典放 `src/i18n/messages/<domain>.ts`，用 `defineMessages({ 'zh-CN': {...}, 'en-US': {...} })` 并排维护；key 以域名为前缀（如 `devices.list.title`），两种语言的 key 必须完全一致，缺键会在 `pnpm typecheck` 报错。
+- 插值用 `{name}`；带数量的文案提供 `xxx.one` / `xxx.other` 两个 key，由 `t` 按 `count` 自动选择。
+- 状态、协议、审计动作等枚举的展示文案存 `labelKey` / `descriptionKey`，在渲染处 `t(...)`；技术名称（Modbus、OPC UA、S7、bool 等）不翻译。
+- zod 校验消息通过 `createXxxSchema(t)` 工厂构建，表单内用 `useMemo` 缓存；不要在模块顶层固化某一种语言。
+- 时间、数字、相对时间统一走 `lib/format.ts`，内部按当前语言格式化；不要自行拼接本地化文案。
+- 后端返回的业务数据（设备名称、物模型名称、用户名等）按原样展示；后端错误文案由平台服务按 `Accept-Language` 返回。
 
 ## 代码风格
 

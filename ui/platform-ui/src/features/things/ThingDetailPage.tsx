@@ -4,6 +4,7 @@ import { Eye, EyeOff, ImageIcon, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteThings, useThing, useThingModel, useUpdateThing } from '@/api/hooks'
 import type { ThingDetail, ThingModelFeature, UpdateThingRequest } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { formatDateTime, formatRelative, maskSecret } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Badge } from '@/components/ui/Badge'
@@ -24,6 +25,7 @@ import { FeatureValuesEditor } from './FeatureValuesEditor'
 import { ImageUploadField } from './ImageUploadField'
 
 export function ThingDetailPage() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const thingQuery = useThing(id)
@@ -36,12 +38,12 @@ export function ThingDetailPage() {
   const [featureOpen, setFeatureOpen] = useState(false)
   const [featureDraft, setFeatureDraft] = useState<Record<string, unknown>>({})
 
-  if (thingQuery.isLoading) return <PageLoading label="正在载入设备…" />
+  if (thingQuery.isLoading) return <PageLoading label={t('thingDetail.loading')} />
   if (thingQuery.isError) {
     return <ErrorState error={thingQuery.error} onRetry={thingQuery.refetch} />
   }
   if (!thingQuery.data) {
-    return <ErrorState error={new Error('设备不存在')} onRetry={thingQuery.refetch} />
+    return <ErrorState error={new Error(t('thingDetail.notFound'))} onRetry={thingQuery.refetch} />
   }
 
   const thing = thingQuery.data
@@ -60,12 +62,12 @@ export function ThingDetailPage() {
 
   const toggleEnable = async (next: boolean) => {
     const ok = await update({ enable: next ? 1 : 0 })
-    if (ok) toast.success(next ? '设备已启用' : '设备已禁用')
+    if (ok) toast.success(next ? t('thingDetail.toggleEnabled') : t('thingDetail.toggleDisabled'))
   }
 
   const changeImage = async (key: string) => {
     const ok = await update({ image: key })
-    if (ok) toast.success(key ? '设备图片已更新' : '设备图片已移除')
+    if (ok) toast.success(key ? t('thingDetail.imageUpdated') : t('thingDetail.imageRemoved'))
   }
 
   const openFeatures = () => {
@@ -76,7 +78,7 @@ export function ThingDetailPage() {
   const saveFeatures = async () => {
     const ok = await update({ features: featureDraft })
     if (ok) {
-      toast.success('特征值已更新')
+      toast.success(t('thingDetail.featuresUpdated'))
       setFeatureOpen(false)
     }
   }
@@ -84,7 +86,7 @@ export function ThingDetailPage() {
   const confirmDelete = async () => {
     try {
       await deleteMutation.mutateAsync([thing.id])
-      toast.success('设备已删除')
+      toast.success(t('thingDetail.deleted'))
       navigate('/platform/things', { replace: true })
     } catch (error) {
       toast.error(errorMessage(error))
@@ -95,9 +97,9 @@ export function ThingDetailPage() {
     <div>
       <PageHeader
         title={thing.deviceName}
-        description={thing.deviceDesc || '未填写设备描述'}
+        description={thing.deviceDesc || t('thingDetail.noDescription')}
         backTo="/platform/things"
-        backLabel="返回设备列表"
+        backLabel={t('thingDetail.back')}
         actions={
           <>
             <Button
@@ -105,14 +107,14 @@ export function ThingDetailPage() {
               icon={<Pencil className="size-4" />}
               onClick={() => setEditOpen(true)}
             >
-              编辑
+              {t('common.action.edit')}
             </Button>
             <Button
               variant="ghost"
               icon={<Trash2 className="size-4 text-danger" />}
               onClick={() => setDeleteOpen(true)}
             >
-              删除
+              {t('common.action.delete')}
             </Button>
           </>
         }
@@ -124,33 +126,35 @@ export function ThingDetailPage() {
             <div className="flex flex-wrap items-center gap-3">
               {thing.enable === 1 ? (
                 <Badge tone="success" dot>
-                  已启用
+                  {t('thingDetail.enabled')}
                 </Badge>
               ) : (
                 <Badge tone="neutral" dot>
-                  已禁用
+                  {t('thingDetail.disabled')}
                 </Badge>
               )}
               {online ? (
                 <Badge tone="info" dot>
-                  在线
+                  {t('thingDetail.online')}
                 </Badge>
               ) : (
                 <Badge tone="neutral" dot>
-                  离线
+                  {t('thingDetail.offline')}
                 </Badge>
               )}
               <span className="text-xs text-muted">
-                最后上报 {thing.lastActiveTime ? formatRelative(thing.lastActiveTime) : '—'}
+                {t('thingDetail.lastActive', {
+                  time: thing.lastActiveTime ? formatRelative(thing.lastActiveTime) : '—',
+                })}
               </span>
             </div>
             <label className="flex items-center gap-2 text-xs text-muted">
-              <span>启用设备</span>
+              <span>{t('thingDetail.enableDevice')}</span>
               <Switch
                 checked={thing.enable === 1}
                 onChange={(next) => void toggleEnable(next)}
                 disabled={updateMutation.isPending}
-                label="启用设备"
+                label={t('thingDetail.enableDevice')}
               />
             </label>
           </div>
@@ -159,12 +163,12 @@ export function ThingDetailPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>基本信息</CardTitle>
-              <CardDescription>设备身份与所属物模型。</CardDescription>
+              <CardTitle>{t('thingDetail.basic')}</CardTitle>
+              <CardDescription>{t('thingDetail.basicDescription')}</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
-            <InfoRow label="物模型">
+            <InfoRow label={t('thingDetail.model')}>
               {modelQuery.data ? (
                 <Link
                   to={`/platform/thing-models/${modelQuery.data.id}`}
@@ -176,27 +180,25 @@ export function ThingDetailPage() {
                 <span className="font-mono text-[11px]">{thing.thingModelId}</span>
               )}
             </InfoRow>
-            <InfoRow label="Device Key">
+            <InfoRow label={t('thingDetail.deviceKey')}>
               <CodeValue value={thing.deviceKey} />
             </InfoRow>
-            <InfoRow label="上行 Topic">
+            <InfoRow label={t('thingDetail.upTopic')}>
               <CodeValue value={thing.upTopic} />
             </InfoRow>
-            <InfoRow label="下行 Topic">
+            <InfoRow label={t('thingDetail.downTopic')}>
               <CodeValue value={thing.downTopic} />
             </InfoRow>
-            <InfoRow label="创建时间">{formatDateTime(thing.createdTime)}</InfoRow>
-            <InfoRow label="更新时间">{formatDateTime(thing.updatedTime)}</InfoRow>
+            <InfoRow label={t('common.field.createdAt')}>{formatDateTime(thing.createdTime)}</InfoRow>
+            <InfoRow label={t('common.field.updatedAt')}>{formatDateTime(thing.updatedTime)}</InfoRow>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
             <div>
-              <CardTitle>接入凭证</CardTitle>
-              <CardDescription>
-                MQTT 使用 clientId / username / password 认证;HTTP 上报使用 Token。
-              </CardDescription>
+              <CardTitle>{t('thingDetail.credentials')}</CardTitle>
+              <CardDescription>{t('thingDetail.credentialsDescription')}</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-1">
@@ -211,8 +213,8 @@ export function ThingDetailPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>设备图片</CardTitle>
-              <CardDescription>用于列表与可视化展示。</CardDescription>
+              <CardTitle>{t('thingDetail.image')}</CardTitle>
+              <CardDescription>{t('thingDetail.imageDescription')}</CardDescription>
             </div>
             <ImageIcon className="size-4 text-faint" />
           </CardHeader>
@@ -224,9 +226,11 @@ export function ThingDetailPage() {
         <Card className="lg:col-span-3">
           <CardHeader>
             <div>
-              <CardTitle>静态特征值</CardTitle>
+              <CardTitle>{t('thingDetail.features')}</CardTitle>
               <CardDescription>
-                特征定义来自物模型 {modelQuery.data ? `「${modelQuery.data.name}」` : ''};此处维护设备的具体取值。
+                {t('thingDetail.featuresDescription', {
+                  name: `「${modelQuery.data ? modelQuery.data.name : '—'}」`,
+                })}
               </CardDescription>
             </div>
             <Button
@@ -235,7 +239,7 @@ export function ThingDetailPage() {
               disabled={features.length === 0}
               onClick={openFeatures}
             >
-              编辑特征值
+              {t('thingDetail.editFeatures')}
             </Button>
           </CardHeader>
           <CardContent>
@@ -249,16 +253,16 @@ export function ThingDetailPage() {
       <Dialog
         open={featureOpen}
         onClose={() => setFeatureOpen(false)}
-        title="编辑特征值"
-        description="只提交有值的特征;清空某项即从设备上移除该特征值。"
+        title={t('thingDetail.editFeatures')}
+        description={t('thingDetail.featureDialogDescription')}
         size="lg"
         footer={
           <>
             <Button variant="ghost" onClick={() => setFeatureOpen(false)}>
-              取消
+              {t('common.action.cancel')}
             </Button>
             <Button variant="primary" onClick={saveFeatures} loading={updateMutation.isPending}>
-              保存
+              {t('common.action.save')}
             </Button>
           </>
         }
@@ -274,9 +278,9 @@ export function ThingDetailPage() {
 
       <ConfirmDialog
         open={deleteOpen}
-        title="删除设备"
-        description={`确定删除「${thing.deviceName}」吗?删除后设备凭证立即失效,该操作不可恢复。`}
-        confirmText="删除"
+        title={t('thingDetail.deleteTitle')}
+        description={t('thingDetail.deleteDescription', { name: thing.deviceName })}
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}
@@ -315,6 +319,7 @@ function SecretRow({
   value: string
   secret: boolean
 }) {
+  const { t } = useI18n()
   const [visible, setVisible] = useState(false)
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0">
@@ -327,7 +332,7 @@ function SecretRow({
           <Button
             size="icon"
             variant="ghost"
-            aria-label={visible ? '隐藏' : '显示'}
+            aria-label={visible ? t('thingDetail.hide') : t('thingDetail.show')}
             onClick={() => setVisible((current) => !current)}
           >
             {visible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -346,6 +351,7 @@ function FeatureTable({
   thing: ThingDetail
   modelFeatures: ThingModelFeature[]
 }) {
+  const { t } = useI18n()
   const values = thing.features ?? {}
   const defined = new Set(modelFeatures.map((feature) => feature.identifier))
   const extras = Object.keys(values).filter((key) => !defined.has(key))
@@ -353,8 +359,8 @@ function FeatureTable({
   if (modelFeatures.length === 0 && extras.length === 0) {
     return (
       <EmptyState
-        title="没有特征值"
-        description="所属物模型未定义特征,或设备尚未填写特征值。"
+        title={t('thingDetail.noFeatures')}
+        description={t('thingDetail.noFeaturesDescription')}
       />
     )
   }
@@ -363,10 +369,10 @@ function FeatureTable({
     <Table>
       <THead>
         <tr>
-          <TH>特征</TH>
-          <TH>标识符</TH>
-          <TH>数据类型</TH>
-          <TH>当前值</TH>
+          <TH>{t('thingDetail.table.feature')}</TH>
+          <TH>{t('thingDetail.table.identifier')}</TH>
+          <TH>{t('thingDetail.table.dataType')}</TH>
+          <TH>{t('thingDetail.table.currentValue')}</TH>
         </tr>
       </THead>
       <TBody>
@@ -382,7 +388,7 @@ function FeatureTable({
         ))}
         {extras.map((key) => (
           <TR key={key}>
-            <TD className="text-muted">未定义特征</TD>
+            <TD className="text-muted">{t('thingDetail.undefinedFeature')}</TD>
             <TD className="font-mono text-xs text-muted">{key}</TD>
             <TD className="text-xs text-faint">—</TD>
             <TD className="max-w-72 truncate font-mono text-[11px]" title={renderValue(values[key])}>

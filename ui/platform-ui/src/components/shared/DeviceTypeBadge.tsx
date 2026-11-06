@@ -1,4 +1,5 @@
 import type { DeviceType } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { PROTOCOLS } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 
@@ -17,6 +18,7 @@ export function DeviceTypeBadge({
   model?: string
   className?: string
 }) {
+  const { t } = useI18n()
   const meta = PROTOCOLS[type]
   return (
     <span
@@ -25,7 +27,7 @@ export function DeviceTypeBadge({
         accents[type] ?? 'bg-surface-2 text-muted border-border',
         className,
       )}
-      title={meta?.description ?? type}
+      title={meta ? t(meta.descriptionKey) : type}
     >
       {meta?.label ?? type}
       {model ? <span className="font-normal opacity-70">{model}</span> : null}

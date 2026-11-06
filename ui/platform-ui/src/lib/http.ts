@@ -1,3 +1,4 @@
+import { getLocale, translate } from '@/i18n/translate'
 import { getSessionToken, notifySessionExpired } from './session'
 
 export type Service = 'gateway' | 'data' | 'platform'
@@ -80,25 +81,25 @@ function extractMessage(
 function statusMessage(status: number): string {
   switch (status) {
     case 400:
-      return '请求参数有误'
+      return translate('common.error.badRequest')
     case 404:
-      return '资源不存在'
+      return translate('common.error.notFound')
     case 405:
-      return '请求方法不被允许'
+      return translate('common.error.methodNotAllowed')
     case 409:
-      return '资源冲突'
+      return translate('common.error.conflict')
     case 412:
-      return '数据已被修改,请刷新后重试'
+      return translate('common.error.stale')
     case 428:
-      return '缺少版本校验 (If-Match)'
+      return translate('common.error.missingIfMatch')
     case 500:
-      return '服务内部错误'
+      return translate('common.error.server')
     case 502:
     case 503:
     case 504:
-      return '无法连接到后端服务'
+      return translate('common.error.unreachable')
     default:
-      return `请求失败 (HTTP ${status})`
+      return translate('common.error.http', { status })
   }
 }
 
@@ -111,7 +112,11 @@ export async function request<T>(
   const { method = 'GET', body, formData, ifMatch, headers = {}, skipAuth, signal } = options
   const url = `${BASES[service]}${path.startsWith('/') ? path : `/${path}`}`
 
-  const finalHeaders: Record<string, string> = { Accept: 'application/json', ...headers }
+  const finalHeaders: Record<string, string> = {
+    Accept: 'application/json',
+    'Accept-Language': getLocale(),
+    ...headers,
+  }
   if (service === 'platform' && !skipAuth) {
     const token = getSessionToken()
     if (token) finalHeaders.Authorization = `Bearer ${token}`
@@ -133,7 +138,7 @@ export async function request<T>(
     })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new ApiError('无法连接到后端服务,请确认服务已启动', 0)
+    throw new ApiError(translate('common.error.network'), 0)
   }
 
   const text = await response.text()
@@ -179,5 +184,5 @@ export function isApiError(error: unknown): error is ApiError {
 export function errorMessage(error: unknown): string {
   if (isApiError(error)) return error.message
   if (error instanceof Error) return error.message
-  return '发生未知错误'
+  return translate('common.error.unknown')
 }

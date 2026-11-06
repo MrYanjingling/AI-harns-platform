@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Boxes, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteThingModel, useThingModels } from '@/api/hooks'
+import { useI18n } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +18,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Pagination } from '@/components/shared/Pagination'
 
 export function ThingModelsPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -43,7 +45,7 @@ export function ThingModelsPage() {
     if (!deleteTarget) return
     try {
       await deleteMutation.mutateAsync(deleteTarget.id)
-      toast.success(`物模型「${deleteTarget.name}」已删除`)
+      toast.success(t('thingModels.deletedToast', { name: deleteTarget.name }))
       setDeleteTarget(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -56,26 +58,26 @@ export function ThingModelsPage() {
   return (
     <div>
       <PageHeader
-        title="物模型"
-        description="定义设备属性与特征的静态模板。属性是动态数据通道,特征是静态描述。"
+        title={t('thingModels.title')}
+        description={t('thingModels.description')}
         actions={
           <Button
             variant="primary"
             icon={<Plus className="size-4" />}
             onClick={() => navigate('/platform/thing-models/new')}
           >
-            新建物模型
+            {t('thingModels.create')}
           </Button>
         }
       />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
-        <Field label="搜索" className="min-w-56 flex-1">
+        <Field label={t('common.action.search')} className="min-w-56 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={keywordInput}
-              placeholder="物模型名称 / Key"
+              placeholder={t('thingModels.searchPlaceholder')}
               className="pl-9"
               onChange={(event) => setKeywordInput(event.target.value)}
               onKeyDown={(event) => {
@@ -85,10 +87,10 @@ export function ThingModelsPage() {
           </div>
         </Field>
         <Button variant="outline" onClick={applySearch}>
-          查询
+          {t('common.action.query')}
         </Button>
         <Button variant="ghost" onClick={reset}>
-          重置
+          {t('common.action.reset')}
         </Button>
       </Card>
 
@@ -102,16 +104,16 @@ export function ThingModelsPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon={<Boxes className="size-5" />}
-            title={keyword ? '没有匹配的物模型' : '还没有物模型'}
+            title={keyword ? t('thingModels.emptyMatch') : t('thingModels.emptyNone')}
             description={
               keyword
-                ? '尝试更换关键词,或清空搜索条件。'
-                : '先创建物模型,再基于它为设备定义属性与特征。'
+                ? t('thingModels.emptyMatchDescription')
+                : t('thingModels.emptyNoneDescription')
             }
             action={
               keyword ? (
                 <Button variant="outline" onClick={reset}>
-                  清除搜索
+                  {t('thingModels.clearSearch')}
                 </Button>
               ) : (
                 <Button
@@ -119,7 +121,7 @@ export function ThingModelsPage() {
                   icon={<Plus className="size-4" />}
                   onClick={() => navigate('/platform/thing-models/new')}
                 >
-                  新建物模型
+                  {t('thingModels.create')}
                 </Button>
               )
             }
@@ -129,12 +131,12 @@ export function ThingModelsPage() {
             <Table>
               <THead>
                 <tr>
-                  <TH>物模型</TH>
-                  <TH>Key</TH>
-                  <TH>描述</TH>
-                  <TH>属性数</TH>
-                  <TH>更新时间</TH>
-                  <TH className="text-right">操作</TH>
+                  <TH>{t('thingModels.table.model')}</TH>
+                  <TH>{t('thingModels.table.key')}</TH>
+                  <TH>{t('common.field.description')}</TH>
+                  <TH>{t('thingModels.table.propertyCount')}</TH>
+                  <TH>{t('common.field.updatedAt')}</TH>
+                  <TH className="text-right">{t('common.field.actions')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -162,7 +164,7 @@ export function ThingModelsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`删除 ${model.name}`}
+                          aria-label={t('thingModels.deleteAria', { name: model.name })}
                           onClick={() => setDeleteTarget({ id: model.id, name: model.name })}
                         >
                           <Trash2 className="size-3.5 text-danger" />
@@ -190,13 +192,13 @@ export function ThingModelsPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="删除物模型"
+        title={t('thingModels.deleteTitle')}
         description={
           deleteTarget
-            ? `确定删除「${deleteTarget.name}」及其全部属性吗?该操作不可恢复。`
+            ? t('thingModels.deleteDescription', { name: deleteTarget.name })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}

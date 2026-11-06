@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Plus } from 'lucide-react'
 import type { ThingDetail } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
@@ -27,6 +28,7 @@ export function CreatedThingsPanel({
   onContinue: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useI18n()
 
   return (
     <div className="space-y-4">
@@ -34,18 +36,18 @@ export function CreatedThingsPanel({
         <div className="flex items-start gap-3">
           <CheckCircle2 className="mt-0.5 size-5 text-success" />
           <div>
-            <p className="text-sm font-semibold">已创建 {things.length} 台设备</p>
-            <p className="mt-0.5 text-xs text-muted">
-              设备密钥与 Token 由后端生成,之后可在设备详情查看与复制。
+            <p className="text-sm font-semibold">
+              {t('createdThings.title', { count: things.length })}
             </p>
+            <p className="mt-0.5 text-xs text-muted">{t('createdThings.description')}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onContinue} icon={<Plus className="size-4" />}>
-            继续创建
+            {t('createdThings.continue')}
           </Button>
           <Button variant="primary" onClick={() => navigate('/platform/things')}>
-            查看设备列表
+            {t('createdThings.viewList')}
           </Button>
         </div>
       </Card>
@@ -54,11 +56,11 @@ export function CreatedThingsPanel({
         <Table>
           <THead>
             <tr>
-              <TH>设备</TH>
-              <TH>MQTT 认证</TH>
-              <TH>HTTP Token</TH>
-              <TH>Device Secret</TH>
-              <TH>Topic (up / down)</TH>
+              <TH>{t('createdThings.table.device')}</TH>
+              <TH>{t('createdThings.table.mqtt')}</TH>
+              <TH>{t('createdThings.table.token')}</TH>
+              <TH>{t('createdThings.table.secret')}</TH>
+              <TH>{t('createdThings.table.topic')}</TH>
             </tr>
           </THead>
           <TBody>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, BarChart3, Search } from 'lucide-react'
 import { useMetrics, useMetricsValues } from '@/api/hooks'
 import type { MetricsQueryRequest } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { formatDateTimeShort, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
@@ -16,6 +17,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { TimeRangeFields, useTimeRange } from '@/components/shared/TimeRangeFields'
 
 export function MetricsPage() {
+  const { t } = useI18n()
   const metrics = useMetrics()
   const range = useTimeRange(24)
   const [selected, setSelected] = useState<string[]>([])
@@ -65,8 +67,8 @@ export function MetricsPage() {
   return (
     <div>
       <PageHeader
-        title="统计指标"
-        description="查看数据服务中的指标定义,按时间范围查询聚合值(小时粒度)。"
+        title={t('metrics.title')}
+        description={t('metrics.description')}
         actions={
           <Button
             variant="primary"
@@ -74,7 +76,7 @@ export function MetricsPage() {
             disabled={selected.length === 0 || !range.valid}
             onClick={runQuery}
           >
-            查询指标值
+            {t('metrics.query')}
           </Button>
         }
       />
@@ -83,9 +85,9 @@ export function MetricsPage() {
         <Card className="overflow-hidden">
           <CardHeader>
             <div>
-              <CardTitle>指标列表</CardTitle>
+              <CardTitle>{t('metrics.listTitle')}</CardTitle>
               <p className="mt-0.5 text-xs text-muted">
-                已选择 {selected.length} / {allCodes.length} 个指标
+                {t('metrics.selected', { selected: selected.length, total: allCodes.length })}
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -94,7 +96,7 @@ export function MetricsPage() {
                 variant="ghost"
                 onClick={() => setSelected(allSelected ? [] : allCodes)}
               >
-                {allSelected ? '取消全选' : '全选'}
+                {allSelected ? t('common.action.deselectAll') : t('common.action.selectAll')}
               </Button>
             </div>
           </CardHeader>
@@ -106,7 +108,10 @@ export function MetricsPage() {
               <ErrorState error={metrics.error} onRetry={metrics.refetch} compact />
             </div>
           ) : (metrics.data ?? []).length === 0 ? (
-            <EmptyState title="没有指标" description="数据服务尚未配置任何统计指标。" />
+            <EmptyState
+              title={t('metrics.empty.title')}
+              description={t('metrics.empty.description')}
+            />
           ) : (
             <Table>
               <THead>
@@ -114,16 +119,16 @@ export function MetricsPage() {
                   <TH className="w-10">
                     <input
                       type="checkbox"
-                      aria-label="全选指标"
+                      aria-label={t('metrics.selectAllAria')}
                       checked={allSelected}
                       onChange={() => setSelected(allSelected ? [] : allCodes)}
                       className="size-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </TH>
-                  <TH>指标</TH>
-                  <TH>计算</TH>
-                  <TH>单位</TH>
-                  <TH>状态</TH>
+                  <TH>{t('metrics.table.metric')}</TH>
+                  <TH>{t('metrics.table.calculation')}</TH>
+                  <TH>{t('metrics.table.unit')}</TH>
+                  <TH>{t('common.field.status')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -139,7 +144,7 @@ export function MetricsPage() {
                       <TD>
                         <input
                           type="checkbox"
-                          aria-label={`选择 ${code}`}
+                          aria-label={t('metrics.selectAria', { code })}
                           checked={checked}
                           onChange={() => toggle(item.metricsCode ?? '')}
                           onClick={(event) => event.stopPropagation()}
@@ -160,11 +165,11 @@ export function MetricsPage() {
                       <TD>
                         {item.enable ? (
                           <Badge tone="success" dot>
-                            启用
+                            {t('metrics.enabled')}
                           </Badge>
                         ) : (
                           <Badge tone="neutral" dot>
-                            停用
+                            {t('metrics.disabled')}
                           </Badge>
                         )}
                       </TD>
@@ -179,16 +184,15 @@ export function MetricsPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>查询条件</CardTitle>
-              <p className="mt-0.5 text-xs text-muted">聚合粒度固定为小时</p>
+              <CardTitle>{t('metrics.conditions')}</CardTitle>
+              <p className="mt-0.5 text-xs text-muted">{t('metrics.granularityHint')}</p>
             </div>
             <BarChart3 className="size-4 text-faint" />
           </CardHeader>
           <CardContent className="space-y-4">
             <TimeRangeFields range={range} />
             <p className="text-[11px] leading-relaxed text-faint">
-              指标值由数据服务按 <code className="font-mono">POST /metricsData</code> 聚合返回。
-              开始时间需早于结束时间,且至少选择一个指标。
+              {t('metrics.conditionsHint')}
             </p>
             <Button
               className="w-full"
@@ -197,33 +201,38 @@ export function MetricsPage() {
               disabled={selected.length === 0 || !range.valid}
               onClick={runQuery}
             >
-              查询 {selected.length > 0 ? `${selected.length} 个指标` : ''}
+              {selected.length > 0
+                ? t('metrics.queryCount', { count: selected.length })
+                : t('metrics.queryPlain')}
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold">查询结果</h2>
+        <h2 className="mb-3 text-sm font-semibold">{t('metrics.results')}</h2>
         {!request ? (
           <Card>
             <EmptyState
               icon={<Activity className="size-5" />}
-              title="尚未查询"
-              description="选择指标与时间范围后点击查询,结果会显示在这里。"
+              title={t('metrics.notQueried.title')}
+              description={t('metrics.notQueried.description')}
             />
           </Card>
         ) : results.isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {request.metricsCodes.map((code) => (
-              <Skeleton key={code} className="h-28 rounded-2xl" />
+              <Skeleton key={code} className="h-28 rounded" />
             ))}
           </div>
         ) : results.isError ? (
           <ErrorState error={results.error} onRetry={results.refetch} />
         ) : (results.data ?? []).length === 0 ? (
           <Card>
-            <EmptyState title="没有数据" description="该时间范围内没有查询到指标值。" />
+            <EmptyState
+              title={t('metrics.noData.title')}
+              description={t('metrics.noData.description')}
+            />
           </Card>
         ) : (
           <>
@@ -251,8 +260,12 @@ export function MetricsPage() {
               })}
             </div>
             <p className="mt-3 text-[11px] text-faint">
-              查询区间:{formatDateTimeShort(request.startTime)} ~ {formatDateTimeShort(request.endTime)}
-              {' · '}粒度 {request.granularity}
+              {t('metrics.rangeInfo', {
+                start: formatDateTimeShort(request.startTime),
+                end: formatDateTimeShort(request.endTime),
+              })}
+              {' · '}
+              {t('metrics.granularity', { granularity: request.granularity })}
             </p>
           </>
         )}

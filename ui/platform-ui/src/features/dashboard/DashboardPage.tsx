@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useGatewayCpu, useGatewayDisk, useGatewayMem, useGatewayMeta, useDevices } from '@/api/hooks'
 import type { DeviceStatus } from '@/api/types'
+import { useI18n, type MessageKey } from '@/i18n'
 import { DEVICE_STATUS } from '@/lib/constants'
 import { formatRelative, maskSecret, percentValue } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -53,7 +54,14 @@ const STATUS_BAR: Record<DeviceStatus, string> = {
   error: 'bg-rose-500',
 }
 
+const CPU_GAUGES: Array<{ key: '1min' | '5min' | '15min'; labelKey: MessageKey }> = [
+  { key: '1min', labelKey: 'dashboard.resources.cpu1m' },
+  { key: '5min', labelKey: 'dashboard.resources.cpu5m' },
+  { key: '15min', labelKey: 'dashboard.resources.cpu15m' },
+]
+
 export function DashboardPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const meta = useGatewayMeta()
   const cpu = useGatewayCpu()
@@ -91,7 +99,7 @@ export function DashboardPage() {
     void mem.refetch()
     void disk.refetch()
     void devices.refetch()
-    toast.success('已刷新')
+    toast.success(t('dashboard.refreshSuccess'))
   }
 
   const cpuData = cpu.data?.cpus
@@ -101,8 +109,8 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="概览"
-        description="网关运行状态、设备采集情况与资源占用一览。"
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -110,10 +118,10 @@ export function DashboardPage() {
               onClick={() => navigate('/screen')}
               icon={<MonitorPlay className="size-4" />}
             >
-              工厂大屏
+              {t('dashboard.openScreen')}
             </Button>
             <Button variant="outline" onClick={refreshAll} icon={<RefreshCw className="size-4" />}>
-              刷新
+              {t('common.action.refresh')}
             </Button>
           </div>
         }
@@ -129,9 +137,13 @@ export function DashboardPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={meta.isError ? 'danger' : 'success'} dot>
-                {meta.isError ? '网关不可用' : meta.isSuccess ? '网关运行中' : '连接中'}
+                {meta.isError
+                  ? t('dashboard.gateway.unavailable')
+                  : meta.isSuccess
+                    ? t('dashboard.gateway.running')
+                    : t('dashboard.gateway.connecting')}
               </Badge>
-              <Badge tone="neutral">边缘节点</Badge>
+              <Badge tone="neutral">{t('dashboard.gateway.edgeNode')}</Badge>
             </div>
 
             {meta.isLoading ? (
@@ -141,9 +153,9 @@ export function DashboardPage() {
               </div>
             ) : meta.isError ? (
               <div className="mt-3">
-                <h2 className="text-lg font-semibold">无法读取网关信息</h2>
+                <h2 className="text-lg font-semibold">{t('dashboard.gateway.loadErrorTitle')}</h2>
                 <p className="mt-1 text-xs text-muted">
-                  请确认网关服务已启动 (默认端口 32200),或在 `.env` 中开启 `VITE_USE_MOCK`。
+                  {t('dashboard.gateway.loadErrorDescription')}
                 </p>
               </div>
             ) : (
@@ -159,20 +171,20 @@ export function DashboardPage() {
 
           <div className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3 text-xs md:min-w-72">
             <div>
-              <p className="text-faint">版本号 (ETag)</p>
+              <p className="text-faint">{t('dashboard.gateway.version')}</p>
               <p className="mt-1 font-mono text-fg">{meta.data?.eTag ?? '—'}</p>
             </div>
             <div>
-              <p className="text-faint">最近更新</p>
+              <p className="text-faint">{t('dashboard.gateway.updatedAt')}</p>
               <p className="mt-1 text-fg">{formatRelative(meta.data?.modTime)}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-faint">网关密钥</p>
+              <p className="text-faint">{t('dashboard.gateway.secret')}</p>
               <div className="mt-1 flex items-center gap-1.5">
                 <span className="truncate font-mono text-fg">
                   {meta.data
                     ? secretVisible
-                      ? meta.data.secret || '未设置'
+                      ? meta.data.secret || t('common.state.unset')
                       : maskSecret(meta.data.secret)
                     : '—'}
                 </span>
@@ -182,11 +194,18 @@ export function DashboardPage() {
                       type="button"
                       onClick={() => setSecretVisible((v) => !v)}
                       className="rounded p-1 text-faint hover:bg-surface-2 hover:text-fg"
-                      aria-label={secretVisible ? '隐藏密钥' : '显示密钥'}
+                      aria-label={
+                        secretVisible
+                          ? t('dashboard.gateway.hideSecret')
+                          : t('dashboard.gateway.showSecret')
+                      }
                     >
                       {secretVisible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </button>
-                    <CopyButton value={meta.data.secret} label="密钥已复制" />
+                    <CopyButton
+                      value={meta.data.secret}
+                      label={t('dashboard.gateway.secretCopied')}
+                    />
                   </>
                 ) : null}
               </div>
@@ -198,29 +217,33 @@ export function DashboardPage() {
       {/* 设备统计 */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="设备总数"
+          label={t('dashboard.stats.total')}
           value={devices.isLoading ? '—' : total}
-          hint="已接入网关的采集设备"
+          hint={t('dashboard.stats.totalHint')}
           icon={<Router className="size-4" />}
         />
         <StatCard
-          label="采集中"
+          label={t('dashboard.stats.healthy')}
           value={devices.isLoading ? '—' : healthy}
-          hint={total ? `占比 ${Math.round((healthy / total) * 100)}%` : '暂无设备'}
+          hint={
+            total
+              ? t('dashboard.stats.healthyHint', { percent: Math.round((healthy / total) * 100) })
+              : t('dashboard.stats.noDevices')
+          }
           icon={<Activity className="size-4" />}
           footer={<ProgressBar value={total ? (healthy / total) * 100 : 0} tone="success" />}
         />
         <StatCard
-          label="采集异常"
+          label={t('dashboard.stats.abnormal')}
           value={devices.isLoading ? '—' : abnormal}
-          hint="需要关注连接或采集错误"
+          hint={t('dashboard.stats.abnormalHint')}
           icon={<ShieldAlert className="size-4" />}
           footer={<ProgressBar value={total ? (abnormal / total) * 100 : 0} tone="warning" />}
         />
         <StatCard
-          label="未运行"
+          label={t('dashboard.stats.inactive')}
           value={devices.isLoading ? '—' : inactive}
-          hint="已停止、未连接或无变量"
+          hint={t('dashboard.stats.inactiveHint')}
           icon={<Cpu className="size-4" />}
           footer={<ProgressBar value={total ? (inactive / total) * 100 : 0} tone="primary" />}
         />
@@ -231,29 +254,29 @@ export function DashboardPage() {
         <Card className="lg:col-span-3">
           <CardHeader>
             <div>
-              <CardTitle>资源使用</CardTitle>
-              <CardDescription>每 10 秒自动刷新</CardDescription>
+              <CardTitle>{t('dashboard.resources.title')}</CardTitle>
+              <CardDescription>{t('dashboard.resources.description')}</CardDescription>
             </div>
             <Server className="size-4 text-faint" />
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-surface-2/50 p-4">
+            <div className="grid grid-cols-2 gap-4 rounded border border-border bg-surface-2/50 p-4">
               <div>
                 <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
-                  <Cpu className="size-3.5" /> CPU
+                  <Cpu className="size-3.5" /> {t('dashboard.resources.cpu')}
                 </p>
                 {cpu.isError ? (
-                  <p className="text-xs text-danger">CPU 数据不可用</p>
+                  <p className="text-xs text-danger">{t('dashboard.resources.cpuUnavailable')}</p>
                 ) : (
                   <div className="flex items-end justify-around">
-                    {(['1min', '5min', '15min'] as const).map((key) => (
+                    {CPU_GAUGES.map((gauge) => (
                       <GaugeRing
-                        key={key}
-                        value={percentValue(cpuData?.[key])}
-                        label={key.replace('min', ' 分钟')}
+                        key={gauge.key}
+                        value={percentValue(cpuData?.[gauge.key])}
+                        label={t(gauge.labelKey)}
                         size={78}
                         strokeWidth={7}
-                        tone={toneForPercent(percentValue(cpuData?.[key]))}
+                        tone={toneForPercent(percentValue(cpuData?.[gauge.key]))}
                       />
                     ))}
                   </div>
@@ -261,10 +284,10 @@ export function DashboardPage() {
               </div>
               <div className="border-l border-border pl-4">
                 <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
-                  <MemoryStick className="size-3.5" /> 内存
+                  <MemoryStick className="size-3.5" /> {t('dashboard.resources.memory')}
                 </p>
                 {mem.isError || !memData ? (
-                  <p className="text-xs text-danger">内存数据不可用</p>
+                  <p className="text-xs text-danger">{t('dashboard.resources.memoryUnavailable')}</p>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <GaugeRing
@@ -280,12 +303,12 @@ export function DashboardPage() {
 
             <div>
               <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
-                <HardDrive className="size-3.5" /> 磁盘
+                <HardDrive className="size-3.5" /> {t('dashboard.resources.disk')}
               </p>
               {disk.isError ? (
-                <p className="text-xs text-danger">磁盘数据不可用</p>
+                <p className="text-xs text-danger">{t('dashboard.resources.diskUnavailable')}</p>
               ) : Object.keys(diskData).length === 0 ? (
-                <p className="text-xs text-faint">暂无挂载点信息</p>
+                <p className="text-xs text-faint">{t('dashboard.resources.noMounts')}</p>
               ) : (
                 <div className="space-y-3">
                   {Object.entries(diskData).map(([mount, info]) => {
@@ -318,14 +341,14 @@ export function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div>
-              <CardTitle>设备状态分布</CardTitle>
-              <CardDescription>按采集状态统计</CardDescription>
+              <CardTitle>{t('dashboard.status.title')}</CardTitle>
+              <CardDescription>{t('dashboard.status.description')}</CardDescription>
             </div>
             <Link
               to="/devices"
               className="inline-flex items-center gap-1 text-xs text-muted transition-colors hover:text-fg"
             >
-              查看全部 <ArrowRight className="size-3" />
+              {t('dashboard.status.viewAll')} <ArrowRight className="size-3" />
             </Link>
           </CardHeader>
           <CardContent>
@@ -339,7 +362,11 @@ export function DashboardPage() {
             ) : devices.isError ? (
               <ErrorState error={devices.error} onRetry={devices.refetch} compact />
             ) : total === 0 ? (
-              <EmptyState title="还没有设备" description="创建第一台设备后即可查看状态分布。" className="py-8" />
+              <EmptyState
+                title={t('dashboard.status.emptyTitle')}
+                description={t('dashboard.status.emptyDescription')}
+                className="py-8"
+              />
             ) : (
               <>
                 <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
@@ -349,7 +376,7 @@ export function DashboardPage() {
                         key={status}
                         className={cn('h-full transition-all', STATUS_BAR[status])}
                         style={{ width: `${(counts[status] / total) * 100}%` }}
-                        title={`${DEVICE_STATUS[status].label} ${counts[status]}`}
+                        title={`${t(DEVICE_STATUS[status].labelKey)} ${counts[status]}`}
                       />
                     ) : null,
                   )}
@@ -358,7 +385,7 @@ export function DashboardPage() {
                   {STATUS_ORDER.map((status) => (
                     <li key={status} className="flex items-center gap-2 text-xs">
                       <span className={cn('size-2 rounded-full', STATUS_BAR[status])} />
-                      <span className="text-muted">{DEVICE_STATUS[status].label}</span>
+                      <span className="text-muted">{t(DEVICE_STATUS[status].labelKey)}</span>
                       <span className="ml-auto font-medium tabular">{counts[status]}</span>
                       <span className="w-10 text-right text-faint tabular">
                         {total ? Math.round((counts[status] / total) * 100) : 0}%
@@ -376,14 +403,14 @@ export function DashboardPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>最近更新设备</CardTitle>
-            <CardDescription>按最后修改时间排序</CardDescription>
+            <CardTitle>{t('dashboard.recent.title')}</CardTitle>
+            <CardDescription>{t('dashboard.recent.description')}</CardDescription>
           </div>
           <Link
             to="/devices"
             className="inline-flex items-center gap-1 text-xs text-muted transition-colors hover:text-fg"
           >
-            设备管理 <ArrowRight className="size-3" />
+            {t('dashboard.recent.link')} <ArrowRight className="size-3" />
           </Link>
         </CardHeader>
         {devices.isLoading ? (
@@ -394,14 +421,14 @@ export function DashboardPage() {
           </div>
         ) : recent.length === 0 ? (
           <EmptyState
-            title="暂无设备"
-            description="创建 Modbus、OPC UA 或 S7 设备,开始采集数据。"
+            title={t('dashboard.recent.emptyTitle')}
+            description={t('dashboard.recent.emptyDescription')}
             action={
               <Link
                 to="/devices/new"
                 className="inline-flex h-9.5 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
               >
-                新建设备
+                {t('dashboard.recent.create')}
               </Link>
             }
           />
@@ -409,11 +436,11 @@ export function DashboardPage() {
           <Table>
             <THead>
               <tr>
-                <TH>设备名称</TH>
-                <TH>协议</TH>
-                <TH>状态</TH>
-                <TH>设备编码</TH>
-                <TH className="text-right">更新时间</TH>
+                <TH>{t('dashboard.table.name')}</TH>
+                <TH>{t('dashboard.table.protocol')}</TH>
+                <TH>{t('dashboard.table.status')}</TH>
+                <TH>{t('dashboard.table.code')}</TH>
+                <TH className="text-right">{t('dashboard.table.updatedAt')}</TH>
               </tr>
             </THead>
             <TBody>

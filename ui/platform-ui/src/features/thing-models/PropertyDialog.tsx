@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useAddThingModelProperties, useUpdateThingModelProperty } from '@/api/hooks'
 import type { RwFlag, ThingDataTypeDetail, ThingModelProperty } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { RW_FLAGS } from '@/lib/constants'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
@@ -25,6 +26,7 @@ export function PropertyDialog({
   property?: ThingModelProperty
 }) {
   const isEdit = Boolean(property)
+  const { t } = useI18n()
   const addMutation = useAddThingModelProperties()
   const updateMutation = useUpdateThingModelProperty()
 
@@ -85,10 +87,10 @@ export function PropertyDialog({
           identifier: property.identifier,
           property: payload,
         })
-        toast.success('属性已更新')
+        toast.success(t('propertyDialog.updatedToast'))
       } else {
         await addMutation.mutateAsync({ id: modelId, properties: [payload] })
-        toast.success('属性已添加')
+        toast.success(t('propertyDialog.addedToast'))
       }
       onClose()
     } catch (error) {
@@ -101,19 +103,21 @@ export function PropertyDialog({
       open={open}
       onClose={onClose}
       size="xl"
-      title={isEdit ? '编辑属性' : '添加属性'}
+      title={
+        isEdit ? t('propertyDialog.editTitle') : t('propertyDialog.addTitle')
+      }
       description={
         isEdit
-          ? '标识符创建后不可修改;属性更新会整体替换数据类型定义。'
-          : '属性标识符在物模型内唯一,创建后不可修改。'
+          ? t('propertyDialog.editDescription')
+          : t('propertyDialog.addDescription')
       }
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={pending}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button variant="primary" onClick={submit} loading={pending}>
-            {isEdit ? '保存' : '添加'}
+            {isEdit ? t('common.action.save') : t('common.action.add')}
           </Button>
         </>
       }
@@ -121,44 +125,48 @@ export function PropertyDialog({
       <div className="max-h-[68vh] space-y-4 overflow-y-auto pr-1">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
-            label="标识符"
+            label={t('propertyDialog.identifier')}
             htmlFor="property-identifier"
             required
             error={fieldError('identifier')}
-            hint={isEdit ? '标识符不可修改' : '字母开头,可含数字与下划线'}
+            hint={
+              isEdit
+                ? t('propertyDialog.identifierHintEdit')
+                : t('propertyDialog.identifierHintAdd')
+            }
           >
             <Input
               id="property-identifier"
               value={identifier}
               disabled={isEdit}
-              placeholder="例如 temperature"
+              placeholder={t('propertyDialog.identifierPlaceholder')}
               onChange={(event) => setIdentifier(event.target.value)}
             />
           </Field>
           <Field
-            label="名称"
+            label={t('propertyDialog.name')}
             htmlFor="property-name"
             required
             error={fieldError('name')}
-            hint="字母开头,模型内唯一"
+            hint={t('propertyDialog.nameHint')}
           >
             <Input
               id="property-name"
               value={name}
-              placeholder="例如 温度"
+              placeholder={t('propertyDialog.namePlaceholder')}
               onChange={(event) => setName(event.target.value)}
             />
           </Field>
-          <Field label="读写标记" error={fieldError('rwFlag')}>
+          <Field label={t('propertyDialog.rwFlag')} error={fieldError('rwFlag')}>
             <Select value={rwFlag} onChange={(event) => setRwFlag(event.target.value as RwFlag)}>
               {RW_FLAGS.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {item.label} · {item.description}
+                  {t(item.labelKey)} · {t(item.descriptionKey)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="排序" error={fieldError('sort')}>
+          <Field label={t('propertyDialog.sort')} error={fieldError('sort')}>
             <Input
               type="number"
               min={0}
@@ -168,24 +176,24 @@ export function PropertyDialog({
           </Field>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
+        <div className="flex items-center justify-between rounded border border-border bg-surface-2/50 px-3 py-2.5">
           <div>
-            <p className="text-xs font-medium">必填属性</p>
-            <p className="text-[11px] text-faint">设备上报时必须携带该属性</p>
+            <p className="text-xs font-medium">{t('propertyDialog.required')}</p>
+            <p className="text-[11px] text-faint">{t('propertyDialog.requiredHint')}</p>
           </div>
-          <Switch checked={required} onChange={setRequired} label="必填属性" />
+          <Switch checked={required} onChange={setRequired} label={t('propertyDialog.required')} />
         </div>
 
-        <Field label="描述" error={fieldError('description')}>
+        <Field label={t('propertyDialog.description')} error={fieldError('description')}>
           <Textarea
             value={description}
-            placeholder="可选"
+            placeholder={t('dataType.optional')}
             onChange={(event) => setDescription(event.target.value)}
           />
         </Field>
 
         <div>
-          <p className="mb-2 text-xs font-medium text-muted">数据类型定义</p>
+          <p className="mb-2 text-xs font-medium text-muted">{t('propertyDialog.dataType')}</p>
           <DataTypeEditor value={dataType} onChange={setDataType} />
           {dataTypeIssues.length > 0 ? (
             <ul className="mt-2 space-y-1 rounded-lg border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-danger">

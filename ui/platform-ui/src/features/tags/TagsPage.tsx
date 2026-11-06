@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LineChart, Search } from 'lucide-react'
 import { useTags } from '@/api/hooks'
+import { useI18n } from '@/i18n'
 import { formatRelative } from '@/lib/format'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +17,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 type EnableFilter = 'all' | 'enabled' | 'disabled'
 
 export function TagsPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const tags = useTags()
   const [search, setSearch] = useState('')
@@ -60,25 +62,25 @@ export function TagsPage() {
   return (
     <div>
       <PageHeader
-        title="测点管理"
-        description="查看数据服务同步的测点(SCADA Tag),可直接跳转查询历史时序。"
+        title={t('tags.title')}
+        description={t('tags.description')}
       />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
-        <Field label="搜索" className="min-w-56 flex-1">
+        <Field label={t('common.action.search')} className="min-w-56 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="测点 ID / 名称 / 描述"
+              placeholder={t('tags.searchPlaceholder')}
               className="pl-9"
             />
           </div>
         </Field>
-        <Field label="SCADA" className="w-40">
+        <Field label={t('tags.table.scada')} className="w-40">
           <Select value={scadaFilter} onChange={(event) => setScadaFilter(event.target.value)}>
-            <option value="all">全部</option>
+            <option value="all">{t('common.state.all')}</option>
             {scadaIds.map((id) => (
               <option key={id} value={id}>
                 {id}
@@ -86,9 +88,9 @@ export function TagsPage() {
             ))}
           </Select>
         </Field>
-        <Field label="类型" className="w-36">
+        <Field label={t('common.field.type')} className="w-36">
           <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-            <option value="all">全部类型</option>
+            <option value="all">{t('tags.allTypes')}</option>
             {types.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -96,32 +98,33 @@ export function TagsPage() {
             ))}
           </Select>
         </Field>
-        <Field label="状态" className="w-36">
+        <Field label={t('common.field.status')} className="w-36">
           <Select
             value={enableFilter}
             onChange={(event) => setEnableFilter(event.target.value as EnableFilter)}
           >
-            <option value="all">全部状态</option>
-            <option value="enabled">已启用</option>
-            <option value="disabled">已停用</option>
+            <option value="all">{t('tags.allStatus')}</option>
+            <option value="enabled">{t('tags.statusEnabled')}</option>
+            <option value="disabled">{t('tags.statusDisabled')}</option>
           </Select>
         </Field>
         <Button variant="ghost" onClick={reset}>
-          重置
+          {t('common.action.reset')}
         </Button>
       </Card>
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
           <p className="text-xs text-muted">
-            共 <span className="font-medium text-fg tabular">{filtered.length}</span> 个测点
             {filtered.length !== (tags.data?.length ?? 0)
-              ? ` (总计 ${tags.data?.length ?? 0})`
-              : ''}
+              ? t('tags.countTotal', { count: filtered.length, total: tags.data?.length ?? 0 })
+              : t('tags.count', { count: filtered.length })}
           </p>
           <p className="text-[11px] text-faint">
-            启用 <span className="text-success tabular">{enabledCount}</span> · 停用{' '}
-            <span className="tabular">{(tags.data?.length ?? 0) - enabledCount}</span>
+            {t('tags.enabledSummary', {
+              enabled: enabledCount,
+              disabled: (tags.data?.length ?? 0) - enabledCount,
+            })}
           </p>
         </div>
 
@@ -133,14 +136,16 @@ export function TagsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            title={tags.data?.length ? '没有匹配的测点' : '没有测点'}
+            title={tags.data?.length ? t('tags.empty.match') : t('tags.empty.none')}
             description={
-              tags.data?.length ? '尝试调整搜索或筛选条件。' : '数据服务尚未同步任何测点。'
+              tags.data?.length
+                ? t('tags.empty.matchDescription')
+                : t('tags.empty.noneDescription')
             }
             action={
               tags.data?.length ? (
                 <Button variant="outline" onClick={reset}>
-                  清除筛选
+                  {t('tags.clearFilters')}
                 </Button>
               ) : undefined
             }
@@ -149,20 +154,22 @@ export function TagsPage() {
           <Table>
             <THead>
               <tr>
-                <TH>测点</TH>
-                <TH>描述</TH>
-                <TH>类型 / 属性</TH>
-                <TH>SCADA</TH>
-                <TH>状态</TH>
-                <TH>最后同步</TH>
-                <TH className="text-right">操作</TH>
+                <TH>{t('tags.table.tag')}</TH>
+                <TH>{t('common.field.description')}</TH>
+                <TH>{t('tags.table.typeAttribute')}</TH>
+                <TH>{t('tags.table.scada')}</TH>
+                <TH>{t('common.field.status')}</TH>
+                <TH>{t('tags.table.lastSync')}</TH>
+                <TH className="text-right">{t('common.field.actions')}</TH>
               </tr>
             </THead>
             <TBody>
               {filtered.map((tag) => (
                 <TR key={tag.id}>
                   <TD>
-                    <p className="font-medium">{tag.tagName || tag.tagId || '未命名测点'}</p>
+                    <p className="font-medium">
+                      {tag.tagName || tag.tagId || t('tags.unnamed')}
+                    </p>
                     <p className="font-mono text-[11px] text-faint">{tag.tagId || tag.id}</p>
                   </TD>
                   <TD className="max-w-56 truncate text-xs text-muted" title={tag.tagDesc ?? ''}>
@@ -180,11 +187,11 @@ export function TagsPage() {
                   <TD>
                     {tag.enable === 1 ? (
                       <Badge tone="success" dot>
-                        启用
+                        {t('metrics.enabled')}
                       </Badge>
                     ) : (
                       <Badge tone="neutral" dot>
-                        停用
+                        {t('metrics.disabled')}
                       </Badge>
                     )}
                   </TD>
@@ -203,7 +210,7 @@ export function TagsPage() {
                           )
                         }
                       >
-                        时序
+                        {t('tags.timeseries')}
                       </Button>
                     </div>
                   </TD>

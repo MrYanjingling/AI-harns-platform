@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useI18n } from '@/i18n'
 import { PAGE_SIZES } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Field'
@@ -18,19 +19,18 @@ export function Pagination({
   onPageSizeChange: (pageSize: number) => void
   disabled?: boolean
 }) {
+  const { t } = useI18n()
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const safePage = Math.min(Math.max(1, page), pageCount)
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface px-3 py-2">
       <p className="text-xs text-muted">
-        共 <span className="font-medium text-fg tabular">{total}</span> 条 · 第{' '}
-        <span className="tabular">{safePage}</span> / <span className="tabular">{pageCount}</span>{' '}
-        页
+        {t('common.pagination.pageInfo', { total, page: safePage, pages: pageCount })}
       </p>
       <div className="flex items-center gap-2">
         <Select
-          aria-label="每页条数"
+          aria-label={t('components.pagination.pageSizeAria')}
           className="h-8 w-24 text-xs"
           value={pageSize}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -38,7 +38,7 @@ export function Pagination({
         >
           {PAGE_SIZES.map((size) => (
             <option key={size} value={size}>
-              {size} 条/页
+              {t('common.pagination.pageSize', { size })}
             </option>
           ))}
         </Select>
@@ -49,7 +49,7 @@ export function Pagination({
           onClick={() => onPageChange(safePage - 1)}
           disabled={disabled || safePage <= 1}
         >
-          上一页
+          {t('common.pagination.prev')}
         </Button>
         <Button
           size="sm"
@@ -57,7 +57,7 @@ export function Pagination({
           onClick={() => onPageChange(safePage + 1)}
           disabled={disabled || safePage >= pageCount}
         >
-          下一页
+          {t('common.pagination.next')}
           <ChevronRight className="size-3.5" />
         </Button>
       </div>

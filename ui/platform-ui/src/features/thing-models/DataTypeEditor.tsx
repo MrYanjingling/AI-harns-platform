@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import type { ThingDataType, ThingDataTypeDetail } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { THING_DATA_TYPES } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
@@ -21,6 +22,7 @@ export function DataTypeEditor({
   onChange: (next: ThingDataTypeDetail) => void
   depth?: number
 }) {
+  const { t } = useI18n()
   const allowNested = depth < MAX_NESTING_DEPTH
   const types = allowNested ? THING_DATA_TYPES : SCALAR_TYPES
 
@@ -30,16 +32,16 @@ export function DataTypeEditor({
   }
 
   return (
-    <div className={cn('space-y-3', depth > 0 && 'rounded-xl border border-border bg-surface-2/40 p-3')}>
+    <div className={cn('space-y-3', depth > 0 && 'rounded border border-border bg-surface-2/40 p-3')}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={depth === 0 ? '数据类型' : '元素/字段类型'}>
+        <Field label={depth === 0 ? t('dataType.label') : t('dataType.elementLabel')}>
           <Select
             value={value.type}
             onChange={(event) => changeType(event.target.value as ThingDataType)}
           >
             {types.map((item) => (
               <option key={item.value} value={item.value}>
-                {item.label} · {item.description}
+                {item.label} · {t(item.descriptionKey)}
               </option>
             ))}
           </Select>
@@ -47,38 +49,38 @@ export function DataTypeEditor({
 
         {isNumericDataType(value.type) ? (
           <>
-            <Field label="单位" hint="例如 ℃、V、kW">
+            <Field label={t('dataType.unit')} hint={t('dataType.unitHint')}>
               <Input
                 value={value.unit ?? ''}
-                placeholder="可选"
+                placeholder={t('dataType.optional')}
                 onChange={(event) =>
                   onChange({ ...value, unit: event.target.value || undefined })
                 }
               />
             </Field>
-            <Field label="单位名称">
+            <Field label={t('dataType.unitName')}>
               <Input
                 value={value.unitName ?? ''}
-                placeholder="例如 摄氏度"
+                placeholder={t('dataType.unitNamePlaceholder')}
                 onChange={(event) =>
                   onChange({ ...value, unitName: event.target.value || undefined })
                 }
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="最小值">
+              <Field label={t('dataType.min')}>
                 <Input
                   value={value.min ?? ''}
-                  placeholder="可选"
+                  placeholder={t('dataType.optional')}
                   onChange={(event) =>
                     onChange({ ...value, min: event.target.value || undefined })
                   }
                 />
               </Field>
-              <Field label="最大值">
+              <Field label={t('dataType.max')}>
                 <Input
                   value={value.max ?? ''}
-                  placeholder="可选"
+                  placeholder={t('dataType.optional')}
                   onChange={(event) =>
                     onChange({ ...value, max: event.target.value || undefined })
                   }
@@ -90,19 +92,19 @@ export function DataTypeEditor({
 
         {value.type === 'bool' ? (
           <>
-            <Field label="真值文案">
+            <Field label={t('dataType.trueValue')}>
               <Input
                 value={value.trueValue ?? ''}
-                placeholder="例如 运行"
+                placeholder={t('dataType.trueValuePlaceholder')}
                 onChange={(event) =>
                   onChange({ ...value, trueValue: event.target.value || undefined })
                 }
               />
             </Field>
-            <Field label="假值文案">
+            <Field label={t('dataType.falseValue')}>
               <Input
                 value={value.falseValue ?? ''}
-                placeholder="例如 停止"
+                placeholder={t('dataType.falseValuePlaceholder')}
                 onChange={(event) =>
                   onChange({ ...value, falseValue: event.target.value || undefined })
                 }
@@ -112,10 +114,10 @@ export function DataTypeEditor({
         ) : null}
 
         {value.type === 'text' ? (
-          <Field label="文本长度" required hint="正整数">
+          <Field label={t('dataType.textLengthLabel')} required hint={t('dataType.textLengthHint')}>
             <Input
               value={value.length ?? ''}
-              placeholder="例如 64"
+              placeholder={t('dataType.textLengthPlaceholder')}
               onChange={(event) =>
                 onChange({ ...value, length: event.target.value || undefined })
               }
@@ -127,7 +129,7 @@ export function DataTypeEditor({
       {value.type === 'enum' ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted">枚举取值</p>
+            <p className="text-xs font-medium text-muted">{t('dataType.enumValues')}</p>
             <Button
               size="sm"
               variant="ghost"
@@ -147,13 +149,13 @@ export function DataTypeEditor({
                 })
               }
             >
-              添加取值
+              {t('dataType.addValue')}
             </Button>
           </div>
           {(value.enumSpec?.values ?? []).map((item, index) => (
             <div key={index} className="flex items-center gap-2">
               <Input
-                aria-label={`枚举值 ${index + 1}`}
+                aria-label={t('dataType.enumValueAria', { index: index + 1 })}
                 type="number"
                 className="w-28"
                 value={item.value}
@@ -164,9 +166,9 @@ export function DataTypeEditor({
                 }}
               />
               <Input
-                aria-label={`枚举描述 ${index + 1}`}
+                aria-label={t('dataType.enumDescAria', { index: index + 1 })}
                 value={item.desc}
-                placeholder="取值描述"
+                placeholder={t('dataType.enumDescPlaceholder')}
                 onChange={(event) => {
                   const values = [...(value.enumSpec?.values ?? [])]
                   values[index] = { ...item, desc: event.target.value }
@@ -176,7 +178,7 @@ export function DataTypeEditor({
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label="删除枚举值"
+                aria-label={t('dataType.removeValue')}
                 onClick={() =>
                   onChange({
                     ...value,
@@ -195,10 +197,10 @@ export function DataTypeEditor({
 
       {value.type === 'array' ? (
         <div className="space-y-3">
-          <Field label="元素个数" hint="可选,1~512">
+          <Field label={t('dataType.arraySize')} hint={t('dataType.arraySizeHint')}>
             <Input
               value={value.arraySpec?.size ?? ''}
-              placeholder="例如 10"
+              placeholder={t('dataType.arraySizePlaceholder')}
               className="w-40"
               onChange={(event) =>
                 onChange({
@@ -212,7 +214,7 @@ export function DataTypeEditor({
             />
           </Field>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-muted">元素类型</p>
+            <p className="mb-1.5 text-xs font-medium text-muted">{t('dataType.elementType')}</p>
             <DataTypeEditor
               value={value.arraySpec?.element ?? { type: 'double' }}
               depth={depth + 1}
@@ -230,7 +232,7 @@ export function DataTypeEditor({
       {value.type === 'struct' ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted">结构体字段</p>
+            <p className="text-xs font-medium text-muted">{t('dataType.structFields')}</p>
             <Button
               size="sm"
               variant="ghost"
@@ -247,16 +249,16 @@ export function DataTypeEditor({
                 })
               }
             >
-              添加字段
+              {t('dataType.addField')}
             </Button>
           </div>
           {(value.structSpec?.fields ?? []).map((field, index) => (
-            <div key={index} className="space-y-2 rounded-xl border border-border p-3">
+            <div key={index} className="space-y-2 rounded border border-border p-3">
               <div className="flex items-center gap-2">
                 <Input
-                  aria-label={`字段标识符 ${index + 1}`}
+                  aria-label={t('dataType.fieldIdentifierAria', { index: index + 1 })}
                   value={field.identifier}
-                  placeholder="字段标识符"
+                  placeholder={t('dataType.fieldIdentifierPlaceholder')}
                   onChange={(event) => {
                     const fields = [...(value.structSpec?.fields ?? [])]
                     fields[index] = { ...field, identifier: event.target.value }
@@ -264,9 +266,9 @@ export function DataTypeEditor({
                   }}
                 />
                 <Input
-                  aria-label={`字段名称 ${index + 1}`}
+                  aria-label={t('dataType.fieldNameAria', { index: index + 1 })}
                   value={field.name}
-                  placeholder="字段名称"
+                  placeholder={t('dataType.fieldNamePlaceholder')}
                   onChange={(event) => {
                     const fields = [...(value.structSpec?.fields ?? [])]
                     fields[index] = { ...field, name: event.target.value }
@@ -276,7 +278,7 @@ export function DataTypeEditor({
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label="删除字段"
+                  aria-label={t('dataType.removeField')}
                   onClick={() =>
                     onChange({
                       ...value,

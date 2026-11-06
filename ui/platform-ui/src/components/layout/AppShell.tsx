@@ -1,168 +1,200 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
-import { LogOut, Menu, Moon, Sun } from 'lucide-react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Menu, Search, X } from 'lucide-react'
+import { useI18n, type MessageKey } from '@/i18n'
 import { cn } from '@/lib/cn'
-import { useTheme } from '@/providers/ThemeProvider'
-import { useAuth } from '@/providers/AuthProvider'
-import { useGatewayMeta } from '@/api/hooks'
 import { Button } from '@/components/ui/Button'
+import { LanguageSwitcher } from './LanguageSwitcher'
+import { NAV_SECTIONS, sectionForPath } from './nav-config'
+import { QuickSearchDialog } from './QuickSearchDialog'
 import { Sidebar } from './Sidebar'
+import { UserMenu } from './UserMenu'
 
-const TITLES: Record<string, string> = {
-  '/': '概览',
-  '/devices': '网关设备',
-  '/devices/new': '新建设备',
-  '/platform/thing-models': '物模型',
-  '/platform/thing-models/new': '新建物模型',
-  '/platform/things': '平台设备',
-  '/platform/things/new': '批量新建设备',
-  '/platform/users': '用户管理',
-  '/platform/roles': '角色管理',
-  '/platform/orgs': '组织管理',
-  '/platform/audit-logs': '审计日志',
-  '/data/metrics': '统计指标',
-  '/data/kpis': 'KPI',
-  '/data/tags': '测点',
-  '/data/timeseries': '时序查询',
-  '/settings': '设置',
+const TITLES: Record<string, MessageKey> = {
+  '/': 'layout.title.dashboard',
+  '/devices': 'layout.title.devices',
+  '/devices/new': 'layout.title.deviceNew',
+  '/platform/thing-models': 'layout.title.thingModels',
+  '/platform/thing-models/new': 'layout.title.thingModelNew',
+  '/platform/things': 'layout.title.things',
+  '/platform/things/new': 'layout.title.thingsNew',
+  '/platform/users': 'layout.title.users',
+  '/platform/roles': 'layout.title.roles',
+  '/platform/orgs': 'layout.title.orgs',
+  '/platform/audit-logs': 'layout.title.audit',
+  '/data/metrics': 'layout.title.metrics',
+  '/data/kpis': 'layout.title.kpis',
+  '/data/tags': 'layout.title.tags',
+  '/data/timeseries': 'layout.title.timeseries',
+  '/settings': 'layout.title.settings',
 }
 
-function usePageTitle() {
+function usePageTitle(): string {
   const { pathname } = useLocation()
-  if (TITLES[pathname]) return TITLES[pathname]
-  if (pathname.startsWith('/devices/') && pathname.endsWith('/edit')) return '编辑设备'
-  if (pathname.startsWith('/devices/')) return '设备详情'
-  if (pathname.startsWith('/platform/thing-models/')) return '物模型详情'
-  if (pathname.startsWith('/platform/things/')) return '平台设备详情'
+  const { t } = useI18n()
+  if (TITLES[pathname]) return t(TITLES[pathname])
+  if (pathname.startsWith('/devices/') && pathname.endsWith('/edit')) {
+    return t('layout.title.deviceEdit')
+  }
+  if (pathname.startsWith('/devices/')) return t('layout.title.deviceDetail')
+  if (pathname.startsWith('/platform/thing-models/')) return t('layout.title.thingModelDetail')
+  if (pathname.startsWith('/platform/things/')) return t('layout.title.thingDetail')
   return 'AI-harns-platform'
 }
 
 export function AppShell() {
+  const { t } = useI18n()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
-  const { theme, toggle } = useTheme()
-  const { user, signOut } = useAuth()
+  const [searchOpen, setSearchOpen] = useState(false)
   const { pathname } = useLocation()
   const title = usePageTitle()
-  const meta = useGatewayMeta()
+  const section = sectionForPath(pathname)
   const isMock = import.meta.env.VITE_USE_MOCK === 'true'
-
-  const handleSignOut = async () => {
-    setSigningOut(true)
-    try {
-      await signOut()
-    } finally {
-      setSigningOut(false)
-    }
-  }
 
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
   useEffect(() => {
-    document.title = `${title} · AI-harns-platform`
-  }, [title])
+    document.title = t('layout.title.document', { title })
+  }, [title, t])
 
-  const online = meta.isSuccess && !meta.isError
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen((current) => !current)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
-    <div className="flex min-h-dvh bg-bg">
-      {/* 桌面侧边栏 */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border bg-surface lg:block">
-        <Sidebar />
-      </aside>
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
+      <header className="flex h-11 shrink-0 items-center bg-header text-header-fg">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-1 text-header-muted hover:bg-header-hover hover:text-header-fg lg:hidden"
+          onClick={() => setMobileOpen(true)}
+          aria-label={t('layout.openMenu')}
+        >
+          <Menu className="size-4" />
+        </Button>
 
-      {/* 移动端抽屉 */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 lg:hidden',
-          mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',
-        )}
-      >
+        <Link to="/" className="flex shrink-0 items-center pl-3 lg:pl-4">
+          <span className="mr-2 text-lg font-bold tracking-wide">{t('common.brand')}</span>
+          <span className="hidden text-sm text-header-muted sm:inline">{t('common.appName')}</span>
+        </Link>
+
+        <nav className="ml-4 hidden h-full items-stretch lg:flex" aria-label={t('layout.primaryNav')}>
+          {NAV_SECTIONS.map((item) => (
+            <Link
+              key={item.key}
+              to={item.entry}
+              className={cn(
+                'flex items-center px-4 text-sm transition-colors',
+                item.key === section.key
+                  ? 'bg-primary font-medium text-primary-fg'
+                  : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
+              )}
+            >
+              {t(item.labelKey)}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-1 pr-3 sm:pr-4">
+          {isMock ? (
+            <span className="mr-1 hidden rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[11px] text-amber-200 sm:inline">
+              {t('layout.mockBadge')}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label={t('layout.searchMenu')}
+            title={t('layout.searchMenuShortcut')}
+            className="flex size-8 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
+          >
+            <Search className="size-4" />
+          </button>
+          <LanguageSwitcher />
+          <UserMenu />
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
+          <Sidebar sectionKey={section.key} />
+        </aside>
+
         <div
           className={cn(
-            'absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity',
-            mobileOpen ? 'opacity-100' : 'opacity-0',
-          )}
-          onClick={() => setMobileOpen(false)}
-        />
-        <aside
-          className={cn(
-            'absolute inset-y-0 left-0 w-64 border-r border-border bg-surface shadow-2xl transition-transform duration-200',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+            'fixed inset-0 z-40 lg:hidden',
+            mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',
           )}
         >
-          <Sidebar onNavigate={() => setMobileOpen(false)} />
-        </aside>
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-60">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur-md sm:px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setMobileOpen(true)}
-            aria-label="打开菜单"
+          <div
+            className={cn(
+              'absolute inset-0 bg-black/40 transition-opacity',
+              mobileOpen ? 'opacity-100' : 'opacity-0',
+            )}
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside
+            className={cn(
+              'absolute inset-y-0 left-0 w-64 border-r border-border bg-surface shadow-2xl transition-transform duration-200',
+              mobileOpen ? 'translate-x-0' : '-translate-x-full',
+            )}
           >
-            <Menu className="size-4.5" />
-          </Button>
-
-          <div className="flex min-w-0 items-center gap-2 text-sm">
-            <span className="hidden text-muted sm:inline">AI-harns-platform</span>
-            <span className="hidden text-faint sm:inline">/</span>
-            <span className="truncate font-medium">{title}</span>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            {isMock ? (
-              <span className="hidden rounded-full border border-amber-600/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 sm:inline dark:text-amber-300">
-                Mock 数据
-              </span>
-            ) : null}
-            <span
-              className="hidden items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted sm:inline-flex"
-              title={online ? '网关服务已连接' : '网关服务不可用'}
-            >
-              <span
-                className={cn(
-                  'size-1.5 rounded-full',
-                  meta.isError ? 'bg-rose-500' : online ? 'bg-emerald-500' : 'bg-amber-500',
-                )}
-              />
-              <span className="max-w-36 truncate">
-                {meta.isError ? '网关离线' : (meta.data?.name ?? '连接中…')}
-              </span>
-            </span>
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="切换主题">
-              {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-            <div className="flex items-center gap-2 border-l border-border pl-2">
-              <div className="hidden text-right sm:block">
-                <p className="text-xs leading-tight font-medium">
-                  {user?.nickName || user?.userName || '—'}
-                </p>
-                <p className="text-[10px] leading-tight text-faint">{user?.userNo || ''}</p>
+            <div className="flex h-full flex-col">
+              <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
+                <span className="text-sm font-semibold tracking-wide">
+                  {t('layout.mobileBrand')}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label={t('layout.closeMenu')}
+                >
+                  <X className="size-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
-                loading={signingOut}
-                aria-label="退出登录"
-                title="退出登录"
-              >
-                {signingOut ? null : <LogOut className="size-4" />}
-              </Button>
+              <div className="shrink-0 border-b border-border p-2">
+                <div className="grid grid-cols-2 gap-1">
+                  {NAV_SECTIONS.map((item) => (
+                    <Link
+                      key={item.key}
+                      to={item.entry}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'rounded px-2 py-1.5 text-center text-xs transition-colors',
+                        item.key === section.key
+                          ? 'bg-primary font-medium text-primary-fg'
+                          : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg',
+                      )}
+                    >
+                      {t(item.labelKey)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div className="min-h-0 flex-1">
+                <Sidebar sectionKey={section.key} onNavigate={() => setMobileOpen(false)} />
+              </div>
             </div>
-          </div>
-        </header>
+          </aside>
+        </div>
 
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-w-0 flex-1 overflow-auto">
           <Outlet />
         </main>
       </div>
+
+      <QuickSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

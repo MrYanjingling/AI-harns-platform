@@ -3,11 +3,12 @@ import { useForm } from 'react-hook-form'
 import { useMemo } from 'react'
 import { Info, Save, X } from 'lucide-react'
 import type { DeviceType } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { BAUD_RATES, DATA_BITS, MEMORY_LAYOUTS, PARITIES, PROTOCOLS, STOP_BITS } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Field, Input, Select } from '@/components/ui/Field'
-import { deviceFormSchema, type DeviceFormValues } from './schema'
+import { createDeviceFormSchema, type DeviceFormValues } from './schema'
 import { VariablesEditor } from './VariablesEditor'
 
 export interface DeviceFormProps {
@@ -27,9 +28,11 @@ export function DeviceForm({
   onSubmit,
   onCancel,
 }: DeviceFormProps) {
+  const { t } = useI18n()
   const protocol = PROTOCOLS[type]
+  const schema = useMemo(() => createDeviceFormSchema(t), [t])
   const form = useForm<DeviceFormValues>({
-    resolver: zodResolver(deviceFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: initialValues,
     mode: 'onTouched',
   })
@@ -43,7 +46,10 @@ export function DeviceForm({
 
   const model = watch('deviceModel')
   const isSerial = type === 'modbus' && model === 'modbusRtu'
-  const title = useMemo(() => (mode === 'create' ? '新建设备' : '编辑设备'), [mode])
+  const title = useMemo(
+    () => (mode === 'create' ? t('layout.title.deviceNew') : t('layout.title.deviceEdit')),
+    [mode, t],
+  )
 
   return (
     <form
@@ -55,37 +61,47 @@ export function DeviceForm({
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>基本信息</CardTitle>
-            <CardDescription>设备标识与采集节奏,创建后协议类型不可更改</CardDescription>
+            <CardTitle>{t('devices.form.basic')}</CardTitle>
+            <CardDescription>{t('devices.form.basicDescription')}</CardDescription>
           </div>
           <span className="rounded-md bg-surface-2 px-2 py-1 text-[11px] font-medium text-muted">
             {protocol.label}
           </span>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="设备名称" htmlFor="device-name" required error={errors.name?.message}>
+          <Field
+            label={t('devices.form.name')}
+            htmlFor="device-name"
+            required
+            error={errors.name?.message}
+          >
             <Input
               id="device-name"
-              placeholder="例如: 1 号空压机"
+              placeholder={t('devices.form.namePlaceholder')}
               {...register('name')}
               aria-invalid={!!errors.name}
             />
           </Field>
           <Field
-            label="设备编码"
+            label={t('devices.form.code')}
             htmlFor="device-code"
             required
-            hint="唯一标识,建议使用资产编号"
+            hint={t('devices.form.codeHint')}
             error={errors.deviceCode?.message}
           >
             <Input
               id="device-code"
-              placeholder="例如: AC-001"
+              placeholder={t('devices.form.codePlaceholder')}
               {...register('deviceCode')}
               aria-invalid={!!errors.deviceCode}
             />
           </Field>
-          <Field label="设备型号" htmlFor="device-model" required error={errors.deviceModel?.message}>
+          <Field
+            label={t('devices.form.model')}
+            htmlFor="device-model"
+            required
+            error={errors.deviceModel?.message}
+          >
             {mode === 'create' && protocol.models.length > 1 ? (
               <Select
                 id="device-model"
@@ -100,7 +116,7 @@ export function DeviceForm({
               >
                 {protocol.models.map((item) => (
                   <option key={item.value} value={item.value}>
-                    {item.label} — {item.hint}
+                    {item.label} — {t(item.hintKey)}
                   </option>
                 ))}
               </Select>
@@ -110,10 +126,10 @@ export function DeviceForm({
           </Field>
 
           <Field
-            label="采集周期 (秒)"
+            label={t('devices.form.collectorCycle')}
             htmlFor="collector-cycle"
             required
-            hint="整机轮询一次变量的间隔,最小 1 秒"
+            hint={t('devices.form.collectorHint')}
             error={errors.collectorCycle?.message}
           >
             <Input
@@ -125,9 +141,9 @@ export function DeviceForm({
             />
           </Field>
           <Field
-            label="变量间隔 (毫秒)"
+            label={t('devices.form.variableInterval')}
             htmlFor="variable-interval"
-            hint="变量之间的采集间隔,0 表示不等待"
+            hint={t('devices.form.variableIntervalHint')}
             error={errors.variableInterval?.message}
           >
             <Input
@@ -139,12 +155,16 @@ export function DeviceForm({
             />
           </Field>
           <Field
-            label="Topic (可选)"
+            label={t('devices.form.topic')}
             htmlFor="topic"
-            hint="MQTT 上报主题,留空使用网关默认规则"
+            hint={t('devices.form.topicHint')}
             error={errors.topic?.message}
           >
-            <Input id="topic" placeholder="留空则自动生成" {...register('topic')} />
+            <Input
+              id="topic"
+              placeholder={t('devices.form.topicPlaceholder')}
+              {...register('topic')}
+            />
           </Field>
         </CardContent>
       </Card>
@@ -152,18 +172,22 @@ export function DeviceForm({
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>连接参数</CardTitle>
-            <CardDescription>{protocol.description}</CardDescription>
+            <CardTitle>{t('devices.form.connection')}</CardTitle>
+            <CardDescription>{t(protocol.descriptionKey)}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {type === 'modbus' ? (
             <>
               <Field
-                label={isSerial ? '串口设备' : '设备地址'}
+                label={
+                  isSerial ? t('devices.form.serialDevice') : t('devices.form.deviceAddress')
+                }
                 htmlFor="mb-location"
                 required
-                hint={isSerial ? '例如: /dev/ttyS0 或 COM1' : 'IP 地址或主机名'}
+                hint={
+                  isSerial ? t('devices.form.serialHint') : t('devices.form.addressHint')
+                }
                 error={errors.modbusLocation?.message}
               >
                 <Input
@@ -174,7 +198,11 @@ export function DeviceForm({
               </Field>
               {isSerial ? (
                 <>
-                  <Field label="波特率" htmlFor="mb-baud" error={errors.modbusBaudRate?.message}>
+                  <Field
+                    label={t('devices.form.baud')}
+                    htmlFor="mb-baud"
+                    error={errors.modbusBaudRate?.message}
+                  >
                     <Select
                       id="mb-baud"
                       {...register('modbusBaudRate', { valueAsNumber: true })}
@@ -186,7 +214,11 @@ export function DeviceForm({
                       ))}
                     </Select>
                   </Field>
-                  <Field label="数据位" htmlFor="mb-databits" error={errors.modbusDataBits?.message}>
+                  <Field
+                    label={t('devices.form.dataBits')}
+                    htmlFor="mb-databits"
+                    error={errors.modbusDataBits?.message}
+                  >
                     <Select
                       id="mb-databits"
                       {...register('modbusDataBits', { valueAsNumber: true })}
@@ -198,16 +230,24 @@ export function DeviceForm({
                       ))}
                     </Select>
                   </Field>
-                  <Field label="校验位" htmlFor="mb-parity" error={errors.modbusParity?.message}>
+                  <Field
+                    label={t('devices.form.parity')}
+                    htmlFor="mb-parity"
+                    error={errors.modbusParity?.message}
+                  >
                     <Select id="mb-parity" {...register('modbusParity')}>
                       {PARITIES.map((item) => (
                         <option key={item.value} value={item.value}>
-                          {item.label}
+                          {t(item.labelKey)}
                         </option>
                       ))}
                     </Select>
                   </Field>
-                  <Field label="停止位" htmlFor="mb-stopbits" error={errors.modbusStopBits?.message}>
+                  <Field
+                    label={t('devices.form.stopBits')}
+                    htmlFor="mb-stopbits"
+                    error={errors.modbusStopBits?.message}
+                  >
                     <Select id="mb-stopbits" {...register('modbusStopBits')}>
                       {STOP_BITS.map((item) => (
                         <option key={item.value} value={item.value}>
@@ -218,7 +258,12 @@ export function DeviceForm({
                   </Field>
                 </>
               ) : (
-                <Field label="端口" htmlFor="mb-port" required error={errors.modbusPort?.message}>
+                <Field
+                  label={t('devices.form.port')}
+                  htmlFor="mb-port"
+                  required
+                  error={errors.modbusPort?.message}
+                >
                   <Input
                     id="mb-port"
                     type="number"
@@ -229,7 +274,7 @@ export function DeviceForm({
                 </Field>
               )}
               <Field
-                label="从站地址 (Slave ID)"
+                label={t('devices.form.slave')}
                 htmlFor="mb-slave"
                 required
                 error={errors.slave?.message}
@@ -243,9 +288,9 @@ export function DeviceForm({
                 />
               </Field>
               <Field
-                label="内存布局"
+                label={t('devices.form.memoryLayout')}
                 htmlFor="mb-memory"
-                hint="32/64 位数据的字节序"
+                hint={t('devices.form.memoryLayoutHint')}
                 error={errors.memoryLayout?.message}
               >
                 <Select id="mb-memory" {...register('memoryLayout')}>
@@ -257,9 +302,9 @@ export function DeviceForm({
                 </Select>
               </Field>
               <Field
-                label="起始地址偏移"
+                label={t('devices.form.startOffset')}
                 htmlFor="mb-position"
-                hint="寄存器地址是否额外偏移"
+                hint={t('devices.form.startOffsetHint')}
                 error={errors.positionAddress?.message}
               >
                 <Input
@@ -279,7 +324,7 @@ export function DeviceForm({
                 label="Endpoint"
                 htmlFor="ua-location"
                 required
-                hint="形如 opc.tcp://192.168.1.20"
+                hint={t('devices.form.endpointHint')}
                 error={errors.opcLocation?.message}
                 className="sm:col-span-2"
               >
@@ -290,7 +335,12 @@ export function DeviceForm({
                   {...register('opcLocation')}
                 />
               </Field>
-              <Field label="端口" htmlFor="ua-port" required error={errors.opcPort?.message}>
+              <Field
+                label={t('devices.form.port')}
+                htmlFor="ua-port"
+                required
+                error={errors.opcPort?.message}
+              >
                 <Input
                   id="ua-port"
                   type="number"
@@ -299,20 +349,28 @@ export function DeviceForm({
                   {...register('opcPort', { valueAsNumber: true })}
                 />
               </Field>
-              <Field label="用户名 (可选)" htmlFor="ua-username" error={errors.opcUsername?.message}>
+              <Field
+                label={t('devices.form.username')}
+                htmlFor="ua-username"
+                error={errors.opcUsername?.message}
+              >
                 <Input
                   id="ua-username"
                   autoComplete="off"
-                  placeholder="匿名登录可留空"
+                  placeholder={t('devices.form.anonymousHint')}
                   {...register('opcUsername')}
                 />
               </Field>
-              <Field label="密码 (可选)" htmlFor="ua-password" error={errors.opcPassword?.message}>
+              <Field
+                label={t('devices.form.password')}
+                htmlFor="ua-password"
+                error={errors.opcPassword?.message}
+              >
                 <Input
                   id="ua-password"
                   type="password"
                   autoComplete="new-password"
-                  placeholder="匿名登录可留空"
+                  placeholder={t('devices.form.anonymousHint')}
                   {...register('opcPassword')}
                 />
               </Field>
@@ -322,10 +380,10 @@ export function DeviceForm({
           {type === 's7' ? (
             <>
               <Field
-                label="PLC 地址"
+                label={t('devices.form.plcAddress')}
                 htmlFor="s7-location"
                 required
-                hint="IP 地址或主机名"
+                hint={t('devices.form.addressHint')}
                 error={errors.s7Location?.message}
               >
                 <Input
@@ -334,7 +392,12 @@ export function DeviceForm({
                   {...register('s7Location')}
                 />
               </Field>
-              <Field label="端口" htmlFor="s7-port" required error={errors.s7Port?.message}>
+              <Field
+                label={t('devices.form.port')}
+                htmlFor="s7-port"
+                required
+                error={errors.s7Port?.message}
+              >
                 <Input
                   id="s7-port"
                   type="number"
@@ -343,7 +406,11 @@ export function DeviceForm({
                   {...register('s7Port', { valueAsNumber: true })}
                 />
               </Field>
-              <Field label="Rack" htmlFor="s7-rack" error={errors.s7Rack?.message}>
+              <Field
+                label={t('devices.form.rack')}
+                htmlFor="s7-rack"
+                error={errors.s7Rack?.message}
+              >
                 <Input
                   id="s7-rack"
                   type="number"
@@ -352,7 +419,11 @@ export function DeviceForm({
                   {...register('s7Rack', { valueAsNumber: true })}
                 />
               </Field>
-              <Field label="Slot" htmlFor="s7-slot" error={errors.s7Slot?.message}>
+              <Field
+                label={t('devices.form.slot')}
+                htmlFor="s7-slot"
+                error={errors.s7Slot?.message}
+              >
                 <Input
                   id="s7-slot"
                   type="number"
@@ -369,10 +440,8 @@ export function DeviceForm({
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>采集变量</CardTitle>
-            <CardDescription>
-              变量名会作为测点标识,读写模式为 rw 的变量可在详情页下发写入
-            </CardDescription>
+            <CardTitle>{t('devices.form.variables')}</CardTitle>
+            <CardDescription>{t('devices.form.variablesDescription')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -383,17 +452,19 @@ export function DeviceForm({
         </CardContent>
       </Card>
 
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/85 px-4 py-3 shadow-sm backdrop-blur">
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded border border-border bg-surface/85 px-4 py-3 shadow-sm backdrop-blur">
         <p className="flex items-center gap-1.5 text-xs text-faint">
           <Info className="size-3.5 shrink-0" />
-          {mode === 'create'
-            ? '保存后设备将以停止状态创建,可在列表页启动采集。'
-            : '保存时使用当前版本号校验,若设备已被他人修改会提示刷新。'}
-          {isDirty ? <span className="ml-1 text-warning">· 有未保存的修改</span> : null}
+          {mode === 'create' ? t('devices.form.createHint') : t('devices.form.editHint')}
+          {isDirty ? (
+            <span className="ml-1 text-warning">
+              · {t('devices.form.unsaved')}
+            </span>
+          ) : null}
         </p>
         <div className="flex items-center gap-2">
           <Button variant="ghost" icon={<X className="size-4" />} onClick={onCancel}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button
             type="submit"
@@ -401,7 +472,7 @@ export function DeviceForm({
             loading={submitting}
             icon={<Save className="size-4" />}
           >
-            {mode === 'create' ? '创建设备' : '保存修改'}
+            {mode === 'create' ? t('devices.form.create') : t('devices.form.save')}
           </Button>
         </div>
       </div>

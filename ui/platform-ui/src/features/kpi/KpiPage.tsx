@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, Target } from 'lucide-react'
 import { useKpis, useKpiValues } from '@/api/hooks'
 import type { KpiQueryRequest } from '@/api/types'
+import { useI18n, type MessageKey } from '@/i18n'
 import { formatDateTimeShort, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
@@ -15,14 +16,15 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { StatCard } from '@/components/shared/StatCard'
 import { TimeRangeFields, useTimeRange } from '@/components/shared/TimeRangeFields'
 
-const GRAIN_LABEL: Record<string, string> = {
-  h: '小时',
-  d: '天',
-  m: '月',
-  y: '年',
+const GRAIN_LABEL: Record<string, MessageKey> = {
+  h: 'kpi.grain.h',
+  d: 'kpi.grain.d',
+  m: 'kpi.grain.m',
+  y: 'kpi.grain.y',
 }
 
 export function KpiPage() {
+  const { t } = useI18n()
   const kpis = useKpis()
   const range = useTimeRange(24)
   const [selected, setSelected] = useState<string[]>([])
@@ -56,8 +58,8 @@ export function KpiPage() {
   return (
     <div>
       <PageHeader
-        title="KPI 指标"
-        description="查看关键绩效指标定义,并按时间范围计算 KPI 值。"
+        title={t('kpi.title')}
+        description={t('kpi.description')}
         actions={
           <Button
             variant="primary"
@@ -65,7 +67,7 @@ export function KpiPage() {
             disabled={selected.length === 0 || !range.valid}
             onClick={runQuery}
           >
-            计算 KPI
+            {t('kpi.calculate')}
           </Button>
         }
       />
@@ -74,13 +76,13 @@ export function KpiPage() {
         <Card className="overflow-hidden">
           <CardHeader>
             <div>
-              <CardTitle>KPI 列表</CardTitle>
+              <CardTitle>{t('kpi.listTitle')}</CardTitle>
               <p className="mt-0.5 text-xs text-muted">
-                已选择 {selected.length} / {allIds.length} 项
+                {t('kpi.selected', { selected: selected.length, total: allIds.length })}
               </p>
             </div>
             <Button size="sm" variant="ghost" onClick={() => setSelected(allSelected ? [] : allIds)}>
-              {allSelected ? '取消全选' : '全选'}
+              {allSelected ? t('common.action.deselectAll') : t('common.action.selectAll')}
             </Button>
           </CardHeader>
 
@@ -91,7 +93,10 @@ export function KpiPage() {
               <ErrorState error={kpis.error} onRetry={kpis.refetch} compact />
             </div>
           ) : (kpis.data ?? []).length === 0 ? (
-            <EmptyState title="没有 KPI" description="数据服务尚未配置 KPI 指标。" />
+            <EmptyState
+              title={t('kpi.empty.title')}
+              description={t('kpi.empty.description')}
+            />
           ) : (
             <Table>
               <THead>
@@ -99,16 +104,16 @@ export function KpiPage() {
                   <TH className="w-10">
                     <input
                       type="checkbox"
-                      aria-label="全选 KPI"
+                      aria-label={t('kpi.selectAllAria')}
                       checked={allSelected}
                       onChange={() => setSelected(allSelected ? [] : allIds)}
                       className="size-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </TH>
-                  <TH>名称</TH>
-                  <TH>公式</TH>
-                  <TH>粒度</TH>
-                  <TH>状态</TH>
+                  <TH>{t('kpi.table.name')}</TH>
+                  <TH>{t('kpi.table.formula')}</TH>
+                  <TH>{t('kpi.table.granularity')}</TH>
+                  <TH>{t('common.field.status')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -123,7 +128,7 @@ export function KpiPage() {
                       <TD>
                         <input
                           type="checkbox"
-                          aria-label={`选择 ${item.name}`}
+                          aria-label={t('kpi.selectAria', { name: item.name })}
                           checked={checked}
                           onChange={() => toggle(item.id)}
                           onClick={(event) => event.stopPropagation()}
@@ -143,14 +148,20 @@ export function KpiPage() {
                         </code>
                       </TD>
                       <TD className="text-xs text-muted">
-                        {GRAIN_LABEL[item.timeGranularity] ?? item.timeGranularity}
+                        {GRAIN_LABEL[item.timeGranularity]
+                          ? t(GRAIN_LABEL[item.timeGranularity])
+                          : item.timeGranularity}
                       </TD>
                       <TD>
                         <Badge
                           tone={item.status === 'active' ? 'success' : 'warning'}
                           dot
                         >
-                          {item.status === 'active' ? '启用' : item.status === 'draft' ? '草稿' : item.status}
+                          {item.status === 'active'
+                            ? t('kpi.status.active')
+                            : item.status === 'draft'
+                              ? t('kpi.status.draft')
+                              : item.status}
                         </Badge>
                       </TD>
                     </TR>
@@ -164,17 +175,14 @@ export function KpiPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>计算条件</CardTitle>
-              <p className="mt-0.5 text-xs text-muted">KPI 值按小时粒度聚合</p>
+              <CardTitle>{t('kpi.conditions')}</CardTitle>
+              <p className="mt-0.5 text-xs text-muted">{t('kpi.conditionsHint')}</p>
             </div>
             <Target className="size-4 text-faint" />
           </CardHeader>
           <CardContent className="space-y-4">
             <TimeRangeFields range={range} />
-            <p className="text-[11px] leading-relaxed text-faint">
-              通过 <code className="font-mono">POST /kpi</code> 提交 KPI ID 列表与时间范围。
-              公式中的指标编码由数据服务解析。
-            </p>
+            <p className="text-[11px] leading-relaxed text-faint">{t('kpi.submitHint')}</p>
             <Button
               className="w-full"
               variant="primary"
@@ -182,33 +190,38 @@ export function KpiPage() {
               disabled={selected.length === 0 || !range.valid}
               onClick={runQuery}
             >
-              计算 {selected.length > 0 ? `${selected.length} 项 KPI` : ''}
+              {selected.length > 0
+                ? t('kpi.calculateCount', { count: selected.length })
+                : t('kpi.calculatePlain')}
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold">计算结果</h2>
+        <h2 className="mb-3 text-sm font-semibold">{t('kpi.results')}</h2>
         {!request ? (
           <Card>
             <EmptyState
               icon={<Target className="size-5" />}
-              title="尚未计算"
-              description="选择 KPI 与时间范围后点击计算,结果会显示在这里。"
+              title={t('kpi.notCalculated.title')}
+              description={t('kpi.notCalculated.description')}
             />
           </Card>
         ) : results.isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {request.ids.map((id) => (
-              <Skeleton key={id} className="h-28 rounded-2xl" />
+              <Skeleton key={id} className="h-28 rounded" />
             ))}
           </div>
         ) : results.isError ? (
           <ErrorState error={results.error} onRetry={results.refetch} />
         ) : (results.data ?? []).length === 0 ? (
           <Card>
-            <EmptyState title="没有结果" description="该时间范围内没有计算出 KPI 值。" />
+            <EmptyState
+              title={t('kpi.noResult.title')}
+              description={t('kpi.noResult.description')}
+            />
           </Card>
         ) : (
           <>
@@ -235,11 +248,10 @@ export function KpiPage() {
                       hasTarget ? (
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-faint">
-                            目标 {meta?.targetData}
-                            {meta?.unit}
+                            {t('kpi.target', { value: `${meta?.targetData ?? ''}${meta?.unit ?? ''}` })}
                           </span>
                           <Badge tone={result.value >= target ? 'success' : 'warning'}>
-                            {result.value >= target ? '达标' : '未达标'}
+                            {result.value >= target ? t('kpi.onTarget') : t('kpi.offTarget')}
                           </Badge>
                         </div>
                       ) : null
@@ -249,8 +261,12 @@ export function KpiPage() {
               })}
             </div>
             <p className="mt-3 text-[11px] text-faint">
-              查询区间:{formatDateTimeShort(request.startTime)} ~ {formatDateTimeShort(request.endTime)}
-              {' · '}粒度 {request.granularity}
+              {t('kpi.rangeInfo', {
+                start: formatDateTimeShort(request.startTime),
+                end: formatDateTimeShort(request.endTime),
+              })}
+              {' · '}
+              {t('metrics.granularity', { granularity: request.granularity })}
             </p>
           </>
         )}

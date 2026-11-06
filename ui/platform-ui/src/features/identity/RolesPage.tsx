@@ -3,6 +3,7 @@ import { Plus, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteRole, useRoles } from '@/api/hooks'
 import type { RoleInfo } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Badge } from '@/components/ui/Badge'
@@ -20,6 +21,7 @@ import { PlatformStatusBadge } from '@/components/shared/PlatformStatusBadge'
 import { RoleFormDialog } from './RoleFormDialog'
 
 export function RolesPage() {
+  const { t } = useI18n()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [keywordInput, setKeywordInput] = useState('')
@@ -49,7 +51,7 @@ export function RolesPage() {
     if (!deleteTarget) return
     try {
       await deleteMutation.mutateAsync(deleteTarget.id)
-      toast.success(`角色「${deleteTarget.name}」已删除`)
+      toast.success(t('identity.roles.deletedToast', { name: deleteTarget.name }))
       setDeleteTarget(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -59,8 +61,8 @@ export function RolesPage() {
   return (
     <div>
       <PageHeader
-        title="角色管理"
-        description="角色用于组织权限集合,删除角色会同时清理用户绑定。"
+        title={t('identity.roles.title')}
+        description={t('identity.roles.description')}
         actions={
           <Button
             variant="primary"
@@ -70,18 +72,18 @@ export function RolesPage() {
               setFormOpen(true)
             }}
           >
-            新建角色
+            {t('identity.roles.create')}
           </Button>
         }
       />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
-        <Field label="搜索" className="min-w-56 flex-1">
+        <Field label={t('common.action.search')} className="min-w-56 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={keywordInput}
-              placeholder="角色名称 / 编码"
+              placeholder={t('identity.roles.searchPlaceholder')}
               className="pl-9"
               onChange={(event) => setKeywordInput(event.target.value)}
               onKeyDown={(event) => {
@@ -91,10 +93,10 @@ export function RolesPage() {
           </div>
         </Field>
         <Button variant="outline" onClick={applySearch}>
-          查询
+          {t('common.action.query')}
         </Button>
         <Button variant="ghost" onClick={resetSearch}>
-          重置
+          {t('common.action.reset')}
         </Button>
       </Card>
 
@@ -108,12 +110,16 @@ export function RolesPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon={<ShieldCheck className="size-5" />}
-            title={keyword ? '没有匹配的角色' : '还没有角色'}
-            description={keyword ? '尝试更换关键词。' : '创建角色后可在新建用户时绑定。'}
+            title={keyword ? t('identity.roles.emptyMatch') : t('identity.roles.emptyNone')}
+            description={
+              keyword
+                ? t('identity.roles.emptyMatchDescription')
+                : t('identity.roles.emptyNoneDescription')
+            }
             action={
               keyword ? (
                 <Button variant="outline" onClick={resetSearch}>
-                  清除搜索
+                  {t('identity.users.clearSearch')}
                 </Button>
               ) : (
                 <Button
@@ -123,7 +129,7 @@ export function RolesPage() {
                     setFormOpen(true)
                   }}
                 >
-                  新建角色
+                  {t('identity.roles.create')}
                 </Button>
               )
             }
@@ -133,12 +139,12 @@ export function RolesPage() {
             <Table>
               <THead>
                 <tr>
-                  <TH>角色</TH>
-                  <TH>编码</TH>
-                  <TH>描述</TH>
-                  <TH>状态</TH>
-                  <TH>更新时间</TH>
-                  <TH className="text-right">操作</TH>
+                  <TH>{t('identity.roles.table.role')}</TH>
+                  <TH>{t('common.field.code')}</TH>
+                  <TH>{t('common.field.description')}</TH>
+                  <TH>{t('common.field.status')}</TH>
+                  <TH>{t('common.field.updatedAt')}</TH>
+                  <TH className="text-right">{t('common.field.actions')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -148,7 +154,7 @@ export function RolesPage() {
                       <p className="font-medium">{role.name}</p>
                       {role.code === 'admin' ? (
                         <Badge tone="violet" className="mt-1">
-                          内置超管
+                          {t('identity.roles.builtin')}
                         </Badge>
                       ) : null}
                     </TD>
@@ -170,12 +176,12 @@ export function RolesPage() {
                             setFormOpen(true)
                           }}
                         >
-                          编辑
+                          {t('common.action.edit')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`删除 ${role.name}`}
+                          aria-label={t('identity.roles.deleteAria', { name: role.name })}
                           onClick={() => setDeleteTarget(role)}
                         >
                           <Trash2 className="size-3.5 text-danger" />
@@ -207,13 +213,13 @@ export function RolesPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="删除角色"
+        title={t('identity.roles.deleteTitle')}
         description={
           deleteTarget
-            ? `确定删除角色「${deleteTarget.name}」吗?用户绑定会一并清理,该操作不可恢复。`
+            ? t('identity.roles.deleteDescription', { name: deleteTarget.name })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}

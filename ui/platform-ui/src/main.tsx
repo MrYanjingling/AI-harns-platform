@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { queryClient } from '@/lib/query-client'
+import { I18nProvider } from '@/i18n'
 import { AuthProvider } from '@/providers/AuthProvider'
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider'
 import { router } from '@/router'
@@ -27,12 +28,14 @@ function AppToaster() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <RouterProvider router={router} />
-          <AppToaster />
-        </AuthProvider>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <RouterProvider router={router} />
+            <AppToaster />
+          </AuthProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

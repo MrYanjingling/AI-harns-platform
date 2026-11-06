@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { ImagePlus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUploadImage } from '@/api/hooks'
+import { useI18n } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
@@ -17,6 +18,7 @@ export function ImageUploadField({
   value: string
   onChange: (key: string) => void
 }) {
+  const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = useUploadImage()
   const previewUrl = value && PUBLIC_BASE ? `${PUBLIC_BASE.replace(/\/$/, '')}/${value}` : null
@@ -24,17 +26,17 @@ export function ImageUploadField({
   const pick = async (file: File | undefined) => {
     if (!file) return
     if (!ACCEPTED_TYPES.has(file.type)) {
-      toast.error('仅支持 JPEG、PNG、WebP、GIF 图片')
+      toast.error(t('image.invalidType'))
       return
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      toast.error('图片不能超过 10 MiB')
+      toast.error(t('image.tooLarge'))
       return
     }
     try {
       const result = await upload.mutateAsync(file)
       onChange(result.key)
-      toast.success('图片已上传')
+      toast.success(t('image.uploaded'))
     } catch (error) {
       toast.error(errorMessage(error))
     }
@@ -42,9 +44,9 @@ export function ImageUploadField({
 
   return (
     <div className="flex flex-wrap items-start gap-4">
-      <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
+      <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-surface-2">
         {previewUrl ? (
-          <img src={previewUrl} alt="设备图片" className="size-full object-cover" />
+          <img src={previewUrl} alt={t('image.alt')} className="size-full object-cover" />
         ) : (
           <ImagePlus className="size-6 text-faint" />
         )}
@@ -52,7 +54,7 @@ export function ImageUploadField({
 
       <div className="min-w-0 flex-1 space-y-2">
         <p className="truncate font-mono text-[11px] text-muted" title={value}>
-          {value || '未设置图片'}
+          {value || t('image.unset')}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -64,7 +66,11 @@ export function ImageUploadField({
             disabled={upload.isPending}
             onClick={() => inputRef.current?.click()}
           >
-            {upload.isPending ? '上传中…' : value ? '更换图片' : '上传图片'}
+            {upload.isPending
+              ? t('image.uploading')
+              : value
+                ? t('image.change')
+                : t('image.upload')}
           </Button>
           {value ? (
             <Button
@@ -73,13 +79,13 @@ export function ImageUploadField({
               icon={<Trash2 className="size-3.5" />}
               onClick={() => onChange('')}
             >
-              移除
+              {t('image.remove')}
             </Button>
           ) : null}
         </div>
         <p className="text-[11px] leading-relaxed text-faint">
-          支持 JPEG / PNG / WebP / GIF,单张不超过 10 MiB。
-          {PUBLIC_BASE ? '' : ' 未配置 VITE_MINIO_PUBLIC_BASE 时仅显示对象 Key。'}
+          {t('image.hint')}
+          {PUBLIC_BASE ? '' : ` ${t('image.noPublicBase')}`}
         </p>
       </div>
 

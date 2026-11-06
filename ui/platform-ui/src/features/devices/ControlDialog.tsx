@@ -3,6 +3,7 @@ import { Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useControlDevice } from '@/api/hooks'
 import type { AccessMode, DataType, DeviceAction, DeviceDetail } from '@/api/types'
+import { useI18n, type Translate } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
@@ -16,16 +17,18 @@ function rawValue(value: unknown): string {
   return String(value)
 }
 
-function parseValue(type: DataType, raw: string): unknown {
+function parseValue(type: DataType, raw: string, t: Translate): unknown {
   if (type === 'string') return raw
   if (type === 'bool') {
     if (raw === 'true' || raw === '1') return true
     if (raw === 'false' || raw === '0') return false
-    throw new Error('布尔值只能是 true 或 false')
+    throw new Error(t('control.invalidBool'))
   }
   if (NUMERIC_TYPES.includes(type)) {
     const parsed = Number(raw)
-    if (raw.trim() === '' || Number.isNaN(parsed)) throw new Error(`「${raw}」不是有效数字`)
+    if (raw.trim() === '' || Number.isNaN(parsed)) {
+      throw new Error(t('control.invalidNumber', { value: raw }))
+    }
     return parsed
   }
   return raw
@@ -43,6 +46,7 @@ export function ControlDialog({
   only?: string
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const control = useControlDevice()
   const variables = useMemo(() => {
     // 三种协议的变量结构不同,反控只关心公共字段。
@@ -74,15 +78,17 @@ export function ControlDialog({
     const actions: DeviceAction[] = []
     try {
       for (const variable of variables) {
-        actions.push({ [variable.name]: parseValue(variable.dataType, values[variable.name] ?? '') })
+        actions.push({
+          [variable.name]: parseValue(variable.dataType, values[variable.name] ?? '', t),
+        })
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '输入值无效')
+      setError(cause instanceof Error ? cause.message : t('control.invalidInput'))
       return
     }
 
     if (actions.length === 0) {
-      setError('没有可下发的读写变量')
+      setError(t('control.emptyActions'))
       return
     }
 
@@ -90,7 +96,7 @@ export function ControlDialog({
       { id: device.id, actions },
       {
         onSuccess: () => {
-          toast.success(`已向 ${device.name} 下发 ${actions.length} 个变量`)
+          toast.success(t('control.success', { name: device.name, count: actions.length }))
           onClose()
         },
         onError: (cause) => setError(errorMessage(cause)),
@@ -102,13 +108,13 @@ export function ControlDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="变量反控"
-      description="仅读写 (rw) 变量可下发。值会按变量数据类型转换后提交。"
+      title={t('control.title')}
+      description={t('control.description')}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -117,14 +123,14 @@ export function ControlDialog({
             onClick={submit}
             disabled={variables.length === 0}
           >
-            下发写入
+            {t('control.submit')}
           </Button>
         </>
       }
     >
       {variables.length === 0 ? (
         <p className="rounded-lg border border-border bg-surface-2 px-4 py-6 text-center text-sm text-muted">
-          该设备没有配置 accessMode 为 rw 的变量,无法反控。
+          {t('control.noVariables')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -149,8 +155,8 @@ export function ControlDialog({
                     setValues((prev) => ({ ...prev, [variable.name]: event.target.value }))
                   }
                 >
-                  <option value="true">true (开)</option>
-                  <option value="false">false (关)</option>
+                  <option value="true">{t('control.boolTrue')}</option>
+                  <option value="false">{t('control.boolFalse')}</option>
                 </Select>
               ) : (
                 <Input
@@ -160,7 +166,11 @@ export function ControlDialog({
                   onChange={(event) =>
                     setValues((prev) => ({ ...prev, [variable.name]: event.target.value }))
                   }
-                  placeholder={variable.dataType === 'string' ? '输入字符串值' : '输入数值'}
+                  placeholder={
+                    variable.dataType === 'string'
+                      ? t('control.stringPlaceholder')
+                      : t('control.numberPlaceholder')
+                  }
                 />
               )}
             </Field>
@@ -170,10 +180,7 @@ export function ControlDialog({
               {error}
             </p>
           ) : null}
-          <p className="text-[11px] leading-relaxed text-faint">
-            提交格式为 <code className="font-mono">{`[{"变量名": 值}]`}</code>,由网关转发给设备。
-            写入结果取决于设备是否在线与寄存器是否可写。
-          </p>
+          <p className="text-[11px] leading-relaxed text-faint">{t('control.formatHint')}</p>
         </div>
       )}
     </Dialog>

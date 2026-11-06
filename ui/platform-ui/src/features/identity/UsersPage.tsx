@@ -3,6 +3,7 @@ import { KeyRound, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteUser, useResetUserPassword, useUsers } from '@/api/hooks'
 import type { UserInfo } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { formatDateTime } from '@/lib/format'
 import { errorMessage } from '@/lib/http'
 import { Badge } from '@/components/ui/Badge'
@@ -20,6 +21,7 @@ import { PlatformStatusBadge } from '@/components/shared/PlatformStatusBadge'
 import { UserFormDialog } from './UserFormDialog'
 
 export function UsersPage() {
+  const { t } = useI18n()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [keywordInput, setKeywordInput] = useState('')
@@ -61,7 +63,7 @@ export function UsersPage() {
     if (!resetTarget) return
     try {
       await resetMutation.mutateAsync(resetTarget.id)
-      toast.success(`密码已重置为 ${resetTarget.userName}@qwer`)
+      toast.success(t('identity.users.resetToast', { name: resetTarget.userName }))
       setResetTarget(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -72,7 +74,7 @@ export function UsersPage() {
     if (!deleteTarget) return
     try {
       await deleteMutation.mutateAsync(deleteTarget.id)
-      toast.success(`用户「${deleteTarget.userName}」已删除`)
+      toast.success(t('identity.users.deletedToast', { name: deleteTarget.userName }))
       setDeleteTarget(null)
     } catch (error) {
       toast.error(errorMessage(error))
@@ -82,22 +84,22 @@ export function UsersPage() {
   return (
     <div>
       <PageHeader
-        title="用户管理"
-        description="平台账号与角色、组织绑定。禁用或重置密码会立即失效该用户的会话。"
+        title={t('identity.users.title')}
+        description={t('identity.users.description')}
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
-            新建用户
+            {t('identity.users.create')}
           </Button>
         }
       />
 
       <Card className="mb-4 flex flex-wrap items-end gap-3 p-4">
-        <Field label="搜索" className="min-w-56 flex-1">
+        <Field label={t('common.action.search')} className="min-w-56 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={keywordInput}
-              placeholder="用户名 / 工号 / 昵称"
+              placeholder={t('identity.users.searchPlaceholder')}
               className="pl-9"
               onChange={(event) => setKeywordInput(event.target.value)}
               onKeyDown={(event) => {
@@ -107,10 +109,10 @@ export function UsersPage() {
           </div>
         </Field>
         <Button variant="outline" onClick={applySearch}>
-          查询
+          {t('common.action.query')}
         </Button>
         <Button variant="ghost" onClick={resetSearch}>
-          重置
+          {t('common.action.reset')}
         </Button>
       </Card>
 
@@ -124,16 +126,20 @@ export function UsersPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon={<UserRound className="size-5" />}
-            title={keyword ? '没有匹配的用户' : '还没有用户'}
-            description={keyword ? '尝试更换关键词。' : '创建用户并分配角色与组织。'}
+            title={keyword ? t('identity.users.emptyMatch') : t('identity.users.emptyNone')}
+            description={
+              keyword
+                ? t('identity.users.emptyMatchDescription')
+                : t('identity.users.emptyNoneDescription')
+            }
             action={
               keyword ? (
                 <Button variant="outline" onClick={resetSearch}>
-                  清除搜索
+                  {t('identity.users.clearSearch')}
                 </Button>
               ) : (
                 <Button variant="primary" onClick={openCreate}>
-                  新建用户
+                  {t('identity.users.create')}
                 </Button>
               )
             }
@@ -143,12 +149,12 @@ export function UsersPage() {
             <Table>
               <THead>
                 <tr>
-                  <TH>用户</TH>
-                  <TH>工号</TH>
-                  <TH>角色</TH>
-                  <TH>状态</TH>
-                  <TH>最后登录</TH>
-                  <TH className="text-right">操作</TH>
+                  <TH>{t('identity.users.table.user')}</TH>
+                  <TH>{t('identity.users.table.userNo')}</TH>
+                  <TH>{t('identity.users.table.roles')}</TH>
+                  <TH>{t('common.field.status')}</TH>
+                  <TH>{t('identity.users.table.lastLogin')}</TH>
+                  <TH className="text-right">{t('common.field.actions')}</TH>
                 </tr>
               </THead>
               <TBody>
@@ -168,7 +174,9 @@ export function UsersPage() {
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-faint">未分配</span>
+                          <span className="text-xs text-faint">
+                            {t('identity.unassigned')}
+                          </span>
                         )}
                       </div>
                     </TD>
@@ -176,18 +184,20 @@ export function UsersPage() {
                       <PlatformStatusBadge status={user.status} />
                     </TD>
                     <TD className="text-xs text-muted">
-                      {user.lastLoginTime ? formatDateTime(user.lastLoginTime) : '从未登录'}
+                      {user.lastLoginTime
+                        ? formatDateTime(user.lastLoginTime)
+                        : t('identity.users.neverLoggedIn')}
                     </TD>
                     <TD>
                       <div className="flex justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => openEdit(user)}>
-                          编辑
+                          {t('common.action.edit')}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`重置 ${user.userName} 的密码`}
-                          title="重置密码"
+                          aria-label={t('identity.users.resetPasswordAria', { name: user.userName })}
+                          title={t('identity.users.resetPassword')}
                           onClick={() => setResetTarget(user)}
                         >
                           <KeyRound className="size-3.5" />
@@ -195,7 +205,7 @@ export function UsersPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`删除 ${user.userName}`}
+                          aria-label={t('identity.users.deleteAria', { name: user.userName })}
                           onClick={() => setDeleteTarget(user)}
                         >
                           <Trash2 className="size-3.5 text-danger" />
@@ -227,13 +237,13 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={Boolean(resetTarget)}
-        title="重置密码"
+        title={t('identity.users.resetTitle')}
         description={
           resetTarget
-            ? `将「${resetTarget.userName}」的密码重置为 ${resetTarget.userName}@qwer,并使其当前会话失效。`
+            ? t('identity.users.resetDescription', { name: resetTarget.userName })
             : undefined
         }
-        confirmText="重置"
+        confirmText={t('identity.users.resetConfirm')}
         loading={resetMutation.isPending}
         onConfirm={confirmReset}
         onClose={() => setResetTarget(null)}
@@ -241,13 +251,13 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="删除用户"
+        title={t('identity.users.deleteTitle')}
         description={
           deleteTarget
-            ? `确定删除用户「${deleteTarget.userName}」吗?角色与组织绑定会一并清理,该操作不可恢复。`
+            ? t('identity.users.deleteDescription', { name: deleteTarget.userName })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t('common.action.delete')}
         danger
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}

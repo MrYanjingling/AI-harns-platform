@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useI18n } from '@/i18n'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
 
@@ -18,13 +19,14 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmText = '确认',
-  cancelText = '取消',
+  confirmText,
+  cancelText,
   danger = false,
   loading = false,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
+  const { t } = useI18n()
   return (
     <Dialog
       open={open}
@@ -35,10 +37,10 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            {cancelText}
+            {cancelText ?? t('components.confirm.cancel')}
           </Button>
           <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
-            {confirmText}
+            {confirmText ?? t('components.confirm.confirm')}
           </Button>
         </>
       }

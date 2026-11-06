@@ -26,7 +26,7 @@ export function StatCard({
           {hint ? <p className="mt-1 text-xs text-faint">{hint}</p> : null}
         </div>
         {icon ? (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-2 text-muted">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-muted">
             {icon}
           </div>
         ) : null}

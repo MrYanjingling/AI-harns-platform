@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ThingModelFeature } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { isNumericDataType } from '@/features/thing-models/data-type'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 
@@ -17,6 +18,8 @@ export function FeatureValuesEditor({
   value: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
 }) {
+  const { t } = useI18n()
+
   const set = (identifier: string, next: unknown) => {
     const copy = { ...value }
     if (!hasValue(next)) delete copy[identifier]
@@ -27,7 +30,7 @@ export function FeatureValuesEditor({
   if (features.length === 0) {
     return (
       <p className="rounded-lg border border-border bg-surface-2/50 px-3 py-2 text-xs text-muted">
-        当前物模型没有定义特征,无法填写静态特征值。
+        {t('featureValues.noFeatures')}
       </p>
     )
   }
@@ -55,8 +58,10 @@ function FeatureField({
   value: unknown
   onChange: (next: unknown) => void
 }) {
+  const { t } = useI18n()
   const type = feature.dataType.type
   const unit = feature.dataType.unit ? ` (${feature.dataType.unit})` : ''
+  const unset = t('featureValues.unset')
 
   if (isNumericDataType(type)) {
     return (
@@ -65,7 +70,7 @@ function FeatureField({
           type="number"
           step="any"
           value={typeof value === 'number' || typeof value === 'string' ? String(value) : ''}
-          placeholder="未设置"
+          placeholder={unset}
           onChange={(event) => {
             const raw = event.target.value
             if (raw === '') return onChange(undefined)
@@ -87,7 +92,7 @@ function FeatureField({
             onChange(raw === '' ? undefined : raw === 'true')
           }}
         >
-          <option value="">未设置</option>
+          <option value="">{unset}</option>
           <option value="true">{feature.dataType.trueValue || 'true'}</option>
           <option value="false">{feature.dataType.falseValue || 'false'}</option>
         </Select>
@@ -105,7 +110,7 @@ function FeatureField({
             onChange(raw === '' ? undefined : Number(raw))
           }}
         >
-          <option value="">未设置</option>
+          <option value="">{unset}</option>
           {(feature.dataType.enumSpec?.values ?? []).map((item) => (
             <option key={item.value} value={item.value}>
               {item.desc || String(item.value)} ({item.value})
@@ -132,7 +137,7 @@ function FeatureField({
     <Field label={feature.name} hint={feature.identifier}>
       <Input
         value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
-        placeholder="未设置"
+        placeholder={unset}
         onChange={(event) => onChange(event.target.value || undefined)}
       />
     </Field>
@@ -150,6 +155,7 @@ function JsonFeatureInput({
   value: unknown
   onChange: (next: unknown) => void
 }) {
+  const { t } = useI18n()
   const [text, setText] = useState(() => (value === undefined ? '' : JSON.stringify(value)))
   const [error, setError] = useState<string | null>(null)
 
@@ -164,7 +170,7 @@ function JsonFeatureInput({
       onChange(JSON.parse(next))
       setError(null)
     } catch {
-      setError('JSON 格式错误')
+      setError(t('featureValues.jsonInvalid'))
     }
   }
 
@@ -173,7 +179,7 @@ function JsonFeatureInput({
       <Textarea
         value={text}
         className="min-h-20 font-mono text-xs"
-        placeholder="JSON 值,例如 [1,2,3]"
+        placeholder={t('featureValues.jsonPlaceholder')}
         spellCheck={false}
         onChange={(event) => commit(event.target.value)}
       />

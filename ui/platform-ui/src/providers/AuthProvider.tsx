@@ -10,6 +10,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { logout as logoutRequest } from '@/api/auth'
 import { useCurrentUser } from '@/api/hooks'
+import { translate } from '@/i18n'
 import type { CurrentUser } from '@/api/types'
 import { clearSessionToken, getSessionToken, SESSION_EXPIRED_EVENT, setSessionToken } from '@/lib/session'
 
@@ -76,6 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth 必须在 AuthProvider 内使用')
+  if (!ctx) throw new Error(translate('auth.context.missing'))
   return ctx
 }

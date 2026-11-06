@@ -1,27 +1,49 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useCreateOrg, useUpdateOrg } from '@/api/hooks'
 import type { OrgInfo } from '@/api/types'
+import { useI18n, type Translate } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { flattenOrgs } from './org-utils'
 
-const schema = z.object({
-  code: z.string().trim().min(1, '请输入组织编码').max(64, '编码不能超过 64 个字符'),
-  name: z.string().trim().min(1, '请输入组织名称').max(64, '名称不能超过 64 个字符'),
-  parentId: z.string(),
-  sort: z.string().regex(/^\d*$/, '排序必须是非负整数'),
-  description: z.string().trim().max(255, '描述不能超过 255 个字符'),
-  remark: z.string().trim().max(255, '备注不能超过 255 个字符'),
-  status: z.string(),
-})
+type FormValues = {
+  code: string
+  name: string
+  parentId: string
+  sort: string
+  description: string
+  remark: string
+  status: string
+}
 
-type FormValues = z.infer<typeof schema>
+function createOrgFormSchema(t: Translate): z.ZodType<FormValues> {
+  return z.object({
+    code: z
+      .string()
+      .trim()
+      .min(1, t('identity.orgForm.validation.codeRequired'))
+      .max(64, t('identity.orgForm.validation.codeMax')),
+    name: z
+      .string()
+      .trim()
+      .min(1, t('identity.orgForm.validation.nameRequired'))
+      .max(64, t('identity.orgForm.validation.nameMax')),
+    parentId: z.string(),
+    sort: z.string().regex(/^\d*$/, t('identity.orgForm.validation.order')),
+    description: z
+      .string()
+      .trim()
+      .max(255, t('identity.orgForm.validation.descriptionMax')),
+    remark: z.string().trim().max(255, t('identity.orgForm.validation.remarkMax')),
+    status: z.string(),
+  })
+}
 
 function subtreeIds(node: OrgInfo): string[] {
   return [node.id, ...(node.children ?? []).flatMap(subtreeIds)]
@@ -54,6 +76,8 @@ export function OrgFormDialog({
 }) {
   const createMutation = useCreateOrg()
   const updateMutation = useUpdateOrg()
+  const { t } = useI18n()
+  const schema = useMemo(() => createOrgFormSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -96,10 +120,10 @@ export function OrgFormDialog({
     try {
       if (org) {
         await updateMutation.mutateAsync({ id: org.id, payload })
-        toast.success('组织已更新')
+        toast.success(t('identity.orgForm.updatedToast'))
       } else {
         await createMutation.mutateAsync(payload)
-        toast.success('组织已创建')
+        toast.success(t('identity.orgForm.createdToast'))
       }
       onClose()
     } catch (error) {
@@ -112,30 +136,44 @@ export function OrgFormDialog({
       open={open}
       onClose={onClose}
       size="lg"
-      title={org ? '编辑组织' : '新建组织'}
-      description="组织以树状结构维护,上级为空时作为根节点。"
+      title={org ? t('identity.orgForm.editTitle') : t('identity.orgForm.createTitle')}
+      description={t('identity.orgForm.description')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={pending}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button variant="primary" onClick={onSubmit} loading={pending}>
-            {org ? '保存' : '创建'}
+            {org ? t('common.action.save') : t('common.action.create')}
           </Button>
         </>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="组织名称" htmlFor="org-name" required error={errors.name?.message}>
+          <Field
+            label={t('identity.orgForm.name')}
+            htmlFor="org-name"
+            required
+            error={errors.name?.message}
+          >
             <Input id="org-name" {...register('name')} />
           </Field>
-          <Field label="组织编码" htmlFor="org-code" required error={errors.code?.message}>
+          <Field
+            label={t('identity.orgForm.code')}
+            htmlFor="org-code"
+            required
+            error={errors.code?.message}
+          >
             <Input id="org-code" className="font-mono" {...register('code')} />
           </Field>
-          <Field label="上级组织" htmlFor="org-parent" hint="不选则作为根组织">
+          <Field
+            label={t('identity.orgForm.parent')}
+            htmlFor="org-parent"
+            hint={t('identity.orgForm.parentHint')}
+          >
             <Select id="org-parent" {...register('parentId')}>
-              <option value="">根组织</option>
+              <option value="">{t('identity.orgForm.root')}</option>
               {parentOptions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {'　'.repeat(item.depth)}
@@ -144,20 +182,28 @@ export function OrgFormDialog({
               ))}
             </Select>
           </Field>
-          <Field label="排序" htmlFor="org-sort" error={errors.sort?.message}>
+          <Field label={t('identity.orgForm.order')} htmlFor="org-sort" error={errors.sort?.message}>
             <Input id="org-sort" type="number" min={0} {...register('sort')} />
           </Field>
-          <Field label="状态" htmlFor="org-status">
+          <Field label={t('common.field.status')} htmlFor="org-status">
             <Select id="org-status" {...register('status')}>
-              <option value="enabled">启用</option>
-              <option value="disabled">禁用</option>
+              <option value="enabled">{t('common.field.enabled')}</option>
+              <option value="disabled">{t('common.field.disabled')}</option>
             </Select>
           </Field>
         </div>
-        <Field label="描述" htmlFor="org-desc" error={errors.description?.message}>
+        <Field
+          label={t('common.field.description')}
+          htmlFor="org-desc"
+          error={errors.description?.message}
+        >
           <Textarea id="org-desc" {...register('description')} />
         </Field>
-        <Field label="备注" htmlFor="org-remark" error={errors.remark?.message}>
+        <Field
+          label={t('common.field.remark')}
+          htmlFor="org-remark"
+          error={errors.remark?.message}
+        >
           <Textarea id="org-remark" {...register('remark')} />
         </Field>
       </form>

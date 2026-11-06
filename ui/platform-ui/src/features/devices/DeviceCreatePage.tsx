@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Cable, Cpu, Globe2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateDevice } from '@/api/hooks'
 import type { DeviceType } from '@/api/types'
+import { useI18n } from '@/i18n'
 import { PROTOCOLS } from '@/lib/constants'
 import { errorMessage } from '@/lib/http'
 import { cn } from '@/lib/cn'
@@ -19,6 +20,7 @@ const ICONS: Record<DeviceType, typeof Cable> = {
 }
 
 export function DeviceCreatePage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const createDevice = useCreateDevice()
   const [type, setType] = useState<DeviceType | null>(null)
@@ -26,7 +28,7 @@ export function DeviceCreatePage() {
   const submit = (values: ReturnType<typeof defaultFormValues>) => {
     createDevice.mutate(toPayload(values), {
       onSuccess: (device) => {
-        toast.success(`设备「${device.name}」已创建`)
+        toast.success(t('devices.create.success', { name: device.name }))
         navigate(`/devices/${device.id}`)
       },
       onError: (error) => toast.error(errorMessage(error)),
@@ -37,12 +39,14 @@ export function DeviceCreatePage() {
     <div>
       <PageHeader
         backTo="/devices"
-        backLabel="返回设备列表"
-        title={type ? `新建设备 · ${PROTOCOLS[type].label}` : '新建设备'}
-        description={
+        backLabel={t('devices.backToList')}
+        title={
           type
-            ? '填写设备信息与采集变量,创建后可随时启停或修改。'
-            : '选择设备使用的协议,不同协议的连接参数与变量字段不同。'
+            ? t('devices.create.titleWithProtocol', { protocol: PROTOCOLS[type].label })
+            : t('devices.create.title')
+        }
+        description={
+          type ? t('devices.create.description') : t('devices.create.selectProtocol')
         }
         actions={
           type ? (
@@ -51,7 +55,7 @@ export function DeviceCreatePage() {
               icon={<ArrowLeft className="size-4" />}
               onClick={() => setType(null)}
             >
-              更换协议
+              {t('devices.create.changeProtocol')}
             </Button>
           ) : undefined
         }
@@ -68,30 +72,30 @@ export function DeviceCreatePage() {
                 type="button"
                 onClick={() => setType(key)}
                 className={cn(
-                  'group flex flex-col items-start gap-3 rounded-2xl border border-border bg-surface p-5 text-left',
+                  'group flex flex-col items-start gap-3 rounded border border-border bg-surface p-5 text-left',
                   'transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                 )}
               >
-                <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                <span className="flex size-10 items-center justify-center rounded bg-primary-soft text-primary">
                   <Icon className="size-5" />
                 </span>
                 <span>
                   <span className="block text-sm font-semibold">{protocol.label}</span>
                   <span className="mt-1 block text-xs leading-relaxed text-muted">
-                    {protocol.description}
+                    {t(protocol.descriptionKey)}
                   </span>
                 </span>
                 <span className="mt-auto w-full space-y-1.5 border-t border-border pt-3">
                   {protocol.models.map((model) => (
                     <span key={model.value} className="flex items-center justify-between gap-2">
                       <span className="font-mono text-[11px] text-muted">{model.value}</span>
-                      <span className="text-[10px] text-faint">{model.hint}</span>
+                      <span className="text-[10px] text-faint">{t(model.hintKey)}</span>
                     </span>
                   ))}
                 </span>
                 <span className="flex items-center gap-1 text-xs font-medium text-primary">
-                  开始配置
+                  {t('devices.create.startConfig')}
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>

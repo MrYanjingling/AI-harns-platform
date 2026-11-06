@@ -1,3 +1,4 @@
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/cn'
 
 export function Spinner({ className }: { className?: string }) {
@@ -19,11 +20,12 @@ export function Spinner({ className }: { className?: string }) {
   )
 }
 
-export function PageLoading({ label = '加载中…' }: { label?: string }) {
+export function PageLoading({ label }: { label?: string }) {
+  const { t } = useI18n()
   return (
     <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-muted">
       <Spinner className="size-6 text-primary" />
-      <p className="text-sm">{label}</p>
+      <p className="text-sm">{label ?? t('components.loading')}</p>
     </div>
   )
 }

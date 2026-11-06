@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useI18n } from '@/i18n'
 import { DEVICE_STATUS, PROTOCOLS, UNKNOWN_STATUS } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import {
@@ -15,6 +16,7 @@ interface DeviceSituationPanelProps {
 }
 
 export function DeviceSituationPanel({ layout, selectedId, onSelect }: DeviceSituationPanelProps) {
+  const { t } = useI18n()
   const { devices, counts, protocolCounts } = useMemo(() => {
     const devices = layout.map((item) => item.device)
     const counts = { total: devices.length, running: 0, abnormal: 0, inactive: 0 }
@@ -35,18 +37,18 @@ export function DeviceSituationPanel({ layout, selectedId, onSelect }: DeviceSit
   }, [layout])
 
   const stats = [
-    { label: '设备总数', value: counts.total, tone: 'text-fg' },
-    { label: '采集中', value: counts.running, tone: 'text-success' },
-    { label: '采集异常', value: counts.abnormal, tone: 'text-warning' },
-    { label: '未运行', value: counts.inactive, tone: 'text-muted' },
+    { label: t('screen.situation.devices'), value: counts.total, tone: 'text-fg' },
+    { label: t('screen.situation.running'), value: counts.running, tone: 'text-success' },
+    { label: t('screen.situation.abnormal'), value: counts.abnormal, tone: 'text-warning' },
+    { label: t('screen.situation.inactive'), value: counts.inactive, tone: 'text-muted' },
   ]
 
   return (
     <aside className="flex max-h-[560px] min-h-0 flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-surface/70 p-3 backdrop-blur lg:h-full lg:max-h-none">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold tracking-wide">设备态势</h2>
+        <h2 className="text-xs font-semibold tracking-wide">{t('screen.situation.title')}</h2>
         <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted tabular">
-          共 {counts.total} 台
+          {t('screen.situation.total', { count: counts.total })}
         </span>
       </div>
 
@@ -60,7 +62,9 @@ export function DeviceSituationPanel({ layout, selectedId, onSelect }: DeviceSit
       </div>
 
       <div>
-        <h3 className="mb-2 text-[10px] font-medium tracking-wider text-faint uppercase">协议分区</h3>
+        <h3 className="mb-2 text-[10px] font-medium tracking-wider text-faint uppercase">
+          {t('screen.situation.zones')}
+        </h3>
         <div className="space-y-2">
           {protocolCounts.map(({ type, count }) => (
             <div key={type} className="flex items-center gap-2 text-[11px]">
@@ -80,9 +84,11 @@ export function DeviceSituationPanel({ layout, selectedId, onSelect }: DeviceSit
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <h3 className="mb-2 text-[10px] font-medium tracking-wider text-faint uppercase">设备列表</h3>
+        <h3 className="mb-2 text-[10px] font-medium tracking-wider text-faint uppercase">
+          {t('screen.situation.deviceList')}
+        </h3>
         {devices.length === 0 ? (
-          <p className="py-6 text-center text-xs text-muted">暂无设备</p>
+          <p className="py-6 text-center text-xs text-muted">{t('screen.situation.noDevices')}</p>
         ) : (
           <div className="-mr-1 space-y-1 overflow-y-auto pr-1">
             {devices.map((device) => {

@@ -1,11 +1,13 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useI18n } from '@/i18n'
 import { useAuth } from '@/providers/AuthProvider'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { PageLoading } from '@/components/ui/Spinner'
 
 /** 未登录跳转登录页;登录后回到原始地址。 */
 export function RequireAuth({ children }: { children: ReactNode }) {
+  const { t } = useI18n()
   const { token, userLoading, userError } = useAuth()
   const location = useLocation()
 
@@ -13,7 +15,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   }
 
-  if (userLoading) return <PageLoading label="正在验证登录状态…" />
+  if (userLoading) return <PageLoading label={t('common.loading.session')} />
 
   if (userError) {
     return (

@@ -1,23 +1,42 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useCreateRole, useUpdateRole } from '@/api/hooks'
 import type { RoleInfo } from '@/api/types'
+import { useI18n, type Translate } from '@/i18n'
 import { errorMessage } from '@/lib/http'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 
-const schema = z.object({
-  name: z.string().trim().min(1, '请输入角色名称').max(64, '名称不能超过 64 个字符'),
-  code: z.string().trim().min(1, '请输入角色编码').max(64, '编码不能超过 64 个字符'),
-  description: z.string().trim().max(255, '描述不能超过 255 个字符'),
-  status: z.string(),
-})
+type FormValues = {
+  name: string
+  code: string
+  description: string
+  status: string
+}
 
-type FormValues = z.infer<typeof schema>
+function createRoleFormSchema(t: Translate): z.ZodType<FormValues> {
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t('identity.roleForm.validation.nameRequired'))
+      .max(64, t('identity.roleForm.validation.nameMax')),
+    code: z
+      .string()
+      .trim()
+      .min(1, t('identity.roleForm.validation.codeRequired'))
+      .max(64, t('identity.roleForm.validation.codeMax')),
+    description: z
+      .string()
+      .trim()
+      .max(255, t('identity.roleForm.validation.descriptionMax')),
+    status: z.string(),
+  })
+}
 
 const EMPTY: FormValues = { name: '', code: '', description: '', status: 'enabled' }
 
@@ -32,6 +51,8 @@ export function RoleFormDialog({
 }) {
   const createMutation = useCreateRole()
   const updateMutation = useUpdateRole()
+  const { t } = useI18n()
+  const schema = useMemo(() => createRoleFormSchema(t), [t])
   const {
     register,
     handleSubmit,
@@ -65,10 +86,10 @@ export function RoleFormDialog({
     try {
       if (role) {
         await updateMutation.mutateAsync({ id: role.id, payload })
-        toast.success('角色已更新')
+        toast.success(t('identity.roleForm.updatedToast'))
       } else {
         await createMutation.mutateAsync(payload)
-        toast.success('角色已创建')
+        toast.success(t('identity.roleForm.createdToast'))
       }
       onClose()
     } catch (error) {
@@ -80,35 +101,49 @@ export function RoleFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={role ? '编辑角色' : '新建角色'}
-      description="角色编码用于标识权限集合,建议保持唯一且稳定。"
+      title={role ? t('identity.roleForm.editTitle') : t('identity.roleForm.createTitle')}
+      description={t('identity.roleForm.description')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={pending}>
-            取消
+            {t('common.action.cancel')}
           </Button>
           <Button variant="primary" onClick={onSubmit} loading={pending}>
-            {role ? '保存' : '创建'}
+            {role ? t('common.action.save') : t('common.action.create')}
           </Button>
         </>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="角色名称" htmlFor="role-name" required error={errors.name?.message}>
+          <Field
+            label={t('identity.roleForm.name')}
+            htmlFor="role-name"
+            required
+            error={errors.name?.message}
+          >
             <Input id="role-name" {...register('name')} />
           </Field>
-          <Field label="角色编码" htmlFor="role-code" required error={errors.code?.message}>
+          <Field
+            label={t('identity.roleForm.code')}
+            htmlFor="role-code"
+            required
+            error={errors.code?.message}
+          >
             <Input id="role-code" className="font-mono" {...register('code')} />
           </Field>
-          <Field label="状态" htmlFor="role-status">
+          <Field label={t('common.field.status')} htmlFor="role-status">
             <Select id="role-status" {...register('status')}>
-              <option value="enabled">启用</option>
-              <option value="disabled">禁用</option>
+              <option value="enabled">{t('common.field.enabled')}</option>
+              <option value="disabled">{t('common.field.disabled')}</option>
             </Select>
           </Field>
         </div>
-        <Field label="描述" htmlFor="role-desc" error={errors.description?.message}>
+        <Field
+          label={t('identity.roleForm.descriptionField')}
+          htmlFor="role-desc"
+          error={errors.description?.message}
+        >
           <Textarea id="role-desc" {...register('description')} />
         </Field>
       </form>
