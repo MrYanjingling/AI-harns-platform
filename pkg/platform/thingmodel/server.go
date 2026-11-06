@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -88,8 +87,7 @@ func update(svc *Service) gin.HandlerFunc {
 
 func remove(svc *Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		cascade, _ := strconv.ParseBool(c.Query("cascade"))
-		if err := svc.Delete(c.Request.Context(), c.Param("id"), cascade); err != nil {
+		if err := svc.Delete(c.Request.Context(), c.Param("id")); err != nil {
 			writeErr(c, err)
 			return
 		}

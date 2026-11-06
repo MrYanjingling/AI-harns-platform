@@ -22,8 +22,11 @@ func TestInstallHandlerRegistersRoutes(t *testing.T) {
 	}
 	for _, want := range []string{
 		"POST /api/v1/iot/things",
+		"POST /api/v1/iot/things/timeseries",
 		"GET /api/v1/iot/things",
-		"GET /api/v1/iot/things/:id",
+		"GET /api/v1/iot/things/:id/basic",
+		"GET /api/v1/iot/things/:id/features",
+		"GET /api/v1/iot/things/:id/shadow",
 		"PUT /api/v1/iot/things/:id",
 		"DELETE /api/v1/iot/things",
 	} {
@@ -48,7 +51,7 @@ func TestWriteErrReturnsFieldErrors(t *testing.T) {
 }
 
 func TestNewServiceDefaultTTL(t *testing.T) {
-	svc := NewService(nil, nil, 0, nil)
+	svc := NewService(nil, nil, 0, nil, nil, nil, AuthDenyCacheConfig{})
 	require.NotNil(t, svc)
 	assert.Equal(t, 60, int(svc.onlineTTL.Seconds()))
 }

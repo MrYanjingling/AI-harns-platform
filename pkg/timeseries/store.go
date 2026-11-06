@@ -18,10 +18,11 @@ import (
 
 // Store wraps the InfluxDB HTTP writer and the batch pipelines.
 type Store struct {
-	cfg  Config
-	http *http.Client
-	data *batcher
-	log  *batcher
+	cfg   Config
+	http  *http.Client
+	data  *batcher
+	debug *batcher
+	log   *batcher
 }
 
 // NewStore creates the HTTP writer and batchers.
@@ -32,6 +33,10 @@ func NewStore(cfg Config) (*Store, error) {
 	}
 	s.data = newBatcher(&databaseWriter{store: s, database: cfg.Database},
 		cfg.BatchSize, cfg.FlushInterval(), cfg.WriteTimeout(), cfg.QueueSize)
+	if cfg.DebugDatabase != "" {
+		s.debug = newBatcher(&databaseWriter{store: s, database: cfg.DebugDatabase},
+			cfg.BatchSize, cfg.FlushInterval(), cfg.WriteTimeout(), cfg.QueueSize)
+	}
 	s.log = newBatcher(&databaseWriter{store: s, database: cfg.LogDatabase},
 		cfg.BatchSize, cfg.FlushInterval(), cfg.WriteTimeout(), cfg.QueueSize)
 	return s, nil
@@ -42,10 +47,18 @@ func (s *Store) Start(ctx context.Context) error {
 	if err := s.ensureDatabase(ctx, s.cfg.Database, s.cfg.DataRetention); err != nil {
 		return err
 	}
+	if s.cfg.DebugDatabase != "" {
+		if err := s.ensureDatabase(ctx, s.cfg.DebugDatabase, s.cfg.DebugDataRetention); err != nil {
+			return err
+		}
+	}
 	if err := s.ensureDatabase(ctx, s.cfg.LogDatabase, s.cfg.LogRetention); err != nil {
 		return err
 	}
 	s.data.start()
+	if s.debug != nil {
+		s.debug.start()
+	}
 	s.log.start()
 	return nil
 }
@@ -54,6 +67,9 @@ func (s *Store) Start(ctx context.Context) error {
 func (s *Store) Close() error {
 	if s.data != nil {
 		s.data.close()
+	}
+	if s.debug != nil {
+		s.debug.close()
 	}
 	if s.log != nil {
 		s.log.close()
@@ -69,12 +85,33 @@ func (s *Store) EnqueueData(ctx context.Context, points ...*Point) error {
 	return s.data.enqueue(ctx, points...)
 }
 
+// EnqueueDebugData queues points for the debug database.
+func (s *Store) EnqueueDebugData(ctx context.Context, points ...*Point) error {
+	if s.debug == nil {
+		return ErrBatcherClosed
+	}
+	return s.debug.enqueue(ctx, points...)
+}
+
 // EnqueueLog queues points for the log database.
 func (s *Store) EnqueueLog(ctx context.Context, points ...*Point) error {
 	if s.log == nil {
 		return ErrBatcherClosed
 	}
 	return s.log.enqueue(ctx, points...)
+}
+
+// Flush waits until the current data, debug, and log batches are written.
+func (s *Store) Flush(ctx context.Context) error {
+	for _, b := range []*batcher{s.data, s.debug, s.log} {
+		if b == nil {
+			continue
+		}
+		if err := b.flushNow(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type databaseWriter struct {
@@ -114,6 +151,100 @@ func (s *Store) writePoints(ctx context.Context, database string, points []*Poin
 	payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	return fmt.Errorf("write timeseries %s failed: status=%d body=%s",
 		database, resp.StatusCode, strings.TrimSpace(string(payload)))
+}
+
+// QuerySQL executes a SQL query and returns rows with JSON numbers preserved.
+func (s *Store) QuerySQL(ctx context.Context, database, query string) ([]map[string]any, error) {
+	body, err := json.Marshal(map[string]string{
+		"db":     database,
+		"q":      query,
+		"format": "json",
+	})
+	if err != nil {
+		return nil, err
+	}
+	endpoint := strings.TrimRight(s.cfg.URL, "/") + "/api/v3/query_sql"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if s.cfg.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.cfg.Token)
+	}
+
+	resp, err := s.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("query timeseries: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("query timeseries failed: status=%d body=%s",
+			resp.StatusCode, strings.TrimSpace(string(payload)))
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	var rows []map[string]any
+	if err := decoder.Decode(&rows); err != nil {
+		if err == io.EOF {
+			return []map[string]any{}, nil
+		}
+		return nil, fmt.Errorf("decode timeseries query result: %w", err)
+	}
+	return rows, nil
+}
+
+// QueryColumnNames returns the existing columns of a table.
+func (s *Store) QueryColumnNames(ctx context.Context, database, table string) (map[string]struct{}, error) {
+	query := fmt.Sprintf(
+		`SELECT column_name FROM information_schema.columns WHERE table_schema = 'iox' AND table_name = %s`,
+		quoteLiteral(table))
+	rows, err := s.QuerySQL(ctx, database, query)
+	if err != nil {
+		return nil, err
+	}
+	columns := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		name, _ := row["column_name"].(string)
+		if name != "" {
+			columns[name] = struct{}{}
+		}
+	}
+	return columns, nil
+}
+
+// DeleteTable soft-deletes one measurement from a database.
+func (s *Store) DeleteTable(ctx context.Context, database, table string) error {
+	query := url.Values{
+		"db":    []string{database},
+		"table": []string{table},
+	}
+	endpoint := strings.TrimRight(s.cfg.URL, "/") + "/api/v3/configure/table?" + query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	if s.cfg.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.cfg.Token)
+	}
+
+	resp, err := s.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete timeseries table %s.%s: %w", database, table, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	message := strings.ToLower(string(payload))
+	if resp.StatusCode == http.StatusNotFound || strings.Contains(message, "not found") || strings.Contains(message, "does not exist") {
+		return nil
+	}
+	return fmt.Errorf("delete timeseries table %s.%s failed: status=%d body=%s",
+		database, table, resp.StatusCode, strings.TrimSpace(string(payload)))
 }
 
 func (s *Store) ensureDatabase(ctx context.Context, name, retention string) error {

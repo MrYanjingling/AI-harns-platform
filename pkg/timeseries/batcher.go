@@ -18,6 +18,7 @@ type pointWriter interface {
 
 type batcher struct {
 	ch           chan *Point
+	flushCh      chan chan struct{}
 	writer       pointWriter
 	size         int
 	interval     time.Duration
@@ -31,6 +32,7 @@ type batcher struct {
 func newBatcher(writer pointWriter, size int, interval, writeTimeout time.Duration, queueSize int) *batcher {
 	return &batcher{
 		ch:           make(chan *Point, queueSize),
+		flushCh:      make(chan chan struct{}),
 		writer:       writer,
 		size:         size,
 		interval:     interval,
@@ -62,6 +64,10 @@ func (b *batcher) run() {
 				b.flush(batch)
 				batch = batch[:0]
 			}
+		case done := <-b.flushCh:
+			b.flush(batch)
+			batch = batch[:0]
+			close(done)
 		case <-ticker.C:
 			if len(batch) > 0 {
 				b.flush(batch)
@@ -89,6 +95,21 @@ func (b *batcher) enqueue(ctx context.Context, points ...*Point) error {
 		}
 	}
 	return nil
+}
+
+func (b *batcher) flushNow(ctx context.Context) error {
+	done := make(chan struct{})
+	select {
+	case b.flushCh <- done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (b *batcher) close() {

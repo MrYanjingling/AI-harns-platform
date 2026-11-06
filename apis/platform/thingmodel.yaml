@@ -109,17 +109,14 @@ paths:
                   data: { $ref: '#/components/schemas/ThingModelVo' }
     delete:
       tags: [ThingModel]
-      summary: Delete a thing model and all of its properties.
+      summary: Delete a thing model, all of its things, and all properties.
       description: |
-        cascade is reserved for cascading to related things. Properties always
-        belong to the model and are deleted with it.
+        Deletes the model, its properties, and all things that belong to it in
+        one transaction. After commit, MQTT clients are kicked asynchronously by
+        mqttClientId, then model and thing caches are cleaned synchronously;
+        rule/alarm configuration relations and model time series tables are
+        cleaned asynchronously. The endpoint accepts only the path id.
       operationId: deleteThingModel
-      parameters:
-        - name: cascade
-          in: query
-          required: false
-          description: Reserved for related things; default false, invalid values are treated as false.
-          schema: { type: boolean, default: false }
       responses:
         '200':
           description: Deleted

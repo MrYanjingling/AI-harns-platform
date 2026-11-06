@@ -17,9 +17,11 @@ import (
 )
 
 type ThingsConfig struct {
-	OnlineTTLSeconds int
-	AuthSecret       string
-	Message          MessageConfig
+	OnlineTTLSeconds        int
+	AuthSecret              string
+	AuthDenyCacheTTLSeconds int
+	AuthDenyCacheMaxEntries int
+	Message                 MessageConfig
 }
 
 type MessageConfig struct {

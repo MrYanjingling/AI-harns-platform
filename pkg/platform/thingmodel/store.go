@@ -119,29 +119,65 @@ func (s *Store) UpdateThingModel(ctx context.Context, m *ThingModel) (int64, err
 	return res.RowsAffected()
 }
 
-// DeleteThingModel deletes the model and all of its properties in one transaction.
-func (s *Store) DeleteThingModel(ctx context.Context, id string) (int64, error) {
+// DeleteThingModel deletes the model, its properties, and all of its things in
+// one transaction. The returned refs are used by post-commit cache cleanup.
+func (s *Store) DeleteThingModel(ctx context.Context, id string) (*DeleteThingModelResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer tx.Rollback()
 
+	var modelKey string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT thing_model_key FROM thing_models WHERE id = ? FOR UPDATE`, id).Scan(&modelKey); err != nil {
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id, token, mqtt_client_id FROM things WHERE thing_model_id = ? FOR UPDATE`, id)
+	if err != nil {
+		return nil, err
+	}
+	refs := make([]ThingRef, 0)
+	for rows.Next() {
+		var ref ThingRef
+		if err := rows.Scan(&ref.ID, &ref.Token, &ref.MQTTClientID); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM things WHERE thing_model_id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	deletedThings, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM thing_model_properties WHERE thing_model_id = ?`, id); err != nil {
-		return 0, err
+		return nil, err
 	}
-	res, err := tx.ExecContext(ctx, `DELETE FROM thing_models WHERE id = ?`, id)
-	if err != nil {
-		return 0, err
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return 0, err
+	if _, err := tx.ExecContext(ctx, `DELETE FROM thing_models WHERE id = ?`, id); err != nil {
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return n, nil
+	return &DeleteThingModelResult{
+		ModelKey:      modelKey,
+		DeletedThings: deletedThings,
+		ThingRefs:     refs,
+	}, nil
 }
 
 // ExistsThingModelName reports whether the name is taken.

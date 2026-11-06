@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS `things` (
   `mqtt_username`   VARCHAR(64)  COLLATE utf8mb4_bin NOT NULL COMMENT '默认等于 deviceKey',
   `mqtt_password`   VARCHAR(64)  NOT NULL COMMENT '默认等于 deviceSecret',
   `enable`          TINYINT      NOT NULL DEFAULT 1 COMMENT '1 启用，0 禁用',
+  `debug`           TINYINT      NOT NULL DEFAULT 0 COMMENT '1 debug，0 生产',
   `created_user`    VARCHAR(64)  NOT NULL DEFAULT '',
   `updated_user`    VARCHAR(64)  NOT NULL DEFAULT '',
   `created_time`    DATETIME     NOT NULL,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `things` (
 | mqtt_username | 后端 | 创建时等于 `deviceKey`，可修改 |
 | mqtt_password | 后端 | 创建时等于 `deviceSecret`，可修改 |
 | enable | 后端 | 创建固定 1，可通过更新接口切换 |
+| debug | 入参/后端 | 0 或 1，默认 0；开启后属性数据写入 debug 时序库，影子照常更新，不触发告警/规则 |
 
 > `deviceKey`、`deviceSecret`、`token` 创建后不可修改。
 
@@ -107,7 +109,8 @@ CREATE TABLE IF NOT EXISTS `things` (
 - 未传 `deviceKey` 时自动生成。
 - `features` 可选；key 必须在物模型中定义，值只校验合法 JSON，不校验 dataType 范围。
 - `image` 可选；非空时必须以 `images/` 开头，来源于 `/api/v1/iot/files` 返回的 key。
-- 响应返回创建结果，包含 `deviceSecret`、`token`、`mqttPassword` 和 `features`。
+- `debug` 可选；`0` 或 `1`，默认 `0`。
+- 响应返回创建结果，包含 `deviceSecret`、`token`、`mqttPassword`、`debug` 和 `features`。
 
 ## 5. 查询与在线状态
 
@@ -115,14 +118,137 @@ CREATE TABLE IF NOT EXISTS `things` (
 
 ```
 GET /api/v1/iot/things?page=1&pageSize=10&keyword=设备
-GET /api/v1/iot/things/:id
+GET /api/v1/iot/things/:id/basic
+GET /api/v1/iot/things/:id/features
+GET /api/v1/iot/things/:id/shadow
+POST /api/v1/iot/things/timeseries
 ```
 
 - `keyword` 同时模糊匹配 `deviceName` 与 `deviceKey`。
 - 按 `created_time DESC` 排序。
-- 列表不返回 `deviceSecret`、`token`、`mqttPassword`、`features`、`image`；详情返回完整字段。
+- 列表不返回 `deviceSecret`、`token`、`mqttPassword`、`features`、`image`；基本信息详情返回完整字段、模型 key/name、MQTT broker、上传格式和创建人/更新人。
+- `/features` 返回设备特征值原始 map；模型中定义但设备未设置的特征返回 `null`。
 
-### 5.2 Redis 活跃时间索引
+特征值响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "ratedVoltage": 380,
+    "ratedPower": "5.5kW",
+    "unsetFeature": null
+  }
+}
+```
+
+### 5.2 设备影子查询
+
+```http
+GET /api/v1/iot/things/:id/shadow?page=1&pageSize=10&keyword=温度
+```
+
+返回物模型属性分页数据，并合并 Redis 影子：
+
+```json
+{
+  "thingId": "01...",
+  "version": 3,
+  "timestamp": 1773827321000,
+  "properties": {
+    "total": 12,
+    "page": 1,
+    "pageSize": 10,
+    "list": [
+      {
+        "identifier": "temperature",
+        "name": "温度",
+        "dataType": {"type": "double", "unit": "℃"},
+        "rwFlag": "r",
+        "required": true,
+        "description": "环境温度",
+        "custom": {},
+        "sort": 0,
+        "value": 26.0,
+        "desiredValue": 25.0
+      }
+    ]
+  }
+}
+```
+
+- `page` 默认 1，`pageSize` 默认 10、最大 100。
+- `keyword` 模糊匹配属性 `identifier` 或 `name`。
+- `total` 为 keyword 过滤后的属性总数。
+- `value` 来自影子 `reported`，`desiredValue` 来自 `desired`。
+- 物模型中存在但影子没有对应值时返回 `null`。
+- 影子中存在但物模型已不存在的属性忽略。
+- boolean/enum 的展示翻译由前端根据 `dataType` 完成。
+- Redis 异常时返回空影子（version/timestamp=0，值全为 null），并记录日志。
+
+### 5.3 设备时序查询
+
+```http
+POST /api/v1/iot/things/timeseries
+```
+
+请求：
+
+```json
+{
+  "things": [
+    {"thingId": "01...", "properties": ["temperature"]},
+    {"thingId": "02...", "properties": ["b"]}
+  ],
+  "startTime": 1773827321000,
+  "endTime": "2026-11-05T10:00:00Z",
+  "aggregate": "raw",
+  "interval": "",
+  "sort": "asc",
+  "limit": 100
+}
+```
+
+- 最多 50 个 thing，每个 thing 最多 100 个属性。
+- `startTime` / `endTime` 支持 Unix 毫秒或 RFC3339。
+- `aggregate`：`raw` 或 `timeseries.query-aggregates` 配置的聚合函数，默认包含 `min/max/avg/count/sum/median/stddev`。
+- `count` 允许任意属性类型；`min/max/avg/sum/median/stddev` 只允许数值属性。
+- `interval`：`1s`、`5m`、`1h`、`1d`、`1w`；raw 不允许 interval。
+- `limit` 默认 100、最大 2000，按每个 thing 独立限制。
+- 重复 thingId 会合并 properties。
+- 校验失败只影响对应 thing/属性，成功项继续查询。
+- 按 `(debug, modelKey)` 分组查询各自的 `device_property_<modelKey>` 表；`debug=1` 查 `harns_timeseries_debug`，否则查 `harns_timeseries`。
+- thingId → 完整设备快照使用 Redis 缓存 `iot:thing:snapshot:<thingId>`，TTL 24h，包含 `modelKey` 与 `debug`；更新/删除设备时清理。
+
+返回：
+
+```json
+{
+  "aggregate": "raw",
+  "interval": "",
+  "series": [
+    {
+      "thingId": "01...",
+      "modelKey": "tm_a",
+      "points": [{"time": 1773827321000, "values": {"temperature": 26.0}}]
+    }
+  ],
+  "errors": []
+}
+```
+
+全局 min/max/avg 返回 `values` 而不是 `points`。全部失败时仍返回 200，`series: []`，`errors` 带原因。
+
+### 5.4 设备 debug
+
+- `debug=1` 时属性数据写入 `harns_timeseries_debug`（默认保留 7 天），生产库不再写入新数据。
+- debug 数据仍更新设备影子，但不会触发告警/规则。
+- 时序查询按设备当前 `debug` 选择数据库；关闭 debug 后立即切回生产库。
+- 关闭 debug 不迁移历史 debug 数据，旧数据按保留期自然过期。
+- 完整设备快照缓存包含 `debug`，处理器按 `thingId` 实时读取，不需要设备重连。
+
+### 5.5 Redis 活跃时间索引
 
 HTTP 与 MQTT 共用同一个全局结构，避免逐设备读取：
 
@@ -184,6 +310,12 @@ online = enable == 1 && score != null && now - score <= onlineTTL
   "downTopic": "iot/device_001/down",
   "mqttClientId": "01k8...",
   "mqttUsername": "device_001",
+  "mqttBroker": "127.0.0.1:1883",
+  "thingModelKey": "tm_...",
+  "thingModelName": "温湿度传感器",
+  "uploadFormat": "{\"type\":\"property\",\"payload\":[{\"time\":1772343234400,\"property\":{\"temperature\":0,\"humidity\":0,\"enabled\":false}}]}",
+  "createdBy": {"id": "01k8...", "userName": "admin", "nickName": "超级管理员"},
+  "updatedBy": {"id": "01k8...", "userName": "admin", "nickName": "超级管理员"},
   "enable": 1,
   "onlineStatus": 1,
   "lastActiveTime": 1760000000000
@@ -228,10 +360,21 @@ online = enable == 1 && score != null && now - score <= onlineTTL
 ```
 
 - body 为纯 id 数组。
-- `cascade` 默认 false，非 `true` 按 false 处理。
+- `cascade` 默认 false，非 `true` 按 false 处理，当前无额外行为。
 - 幂等：不存在的 id 忽略，返回 `{"deleted": n}`。
-- 当前删除 things，并 `ZREM iot:thing:last-active` 清理活跃索引；`cascade` 预留给后续影子、时序数据清理。
-- `ZREM` 失败只记录日志，不影响删除结果。
+- 单事务锁定并删除 `things`。
+- 提交后立即异步按 `mqtt_client_id` 踢除 EMQX client。
+- 随后清理：
+  - `iot:thing:token:<sha256(token)>`
+  - `iot:thing:snapshot:<thingId>`
+  - `iot:thing:shadow:<thingId>`
+  - `ZREM iot:thing:last-active <thingId...>`
+- 规则关联和告警配置关联通过 `ThingRelationCleaner` 异步清理；当前未实现，接口为空实现。
+- 异步清理失败或尚未执行时会留下孤儿关联，后续每日凌晨任务负责清理。
+- 不删除时序数据。
+- Redis 清理失败只记录日志，不影响删除结果。
+
+物模型删除会级联删除该模型下全部 Thing；提交后立即异步踢除这些 Thing 的 EMQX client，并按与设备删除相同的缓存规则清理 token、snapshot、shadow 和活跃索引；关联数据和物模型时序表异步清理。
 
 ## 8. 设备认证（EMQX）
 
@@ -265,7 +408,6 @@ JOIN thing_models m ON m.id = t.thing_model_id
 WHERE t.mqtt_client_id = ?
   AND t.mqtt_username = ?
   AND t.mqtt_password = ?
-  AND t.enable = 1
 LIMIT 1
 ```
 
@@ -295,7 +437,13 @@ LIMIT 1
 { "result": "deny", "is_superuser": false }
 ```
 
-- 任一凭据为空、查不到、`enable=0`、共享密钥不匹配、DB 异常 → 401 deny。
+- 认证前先查本地 deny cache；命中则直接 401，不再查库。
+- 凭据查不到：按 `clientid + username + password` 哈希写入本地 deny cache 1 小时，然后 401。
+- 查到但 `enable=0`：打印 warning，然后 401；不写入 deny cache。
+- 任一凭据为空、共享密钥不匹配、DB 异常 → 401 deny。
+- deny cache 只保存 SHA-256 指纹，不保存明文 password；默认上限 50000 条，超限淘汰。
+- deny cache 为进程本地缓存，多实例部署时各实例独立；配置项为 `things.auth-deny-cache-ttl-seconds` 与 `things.auth-deny-cache-max-entries`。
+- 删除 Thing 或物模型后，平台异步驱逐 MQTT 连接：批量使用 `POST /api/v5/clients/kickout/bulk`，单个使用 `DELETE /api/v5/clients/{clientId}`；批量接口不支持时回退逐个删除。
 - EMQX 会把 401 当作 `ignore` 继续认证链，与现有 Java 行为一致。
 - 日志不会记录 password。
 

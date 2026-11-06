@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"harns-platform/pkg/apis"
+	"harns-platform/pkg/platform/thingmodel/tsl"
 )
 
 // Store is the SQL access layer of the things module.
@@ -19,13 +20,19 @@ func NewStore(db *sql.DB) *Store {
 }
 
 const thingColumns = `id, version, thing_model_id, device_name, device_key, device_secret, token,
- up_topic, down_topic, device_desc, features, image, mqtt_client_id, mqtt_username, mqtt_password, enable,
+ up_topic, down_topic, device_desc, features, image, mqtt_client_id, mqtt_username, mqtt_password, enable, debug,
  created_user, updated_user, created_time, updated_time`
 
 const authThingColumns = `t.id, t.version, t.thing_model_id, t.device_name, t.device_key, t.device_secret,
  t.token, t.up_topic, t.down_topic, t.device_desc, t.mqtt_client_id, t.mqtt_username,
- t.mqtt_password, t.enable, t.created_user, t.updated_user, t.created_time, t.updated_time,
+ t.mqtt_password, t.enable, t.debug, t.created_user, t.updated_user, t.created_time, t.updated_time,
  m.thing_model_key`
+
+const thingBasicColumns = `t.id, t.version, t.thing_model_id, t.device_name, t.device_key, t.device_secret,
+ t.token, t.up_topic, t.down_topic, t.device_desc, t.features, t.image, t.mqtt_client_id,
+ t.mqtt_username, t.mqtt_password, t.enable, t.debug, t.created_user, t.updated_user, t.created_time, t.updated_time,
+ m.thing_model_key, m.name,
+ cu.user_name, cu.nick_name, uu.user_name, uu.nick_name`
 
 // CreateThings inserts things in one transaction.
 func (s *Store) CreateThings(ctx context.Context, items []*Thing) error {
@@ -38,8 +45,14 @@ func (s *Store) CreateThings(ctx context.Context, items []*Thing) error {
 	}
 	defer tx.Rollback()
 
+	var modelID string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM thing_models WHERE id = ? FOR SHARE`, items[0].ThingModelID).Scan(&modelID); err != nil {
+		return err
+	}
+
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO things (`+thingColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+		`INSERT INTO things (`+thingColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -50,7 +63,7 @@ func (s *Store) CreateThings(ctx context.Context, items []*Thing) error {
 			item.ID, item.Version, item.ThingModelID, item.DeviceName, item.DeviceKey,
 			item.DeviceSecret, item.Token, item.UpTopic, item.DownTopic, item.DeviceDesc,
 			marshalFeatureValues(item.Features), item.Image,
-			item.MQTTClientID, item.MQTTUsername, item.MQTTPassword, item.Enable,
+			item.MQTTClientID, item.MQTTUsername, item.MQTTPassword, item.Enable, item.Debug,
 			item.CreatedUser, item.UpdatedUser, item.CreatedTime, item.UpdatedTime); err != nil {
 			return err
 		}
@@ -63,19 +76,69 @@ func (s *Store) GetThing(ctx context.Context, id string) (*Thing, error) {
 	return scanThing(s.db.QueryRowContext(ctx, `SELECT `+thingColumns+` FROM things WHERE id = ?`, id))
 }
 
-// AuthenticateThing loads an enabled thing matching the MQTT credentials.
+// GetThingBasic loads a thing with model and creator/updater display fields.
+func (s *Store) GetThingBasic(ctx context.Context, id string) (*ThingBasic, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT `+thingBasicColumns+`
+		 FROM things t
+		 JOIN thing_models m ON m.id = t.thing_model_id
+		 LEFT JOIN users cu ON cu.id = t.created_user
+		 LEFT JOIN users uu ON uu.id = t.updated_user
+		 WHERE t.id = ?`, id)
+	return scanThingBasic(row)
+}
+
+// GetThingSnapshotsByIDs loads credential-inclusive snapshots by thing ids.
+func (s *Store) GetThingSnapshotsByIDs(ctx context.Context, ids []string) ([]*ThingSnapshot, error) {
+	if len(ids) == 0 {
+		return []*ThingSnapshot{}, nil
+	}
+	args := make([]interface{}, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT t.id, t.version, t.thing_model_id, t.device_name, t.device_key, t.device_secret, t.token,
+		 t.up_topic, t.down_topic, t.device_desc, t.features, t.image, t.mqtt_client_id,
+		 t.mqtt_username, t.mqtt_password, t.enable, t.debug,
+		 t.created_user, t.updated_user, t.created_time, t.updated_time, m.thing_model_key
+		 FROM things t JOIN thing_models m ON m.id = t.thing_model_id
+		 WHERE t.id IN (`+placeholders(len(ids))+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	snapshots := make([]*ThingSnapshot, 0, len(ids))
+	for rows.Next() {
+		snapshot, err := scanThingSnapshot(rows)
+		if err != nil {
+			return nil, err
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots, rows.Err()
+}
+
+// GetThingIDByDeviceKey resolves a device key to its thing id.
+func (s *Store) GetThingIDByDeviceKey(ctx context.Context, deviceKey string) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM things WHERE device_key = ?`, deviceKey).Scan(&id)
+	return id, err
+}
+
+// AuthenticateThing loads a thing matching the MQTT credentials.
 func (s *Store) AuthenticateThing(ctx context.Context, clientID, username, password string) (*AuthThing, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT `+authThingColumns+`
 		 FROM things t JOIN thing_models m ON m.id = t.thing_model_id
-		 WHERE t.mqtt_client_id = ? AND t.mqtt_username = ? AND t.mqtt_password = ? AND t.enable = 1
+		 WHERE t.mqtt_client_id = ? AND t.mqtt_username = ? AND t.mqtt_password = ?
 		 LIMIT 1`, clientID, username, password)
 
 	item := &AuthThing{}
 	if err := row.Scan(
 		&item.ID, &item.Version, &item.ThingModelID, &item.DeviceName, &item.DeviceKey,
 		&item.DeviceSecret, &item.Token, &item.UpTopic, &item.DownTopic, &item.DeviceDesc,
-		&item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword, &item.Enable,
+		&item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword, &item.Enable, &item.Debug,
 		&item.CreatedUser, &item.UpdatedUser, &item.CreatedTime, &item.UpdatedTime,
 		&item.ThingModelKey); err != nil {
 		return nil, err
@@ -107,47 +170,112 @@ func (s *Store) GetThingModelFeatureIdentifiers(ctx context.Context, modelID str
 	return out, nil
 }
 
+// GetThingModelPropertySamples returns the first properties for upload samples.
+func (s *Store) GetThingModelPropertySamples(ctx context.Context, modelID string, limit int) ([]tsl.Property, error) {
+	if limit <= 0 {
+		limit = 3
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT identifier, data_type FROM thing_model_properties
+		 WHERE thing_model_id = ?
+		 ORDER BY sort ASC, created_time ASC, id ASC
+		 LIMIT ?`, modelID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	properties := make([]tsl.Property, 0, limit)
+	for rows.Next() {
+		var (
+			identifier string
+			dataType   []byte
+		)
+		if err := rows.Scan(&identifier, &dataType); err != nil {
+			return nil, err
+		}
+		property := tsl.Property{Identifier: identifier}
+		if len(dataType) > 0 {
+			if err := json.Unmarshal(dataType, &property.DataType); err != nil {
+				return nil, err
+			}
+		}
+		properties = append(properties, property)
+	}
+	return properties, rows.Err()
+}
+
+// ListThingModelProperties returns a filtered page of property definitions for a model.
+func (s *Store) ListThingModelProperties(ctx context.Context, modelID string, q apis.PageQuery, keyword string) ([]tsl.Property, int64, error) {
+	where := "thing_model_id = ?"
+	args := []interface{}{modelID}
+	if keyword = strings.TrimSpace(keyword); keyword != "" {
+		where += " AND (identifier LIKE ? OR name LIKE ?)"
+		kw := "%" + keyword + "%"
+		args = append(args, kw, kw)
+	}
+
+	var total int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM thing_model_properties WHERE `+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT identifier, name, data_type, rw_flag, required, description, custom, sort
+		 FROM thing_model_properties
+		 WHERE `+where+`
+		 ORDER BY sort ASC, created_time ASC, id ASC
+		 LIMIT ? OFFSET ?`, append(args, q.Limit(), q.Offset())...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	properties := make([]tsl.Property, 0, q.Limit())
+	for rows.Next() {
+		var (
+			property tsl.Property
+			dataType []byte
+			required int
+			custom   []byte
+		)
+		if err := rows.Scan(
+			&property.Identifier, &property.Name, &dataType, &property.RWFlag,
+			&required, &property.Description, &custom, &property.Sort); err != nil {
+			return nil, 0, err
+		}
+		property.Required = required != 0
+		if len(dataType) > 0 {
+			if err := json.Unmarshal(dataType, &property.DataType); err != nil {
+				return nil, 0, err
+			}
+		}
+		if len(custom) > 0 {
+			if err := json.Unmarshal(custom, &property.Custom); err != nil {
+				return nil, 0, err
+			}
+		}
+		properties = append(properties, property)
+	}
+	return properties, total, rows.Err()
+}
+
 // GetThingByToken loads an enabled thing identity by HTTP token.
 func (s *Store) GetThingByToken(ctx context.Context, token string) (*ThingIdentity, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT t.id, t.thing_model_id, m.thing_model_key, t.device_key, t.device_name,
-		 t.mqtt_client_id, t.mqtt_username, t.up_topic, t.down_topic, t.enable
+		 t.mqtt_client_id, t.mqtt_username, t.up_topic, t.down_topic, t.enable, t.debug
 		 FROM things t JOIN thing_models m ON m.id = t.thing_model_id
 		 WHERE t.token = ? AND t.enable = 1 LIMIT 1`, token)
 	item := &ThingIdentity{}
 	if err := row.Scan(
 		&item.ID, &item.ThingModelID, &item.ThingModelKey, &item.DeviceKey, &item.DeviceName,
 		&item.MQTTClientID, &item.MQTTUsername, &item.UpTopic, &item.DownTopic,
-		&item.Enable); err != nil {
+		&item.Enable, &item.Debug); err != nil {
 		return nil, err
 	}
 	return item, nil
-}
-
-// ListThingTokens returns the tokens of the given thing ids.
-func (s *Store) ListThingTokens(ctx context.Context, ids []string) ([]string, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	args := make([]interface{}, 0, len(ids))
-	for _, id := range ids {
-		args = append(args, id)
-	}
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT token FROM things WHERE id IN (`+placeholders(len(ids))+`)`, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	tokens := make([]string, 0, len(ids))
-	for rows.Next() {
-		var token string
-		if err := rows.Scan(&token); err != nil {
-			return nil, err
-		}
-		tokens = append(tokens, token)
-	}
-	return tokens, rows.Err()
 }
 
 // ListThings returns a page of things filtered by keyword.
@@ -187,29 +315,66 @@ func (s *Store) ListThings(ctx context.Context, q apis.PageQuery, keyword string
 func (s *Store) UpdateThing(ctx context.Context, item *Thing) (int64, error) {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE things SET device_name=?, device_desc=?, features=?, image=?, mqtt_client_id=?, mqtt_username=?,
-		 mqtt_password=?, enable=?, updated_user=?, updated_time=?, version=version+1 WHERE id=?`,
+		 mqtt_password=?, enable=?, debug=?, updated_user=?, updated_time=?, version=version+1 WHERE id=?`,
 		item.DeviceName, item.DeviceDesc, marshalFeatureValues(item.Features), item.Image, item.MQTTClientID, item.MQTTUsername,
-		item.MQTTPassword, item.Enable, item.UpdatedUser, item.UpdatedTime, item.ID)
+		item.MQTTPassword, item.Enable, item.Debug, item.UpdatedUser, item.UpdatedTime, item.ID)
 	if err != nil {
 		return 0, err
 	}
 	return res.RowsAffected()
 }
 
-// DeleteThings deletes things by id.
-func (s *Store) DeleteThings(ctx context.Context, ids []string) (int64, error) {
+// DeleteThings deletes things by id and returns the removed rows needed for
+// cache cleanup. Missing ids are ignored.
+func (s *Store) DeleteThings(ctx context.Context, ids []string) (int64, []DeletedThingRef, error) {
 	if len(ids) == 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
 	args := make([]interface{}, 0, len(ids))
 	for _, id := range ids {
 		args = append(args, id)
 	}
-	res, err := s.db.ExecContext(ctx, `DELETE FROM things WHERE id IN (`+placeholders(len(ids))+`)`, args...)
+
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return res.RowsAffected()
+	defer tx.Rollback()
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id, token, mqtt_client_id FROM things WHERE id IN (`+placeholders(len(ids))+`) FOR UPDATE`, args...)
+	if err != nil {
+		return 0, nil, err
+	}
+	refs := make([]DeletedThingRef, 0, len(ids))
+	for rows.Next() {
+		var ref DeletedThingRef
+		if err := rows.Scan(&ref.ID, &ref.Token, &ref.MQTTClientID); err != nil {
+			rows.Close()
+			return 0, nil, err
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, nil, err
+	}
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM things WHERE id IN (`+placeholders(len(ids))+`)`, args...)
+	if err != nil {
+		return 0, nil, err
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, nil, err
+	}
+	return deleted, refs, nil
 }
 
 // ThingModelExists reports whether a thing model exists.
@@ -321,13 +486,32 @@ type rowScanner interface {
 	Scan(dest ...interface{}) error
 }
 
+func scanThingSnapshot(scanner rowScanner) (*ThingSnapshot, error) {
+	item := &ThingSnapshot{}
+	var features []byte
+	if err := scanner.Scan(
+		&item.ID, &item.Version, &item.ThingModelID, &item.DeviceName, &item.DeviceKey,
+		&item.DeviceSecret, &item.Token, &item.UpTopic, &item.DownTopic, &item.DeviceDesc,
+		&features, &item.Image, &item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword,
+		&item.Enable, &item.Debug, &item.CreatedUser, &item.UpdatedUser, &item.CreatedTime,
+		&item.UpdatedTime, &item.ThingModelKey); err != nil {
+		return nil, err
+	}
+	if len(features) > 0 {
+		if err := json.Unmarshal(features, &item.Features); err != nil {
+			return nil, err
+		}
+	}
+	return item, nil
+}
+
 func scanThing(scanner rowScanner) (*Thing, error) {
 	item := &Thing{}
 	var features []byte
 	if err := scanner.Scan(
 		&item.ID, &item.Version, &item.ThingModelID, &item.DeviceName, &item.DeviceKey,
 		&item.DeviceSecret, &item.Token, &item.UpTopic, &item.DownTopic, &item.DeviceDesc,
-		&features, &item.Image, &item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword, &item.Enable,
+		&features, &item.Image, &item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword, &item.Enable, &item.Debug,
 		&item.CreatedUser, &item.UpdatedUser, &item.CreatedTime, &item.UpdatedTime); err != nil {
 		return nil, err
 	}
@@ -336,6 +520,36 @@ func scanThing(scanner rowScanner) (*Thing, error) {
 			return nil, err
 		}
 	}
+	return item, nil
+}
+
+func scanThingBasic(scanner rowScanner) (*ThingBasic, error) {
+	item := &ThingBasic{}
+	var (
+		features        []byte
+		createdUserName sql.NullString
+		createdNickName sql.NullString
+		updatedUserName sql.NullString
+		updatedNickName sql.NullString
+	)
+	if err := scanner.Scan(
+		&item.ID, &item.Version, &item.ThingModelID, &item.DeviceName, &item.DeviceKey,
+		&item.DeviceSecret, &item.Token, &item.UpTopic, &item.DownTopic, &item.DeviceDesc,
+		&features, &item.Image, &item.MQTTClientID, &item.MQTTUsername, &item.MQTTPassword, &item.Enable, &item.Debug,
+		&item.CreatedUser, &item.UpdatedUser, &item.CreatedTime, &item.UpdatedTime,
+		&item.ThingModelKey, &item.ThingModelName,
+		&createdUserName, &createdNickName, &updatedUserName, &updatedNickName); err != nil {
+		return nil, err
+	}
+	if len(features) > 0 {
+		if err := json.Unmarshal(features, &item.Features); err != nil {
+			return nil, err
+		}
+	}
+	item.CreatedUserName = createdUserName.String
+	item.CreatedUserNickName = createdNickName.String
+	item.UpdatedUserName = updatedUserName.String
+	item.UpdatedUserNickName = updatedNickName.String
 	return item, nil
 }
 

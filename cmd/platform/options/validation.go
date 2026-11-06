@@ -84,6 +84,12 @@ func Validate(o *Options) []error {
 	if o.Things.AuthSecret != "" && len(o.Things.AuthSecret) < 16 {
 		errs = append(errs, fmt.Errorf("things.auth-secret must be at least 16 bytes when set"))
 	}
+	if o.Things.AuthDenyCacheTTLSeconds <= 0 {
+		errs = append(errs, fmt.Errorf("things.auth-deny-cache-ttl-seconds must be greater than 0"))
+	}
+	if o.Things.AuthDenyCacheMaxEntries <= 0 {
+		errs = append(errs, fmt.Errorf("things.auth-deny-cache-max-entries must be greater than 0"))
+	}
 	if o.Things.Message.TriggerQueueSize <= 0 {
 		errs = append(errs, fmt.Errorf("things.message.trigger-queue-size must be greater than 0"))
 	}
@@ -137,6 +143,9 @@ func Validate(o *Options) []error {
 		}
 		if strings.TrimSpace(o.Timeseries.DataRetention) == "" || strings.TrimSpace(o.Timeseries.LogRetention) == "" {
 			errs = append(errs, fmt.Errorf("timeseries retention values must be set"))
+		}
+		if strings.TrimSpace(o.Timeseries.DebugDatabase) != "" && strings.TrimSpace(o.Timeseries.DebugDataRetention) == "" {
+			errs = append(errs, fmt.Errorf("timeseries.debug-data-retention must be set when debug-database is set"))
 		}
 		if o.Timeseries.BatchSize <= 0 || o.Timeseries.QueueSize <= 0 {
 			errs = append(errs, fmt.Errorf("timeseries batch-size and queue-size must be greater than 0"))

@@ -73,8 +73,12 @@ type ThingsOptions struct {
 	// OnlineTTLSeconds is the window used to decide whether a thing is online.
 	OnlineTTLSeconds int `json:"online-ttl-seconds"`
 	// AuthSecret protects the EMQX endpoints. Empty disables the check.
-	AuthSecret string         `json:"auth-secret"`
-	Message    MessageOptions `json:"message"`
+	AuthSecret string `json:"auth-secret"`
+	// AuthDenyCacheTTLSeconds is how long unknown MQTT credentials stay denied locally.
+	AuthDenyCacheTTLSeconds int `json:"auth-deny-cache-ttl-seconds"`
+	// AuthDenyCacheMaxEntries bounds the local unknown-credential cache.
+	AuthDenyCacheMaxEntries int            `json:"auth-deny-cache-max-entries"`
+	Message                 MessageOptions `json:"message"`
 }
 
 type MessageOptions struct {
@@ -116,6 +120,8 @@ const (
 	_defaultMinIOBucket                       = "harns"
 	_defaultMaxBodyBytes                int64 = 1 << 20
 	_defaultOnlineTTLSeconds                  = 60
+	_defaultAuthDenyCacheTTLSeconds           = 3600
+	_defaultAuthDenyCacheMaxEntries           = 50000
 	_defaultKafkaTopic                        = "iot.things.pub-message"
 	_defaultKafkaGroupID                      = "harns-platform-things-message"
 	_defaultKafkaBatchSize                    = 100
@@ -159,7 +165,9 @@ func NewDefaultOptions() *Options {
 		CORS:     generic.DefaultCORSConfig(),
 		Audit:    audit.DefaultConfig(),
 		Things: ThingsOptions{
-			OnlineTTLSeconds: _defaultOnlineTTLSeconds,
+			OnlineTTLSeconds:        _defaultOnlineTTLSeconds,
+			AuthDenyCacheTTLSeconds: _defaultAuthDenyCacheTTLSeconds,
+			AuthDenyCacheMaxEntries: _defaultAuthDenyCacheMaxEntries,
 			Message: MessageOptions{
 				TriggerQueueSize: _defaultTriggerQueueSize,
 				Kafka: KafkaOptions{
@@ -200,8 +208,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		Files:       o.Files,
 		EMQX:        o.EMQX,
 		Things: config.ThingsConfig{
-			OnlineTTLSeconds: o.Things.OnlineTTLSeconds,
-			AuthSecret:       o.Things.AuthSecret,
+			OnlineTTLSeconds:        o.Things.OnlineTTLSeconds,
+			AuthSecret:              o.Things.AuthSecret,
+			AuthDenyCacheTTLSeconds: o.Things.AuthDenyCacheTTLSeconds,
+			AuthDenyCacheMaxEntries: o.Things.AuthDenyCacheMaxEntries,
 			Message: config.MessageConfig{
 				KafkaEnabled:     o.Things.Message.KafkaEnabled,
 				TriggerQueueSize: o.Things.Message.TriggerQueueSize,

@@ -75,10 +75,11 @@
 - `array` 的 `size` 为最大元素个数，并递归校验元素。
 - `struct` 只处理已定义字段，未知字段忽略。
 - 校验失败写 `device_property_log_<modelKey>`，`success=false`，不写时序数据。
-- 校验通过后先更新设备影子，再提交时序服务，最后写 `success=true`。
+- 校验通过后先更新设备影子，再提交时序服务，最后写 `success=true`；设备 `debug=1` 时写入 debug 时序库。
 - 设备影子 `reported` 按属性合并；`item.time` 早于影子 `timestamp` 的批次整批跳过。
 - 如果 `desired` 中的属性值与 `reported` 相等，则从 `desired` 中删除。
 - 影子更新后，每个 property item 先判断是否存在告警和规则条件，只对命中的目标异步分发；Kafka 开启时分别投递到告警/规则触发 topic，否则调用对应本地 handler。
+- `debug=1` 的设备只写影子和 debug 时序库，不触发告警/规则。
 
 
 ### 3.1 网关上报

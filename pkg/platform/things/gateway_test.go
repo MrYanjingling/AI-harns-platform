@@ -70,7 +70,7 @@ func TestDefaultPropertyProcessorGatewaySuccess(t *testing.T) {
 	trigger := &fakePropertyTriggerSink{}
 	gatewayResolver := &fakeGatewayResolver{bindings: gatewayBindings()}
 	gatewayLogs := &fakeGatewayLogWriter{}
-	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, gatewayResolver, gatewayLogs)
+	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, gatewayResolver, nil, gatewayLogs)
 
 	report := decodeProperty(t, `{
 		"type":"property",
@@ -106,7 +106,7 @@ func TestDefaultPropertyProcessorGatewayPartialFailure(t *testing.T) {
 	trigger := &fakePropertyTriggerSink{}
 	gatewayResolver := &fakeGatewayResolver{bindings: gatewayBindings()}
 	gatewayLogs := &fakeGatewayLogWriter{}
-	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, gatewayResolver, gatewayLogs)
+	processor := NewPropertyProcessor(resolver, ts, shadow, trigger, gatewayResolver, nil, gatewayLogs)
 
 	// t2 is missing, so the second binding fails required validation.
 	report := decodeProperty(t, `{
@@ -130,7 +130,7 @@ func TestDefaultPropertyProcessorGatewayResolverError(t *testing.T) {
 	ts := &fakePropertyTimeseries{}
 	gatewayResolver := &fakeGatewayResolver{err: errors.New("mapping not found")}
 	gatewayLogs := &fakeGatewayLogWriter{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil, gatewayResolver, gatewayLogs)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, gatewayResolver, nil, gatewayLogs)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"collectionId":"c1","time":100,"property":{"t1":20}}]}`)
 	msg := &DeviceMessage{GatewayID: "gw-1"}
@@ -147,7 +147,7 @@ func TestDefaultPropertyProcessorGatewayMissingCollectionID(t *testing.T) {
 	ts := &fakePropertyTimeseries{}
 	gatewayResolver := &fakeGatewayResolver{bindings: gatewayBindings()}
 	gatewayLogs := &fakeGatewayLogWriter{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil, gatewayResolver, gatewayLogs)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, gatewayResolver, nil, gatewayLogs)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"time":100,"property":{"t1":20}}]}`)
 	msg := &DeviceMessage{GatewayID: "gw-1"}
@@ -163,7 +163,7 @@ func TestDefaultPropertyProcessorGatewayResolverNotConfigured(t *testing.T) {
 	resolver := &fakePropertyResolver{properties: propertyDefinitions()}
 	ts := &fakePropertyTimeseries{}
 	gatewayLogs := &fakeGatewayLogWriter{}
-	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, gatewayLogs)
+	processor := NewPropertyProcessor(resolver, ts, nil, nil, nil, nil, gatewayLogs)
 
 	report := decodeProperty(t, `{"type":"property","payload":[{"collectionId":"c1","time":100,"property":{"t1":20}}]}`)
 	msg := &DeviceMessage{GatewayID: "gw-1"}

@@ -54,14 +54,14 @@ func TestTokenCacheKeyHidesToken(t *testing.T) {
 }
 
 func TestGetThingByTokenEmpty(t *testing.T) {
-	svc := NewService(nil, nil, 0, nil)
+	svc := NewService(nil, nil, 0, nil, nil, nil, AuthDenyCacheConfig{})
 	_, err := svc.GetThingByToken(context.Background(), " ")
 	require.Error(t, err)
 	assert.Equal(t, int(response.ErrCodeUnauthorized), response.ErrorCode(err))
 }
 
 func TestTouchThingOnlineWithoutRedis(t *testing.T) {
-	svc := NewService(nil, nil, 0, nil)
+	svc := NewService(nil, nil, 0, nil, nil, nil, AuthDenyCacheConfig{})
 	svc.TouchThingOnline(context.Background(), "thing-1", time.Now().UnixMilli())
 }
 

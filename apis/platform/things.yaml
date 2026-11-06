@@ -75,8 +75,12 @@ paths:
       tags: [Thing]
       summary: Delete things in one batch.
       description: |
-        The body is a plain id array. Missing ids are ignored. cascade is
-        reserved for related data and defaults to false.
+        The body is a plain id array. Missing ids are ignored. Things are
+        deleted in one transaction. After commit, MQTT clients are kicked
+        asynchronously by mqttClientId, then caches are cleaned and rule/alarm
+        configuration relations are cleaned asynchronously. Orphan relations may
+        exist until periodic cleanup. Time series data is retained. cascade is
+        reserved and defaults to false.
       operationId: deleteThings
       parameters:
         - name: cascade
@@ -105,19 +109,23 @@ paths:
                     type: object
                     properties:
                       deleted: { type: integer, example: 2 }
-  /iot/things/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: string, maxLength: 32 }
-    get:
+  /iot/things/timeseries:
+    post:
       tags: [Thing]
-      summary: Get a thing with credentials and online status.
-      operationId: getThing
+      summary: Query property time series for multiple things.
+      description: |
+        Groups things by model key, validates requested properties, and queries
+        InfluxDB with per-thing limits. Invalid things/properties are returned
+        in data.errors while successful series are still returned.
+      operationId: queryThingTimeSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThingTimeSeriesReq' }
       responses:
         '200':
-          description: Thing detail
+          description: Time series query result
           content:
             application/json:
               schema:
@@ -125,7 +133,13 @@ paths:
                 properties:
                   code: { type: integer, example: 200 }
                   message: { type: string, example: success }
-                  data: { $ref: '#/components/schemas/ThingDetailVo' }
+                  data: { $ref: '#/components/schemas/ThingTimeSeriesVo' }
+  /iot/things/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
     put:
       tags: [Thing]
       summary: Update mutable thing fields.
@@ -149,15 +163,92 @@ paths:
                   code: { type: integer, example: 200 }
                   message: { type: string, example: success }
                   data: { $ref: '#/components/schemas/ThingDetailVo' }
+  /iot/things/{id}/basic:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+    get:
+      tags: [Thing]
+      summary: Get thing basic information, credentials and connection format.
+      operationId: getThingBasic
+      responses:
+        '200':
+          description: Thing basic information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingDetailVo' }
+  /iot/things/{id}/features:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+    get:
+      tags: [Thing]
+      summary: Get raw device feature values.
+      description: Returns feature values keyed by identifier. Model features without a device value are returned as null.
+      operationId: getThingFeatures
+      responses:
+        '200':
+          description: Device feature values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingFeaturesVo' }
+  /iot/things/{id}/shadow:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 32 }
+      - name: page
+        in: query
+        schema: { type: integer, default: 1, minimum: 1 }
+      - name: pageSize
+        in: query
+        schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      - name: keyword
+        in: query
+        description: Fuzzy match on property identifier or name.
+        schema: { type: string, maxLength: 64 }
+    get:
+      tags: [Thing]
+      summary: Get device data (model properties merged with shadow values).
+      description: Returns a page of model properties merged with reported/desired shadow values. Missing values are null.
+      operationId: getThingShadowData
+      responses:
+        '200':
+          description: Device shadow
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/ThingShadowVo' }
   /iot/thingsAuth:
     post:
       tags: [Thing]
       summary: EMQX HTTP authenticator for things.
       description: |
-        Validates clientid/username/password against the things table. Returns
-        ACL rules for the property and command topics. On failure the endpoint
-        returns HTTP 401 with result=deny. When things.auth-secret is set, the
-        X-Things-Auth-Secret header must match.
+        Validates clientid/username/password against the things table without an
+        enable filter. Unknown credentials are cached locally by SHA-256
+        fingerprint and denied for the configured TTL; known but disabled things
+        are logged and denied. Returns ACL rules for enabled things. On failure
+        the endpoint returns HTTP 401 with result=deny. When things.auth-secret
+        is set, the X-Things-Auth-Secret header must match.
       operationId: authenticateThing
       parameters:
         - name: X-Things-Auth-Secret
@@ -326,6 +417,7 @@ components:
           type: string
           maxLength: 255
           description: MinIO object key, must start with images/ when non-empty.
+        debug: { type: integer, enum: [0, 1], default: 0, description: Route property data to the debug timeseries database. }
     UpdateThingReq:
       type: object
       properties:
@@ -335,6 +427,7 @@ components:
         mqttUsername: { type: string, maxLength: 64 }
         mqttPassword: { type: string, maxLength: 64 }
         enable: { type: integer, enum: [0, 1] }
+        debug: { type: integer, enum: [0, 1], description: Route property data to the debug timeseries database. }
         features:
           type: object
           additionalProperties: true
@@ -361,6 +454,7 @@ components:
         mqttClientId: { type: string }
         mqttUsername: { type: string }
         enable: { type: integer, enum: [0, 1] }
+        debug: { type: integer, enum: [0, 1] }
         onlineStatus: { type: integer, enum: [0, 1] }
         lastActiveTime:
           type: integer
@@ -386,3 +480,149 @@ components:
             image:
               type: string
               description: MinIO object key. Returned in detail only.
+            thingModelKey: { type: string }
+            thingModelName: { type: string }
+            mqttBroker:
+              type: string
+              example: "127.0.0.1:1883"
+            uploadFormat:
+              type: string
+              description: JSON string example for property reports; no collectionId.
+              example: '{"type":"property","payload":[{"time":1772343234400,"property":{"temperature":0,"humidity":0,"enabled":false}}]}'
+            createdBy: { $ref: '#/components/schemas/UserBriefVo' }
+            updatedBy: { $ref: '#/components/schemas/UserBriefVo' }
+    UserBriefVo:
+      type: object
+      properties:
+        id: { type: string }
+        userName: { type: string }
+        nickName: { type: string }
+    ThingFeaturesVo:
+      type: object
+      additionalProperties:
+        nullable: true
+      description: Raw feature values keyed by feature identifier; missing values are null.
+    ThingShadowVo:
+      type: object
+      properties:
+        thingId: { type: string }
+        version: { type: integer, format: int64 }
+        timestamp: { type: integer, format: int64 }
+        properties:
+          type: object
+          properties:
+            total: { type: integer, format: int64 }
+            page: { type: integer }
+            pageSize: { type: integer }
+            list:
+              type: array
+              items: { $ref: '#/components/schemas/ThingShadowPropertyVo' }
+    ThingShadowPropertyVo:
+      type: object
+      properties:
+        identifier: { type: string }
+        name: { type: string }
+        dataType: { $ref: '#/components/schemas/ThingShadowDataType' }
+        rwFlag: { type: string }
+        required: { type: boolean }
+        description: { type: string }
+        custom:
+          type: object
+          additionalProperties: true
+        sort: { type: integer }
+        value:
+          description: Raw reported JSON value; null when absent.
+        desiredValue:
+          description: Raw desired JSON value; null when absent.
+    ThingTimeSeriesReq:
+      type: object
+      required: [things, startTime, endTime]
+      properties:
+        things:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ThingTimeSeriesItem' }
+        startTime:
+          oneOf:
+            - { type: integer, format: int64, description: Unix milliseconds }
+            - { type: string, format: date-time }
+        endTime:
+          oneOf:
+            - { type: integer, format: int64, description: Unix milliseconds }
+            - { type: string, format: date-time }
+        aggregate:
+          type: string
+          default: raw
+          description: raw or an aggregate enabled by timeseries.query-aggregates (default min,max,avg,count,sum,median,stddev). Query uses the debug database when the thing debug flag is 1.
+        interval: { type: string, maxLength: 16, example: "5m" }
+        sort: { type: string, enum: [asc, desc], default: asc }
+        limit: { type: integer, minimum: 1, maximum: 2000, default: 100 }
+    ThingTimeSeriesItem:
+      type: object
+      required: [thingId, properties]
+      properties:
+        thingId: { type: string, maxLength: 32 }
+        properties:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string }
+    ThingTimeSeriesVo:
+      type: object
+      properties:
+        aggregate: { type: string }
+        interval: { type: string }
+        series:
+          type: array
+          items: { $ref: '#/components/schemas/ThingTimeSeriesSeriesVo' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ThingTimeSeriesErrorVo' }
+    ThingTimeSeriesSeriesVo:
+      type: object
+      properties:
+        thingId: { type: string }
+        modelKey: { type: string }
+        points:
+          type: array
+          items: { $ref: '#/components/schemas/ThingTimeSeriesPointVo' }
+        values:
+          type: object
+          additionalProperties: true
+    ThingTimeSeriesPointVo:
+      type: object
+      properties:
+        time: { type: integer, format: int64 }
+        values:
+          type: object
+          additionalProperties: true
+    ThingTimeSeriesErrorVo:
+      type: object
+      properties:
+        thingId: { type: string }
+        property: { type: string }
+        message: { type: string }
+    ThingShadowDataType:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [int, long, float, double, bool, enum, text, time, array, struct]
+        unit: { type: string }
+        unitName: { type: string }
+        min: { type: string }
+        max: { type: string }
+        trueValue: { type: string }
+        falseValue: { type: string }
+        length: { type: string }
+        enumSpec:
+          type: object
+          additionalProperties: true
+        arraySpec:
+          type: object
+          additionalProperties: true
+        structSpec:
+          type: object
+          additionalProperties: true

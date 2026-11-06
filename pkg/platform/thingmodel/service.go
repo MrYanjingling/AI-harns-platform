@@ -21,14 +21,20 @@ import (
 )
 
 const (
-	propertiesCachePrefix = "iot:thingmodel:properties:"
-	propertiesCacheTTL    = 24 * time.Hour
+	propertiesCachePrefix  = "iot:thingmodel:properties:"
+	propertiesCacheTTL     = 24 * time.Hour
+	modelCleanupTimeout    = 60 * time.Second
+	modelCacheCleanTimeout = 30 * time.Second
 )
 
 // Service is the business layer of the thing model module.
 type Service struct {
-	store *Store
-	redis redis.UniversalClient
+	store             *Store
+	redis             redis.UniversalClient
+	thingCaches       ThingCacheCleaner
+	sessionKicker     ThingSessionKicker
+	relationCleaner   ThingModelRelationCleaner
+	timeSeriesDropper ThingModelTimeSeriesDropper
 }
 
 func NewService(store *Store, rdb redis.UniversalClient) *Service {
@@ -224,27 +230,109 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateThingMode
 	return toThingModelVo(model), nil
 }
 
-// Delete removes a thing model and all of its properties. cascade is reserved
-// for cascading to related things and is not applied yet.
-func (s *Service) Delete(ctx context.Context, id string, cascade bool) error {
-	defer logging.Trace("thingmodel.Delete", "id", id, "cascade", cascade)()
+// SetThingCacheCleaner injects the Thing cache cleanup dependency.
+func (s *Service) SetThingCacheCleaner(cleaner ThingCacheCleaner) {
+	s.thingCaches = cleaner
+}
 
-	modelKey, err := s.store.GetThingModelKey(ctx, id)
+// SetThingSessionKicker injects the MQTT client kick dependency.
+func (s *Service) SetThingSessionKicker(kicker ThingSessionKicker) {
+	s.sessionKicker = kicker
+}
+
+// SetThingModelRelationCleaner injects the model relation cleanup dependency.
+func (s *Service) SetThingModelRelationCleaner(cleaner ThingModelRelationCleaner) {
+	s.relationCleaner = cleaner
+}
+
+// SetThingModelTimeSeriesDropper injects the model time series cleanup dependency.
+func (s *Service) SetThingModelTimeSeriesDropper(dropper ThingModelTimeSeriesDropper) {
+	s.timeSeriesDropper = dropper
+}
+
+// Delete removes a thing model, its properties, and all of its things.
+func (s *Service) Delete(ctx context.Context, id string) error {
+	defer logging.Trace("thingmodel.Delete", "id", id)()
+
+	result, err := s.store.DeleteThingModel(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return response.ErrThingModelNotFound(id)
 	}
 	if err != nil {
 		return response.ErrInternal(err)
 	}
-	n, err := s.store.DeleteThingModel(ctx, id)
-	if err != nil {
-		return response.ErrInternal(err)
+
+	s.dispatchThingModelKick(result.ThingRefs)
+
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), modelCacheCleanTimeout)
+	defer cancel()
+	s.invalidatePropertiesCache(cleanupCtx, result.ModelKey)
+	if s.thingCaches != nil && len(result.ThingRefs) > 0 {
+		ids := make([]string, 0, len(result.ThingRefs))
+		tokens := make([]string, 0, len(result.ThingRefs))
+		for _, ref := range result.ThingRefs {
+			ids = append(ids, ref.ID)
+			tokens = append(tokens, ref.Token)
+		}
+		s.thingCaches.CleanupDeletedThingCaches(cleanupCtx, ids, tokens)
 	}
-	if n == 0 {
-		return response.ErrThingModelNotFound(id)
-	}
-	s.invalidatePropertiesCache(ctx, modelKey)
+	s.dispatchThingModelCleanup(result.ModelKey)
 	return nil
+}
+
+func (s *Service) dispatchThingModelKick(refs []ThingRef) {
+	kicker := s.sessionKicker
+	if kicker == nil || len(refs) == 0 {
+		return
+	}
+	clientIDs := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.MQTTClientID != "" {
+			clientIDs = append(clientIDs, ref.MQTTClientID)
+		}
+	}
+	if len(clientIDs) == 0 {
+		return
+	}
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logging.ErrorS(fmt.Errorf("panic: %v", recovered), "Thing model MQTT kick panicked", "count", len(clientIDs))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), modelCleanupTimeout)
+		defer cancel()
+		if err := kicker.KickMQTTClients(ctx, clientIDs); err != nil {
+			logging.ErrorS(err, "Failed to kick deleted thing model MQTT clients", "count", len(clientIDs))
+		}
+	}()
+}
+
+func (s *Service) dispatchThingModelCleanup(modelKey string) {
+	relationCleaner := s.relationCleaner
+	timeSeriesDropper := s.timeSeriesDropper
+	if relationCleaner == nil && timeSeriesDropper == nil {
+		return
+	}
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logging.ErrorS(fmt.Errorf("panic: %v", recovered), "Thing model cleanup panicked", "thingModelKey", modelKey)
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), modelCleanupTimeout)
+		defer cancel()
+		if relationCleaner != nil {
+			if err := relationCleaner.CleanupThingModelRelations(ctx, modelKey); err != nil {
+				logging.ErrorS(err, "Failed to clean thing model relations", "thingModelKey", modelKey)
+			}
+		}
+		if timeSeriesDropper != nil {
+			if err := timeSeriesDropper.DropThingModelTables(ctx, modelKey); err != nil {
+				logging.ErrorS(err, "Failed to drop thing model time series tables", "thingModelKey", modelKey)
+			}
+		}
+	}()
 }
 
 // AddProperties appends properties atomically.

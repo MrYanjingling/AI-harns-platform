@@ -19,7 +19,11 @@ func (p *DefaultPropertyProcessor) processGateway(ctx context.Context, msg *Devi
 	}
 
 	nowMillis := time.Now().UnixMilli()
-	pointsByModel := make(map[string][]timeseries.PropertyPoint)
+	type pointGroupKey struct {
+		Debug    bool
+		ModelKey string
+	}
+	pointsByModel := make(map[pointGroupKey][]timeseries.PropertyPoint)
 	shadowByThing := make(map[string][]ShadowUpdate)
 	triggers := make([]PropertyTrigger, 0, len(report.Payload))
 	definitions := make(map[string]map[string]tsl.Property)
@@ -70,7 +74,17 @@ func (p *DefaultPropertyProcessor) processGateway(ctx context.Context, msg *Devi
 				continue
 			}
 
-			pointsByModel[modelKey] = append(pointsByModel[modelKey], timeseries.PropertyPoint{
+			debug := false
+			if p.snapshots != nil {
+				snapshot, err := p.snapshots.GetThingSnapshot(ctx, thingID)
+				if err != nil {
+					issues = append(issues, fmt.Sprintf("payload[%d].collectionId=%s.thingId=%s: load thing snapshot: %v", i, collectionID, thingID, err))
+					continue
+				}
+				debug = snapshot.Debug == 1
+			}
+			groupKey := pointGroupKey{Debug: debug, ModelKey: modelKey}
+			pointsByModel[groupKey] = append(pointsByModel[groupKey], timeseries.PropertyPoint{
 				ModelID:   binding.ThingModelID,
 				DeviceID:  thingID,
 				DeviceKey: binding.DeviceKey,
@@ -78,14 +92,16 @@ func (p *DefaultPropertyProcessor) processGateway(ctx context.Context, msg *Devi
 				Values:    values,
 			})
 			shadowByThing[thingID] = append(shadowByThing[thingID], ShadowUpdate{Time: pointTime, Values: values})
-			triggers = append(triggers, PropertyTrigger{
-				Time:       timestamp,
-				DeviceID:   thingID,
-				DeviceKey:  binding.DeviceKey,
-				DeviceName: binding.DeviceName,
-				ModelKey:   modelKey,
-				Values:     values,
-			})
+			if !debug {
+				triggers = append(triggers, PropertyTrigger{
+					Time:       timestamp,
+					DeviceID:   thingID,
+					DeviceKey:  binding.DeviceKey,
+					DeviceName: binding.DeviceName,
+					ModelKey:   modelKey,
+					Values:     values,
+				})
+			}
 		}
 	}
 
@@ -104,9 +120,9 @@ func (p *DefaultPropertyProcessor) processGateway(ctx context.Context, msg *Devi
 	}
 
 	if p.ts != nil {
-		for modelKey, points := range pointsByModel {
-			if err := p.ts.WriteProperty(ctx, modelKey, points); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
-				issues = append(issues, fmt.Sprintf("write model %s: %v", modelKey, err))
+		for key, points := range pointsByModel {
+			if err := p.ts.WriteProperty(ctx, key.ModelKey, points, key.Debug); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
+				issues = append(issues, fmt.Sprintf("write model %s: %v", key.ModelKey, err))
 			}
 		}
 	}

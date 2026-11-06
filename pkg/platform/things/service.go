@@ -24,25 +24,48 @@ import (
 )
 
 const (
-	tokenCachePrefix = "iot:thing:token:"
-	tokenCacheTTL    = 30 * time.Minute
-	shadowKeyPrefix  = "iot:thing:shadow:"
+	tokenCachePrefix          = "iot:thing:token:"
+	tokenCacheTTL             = 30 * time.Minute
+	shadowKeyPrefix           = "iot:thing:shadow:"
+	relationCleanupTimeout    = 30 * time.Second
+	mqttKickTimeout           = 60 * time.Second
+	thingCacheDeleteChunkSize = 500
 )
 
 // Service is the business layer of the things module.
 type Service struct {
-	store     *Store
-	redis     redis.UniversalClient
-	onlineTTL time.Duration
-	emqx      *emqx.Service
+	store           *Store
+	redis           redis.UniversalClient
+	onlineTTL       time.Duration
+	emqx            *emqx.Service
+	models          PropertyDefinitionResolver
+	timeSeries      ThingTimeSeriesQuerier
+	relationCleaner ThingRelationCleaner
+	denyCache       *authDenyCache
 }
 
 // NewService builds a things service. A non-positive TTL falls back to 60s.
-func NewService(store *Store, rdb redis.UniversalClient, onlineTTL time.Duration, emqxSvc *emqx.Service) *Service {
+func NewService(
+	store *Store,
+	rdb redis.UniversalClient,
+	onlineTTL time.Duration,
+	emqxSvc *emqx.Service,
+	models PropertyDefinitionResolver,
+	timeSeries ThingTimeSeriesQuerier,
+	denyCacheCfg AuthDenyCacheConfig,
+) *Service {
 	if onlineTTL <= 0 {
 		onlineTTL = 60 * time.Second
 	}
-	return &Service{store: store, redis: rdb, onlineTTL: onlineTTL, emqx: emqxSvc}
+	return &Service{
+		store:      store,
+		redis:      rdb,
+		onlineTTL:  onlineTTL,
+		emqx:       emqxSvc,
+		models:     models,
+		timeSeries: timeSeries,
+		denyCache:  newAuthDenyCache(denyCacheCfg),
+	}
 }
 
 // Create creates a batch of things.
@@ -170,6 +193,7 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateThingsReq) ([]*v1.Th
 			MQTTUsername: key,
 			MQTTPassword: secret,
 			Enable:       1,
+			Debug:        debugValue(item.Debug),
 		})
 	}
 	if verr := NewValidationError(conflicts); verr != nil {
@@ -177,6 +201,9 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateThingsReq) ([]*v1.Th
 	}
 
 	if err := s.store.CreateThings(ctx, result); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, response.ErrThingModelNotFound(modelID)
+		}
 		return nil, response.ErrInternal(err)
 	}
 
@@ -212,18 +239,59 @@ func (s *Service) List(ctx context.Context, q v1.ThingQuery) (*apis.PageResp[*v1
 	return apis.NewPageResp(list, total, q.PageQuery), nil
 }
 
-// Get returns a thing with credentials and online status.
-func (s *Service) Get(ctx context.Context, id string) (*v1.ThingDetailVo, error) {
-	defer logging.Trace("things.Get", "id", id)()
+// GetBasic returns a thing with credentials, model, creator/updater and connection info.
+func (s *Service) GetBasic(ctx context.Context, id string) (*v1.ThingDetailVo, error) {
+	defer logging.Trace("things.GetBasic", "id", id)()
 
-	item, err := s.getEntity(ctx, id)
-	if err != nil {
-		return nil, err
+	item, err := s.store.GetThingBasic(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, response.ErrThingNotFound(id)
 	}
-	vo := toThingDetailVo(item)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+
+	vo := toThingBasicVo(item)
+	vo.MQTTBroker = s.emqx.Broker()
+
+	properties, err := s.store.GetThingModelPropertySamples(ctx, item.ThingModelID, uploadFormatPropertyLimit)
+	if err != nil {
+		logging.ErrorS(err, "Failed to load thing model property samples", "thingId", id, "thingModelId", item.ThingModelID)
+	} else if uploadFormat, err := buildUploadFormat(properties, time.Now().UnixMilli()); err != nil {
+		logging.ErrorS(err, "Failed to build upload format", "thingId", id, "thingModelId", item.ThingModelID)
+	} else {
+		vo.UploadFormat = uploadFormat
+	}
+
 	scores := s.lastActiveScores(ctx, []string{item.ID})
 	applyOnline(&vo.ThingVo, item.Enable, scores[item.ID], time.Now().UnixMilli(), s.onlineTTL)
 	return vo, nil
+}
+
+// GetFeatureValues returns raw device feature values keyed by feature identifier.
+func (s *Service) GetFeatureValues(ctx context.Context, thingID string) (map[string]json.RawMessage, error) {
+	defer logging.Trace("things.GetFeatureValues", "thingId", thingID)()
+
+	item, err := s.getEntity(ctx, thingID)
+	if err != nil {
+		return nil, err
+	}
+	featureIDs, err := s.store.GetThingModelFeatureIdentifiers(ctx, item.ThingModelID)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	return mergeFeatureValues(featureIDs, item.Features), nil
+}
+
+func mergeFeatureValues(featureIDs map[string]struct{}, values map[string]json.RawMessage) map[string]json.RawMessage {
+	merged := make(map[string]json.RawMessage, len(featureIDs)+len(values))
+	for identifier := range featureIDs {
+		merged[identifier] = nil
+	}
+	for identifier, value := range values {
+		merged[identifier] = value
+	}
+	return merged
 }
 
 // Authenticate validates the MQTT credentials used by the EMQX HTTP authenticator.
@@ -237,12 +305,24 @@ func (s *Service) Authenticate(ctx context.Context, req *v1.DeviceAuthReq) (*v1.
 	if req == nil || req.ClientID == "" || req.Username == "" || req.Password == "" {
 		return denyAuth(), nil
 	}
+	denyKey := authDenyCacheKey(req.ClientID, req.Username, req.Password)
+	if s.denyCache.contains(denyKey) {
+		return denyAuth(), nil
+	}
 	item, err := s.store.AuthenticateThing(ctx, req.ClientID, req.Username, req.Password)
 	if errors.Is(err, sql.ErrNoRows) {
+		s.denyCache.add(denyKey)
+		logging.V(2).InfoS("Denied MQTT authentication for unknown credentials",
+			"clientid", req.ClientID, "username", req.Username)
 		return denyAuth(), nil
 	}
 	if err != nil {
 		return nil, response.ErrInternal(err)
+	}
+	if item.Enable != 1 {
+		logging.Warnf("Denied MQTT authentication for disabled thing: clientid=%s username=%s thingId=%s",
+			req.ClientID, req.Username, item.ID)
+		return denyAuth(), nil
 	}
 	return buildAuthResponse(item), nil
 }
@@ -423,6 +503,9 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateThingReq)
 		}
 		item.Enable = *req.Enable
 	}
+	if req.Debug != nil {
+		item.Debug = *req.Debug
+	}
 	if req.Image != nil {
 		image := strings.TrimSpace(*req.Image)
 		issues = append(issues, validateImageKey(image, "image")...)
@@ -472,6 +555,7 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateThingReq)
 	}
 	item.Version++
 	s.invalidateTokenCache(ctx, item.Token)
+	s.invalidateSnapshotCache(ctx, item.ID)
 
 	vo := toThingDetailVo(item)
 	scores := s.lastActiveScores(ctx, []string{item.ID})
@@ -479,8 +563,14 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateThingReq)
 	return vo, nil
 }
 
-// Delete removes things and their last-active index entries. cascade is
-// reserved for related data and is not applied yet.
+// SetThingRelationCleaner injects the optional asynchronous cleaner for rule
+// and alarm configuration relations.
+func (s *Service) SetThingRelationCleaner(cleaner ThingRelationCleaner) {
+	s.relationCleaner = cleaner
+}
+
+// Delete removes things, their caches, and asynchronously cleans related rule
+// and alarm configuration relations. cascade is reserved and not applied yet.
 func (s *Service) Delete(ctx context.Context, ids []string, cascade bool) (int64, error) {
 	defer logging.Trace("things.Delete", "count", len(ids), "cascade", cascade)()
 
@@ -488,23 +578,125 @@ func (s *Service) Delete(ctx context.Context, ids []string, cascade bool) (int64
 	if len(cleaned) == 0 {
 		return 0, nil
 	}
-	tokens, err := s.store.ListThingTokens(ctx, cleaned)
-	if err != nil {
-		logging.V(2).InfoS("Failed to list thing tokens before delete", "err", err)
-	}
-	n, err := s.store.DeleteThings(ctx, cleaned)
+	deleted, refs, err := s.store.DeleteThings(ctx, cleaned)
 	if err != nil {
 		return 0, response.ErrInternal(err)
 	}
-	for _, token := range tokens {
-		s.invalidateTokenCache(ctx, token)
+	s.dispatchMQTTKick(refs)
+	s.cleanupDeletedThingCaches(ctx, refs)
+	s.dispatchThingRelationCleanup(refs)
+	return deleted, nil
+}
+
+// KickMQTTClients disconnects MQTT clients for things deleted by another module.
+func (s *Service) KickMQTTClients(ctx context.Context, clientIDs []string) error {
+	if s.emqx == nil {
+		return nil
 	}
-	if s.redis != nil {
-		if err := s.redis.ZRem(ctx, LastActiveKey, toAny(cleaned)...).Err(); err != nil {
-			logging.V(2).InfoS("Failed to remove thing online index", "err", err)
+	return s.emqx.KickClients(ctx, clientIDs)
+}
+
+func (s *Service) dispatchMQTTKick(refs []DeletedThingRef) {
+	if s.emqx == nil || len(refs) == 0 {
+		return
+	}
+	clientIDs := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.MQTTClientID != "" {
+			clientIDs = append(clientIDs, ref.MQTTClientID)
 		}
 	}
-	return n, nil
+	if len(clientIDs) == 0 {
+		return
+	}
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logging.ErrorS(fmt.Errorf("panic: %v", recovered), "MQTT kick panicked", "count", len(clientIDs))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), mqttKickTimeout)
+		defer cancel()
+		if err := s.emqx.KickClients(ctx, clientIDs); err != nil {
+			logging.ErrorS(err, "Failed to kick deleted thing MQTT clients", "count", len(clientIDs))
+		}
+	}()
+}
+
+// CleanupDeletedThingCaches removes caches for things deleted by another module.
+func (s *Service) CleanupDeletedThingCaches(ctx context.Context, thingIDs, tokens []string) {
+	refs := make([]DeletedThingRef, 0, len(thingIDs)+len(tokens))
+	for _, id := range dedupeIDs(thingIDs) {
+		refs = append(refs, DeletedThingRef{ID: id})
+	}
+	for _, token := range dedupeIDs(tokens) {
+		refs = append(refs, DeletedThingRef{Token: token})
+	}
+	s.cleanupDeletedThingCaches(ctx, refs)
+}
+
+func (s *Service) cleanupDeletedThingCaches(ctx context.Context, refs []DeletedThingRef) {
+	if s.redis == nil || len(refs) == 0 {
+		return
+	}
+	keys, ids := deletedThingCacheKeys(refs)
+	for start := 0; start < len(keys); start += thingCacheDeleteChunkSize {
+		end := start + thingCacheDeleteChunkSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		if err := s.redis.Del(ctx, keys[start:end]...).Err(); err != nil {
+			logging.V(2).InfoS("Failed to delete thing cache keys", "count", end-start, "err", err)
+		}
+	}
+	if len(ids) > 0 {
+		if err := s.redis.ZRem(ctx, LastActiveKey, toAny(ids)...).Err(); err != nil {
+			logging.V(2).InfoS("Failed to remove thing online index", "count", len(ids), "err", err)
+		}
+	}
+}
+
+func deletedThingCacheKeys(refs []DeletedThingRef) ([]string, []string) {
+	keys := make([]string, 0, len(refs)*3)
+	ids := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Token != "" {
+			keys = append(keys, tokenCacheKey(ref.Token))
+		}
+		if ref.ID != "" {
+			keys = append(keys, snapshotCachePrefix+ref.ID, shadowKeyPrefix+ref.ID)
+			ids = append(ids, ref.ID)
+		}
+	}
+	return keys, ids
+}
+
+func (s *Service) dispatchThingRelationCleanup(refs []DeletedThingRef) {
+	cleaner := s.relationCleaner
+	if cleaner == nil || len(refs) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.ID != "" {
+			ids = append(ids, ref.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logging.ErrorS(fmt.Errorf("panic: %v", recovered), "Thing relation cleanup panicked", "count", len(ids))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), relationCleanupTimeout)
+		defer cancel()
+		if err := cleaner.CleanupThingRelations(ctx, ids); err != nil {
+			logging.ErrorS(err, "Failed to clean thing relations", "count", len(ids))
+		}
+	}()
 }
 
 func (s *Service) getEntity(ctx context.Context, id string) (*Thing, error) {
@@ -620,11 +812,25 @@ func toThingVo(item *Thing) *v1.ThingVo {
 		MQTTClientID: item.MQTTClientID,
 		MQTTUsername: item.MQTTUsername,
 		Enable:       item.Enable,
+		Debug:        item.Debug,
 		CreatedUser:  item.CreatedUser,
 		UpdatedUser:  item.UpdatedUser,
 		CreatedTime:  item.CreatedTime,
 		UpdatedTime:  item.UpdatedTime,
 	}
+}
+
+func toThingBasicVo(item *ThingBasic) *v1.ThingDetailVo {
+	vo := toThingDetailVo(&item.Thing)
+	vo.ThingModelKey = item.ThingModelKey
+	vo.ThingModelName = item.ThingModelName
+	if item.CreatedUser != "" {
+		vo.CreatedBy = &v1.UserBriefVo{ID: item.CreatedUser, UserName: item.CreatedUserName, NickName: item.CreatedUserNickName}
+	}
+	if item.UpdatedUser != "" {
+		vo.UpdatedBy = &v1.UserBriefVo{ID: item.UpdatedUser, UserName: item.UpdatedUserName, NickName: item.UpdatedUserNickName}
+	}
+	return vo
 }
 
 func toThingDetailVo(item *Thing) *v1.ThingDetailVo {
@@ -636,6 +842,13 @@ func toThingDetailVo(item *Thing) *v1.ThingDetailVo {
 		Image:        item.Image,
 		Features:     item.Features,
 	}
+}
+
+func debugValue(value *int) int {
+	if value != nil && *value == 1 {
+		return 1
+	}
+	return 0
 }
 
 func applyOnline(vo *v1.ThingVo, enable int, score float64, now int64, ttl time.Duration) {

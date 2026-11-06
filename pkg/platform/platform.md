@@ -316,13 +316,17 @@
   - GET `/api/v1/iot/thingModels` → 200 + `PageResp[ThingModelVo]`（keyword 匹配 name/key，返回 `propertyCount`）
   - GET `/api/v1/iot/thingModels/:id` → 200 + ThingModelDetailVo（含 `properties`、`features`）
   - PUT `/api/v1/iot/thingModels/:id` → 200 + ThingModelVo（仅 `name`/`description`）
-  - DELETE `/api/v1/iot/thingModels/:id?cascade=false` → 200（同事务删除全部属性）
+  - DELETE `/api/v1/iot/thingModels/:id` → 200（同事务删除该模型全部 Thing、属性和模型主记录）
 - 约束：
   - 遵循 §3~§9；DTO 放 `pkg/platform/thingmodel/v1`；对外一律 Vo，禁止返回实体。
   - `thingModelKey` 创建后固定，`PUT` 不接收该字段；用户传入的 key 冲突 → 400 `error.thing_model_key_exists`；自动生成冲突最多重试 3 次。
   - `name` 全局唯一，冲突 → 400 `error.thing_model_name_exists`。
-  - 删除物模型与属性在同一事务内完成。
-  - `cascade`（默认 false）为预留参数，后续与 thing 联动时生效；当前属性始终随物模型删除，非 `true` 的取值一律按 false 处理。
+  - 删除物模型、全部属性和该模型全部 Thing 在同一事务内完成，固定级联，不接收 `cascade` 参数。
+  - 事务提交后立即异步按 `mqtt_client_id` 踢除该模型下全部 EMQX client（批量接口）；单个失败回退逐个删除。
+  - 随后同步清理物模型属性缓存和全部被删 Thing 缓存。
+  - rule/alarmConfig 关联按 `thingModelKey` 异步清理；当前为空实现。
+  - 模型时序表异步 flush 后删除，失败只记录日志，不回滚 MySQL。
+  - 创建 Thing 的事务对模型行加 `FOR SHARE`，与模型删除的 `FOR UPDATE` 互斥。
   - `createdUser`/`updatedUser` 取 `principal.UserID(ctx)`。
   - Service 导出方法首行 `defer logging.Trace("thingmodel.Xxx", ...)`。
 - 验收标准：
@@ -331,7 +335,8 @@
   - [ ] 未传 key 时生成 `tm_`+小写 ULID；格式错误 → 400 `error.thing_model_invalid`；重复 → 400 `error.thing_model_key_exists`
   - [ ] 创建后无法修改 `thingModelKey`
   - [ ] `name` 重复 → 400 `error.thing_model_name_exists`；id 不存在 → 400 `error.thing_model_not_found`
-  - [ ] 删除物模型同事务清理属性；更新后 `version` +1、`ETag` 反映新值
+  - [ ] 删除物模型同事务清理该模型全部 Thing 和属性；提交后清理缓存并异步清理关联与时序表
+  - [ ] 更新后 `version` +1、`ETag` 反映新值
   - [ ] 错误文案支持 zh-CN/en-US；产出迁移脚本与 API 文档
 
 ### F7. 物模型属性管理
@@ -611,7 +616,10 @@
   `onlineTTL` 来自配置 `things.online-ttl-seconds`，默认 60。
 - 接口：
   - GET `/api/v1/iot/things?page=&pageSize=&keyword=` → 200 + `PageResp[ThingVo]`
-  - GET `/api/v1/iot/things/:id` → 200 + ThingDetailVo
+  - GET `/api/v1/iot/things/:id/basic` → 200 + ThingDetailVo（含模型、broker、上传格式、创建人/更新人）
+  - GET `/api/v1/iot/things/:id/features` → 200 + 原始特征值 map；模型定义但未设置的特征为 null
+  - GET `/api/v1/iot/things/:id/shadow?page=&pageSize=&keyword=` → 200 + 物模型属性分页合并 reported/desired 影子值；keyword 匹配 identifier/name，缺失为 null
+  - POST `/api/v1/iot/things/timeseries` → 多 thing 时序查询；按 (debug, modelKey) 分组，per-thing limit，支持 raw/min/max/avg + interval；debug=1 查 debug 时序库
 - 约束：
   - 遵循 §3~§9；分页用 `PageQuery`/`PageResp`。
   - `keyword` 只模糊匹配 `device_name`、`device_key`；按 `created_time DESC`。
@@ -671,25 +679,31 @@
   - [ ] 更新后 version +1
 
 ### F13. Thing 删除
-- 状态：TODO
-- 目标：批量删除设备，`cascade` 为后续关联数据预留。
+- 状态：部分实现（关联清理待 rule/alarmConfig 落地）
+- 目标：批量删除设备，异步清理规则/告警配置关联。
 - 输入：id 数组 + `cascade`。
 - 处理：
-  1. 单事务按 id 批量删除；
-  2. 删除成功后从 `iot:thing:last-active` 中 `ZREM` 对应 id。
+  1. 单事务 `SELECT ... FOR UPDATE` 锁定并按 id 批量删除 `things`；
+  2. 提交后删除 token、snapshot、shadow 缓存并 `ZREM` 活跃索引；
+  3. 若注入 `ThingRelationCleaner`，异步清理规则/告警配置关联。
 - 输出：删除接口。
 - 接口：
   - DELETE `/api/v1/iot/things?cascade=false`，body 为纯数组 `["id1","id2"]` → 200 + `{"deleted":n}`
 - 约束：
   - 遵循 §3~§9；`cascade` 默认 false，非 `true` 的取值一律按 false 处理。
   - 幂等：不存在的 id 忽略，返回实际删除数量。
-  - 当前只删除 things 并清理活跃时间索引；`cascade` 预留给后续影子、时序数据清理。
-  - 单事务批量删除；`ZREM` 失败只记录日志，不影响删除结果。
+  - 不删除时序数据。
+  - 不删除 rule/alarmConfig 主记录；关联清理接口当前为空实现。
+  - 异步清理失败会留下孤儿关联，后续由每日凌晨任务清理。
+  - 提交后立即异步按 `mqtt_client_id` 踢除 EMQX client；批量使用 `POST /api/v5/clients/kickout/bulk`，单个使用 `DELETE /api/v5/clients/{clientId}`，失败只记录日志。
+  - 缓存清理失败只记录日志，不影响删除结果。
 - 验收标准：
   - [ ] 批量删除成功，返回 deleted 数量
   - [ ] 不存在的 id 不报错
   - [ ] cascade 参数不合法时按 false 处理
   - [ ] 删除后设备不可查询
+  - [ ] token/snapshot/shadow/last-active 缓存被清理
+  - [ ] 关联清理器未注入时不启动后台任务
 
 ### F14. 设备认证（EMQX）
 - 状态：TODO
@@ -697,8 +711,10 @@
 - 输入：EMQX 认证请求，字段见下表。
 - 处理：
   1. 校验共享密钥 Header；
-  2. 按 `mqtt_client_id + mqtt_username + mqtt_password + enable=1` 查询 things，并 join thing_models 取 `thing_model_key`；
-  3. 命中则返回 allow、client_attrs 与两条 ACL；否则 deny。
+  2. 校验凭据非空并计算 SHA-256 指纹，先查本地 deny cache；
+  3. 按 `mqtt_client_id + mqtt_username + mqtt_password` 查询 things，并 join thing_models 取 `thing_model_key`；
+  4. 查不到：写 deny cache 1 小时并 deny；查到但 `enable=0`：warning 后 deny；
+  5. 命中且启用则返回 allow、client_attrs 与两条 ACL。
 - 输出：EMQX 裸 JSON（不使用平台 `Result` 包装）。
 - 接口：
   - POST `/api/v1/iot/thingsAuth`（不挂平台 Auth / Audit 中间件）
@@ -740,6 +756,7 @@
 
 - 共享密钥：
   - 配置 `things.auth-secret`（默认空，空表示不校验）。
+  - 未知凭据本地 deny cache：`things.auth-deny-cache-ttl-seconds`（默认 3600）、`things.auth-deny-cache-max-entries`（默认 50000）；仅保存 SHA-256 指纹。
   - Header `X-Things-Auth-Secret`，使用常量时间比较。
   - 非空时长度必须 ≥16。
 - 约束：
@@ -816,6 +833,8 @@
   ```yaml
   things:
     auth-secret: ""
+    auth-deny-cache-ttl-seconds: 3600
+    auth-deny-cache-max-entries: 50000
     message:
       kafka-enabled: false
       trigger-queue-size: 1024

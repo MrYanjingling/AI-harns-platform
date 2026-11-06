@@ -63,6 +63,10 @@ audit:
 
 things:
   online-ttl-seconds: 60
+  # Unknown MQTT credentials are denied locally for this many seconds.
+  auth-deny-cache-ttl-seconds: 3600
+  # Maximum local deny-cache entries; oldest/arbitrary entries are evicted at the cap.
+  auth-deny-cache-max-entries: 50000
   auth-secret: ""
   message:
     kafka-enabled: false
@@ -91,14 +95,19 @@ timeseries:
   url: "http://127.0.0.1:8181"
   token: ""
   database: "harns_timeseries"
+  debug-database: "harns_timeseries_debug"
   log-database: "harns_timeseries_log"
   # Core retention is database-level and immutable after creation.
   timeseries_data_retention: "730d"
+  debug-data-retention: "7d"
   timeseries_log_retention: "1d"
   batch-size: 10000
   flush-interval-ms: 3000
   queue-size: 20000
   write-timeout-ms: 10000
+  # Allowed aggregate functions for the thing time series query API.
+  # raw is always allowed. All other entries must be supported by InfluxDB SQL.
+  query-aggregates: [min, max, avg, count, sum, median, stddev]
 
 telemetry:
   enabled: false

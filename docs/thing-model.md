@@ -24,8 +24,12 @@
 - `thing_model_id` 是内部列，由 URL 中的 `:id` 决定，不出现在请求体或响应 Vo 中，避免 path 与 body 不一致。
 - `thing_model_properties` 以 `id`（ULID）为主键；`(thing_model_id, identifier)` 与 `(thing_model_id, name)` 为模型内唯一索引，因此不同物模型可以使用相同的 identifier/name。
 - 特征定义不单独建表，存在 `thing_models.features` JSON 列。
-- 删除物模型时在同一事务内按 `thing_model_id` 删除全部属性。
-- 删除接口支持 `?cascade=false`（默认 false）。该参数为预留项，后续与 thing 联动时生效；当前属性始终随物模型删除，非 `true` 的取值一律按 false 处理。
+- 删除物模型时在同一事务内按 `thing_model_id` 删除全部 Thing、全部属性和物模型主记录。
+- 删除接口只接受 path 中的单个模型 id，不支持批量，也不接收 `cascade` 参数。
+- 事务提交后立即异步按 `mqtt_client_id` 踢除该模型下全部 EMQX client。
+- 随后同步清理物模型属性缓存和全部被删 Thing 的缓存。
+- rule / alarmConfig 关联按 `thingModelKey` 异步清理；当前关联表尚未实现，接口为空实现。
+- 该模型的时序表异步删除；删除失败只记录日志，不回滚 MySQL。
 
 ## 2. JSON 结构
 

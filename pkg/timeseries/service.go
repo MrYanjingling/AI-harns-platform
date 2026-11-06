@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"harns-platform/pkg/logging"
@@ -47,8 +48,45 @@ func (s *Service) Close() error {
 	return s.store.Close()
 }
 
+// DropThingModelTables flushes pending writes and deletes all model-scoped
+// measurements from the configured data, debug, and log databases.
+func (s *Service) DropThingModelTables(ctx context.Context, modelKey string) error {
+	if s.store == nil {
+		return nil
+	}
+	if err := s.store.Flush(ctx); err != nil {
+		logging.ErrorS(err, "Failed to flush timeseries before table drop", "thingModelKey", modelKey)
+	}
+
+	type tableRef struct {
+		database string
+		table    string
+	}
+	tables := []tableRef{
+		{s.cfg.Database, PropertyTable(modelKey)},
+		{s.cfg.Database, EventTable(modelKey)},
+		{s.cfg.Database, CommandRecordTable(modelKey)},
+		{s.cfg.LogDatabase, PropertyLogTable(modelKey)},
+		{s.cfg.LogDatabase, EventLogTable(modelKey)},
+	}
+	if s.cfg.DebugDatabase != "" {
+		tables = append(tables, tableRef{s.cfg.DebugDatabase, PropertyTable(modelKey)})
+	}
+
+	var errs []error
+	for _, table := range tables {
+		if err := s.store.DeleteTable(ctx, table.database, table.table); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("drop thing model tables: %w", errors.Join(errs...))
+	}
+	return nil
+}
+
 // WriteProperty writes property samples.
-func (s *Service) WriteProperty(ctx context.Context, modelKey string, points []PropertyPoint) error {
+func (s *Service) WriteProperty(ctx context.Context, modelKey string, points []PropertyPoint, debug bool) error {
 	if s.store == nil {
 		return ErrDisabled
 	}
@@ -69,6 +107,9 @@ func (s *Service) WriteProperty(ctx context.Context, modelKey string, points []P
 			Fields: fields,
 			Time:   pointTime(point.Time),
 		})
+	}
+	if debug && s.cfg.DebugDatabase != "" {
+		return s.store.EnqueueDebugData(ctx, out...)
 	}
 	return s.store.EnqueueData(ctx, out...)
 }

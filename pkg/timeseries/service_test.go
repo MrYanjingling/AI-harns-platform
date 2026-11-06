@@ -51,6 +51,8 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, 10000, cfg.BatchSize)
 	assert.Equal(t, 20000, cfg.QueueSize)
 	assert.Equal(t, 3000, cfg.FlushIntervalMs)
+	assert.Contains(t, cfg.QueryAggregates, "count")
+	assert.Contains(t, cfg.QueryAggregates, "sum")
 }
 
 type capturePointWriter struct {

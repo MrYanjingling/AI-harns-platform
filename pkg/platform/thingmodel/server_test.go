@@ -28,6 +28,7 @@ func TestInstallHandlerRegistersRoutes(t *testing.T) {
 		"POST /api/v1/iot/thingModels",
 		"GET /api/v1/iot/thingModels",
 		"GET /api/v1/iot/thingModels/:id",
+		"DELETE /api/v1/iot/thingModels/:id",
 		"POST /api/v1/iot/thingModels/:id/properties",
 		"DELETE /api/v1/iot/thingModels/:id/properties",
 		"GET /api/v1/iot/thingModels/:id/tsl",

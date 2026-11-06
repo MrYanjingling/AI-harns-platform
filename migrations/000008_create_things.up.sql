@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `things` (
   `mqtt_username`  VARCHAR(64)  COLLATE utf8mb4_bin NOT NULL COMMENT '默认等于 deviceKey',
   `mqtt_password`  VARCHAR(64)  NOT NULL COMMENT '默认等于 deviceSecret',
   `enable`         TINYINT      NOT NULL DEFAULT 1 COMMENT '1 启用，0 禁用',
+  `debug`          TINYINT      NOT NULL DEFAULT 0 COMMENT '1 debug，0 生产',
   `created_user`   VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '创建人',
   `updated_user`   VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '更新人',
   `created_time`   DATETIME     NOT NULL COMMENT '创建时间',

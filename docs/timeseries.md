@@ -10,13 +10,14 @@
 - 不引入官方 Go 客户端：当前客户端依赖要求 Go 1.25，本项目保持 Go 1.24，因此直接使用官方 HTTP API
 - 代码位置：`pkg/timeseries/`
 
-## 2. 两个 database
+## 2. 三个 database
 
-InfluxDB 3 Core 的 retention 是 **database 级**，创建后不可修改，因此按保留期拆成两个库：
+InfluxDB 3 Core 的 retention 是 **database 级**，创建后不可修改，因此按保留期拆成三个库：
 
 | database | 用途 | retention 配置 |
 |---|---|---|
-| `harns_timeseries` | 属性、事件、控制记录 | `timeseries_data_retention`，默认 `730d` |
+| `harns_timeseries` | 生产属性、事件、控制记录 | `timeseries_data_retention`，默认 `730d` |
+| `harns_timeseries_debug` | debug 设备的属性数据 | `debug-data-retention`，默认 `7d` |
 | `harns_timeseries_log` | 属性日志、事件日志 | `timeseries_log_retention`，默认 `1d` |
 
 启动时通过管理 API 创建：
@@ -47,7 +48,7 @@ Content-Type: application/json
 
 - 每个属性上报 item 写一条 point。
 - 数组/结构体属性存 JSON 字符串。
-- 保留：`harns_timeseries`
+- 保留：`harns_timeseries`；设备 `debug=1` 时写入 `harns_timeseries_debug`
 
 ### 3.2 `device_property_log_<modelKey>`
 
@@ -120,22 +121,41 @@ InfluxDB 3 没有 int32，整数统一为 64 位。
 | enum | `int64` 或 `string`，按物模型定义 |
 | array / struct | JSON `string` |
 
+## 4.1 查询
+
+设备时序查询使用 InfluxDB 3 SQL HTTP API：
+
+```http
+POST /api/v3/query_sql
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"db":"harns_timeseries","q":"SELECT ...","format":"json"}
+```
+
+- 查询按 thing 当前 `debug` 选择 database：`debug=1` 查 `harns_timeseries_debug`，否则查 `harns_timeseries`。
+- 查询前通过 `information_schema.columns` 过滤尚未写入过的属性列，缺失列返回 null。
+- raw/interval 使用 `ROW_NUMBER()` 按 device_id 做 per-thing limit。
+- `aggregate` 可通过 `timeseries.query-aggregates` 配置扩展，默认 `min/max/avg/count/sum/median/stddev`。
+- min/max/avg/sum/median/stddev 可按 `interval` 使用 `date_bin` 分桶；count 允许任意属性类型。
+- 时间统一转为 Unix 毫秒返回。
+
 ## 5. 写入链路
 
 ```
 Processor
-  → Service.WriteProperty / WriteEvent / ...
+  → Service.WriteProperty(debug) / WriteEvent / ...
       → 组装 timeseries.Point
-      → Store.EnqueueData / EnqueueLog
+      → Store.EnqueueData / EnqueueDebugData / EnqueueLog
           → batcher(channel)
               → 满足阈值后 WritePoints
 ```
 
-Service 一次调用对应一台设备；Store 会把多次调用的 point 合并成一次写入。
+Service 一次调用对应一台设备；Store 会把多次调用的 point 合并成一次写入。`WriteProperty(..., debug=true)` 进入 debug batcher。
 
 ## 6. 批量与背压
 
-两个独立 batcher：data 和 log。
+三个独立 batcher：data、debug、log。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
@@ -156,16 +176,20 @@ timeseries:
   url: "http://127.0.0.1:8181"
   token: ""
   database: "harns_timeseries"
+  debug-database: "harns_timeseries_debug"
   log-database: "harns_timeseries_log"
   timeseries_data_retention: "730d"
+  debug-data-retention: "7d"
   timeseries_log_retention: "1d"
   batch-size: 10000
   flush-interval-ms: 3000
   queue-size: 20000
   write-timeout-ms: 10000
+  query-aggregates: [min, max, avg, count, sum, median, stddev]
 ```
 
-- `enabled=true` 时启动阶段会创建 database 并启动批量写入 goroutine。
+- `enabled=true` 时启动阶段会创建三个 database 并启动对应批量写入 goroutine。
+- `debug-database` 为空时不创建 debug batcher，debug 数据回落到生产库（不推荐）。
 - `token` 启用时必填。
 
 ## 8. 包结构
@@ -187,3 +211,6 @@ pkg/timeseries/
 - 日志表只保留 1 天，高吞吐场景需要评估存储与写入能力。
 - `time` 使用数据时间，毫秒精度。
 - 表名依赖 `modelKey`，`modelKey` 变更会变成新表。
+- debug 数据不迁移：关闭 `debug` 后查询切回生产库，旧 debug 数据按 7 天保留期自然过期。
+- 删除物模型时异步删除该模型的属性、事件、控制记录、属性日志和事件日志表；debug 库只删除属性表。删除前先 flush 批量写入。
+- 删表接口：`DELETE /api/v3/configure/table?db=<db>&table=<table>`，参数放 query，不传 body；默认软删除，不传 `hard_delete_at`。

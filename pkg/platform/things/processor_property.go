@@ -25,7 +25,7 @@ type PropertyDefinitionResolver interface {
 
 // PropertyTimeseries writes property samples.
 type PropertyTimeseries interface {
-	WriteProperty(ctx context.Context, modelKey string, points []timeseries.PropertyPoint) error
+	WriteProperty(ctx context.Context, modelKey string, points []timeseries.PropertyPoint, debug bool) error
 }
 
 // PropertyReportLogger writes device and gateway property report logs.
@@ -64,6 +64,7 @@ type DefaultPropertyProcessor struct {
 	shadow          PropertyShadow
 	trigger         PropertyTriggerSink
 	gatewayResolver GatewayCollectionResolver
+	snapshots       ThingSnapshotResolver
 	logs            PropertyReportLogger
 }
 
@@ -74,6 +75,7 @@ func NewPropertyProcessor(
 	shadow PropertyShadow,
 	trigger PropertyTriggerSink,
 	gatewayResolver GatewayCollectionResolver,
+	snapshots ThingSnapshotResolver,
 	logs PropertyReportLogger,
 ) *DefaultPropertyProcessor {
 	return &DefaultPropertyProcessor{
@@ -82,6 +84,7 @@ func NewPropertyProcessor(
 		shadow:          shadow,
 		trigger:         trigger,
 		gatewayResolver: gatewayResolver,
+		snapshots:       snapshots,
 		logs:            logs,
 	}
 }
@@ -107,6 +110,16 @@ func (p *DefaultPropertyProcessor) ProcessProperty(ctx context.Context, msg *Dev
 
 func (p *DefaultPropertyProcessor) processDirect(ctx context.Context, msg *DeviceMessage, report *PropertyReport) error {
 	modelKey := strings.TrimSpace(msg.ThingModelKey)
+	debug := false
+	if p.snapshots != nil && msg.ThingID != "" {
+		snapshot, err := p.snapshots.GetThingSnapshot(ctx, msg.ThingID)
+		if err != nil {
+			logging.ErrorS(err, "Ignoring property report for unavailable thing",
+				"thingId", msg.ThingID, "deviceKey", msg.DeviceKey, "messageId", msg.MessageID)
+			return nil
+		}
+		debug = snapshot.Debug == 1
+	}
 	if p.resolver == nil {
 		p.writeFailure(ctx, msg, modelKey, errors.New("property definition resolver is not configured"))
 		return nil
@@ -143,14 +156,16 @@ func (p *DefaultPropertyProcessor) processDirect(ctx context.Context, msg *Devic
 		})
 		if len(values) > 0 {
 			shadowUpdates = append(shadowUpdates, ShadowUpdate{Time: pointTime, Values: values})
-			triggers = append(triggers, PropertyTrigger{
-				Time:       timestamp,
-				DeviceID:   msg.ThingID,
-				DeviceKey:  msg.DeviceKey,
-				DeviceName: msg.DeviceName,
-				ModelKey:   modelKey,
-				Values:     values,
-			})
+			if !debug {
+				triggers = append(triggers, PropertyTrigger{
+					Time:       timestamp,
+					DeviceID:   msg.ThingID,
+					DeviceKey:  msg.DeviceKey,
+					DeviceName: msg.DeviceName,
+					ModelKey:   modelKey,
+					Values:     values,
+				})
+			}
 		}
 	}
 
@@ -171,7 +186,7 @@ func (p *DefaultPropertyProcessor) processDirect(ctx context.Context, msg *Devic
 	}
 
 	if p.ts != nil {
-		if err := p.ts.WriteProperty(ctx, modelKey, points); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
+		if err := p.ts.WriteProperty(ctx, modelKey, points, debug); err != nil && !errors.Is(err, timeseries.ErrDisabled) {
 			p.writeFailure(ctx, msg, modelKey, fmt.Errorf("write property samples: %w", err))
 			return nil
 		}

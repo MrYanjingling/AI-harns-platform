@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/oklog/ulid/v2"
 
@@ -43,6 +44,18 @@ type Thing struct {
 	MQTTUsername string                     `json:"mqttUsername"`
 	MQTTPassword string                     `json:"-"`
 	Enable       int                        `json:"enable"`
+	Debug        int                        `json:"debug"`
+}
+
+// ThingBasic is a thing joined with model and creator/updater display fields.
+type ThingBasic struct {
+	Thing
+	ThingModelKey       string
+	ThingModelName      string
+	CreatedUserName     string
+	CreatedUserNickName string
+	UpdatedUserName     string
+	UpdatedUserNickName string
 }
 
 // ThingIdentity is the non-secret identity cached for token lookups.
@@ -57,6 +70,33 @@ type ThingIdentity struct {
 	UpTopic       string `json:"upTopic"`
 	DownTopic     string `json:"downTopic"`
 	Enable        int    `json:"enable"`
+	Debug         int    `json:"debug"`
+}
+
+// ThingSnapshot is the cached, credential-inclusive view of a thing.
+type ThingSnapshot struct {
+	ID            string                     `json:"id"`
+	Version       int64                      `json:"version"`
+	ThingModelID  string                     `json:"thingModelId"`
+	ThingModelKey string                     `json:"thingModelKey"`
+	DeviceName    string                     `json:"deviceName"`
+	DeviceKey     string                     `json:"deviceKey"`
+	DeviceSecret  string                     `json:"deviceSecret"`
+	Token         string                     `json:"token"`
+	UpTopic       string                     `json:"upTopic"`
+	DownTopic     string                     `json:"downTopic"`
+	DeviceDesc    string                     `json:"deviceDesc"`
+	Features      map[string]json.RawMessage `json:"features,omitempty"`
+	Image         string                     `json:"image"`
+	MQTTClientID  string                     `json:"mqttClientId"`
+	MQTTUsername  string                     `json:"mqttUsername"`
+	MQTTPassword  string                     `json:"mqttPassword"`
+	Enable        int                        `json:"enable"`
+	Debug         int                        `json:"debug"`
+	CreatedUser   string                     `json:"createdUser"`
+	UpdatedUser   string                     `json:"updatedUser"`
+	CreatedTime   time.Time                  `json:"createdTime"`
+	UpdatedTime   time.Time                  `json:"updatedTime"`
 }
 
 // AuthThing is the authentication view of a thing, including its model key.

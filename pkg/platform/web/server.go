@@ -123,12 +123,27 @@ func (s *Server) InstallHandlers() error {
 	thingModelSvc := thingmodel.NewService(thingmodel.NewStore(s.Config.DB), s.Config.Redis)
 	thingmodel.InstallHandler(iot, thingModelSvc)
 	emqxSvc := emqx.NewService(s.Config.EMQX)
+	var thingTimeSeries things.ThingTimeSeriesQuerier
+	if s.timeseriesSvc != nil {
+		thingTimeSeries = s.timeseriesSvc
+	}
 	thingsSvc := things.NewService(
 		things.NewStore(s.Config.DB),
 		s.Config.Redis,
 		time.Duration(s.Config.Things.OnlineTTLSeconds)*time.Second,
 		emqxSvc,
+		thingModelSvc,
+		thingTimeSeries,
+		things.AuthDenyCacheConfig{
+			TTL:        time.Duration(s.Config.Things.AuthDenyCacheTTLSeconds) * time.Second,
+			MaxEntries: s.Config.Things.AuthDenyCacheMaxEntries,
+		},
 	)
+	thingModelSvc.SetThingCacheCleaner(thingsSvc)
+	thingModelSvc.SetThingSessionKicker(thingsSvc)
+	if s.timeseriesSvc != nil {
+		thingModelSvc.SetThingModelTimeSeriesDropper(s.timeseriesSvc)
+	}
 	things.InstallHandler(iot, thingsSvc)
 
 	var propertyTS things.PropertyTimeseries
@@ -165,6 +180,7 @@ func (s *Server) InstallHandlers() error {
 		thingsSvc,
 		triggerRouter,
 		things.UnavailableGatewayCollectionResolver{},
+		thingsSvc,
 		reportLogger,
 	)
 	propertyHandler := things.NewPropertyHandlerWithLogger(propertyProcessor, reportLogger)
