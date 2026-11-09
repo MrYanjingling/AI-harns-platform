@@ -97,10 +97,6 @@ components:
                   type: string
                   description: 密码.
           description: OpcUa服务参数.
-        topic:
-          type: string
-          description: MQTT消息队列Topic.
-          nullable: false
         variables:
           type: array
           description: 变量组.

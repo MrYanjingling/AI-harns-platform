@@ -27,7 +27,6 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 
 	d := &modbus.ModBusDevice{
 		DeviceMeta: runtime.DeviceMeta{
-			PublishMeta: runtime.PublishMeta{Topic: modbusDevice.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    modbusDevice.Name,
 				ID:      uuidutil.UUID(),
@@ -97,7 +96,6 @@ func (m *ModbusDeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, 
 	}
 
 	copyDevice, _ := device.(*modbus.ModBusDevice)
-	copyDevice.DeviceMeta.PublishMeta.Topic = modbusDevice.Topic
 	copyDevice.DeviceMeta.ObjectMeta.Name = modbusDevice.Name
 	copyDevice.DeviceMeta.DeviceCode = modbusDevice.DeviceCode
 	copyDevice.DeviceMeta.DeviceType = modbusDevice.DeviceType

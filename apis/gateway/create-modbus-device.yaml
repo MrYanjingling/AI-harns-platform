@@ -192,10 +192,6 @@ components:
           type: integer
           description: 地址起始偏移量.
           nullable: true
-        topic:
-          type: string
-          description: MQTT消息队列Topic.
-          nullable: false
         variables:
           type: array
           description: 变量组.

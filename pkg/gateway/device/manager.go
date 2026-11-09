@@ -2,7 +2,7 @@ package device
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json" // MQTT publishing is temporarily disabled.
 	"errors"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -311,11 +311,8 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 	m.brokers[obj.GetID()] = broker
 	m.brokerReturnCh[obj.GetID()] = results
 
-	topic := obj.GetTopic()
-	if len(topic) == 0 {
-		topic = fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
-		obj.SetTopic(topic)
-	}
+	// MQTT publishing is temporarily disabled.
+	// topic := fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
 
 	broker.Collect(context.Background())
 	go func(deviceId string, ch chan *runtime.ParseVariableResult) {
@@ -332,26 +329,27 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 							if v.(runtime.Device).GetCollectStatus() != runtime.CollectStatusToString[runtime.Collecting] {
 								v.(runtime.Device).SetCollectStatus(runtime.CollectStatusToString[runtime.Collecting])
 							}
-							pds := make([]runtime.PointData, 0, len(pvr.VariableSlice))
-							for _, value := range pvr.VariableSlice {
-								pd := runtime.PointData{
-									DataPointId: value.GetVariableName(),
-									Value:       value.GetValue(),
-								}
-								pds = append(pds, pd)
-							}
-							publishData := runtime.PublishData{Payload: runtime.Payload{Data: []runtime.TimeSeriesData{{
-								Timestamp: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
-								Values:    pds,
-							}}}}
-
-							marshal, _ := json.Marshal(publishData)
-							token := m.mqttClient.Publish(topic, 1, false, marshal)
-							if token.WaitTimeout(mqttTimeout) && token.Error() == nil {
-								logging.V(5).InfoS("Succeed to publish MQTT", "topic", topic, "data", publishData)
-							} else {
-								logging.V(1).InfoS("Failed to publish MQTT", "topic", topic, "err", token.Error())
-							}
+							// MQTT publishing is temporarily disabled.
+							// pds := make([]runtime.PointData, 0, len(pvr.VariableSlice))
+							// for _, value := range pvr.VariableSlice {
+							// 	pd := runtime.PointData{
+							// 		DataPointId: value.GetVariableName(),
+							// 		Value:       value.GetValue(),
+							// 	}
+							// 	pds = append(pds, pd)
+							// }
+							// publishData := runtime.PublishData{Payload: runtime.Payload{Data: []runtime.TimeSeriesData{{
+							// 	Timestamp: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+							// 	Values:    pds,
+							// }}}}
+							//
+							// marshal, _ := json.Marshal(publishData)
+							// token := m.mqttClient.Publish(topic, 1, false, marshal)
+							// if token.WaitTimeout(mqttTimeout) && token.Error() == nil {
+							// 	logging.V(5).InfoS("Succeed to publish MQTT", "topic", topic, "data", publishData)
+							// } else {
+							// 	logging.V(1).InfoS("Failed to publish MQTT", "topic", topic, "err", token.Error())
+							// }
 						} else {
 							v.(runtime.Device).SetCollectStatus(runtime.CollectStatusToString[runtime.CollectingError])
 						}

@@ -27,7 +27,6 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 
 	d := &s7runtime.S7Device{
 		DeviceMeta: runtime.DeviceMeta{
-			PublishMeta: runtime.PublishMeta{Topic: s7Device.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    s7Device.Name,
 				ID:      uuidutil.UUID(),
@@ -89,7 +88,6 @@ func (m *S7DeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, devi
 	}
 
 	copyDevice, _ := device.(*s7runtime.S7Device)
-	copyDevice.DeviceMeta.PublishMeta.Topic = s7Device.Topic
 	copyDevice.DeviceMeta.ObjectMeta.Name = s7Device.Name
 	copyDevice.DeviceMeta.DeviceCode = s7Device.DeviceCode
 	copyDevice.DeviceMeta.DeviceType = s7Device.DeviceType

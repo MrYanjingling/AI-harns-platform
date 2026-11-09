@@ -30,7 +30,7 @@ AI-harns-platform 可以安装在嵌入式设备上作为硬网关采集工业�
 
 ## 如何启动
 
-1. QuickStart</br> ./gateway --mqtt-broker-urls=127.0.0.1:1883 &
+1. QuickStart</br> cp etc/gateway/config.yaml /etc/gateway/config.yaml && ./gateway -c /etc/gateway/config.yaml &
 2. Systemd
 
 ## 如何使用

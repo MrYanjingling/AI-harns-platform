@@ -31,7 +31,7 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
 
 ## How to Start
 
-1. QuickStart</br> ./gateway --mqtt-broker-urls=127.0.0.1:1883 &
+1. QuickStart</br> cp etc/gateway/config.yaml /etc/gateway/config.yaml && ./gateway -c /etc/gateway/config.yaml &
 2. Systemd
 
 ## How to Use

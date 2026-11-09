@@ -182,7 +182,7 @@ HTTP 创建/启动设备
    → MQTT Publish(topic = data/<gatewayId>/v1/<deviceId>, QoS 1)
 ```
 
-- 设备未显式设置 `topic` 时按上述规则生成并回写设备。
+- 设备 Topic 固定按上述规则生成，创建和更新接口均不接收 `topic`。
 - 采集异常会把设备状态置为 `CollectingError`，连接失败为 `Unconnected`，无点位为 `EmptyVariable`。
 - 反控通过 `PUT /api/v1/devices/:id/action` 进入对应 protocol 的写点位逻辑（OPC UA 当前不支持反控）。
 - 设备与网关元数据持久化在本地文件，按 OS 选择目录（`storage/store_{darwin,linux,windows}.go`）。
@@ -204,7 +204,9 @@ HTTP 创建/启动设备
 | `etc/platform/config.yaml` | 平台默认配置（端口、Redis、MySQL、MinIO、安全、CORS、审计） |
 | `etc/platform/config.docker.yaml` | docker compose 使用的容器内配置 |
 
-配置加载优先级：CLI flag > 配置文件 > `NewDefaultOptions`。平台默认配置路径 `/etc/platform/config.yaml`，可用 `-c` 覆盖。
+配置加载优先级：CLI flag > 配置文件 > `NewDefaultOptions`。platform 默认配置路径 `/etc/platform/config.yaml`，gateway 默认配置路径 `/etc/gateway/config.yaml`，均可用 `-c` 覆盖。
+
+gateway 的 MQTT broker、username、password 只从配置文件读取，不提供 CLI flag；其他启动参数与 platform 保持一致（`--port`、`--graceful-timeout`、`--cert-file`、`--key-file`）。
 
 构建与发布：
 

@@ -27,7 +27,6 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 
 	d := &opcuaruntime.OpcUaDevice{
 		DeviceMeta: runtime.DeviceMeta{
-			PublishMeta: runtime.PublishMeta{Topic: opcUaDevice.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    opcUaDevice.Name,
 				ID:      uuidutil.UUID(),
@@ -86,7 +85,6 @@ func (m *OpcUaDeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, d
 	}
 
 	copyDevice, _ := device.(*opcuaruntime.OpcUaDevice)
-	copyDevice.DeviceMeta.PublishMeta.Topic = opcUaDevice.Topic
 	copyDevice.DeviceMeta.ObjectMeta.Name = opcUaDevice.Name
 	copyDevice.DeviceMeta.DeviceCode = opcUaDevice.DeviceCode
 	copyDevice.DeviceMeta.DeviceType = opcUaDevice.DeviceType

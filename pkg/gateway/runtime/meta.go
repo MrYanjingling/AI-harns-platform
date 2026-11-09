@@ -91,11 +91,6 @@ type Object interface {
 	SetModTime(time.Time)
 }
 
-type Publisher interface {
-	SetTopic(string)
-	GetTopic() string
-}
-
 type GetVariabler interface {
 	GetVariable(key string) (VariableValue, bool)
 }
@@ -105,7 +100,6 @@ type IndexDevice interface {
 
 type Device interface {
 	Object
-	Publisher
 	GetVariabler
 	IndexDevice
 	GetDeviceCode() string
@@ -122,7 +116,6 @@ var _ Device = (*DeviceMeta)(nil)
 
 type DeviceMeta struct {
 	ObjectMeta
-	PublishMeta
 	DeviceCode    string `json:"deviceCode"`
 	DeviceType    string `json:"deviceType"`
 	DeviceModel   string `json:"deviceModel"`
@@ -184,13 +177,6 @@ func (meta *ObjectMeta) GetVersion() string           { return meta.Version }
 func (meta *ObjectMeta) SetVersion(version string)    { meta.Version = version }
 func (meta *ObjectMeta) GetModTime() time.Time        { return meta.ModTime }
 func (meta *ObjectMeta) SetModTime(modTime time.Time) { meta.ModTime = modTime }
-
-type PublishMeta struct {
-	Topic string `json:"topic,omitempty"`
-}
-
-func (pm *PublishMeta) GetTopic() string      { return pm.Topic }
-func (pm *PublishMeta) SetTopic(topic string) { pm.Topic = topic }
 
 func Accessor(obj interface{}) (Object, error) {
 	switch t := obj.(type) {

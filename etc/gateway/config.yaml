@@ -1,7 +1,7 @@
 # harns-gateway configuration file.
 #
 # Place this file at /etc/gateway/config.yaml (the default path loaded on startup),
-# or point to it explicitly with:  ./harns-gateway -c /etc/gateway/config.yaml
+# or point to it explicitly with:  ./gateway -c /etc/gateway/config.yaml
 #
 # Command-line flags always override values defined here.
 
@@ -15,6 +15,7 @@ graceful-timeout: 15s
 # Maximum request body size in bytes (10 MiB).
 max-body-bytes: 10485760
 
+# MQTT settings are read from this file only; they are not exposed as CLI flags.
 # MQTT broker urls. Scheme must be one of "tcp", "ssl" or "ws".
 mqtt-broker-urls:
   - tcp://127.0.0.1:1883
