@@ -425,3 +425,38 @@ func ErrFileTypeInvalid() *responseError {
 func ErrFileUploadFailed(err error) *responseError {
 	return generateErrorWrapper(ErrCodeFileUploadFailed, err)
 }
+
+// ErrDriverNotFound reports that a driver does not exist.
+func ErrDriverNotFound(id string) *responseError {
+	return generateError(ErrCodeDriverNotFound, id)
+}
+
+// ErrDriverConflict reports that a driver type/model or driver name is taken.
+func ErrDriverConflict(value string) *responseError {
+	return generateError(ErrCodeDriverConflict, value)
+}
+
+// ErrDriverBuiltinReadOnly reports that a built-in driver cannot be modified.
+func ErrDriverBuiltinReadOnly() *responseError {
+	return generateError(ErrCodeDriverBuiltinReadOnly)
+}
+
+// ErrDriverInvalid reports invalid driver metadata.
+func ErrDriverInvalid(reason string) *responseError {
+	return generateError(ErrCodeDriverInvalid, reason)
+}
+
+// ErrCollectionNotFound reports that a collection does not exist.
+func ErrCollectionNotFound(id string) *responseError {
+	return generateError(ErrCodeCollectionNotFound, id)
+}
+
+// ErrCollectionConflict reports a collection or variable conflict.
+func ErrCollectionConflict(value string) *responseError {
+	return generateError(ErrCodeCollectionConflict, value)
+}
+
+// ErrCollectionInvalid reports invalid collection metadata.
+func ErrCollectionInvalid() *responseError {
+	return generateError(ErrCodeCollectionInvalid)
+}

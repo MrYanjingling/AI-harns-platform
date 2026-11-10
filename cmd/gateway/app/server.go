@@ -86,11 +86,17 @@ func run(o *options.Options) error {
 	// exit, err := startServer(generic.Default(), o, &c.ModelConfig)
 	server, err := web.NewServer(generic.Default(), o, c)
 	if err != nil {
+		if c.DB != nil {
+			_ = c.DB.Close()
+		}
 		return err
 	}
 
 	exit, err := server.Serve()
 	if err != nil {
+		if c.DB != nil {
+			_ = c.DB.Close()
+		}
 		return err
 	}
 	logging.V(1).InfoS("Server started", "port", o.Port)

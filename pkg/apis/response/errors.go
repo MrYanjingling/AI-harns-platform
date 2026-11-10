@@ -62,6 +62,13 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeFileTooLarge:               "error.file_too_large",
 	ErrCodeFileTypeInvalid:            "error.file_type_invalid",
 	ErrCodeFileUploadFailed:           "error.file_upload_failed",
+	ErrCodeDriverNotFound:             "error.driver_not_found",
+	ErrCodeDriverConflict:             "error.driver_conflict",
+	ErrCodeDriverBuiltinReadOnly:      "error.driver_builtin_read_only",
+	ErrCodeDriverInvalid:              "error.driver_invalid",
+	ErrCodeCollectionNotFound:         "error.collection_not_found",
+	ErrCodeCollectionConflict:         "error.collection_conflict",
+	ErrCodeCollectionInvalid:          "error.collection_invalid",
 }
 
 func messageID(code ErrCode) string {

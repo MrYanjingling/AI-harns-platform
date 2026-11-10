@@ -15,6 +15,10 @@ graceful-timeout: 15s
 # Maximum request body size in bytes (10 MiB).
 max-body-bytes: 10485760
 
+# Gateway metadata database (protocol management).
+sqlite:
+  path: "data/gateway.db"
+
 # MQTT settings are read from this file only; they are not exposed as CLI flags.
 # MQTT broker urls. Scheme must be one of "tcp", "ssl" or "ws".
 mqtt-broker-urls:

@@ -19,6 +19,9 @@ func Validate(o *Options) []error {
 	if o.CORS.MaxAgeSeconds < 0 {
 		errs = append(errs, fmt.Errorf("cors.max-age-seconds must not be negative"))
 	}
+	if o.SQLite.Path == "" {
+		errs = append(errs, fmt.Errorf("sqlite.path must not be empty"))
+	}
 
 	return errs
 }

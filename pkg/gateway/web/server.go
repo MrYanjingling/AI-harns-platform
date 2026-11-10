@@ -11,7 +11,9 @@ import (
 	"harns-platform/cmd/gateway/options"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway"
+	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/device"
+	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
 	"net/http"
@@ -54,6 +56,8 @@ func (s *Server) InstallHandlers() {
 	v1.Use(generic.BodyLimit(s.Config.MaxBodyBytes))
 	device.InstallHandler(v1, s.Config.DeviceMgr)
 	gateway.InstallHandler(v1, s.Config.GatewayMgr)
+	drivermgr.InstallHandler(v1, s.Config.DriverMgr)
+	collectionmgr.InstallHandler(v1, s.Config.CollectionMgr)
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {
@@ -103,6 +107,11 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		}
 		if err := s.Config.DeviceMgr.Shutdown(ctx); err != nil {
 			logging.Error(err)
+		}
+		if s.Config.DB != nil {
+			if err := s.Config.DB.Close(); err != nil {
+				logging.Error(err)
+			}
 		}
 	}, nil
 }

@@ -48,6 +48,10 @@ AI-harns-platform
 │   │   ├── device/         设备 CRUD、启停、反控、采集调度、MQTT 发布
 │   │   ├── registry/       deviceType → v1 model / runtime device / broker 工厂
 │   │   ├── protocol/       modbus、opcua、s7，各自含 model 与 runtime
+│   │   ├── drivermgr/    驱动元数据管理（SQLite，内置驱动种子）
+│   │   ├── collectionmgr/ 采集器 CRUD 与运行时管理（sync.Map、生命周期）
+│   │   ├── pluginapi/     Gateway 插件 ABI（当前仅接口）
+│   │   ├── sqlite/         Gateway SQLite 连接与初始化
 │   │   ├── runtime/        设备模型、点位、序列化、校验、常量
 │   │   ├── storage/        本地文件存储（按 OS 区分根目录）
 │   │   ├── v1/             HTTP DTO（ModBusDevice / OpcUaDevice / S7Device）
@@ -167,6 +171,20 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/devices/:id/action` | PUT | 变量反控 |
 | `/api/v1/gatewayMeta` | GET | 网关身份与版本（带 ETag） |
 | `/api/v1/gatewayCpu|Mem|Disk` | GET | 网关资源使用 |
+| `/api/v1/drivers` | GET/POST | 驱动元数据列表 / 创建自定义驱动 |
+| `/api/v1/drivers/schema` | GET | 根据 `driverModel` 查询 Schema |
+| `/api/v1/drivers/:id` | GET/PUT/DELETE | 驱动详情 / 更新 / 删除 |
+| `/api/v1/collections` | GET/POST | 采集器分页列表 / 创建 |
+| `/api/v1/collections/:id` | GET/PUT/DELETE | 采集器协议详情 / 更新 / 删除 |
+| `/api/v1/collections/:id/variables` | GET/POST/DELETE | 变量分页 / 批量新增 / 批量删除 |
+
+`GET /api/v1/drivers` 默认按 `driverType` 分组，`flat=true` 返回扁平列表；`driverType` 使用不区分大小写的模糊匹配。
+
+`GET /api/v1/collections` 和 `GET /api/v1/collections/:id/variables` 使用平台统一分页结构；采集器详情不返回 variables。
+
+Driver `schema` 使用对象结构：`{"fields":[...]}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`。Collection 创建时按 driver schema 校验协议字段。
+
+Collection 运行时保存在 `collectionmgr.RuntimeManager` 的 `sync.Map` 中，按 `Collector` 生命周期执行 `Connect → Start → Stop`。当前 ModbusTcp 使用占位 Collector，Connect/Start 返回未实现错误；真实采集后续替换。
 
 ## 5. 网关数据流
 
@@ -184,7 +202,7 @@ HTTP 创建/启动设备
 
 - 设备 Topic 固定按上述规则生成，创建和更新接口均不接收 `topic`。
 - 采集异常会把设备状态置为 `CollectingError`，连接失败为 `Unconnected`，无点位为 `EmptyVariable`。
-- 反控通过 `PUT /api/v1/devices/:id/action` 进入对应 protocol 的写点位逻辑（OPC UA 当前不支持反控）。
+- 反控通过 `PUT /api/v1/devices/:id/action` 进入对应协议实现的写点位逻辑（OPC UA 当前不支持反控）。
 - 设备与网关元数据持久化在本地文件，按 OS 选择目录（`storage/store_{darwin,linux,windows}.go`）。
 
 ## 6. 数据模型与迁移

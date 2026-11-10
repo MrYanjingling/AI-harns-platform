@@ -63,6 +63,18 @@ const (
 	ErrCodeFileUploadFailed                   // 10057
 )
 
+// Gateway error codes use the 20000 range.
+const (
+	_                            ErrCode = 20000 + iota
+	ErrCodeDriverNotFound                // 20001
+	ErrCodeDriverConflict                // 20002
+	ErrCodeDriverBuiltinReadOnly         // 20003
+	ErrCodeDriverInvalid                 // 20004
+	ErrCodeCollectionNotFound            // 20005
+	ErrCodeCollectionConflict            // 20006
+	ErrCodeCollectionInvalid             // 20007
+)
+
 // !!! IMPORTANT PLEASE READ FIRST !!!
 // You SHOULD add new code at the end, and append comment of number
 // Meanwhile, the corresponding error message SHOULD be appended in response.errors
