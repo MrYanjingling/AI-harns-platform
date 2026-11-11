@@ -41,9 +41,8 @@ func createTestCollection(t *testing.T, engine *gin.Engine, body string) string 
 
 const collectionBody = `{
 	"driverType":"modbus","driverModel":"modbusTcp","name":"modbus-tcp-1",
-	"collectorCycleMs":1000,"location":"127.0.0.1:502",
-	"memoryLayout":"ABCD",
-	"variables":[{"name":"temperature","dataType":"float32","address":"holding:40001","accessMode":"r"}]
+	"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+	"variables":[{"name":"temperature","dataType":"float32","address":"1!40001","accessMode":"r"}]
 }`
 
 func TestCollectionListUpdateDetailDelete(t *testing.T) {
@@ -65,7 +64,7 @@ func TestCollectionListUpdateDetailDelete(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `"location":"127.0.0.1:502"`)
 	assert.NotContains(t, rec.Body.String(), `"variables"`)
 
-	updateBody := `{"name":"updated","collectorCycleMs":2000,"location":"127.0.0.2:503","memoryLayout":"DCBA"}`
+	updateBody := `{"name":"updated","collectorCycleMs":2000,"protocolConfig":{"location":"127.0.0.2:503","memoryLayout":"DCBA"}}`
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/collections/"+id, strings.NewReader(updateBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
@@ -91,8 +90,8 @@ func TestCollectionVariableBatchAndPagination(t *testing.T) {
 	id := createTestCollection(t, engine, collectionBody)
 
 	addBody := `[
-		{"name":"humidity","dataType":"float32","address":"holding:40002","accessMode":"r"},
-		{"name":"voltage","dataType":"float32","address":"holding:40003","accessMode":"r"}
+		{"name":"humidity","dataType":"float32","address":"1!40002","accessMode":"r"},
+		{"name":"voltage","dataType":"float32","address":"1!40003","accessMode":"r"}
 	]`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/collections/"+id+"/variables", strings.NewReader(addBody))
 	req.Header.Set("Content-Type", "application/json")

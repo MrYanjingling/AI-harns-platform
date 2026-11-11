@@ -7,7 +7,11 @@ import (
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/pkg/gateway"
+	"harns-platform/pkg/gateway/collection/modbusrtu"
+	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/opcua"
+	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -102,12 +106,24 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	collectionMgr, err := collectionmgr.NewService(collectionStore, &modbustcp.CreateHandler{})
+	collectionMgr, err := collectionmgr.NewService(collectionStore,
+		&modbustcp.CreateHandler{},
+		&modbusrtu.CreateHandler{},
+		&modbusrtuovertcp.CreateHandler{},
+		&opcua.CreateHandler{},
+		&s7.CreateHandler{},
+	)
 	if err != nil {
 		_ = db.Close()
 		return nil, err
 	}
-	runtimeManager, err := collectionmgr.NewRuntimeManager(&modbustcp.CollectorFactory{})
+	runtimeManager, err := collectionmgr.NewRuntimeManager(
+		&modbustcp.CollectorFactory{},
+		&modbusrtu.CollectorFactory{},
+		&modbusrtuovertcp.CollectorFactory{},
+		&opcua.CollectorFactory{},
+		&s7.CollectorFactory{},
+	)
 	if err != nil {
 		_ = db.Close()
 		return nil, err

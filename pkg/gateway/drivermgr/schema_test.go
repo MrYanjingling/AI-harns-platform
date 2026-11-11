@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/validation"
 )
 
@@ -25,15 +26,45 @@ func TestParseSchemaAndValidateBody(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, schema.Fields, 2)
 
-	require.NoError(t, schema.ValidateBody([]byte(`{"host":"127.0.0.1","mode":"a"}`)))
-	require.Error(t, schema.ValidateBody([]byte(`{"host":"","mode":"a"}`)))
-	require.Error(t, schema.ValidateBody([]byte(`{"host":"127.0.0.1","mode":"c"}`)))
-	require.Error(t, schema.ValidateBody([]byte(`{"mode":"a"}`)))
+	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"host":"127.0.0.1","mode":"a"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"host":"","mode":"a"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"host":"127.0.0.1","mode":"c"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"mode":"a"}}`)))
 
 	var fieldErr *validation.ValidationError
-	err = schema.ValidateBody([]byte(`{"host":"127.0.0.1","mode":"c"}`))
+	err = schema.ValidateBody([]byte(`{"protocolConfig":{"host":"127.0.0.1","mode":"c"}}`))
 	require.True(t, errors.As(err, &fieldErr))
-	assert.Equal(t, "mode", fieldErr.Issues[0].Field)
+	assert.Equal(t, "protocolConfig.mode", fieldErr.Issues[0].Field)
+}
+
+func TestSchemaVariableAddress(t *testing.T) {
+	raw := json.RawMessage(`{
+		"fields":[],
+		"variableAddress":{
+			"labelZh":"变量地址","labelEn":"Variable Address",
+			"regex":"^[0-9]+![1-4][0-9]+$"
+		}
+	}`)
+	schema, err := ParseSchema(raw)
+	require.NoError(t, err)
+	require.NoError(t, schema.ValidateVariableAddresses([]*collection.Variable{{
+		Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead,
+	}}))
+	err = schema.ValidateVariableAddresses([]*collection.Variable{{
+		Name: "temperature", DataType: "float32", Address: "40001", AccessMode: collection.AccessModeRead,
+	}})
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.True(t, errors.As(err, &validationErr))
+	assert.Equal(t, "variables[0].address", validationErr.Issues[0].Field)
+}
+
+func TestParseSchemaVariableAddressInvalidRegex(t *testing.T) {
+	_, err := ParseSchema(json.RawMessage(`{
+		"fields":[],
+		"variableAddress":{"labelZh":"地址","labelEn":"Address","regex":"["}
+	}`))
+	require.Error(t, err)
 }
 
 func TestParseSchemaRejectsInvalidDefinitions(t *testing.T) {

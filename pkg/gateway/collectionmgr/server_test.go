@@ -22,10 +22,9 @@ func TestCollectionCreateRoute(t *testing.T) {
 		"driverModel":"modbusTcp",
 		"name":"modbus-tcp-1",
 		"collectorCycleMs":1000,
-		"location":"127.0.0.1:502",
-		"memoryLayout":"ABCD",
+		"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
 		"variables":[{
-			"name":"temperature","dataType":"float32","address":"holding:40001","accessMode":"r"
+			"name":"temperature","dataType":"float32","address":"1!40001","accessMode":"r"
 		}]
 	}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/collections", strings.NewReader(body))
@@ -36,6 +35,6 @@ func TestCollectionCreateRoute(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"code":200`)
 	assert.Contains(t, rec.Body.String(), `"id":`)
-	assert.Contains(t, rec.Body.String(), `"location":"127.0.0.1:502"`)
-	assert.Contains(t, rec.Body.String(), `"variables":[`)
+	assert.Contains(t, rec.Body.String(), `"protocolConfig":{"location":"127.0.0.1:502"`)
+	assert.NotContains(t, rec.Body.String(), `"variables":[`)
 }

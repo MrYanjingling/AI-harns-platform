@@ -10,18 +10,20 @@ import (
 	"harns-platform/pkg/gateway/collection"
 )
 
-func TestCreateReqJSONIsFlat(t *testing.T) {
+func TestCreateReqJSONUsesProtocolConfig(t *testing.T) {
 	req := &CreateReq{
 		Name:             "modbus-tcp-1",
 		CollectorCycleMs: 1000,
-		Location:         "127.0.0.1:502",
-		BackupLocation:   "127.0.0.2:502",
-		MemoryLayout:     "ABCD",
+		ProtocolConfig: ProtocolConfig{
+			Location:       "127.0.0.1:502",
+			BackupLocation: "127.0.0.2:502",
+			MemoryLayout:   "ABCD",
+		},
 		Variables: []*collection.Variable{{
 			Name:       "temperature",
 			Type:       "telemetry",
 			DataType:   "float32",
-			Address:    "holding:40001",
+			Address:    "1!40001",
 			AccessMode: collection.AccessModeRead,
 			Rate:       1,
 			Precision:  2,
@@ -31,11 +33,10 @@ func TestCreateReqJSONIsFlat(t *testing.T) {
 	data, err := json.Marshal(req)
 	require.NoError(t, err)
 	encoded := string(data)
-	assert.Contains(t, encoded, `"location":"127.0.0.1:502"`)
+	assert.Contains(t, encoded, `"protocolConfig":{"location":"127.0.0.1:502"`)
 	assert.Contains(t, encoded, `"backupLocation":"127.0.0.2:502"`)
 	assert.Contains(t, encoded, `"variables"`)
 	assert.NotContains(t, encoded, `"address":{"`)
-	assert.NotContains(t, encoded, `"config"`)
 	assert.NotContains(t, encoded, `"variableInterval"`)
 }
 
@@ -43,13 +44,15 @@ func TestNewCollection(t *testing.T) {
 	req := &CreateReq{
 		Name:             "modbus-tcp-1",
 		CollectorCycleMs: 500,
-		Location:         "127.0.0.1:502",
-		BackupLocation:   "127.0.0.2:502",
-		MemoryLayout:     "ABCD",
+		ProtocolConfig: ProtocolConfig{
+			Location:       "127.0.0.1:502",
+			BackupLocation: "127.0.0.2:502",
+			MemoryLayout:   "ABCD",
+		},
 		Variables: []*collection.Variable{{
 			Name:       "temperature",
 			DataType:   "float32",
-			Address:    "holding:40001",
+			Address:    "1!40001",
 			AccessMode: collection.AccessModeRead,
 		}},
 	}
@@ -82,4 +85,22 @@ func TestConfigJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original.BackupLocation, restored.BackupLocation)
 	assert.Equal(t, original.MemoryLayout, restored.MemoryLayout)
 	assert.Equal(t, original.PositionAddress, restored.PositionAddress)
+}
+
+func TestTCPCountDefaultsToOne(t *testing.T) {
+	req := &CreateReq{
+		Name:             "modbus-tcp-default",
+		CollectorCycleMs: 1000,
+		ProtocolConfig: ProtocolConfig{
+			Location:     "127.0.0.1:502",
+			MemoryLayout: "ABCD",
+		},
+	}
+	created, err := NewCollection(req)
+	require.NoError(t, err)
+	assert.Equal(t, DefaultTCPCount, created.TCPCount)
+
+	config, err := created.ConfigJSON()
+	require.NoError(t, err)
+	assert.Contains(t, string(config), `"tcpCount":1`)
 }

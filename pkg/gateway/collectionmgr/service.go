@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,11 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/modbusrtu"
+	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/opcua"
+	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr/v1"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/validation"
@@ -53,7 +58,13 @@ func (s *Service) StartRuntime(ctx context.Context) error {
 	if err != nil {
 		return response.ErrInternal(err)
 	}
-	if err := s.runtime.Load(ctx, records); err != nil {
+	enabled := make([]*CollectionRecord, 0, len(records))
+	for _, record := range records {
+		if record.Enable {
+			enabled = append(enabled, record)
+		}
+	}
+	if err := s.runtime.Load(ctx, enabled); err != nil {
 		logging.ErrorS(err, "Failed to load collection runtime")
 	}
 	s.runtime.Start()
@@ -153,6 +164,7 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 		DriverType:       meta.DriverType,
 		DriverModel:      meta.DriverModel,
 		CollectStatus:    meta.CollectStatus,
+		Enable:           true,
 		CollectorCycleMs: meta.CollectorCycleMs,
 		ProtocolConfig:   config,
 		Variables:        meta.Variables,
@@ -167,7 +179,7 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 			logging.ErrorS(err, "Failed to register collection runtime", "collectionId", record.ID)
 		}
 	}
-	return created, nil
+	return s.collectionDetail(ctx, record)
 }
 
 // Get loads a collection record by ID.
@@ -204,12 +216,7 @@ func (s *Service) GetDetail(ctx context.Context, id string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if s.runtime != nil {
-		if status, ok := s.runtime.Status(id); ok {
-			record.CollectStatus = status
-		}
-	}
-	return toCollectionDetail(record)
+	return s.collectionDetail(ctx, record)
 }
 
 // Update updates collection metadata and protocol config.
@@ -232,6 +239,11 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		return nil, err
 	}
 
+	var (
+		name   string
+		cycle  uint64
+		config []byte
+	)
 	switch {
 	case record.DriverType == modbustcp.DriverType && record.DriverModel == modbustcp.DriverModel:
 		var req modbustcp.UpdateReq
@@ -239,49 +251,163 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 			return nil, err
 		}
 		item := &modbustcp.ModbusTcpCollection{}
-		item.ID = record.ID
-		item.Version = record.Version
-		item.ModTime = record.UpdatedTime
-		item.DriverType = record.DriverType
-		item.DriverModel = record.DriverModel
-		item.CollectStatus = record.CollectStatus
-		item.Variables = nil
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
 		item.ApplyUpdate(&req)
-		if err := validateCommon(item.Name, item.CollectorCycleMs); err != nil {
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == modbusrtu.DriverType && record.DriverModel == modbusrtu.DriverModel:
+		var req modbusrtu.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
 			return nil, err
 		}
-		config, err := item.ConfigJSON()
-		if err != nil {
+		item := &modbusrtu.ModbusRtuCollection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
-		record.Name = item.Name
-		record.CollectorCycleMs = item.CollectorCycleMs
-		record.ProtocolConfig = config
-		record.Version = nextVersion(record.Version)
-		record.UpdatedTime = time.Now().UTC()
-		if err := s.store.Update(ctx, record); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, response.ErrCollectionNotFound(id)
-			}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == modbusrtuovertcp.DriverType && record.DriverModel == modbusrtuovertcp.DriverModel:
+		var req modbusrtuovertcp.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &modbusrtuovertcp.ModbusRtuOverTcpCollection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
-		if s.runtime != nil {
-			fullRecord, err := s.store.Get(ctx, id)
-			if err != nil {
-				logging.ErrorS(err, "Failed to reload collection runtime", "collectionId", id)
-			} else if err := s.runtime.Replace(ctx, fullRecord); err != nil {
-				logging.ErrorS(err, "Failed to replace collection runtime", "collectionId", id)
-			}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == opcua.DriverType && record.DriverModel == opcua.DriverModel:
+		var req opcua.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
 		}
-		item.Version = record.Version
-		item.ModTime = record.UpdatedTime
-		return item, nil
+		item := &opcua.OpcUaCollection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == s7.DriverType && record.DriverModel == s7.DriverModel:
+		var req s7.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &s7.S7Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
 	default:
 		return nil, ErrUnsupportedDriver
 	}
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	if err := validateCommon(name, cycle); err != nil {
+		return nil, err
+	}
+	record.Name = name
+	record.CollectorCycleMs = cycle
+	record.ProtocolConfig = config
+	record.Version = nextVersion(record.Version)
+	record.UpdatedTime = time.Now().UTC()
+	if err := s.store.Update(ctx, record); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, response.ErrCollectionNotFound(id)
+		}
+		return nil, response.ErrInternal(err)
+	}
+	return s.collectionDetail(ctx, record)
+}
+
+// DeliverAction writes one or more collection variables.
+func (s *Service) DeliverAction(ctx context.Context, id string, req v1.ActionReq) (*v1.ActionResp, error) {
+	defer logging.Trace("collectionmgr.DeliverAction", "collectionId", id, "count", len(req.Actions))()
+
+	record, err := s.getCollection(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !record.Enable {
+		return nil, validation.New([]validation.FieldIssue{{Field: "enable", MsgID: "validate.collection_disabled"}})
+	}
+	if s.runtime == nil {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "collection", MsgID: "validate.action_collection_not_ready",
+		}})
+	}
+	runtime, ok := s.runtime.Get(id)
+	if !ok {
+		return nil, response.ErrCollectionNotFound(id)
+	}
+	switch runtime.Collector.GetCollectStatus() {
+	case collection.CollectStatusStopped, collection.CollectStatusUnconnected,
+		collection.CollectStatusEmptyVariable, collection.CollectStatusError:
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "collection", MsgID: "validate.action_collection_not_ready",
+		}})
+	}
+	variables := make(map[string]*collection.Variable)
+	for _, variable := range runtime.Collector.GetCollectionMeta().SnapshotVariables() {
+		if variable != nil {
+			variables[variable.Name] = variable
+		}
+	}
+	issues := make([]validation.FieldIssue, 0)
+	seen := make(map[string]struct{}, len(req.Actions))
+	actions := make([]collection.ActionValue, 0, len(req.Actions))
+	for i, item := range req.Actions {
+		name := strings.TrimSpace(item.Name)
+		field := fmt.Sprintf("actions[%d].name", i)
+		if name == "" {
+			issues = append(issues, validation.FieldIssue{Field: field, MsgID: "validate.action_variable_required"})
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			issues = append(issues, validation.FieldIssue{Field: field, MsgID: "validate.action_duplicate", Args: []interface{}{name}})
+			continue
+		}
+		seen[name] = struct{}{}
+		variable, exists := variables[name]
+		if !exists {
+			issues = append(issues, validation.FieldIssue{Field: field, MsgID: "validate.action_variable_not_found", Args: []interface{}{name}})
+			continue
+		}
+		if variable.IsCalculated || (variable.AccessMode != collection.AccessModeWrite && variable.AccessMode != collection.AccessModeReadWrite) {
+			issues = append(issues, validation.FieldIssue{Field: field, MsgID: "validate.action_variable_not_writable", Args: []interface{}{name}})
+			continue
+		}
+		value, err := collection.DecodeActionValue(variable, item.Value)
+		if err != nil {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("actions[%d].value", i),
+				MsgID: "validate.action_value_invalid",
+				Args:  []interface{}{name, err.Error()},
+			})
+			continue
+		}
+		actions = append(actions, collection.ActionValue{Index: i, Variable: variable, Value: value})
+	}
+	if len(issues) > 0 {
+		return nil, validation.New(issues)
+	}
+	if _, ok := runtime.Collector.(collection.ActionHandler); !ok {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "actions", MsgID: "validate.action_not_supported",
+		}})
+	}
+	if err := runtime.DeliverAction(ctx, actions); err != nil {
+		return nil, err
+	}
+	return &v1.ActionResp{Accepted: len(actions)}, nil
 }
 
 // Delete deletes one collection and its variables.
@@ -315,14 +441,18 @@ func (s *Service) ListVariables(ctx context.Context, collectionID string, q v1.V
 	if err != nil {
 		return nil, response.ErrInternal(err)
 	}
-	if s.runtime != nil {
-		values := make(map[string]any)
-		for _, variable := range s.runtime.SnapshotVariables(collectionID) {
+	if s.runtime != nil && len(variables) > 0 {
+		names := make([]string, 0, len(variables))
+		for _, variable := range variables {
 			if variable != nil {
-				values[variable.Name] = variable.Value
+				names = append(names, variable.Name)
 			}
 		}
+		values := s.runtime.SnapshotVariableValues(collectionID, names)
 		for _, variable := range variables {
+			if variable == nil {
+				continue
+			}
 			if value, ok := values[variable.Name]; ok {
 				variable.Value = value
 			}
@@ -339,7 +469,8 @@ func (s *Service) ListVariables(ctx context.Context, collectionID string, q v1.V
 func (s *Service) AddVariables(ctx context.Context, collectionID string, variables []*collection.Variable) (*v1.AddVariablesVo, error) {
 	defer logging.Trace("collectionmgr.AddVariables", "collectionId", collectionID, "count", len(variables))()
 
-	if _, err := s.getCollection(ctx, collectionID); err != nil {
+	record, err := s.getCollection(ctx, collectionID)
+	if err != nil {
 		return nil, err
 	}
 	if len(variables) == 0 {
@@ -349,6 +480,17 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 		}})
 	}
 	if err := collection.NormalizeVariables(variables); err != nil {
+		return nil, err
+	}
+	rawSchema, err := s.store.DriverSchema(ctx, record.DriverType, record.DriverModel)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	schema, err := drivermgr.ParseSchema(rawSchema)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	if err := schema.ValidateVariableAddresses(variables); err != nil {
 		return nil, err
 	}
 	added, err := s.store.AddVariables(ctx, collectionID, variables)
@@ -362,7 +504,6 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 		}
 		return nil, response.ErrInternal(err)
 	}
-	s.refreshRuntime(ctx, collectionID)
 	return &v1.AddVariablesVo{Added: int(added), Variables: variables}, nil
 }
 
@@ -378,22 +519,106 @@ func (s *Service) DeleteVariables(ctx context.Context, collectionID string, name
 	if err != nil {
 		return 0, response.ErrInternal(err)
 	}
-	s.refreshRuntime(ctx, collectionID)
 	return deleted, nil
 }
 
-func (s *Service) refreshRuntime(ctx context.Context, collectionID string) {
-	if s.runtime == nil {
-		return
+// Stop pauses one collection's runtime without removing it.
+func (s *Service) Stop(ctx context.Context, id string) (string, error) {
+	defer logging.Trace("collectionmgr.Stop", "collectionId", id)()
+
+	if _, err := s.getCollection(ctx, id); err != nil {
+		return "", err
 	}
-	record, err := s.store.Get(ctx, collectionID)
+	if s.runtime == nil {
+		return "", response.ErrInternal(errors.New("collection runtime is not initialized"))
+	}
+	if err := s.runtime.StopCollection(ctx, id, "stopped manually"); err != nil {
+		if errors.Is(err, ErrCollectionNotFound) {
+			return collection.CollectStatusStopped, nil
+		}
+		return "", response.ErrInternal(err)
+	}
+	return collection.CollectStatusStopped, nil
+}
+
+// Start reloads one collection from storage and starts its runtime.
+func (s *Service) Start(ctx context.Context, id string) (string, error) {
+	defer logging.Trace("collectionmgr.Start", "collectionId", id)()
+
+	record, err := s.store.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", response.ErrCollectionNotFound(id)
+	}
 	if err != nil {
-		logging.ErrorS(err, "Failed to reload collection runtime", "collectionId", collectionID)
-		return
+		return "", response.ErrInternal(err)
+	}
+	if !record.Enable {
+		return "", validation.New([]validation.FieldIssue{{Field: "enable", MsgID: "validate.collection_disabled"}})
+	}
+	if s.runtime == nil {
+		return "", response.ErrInternal(errors.New("collection runtime is not initialized"))
+	}
+	if current, ok := s.runtime.Get(id); ok && current.Collector.GetCollectStatus() == collection.CollectStatusCollecting {
+		return collection.CollectStatusCollecting, nil
 	}
 	if err := s.runtime.Replace(ctx, record); err != nil {
-		logging.ErrorS(err, "Failed to refresh collection runtime", "collectionId", collectionID)
+		return "", response.ErrInternal(err)
 	}
+	status, _ := s.runtime.Status(id)
+	if status == "" {
+		status = collection.CollectStatusStopped
+	}
+	return status, nil
+}
+
+// SetEnable updates collection auto-start eligibility.
+func (s *Service) SetEnable(ctx context.Context, id string, enable bool) (*v1.EnableVo, error) {
+	defer logging.Trace("collectionmgr.SetEnable", "collectionId", id, "enable", enable)()
+
+	record, err := s.getCollection(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !enable && s.runtime != nil {
+		if runtime, ok := s.runtime.Get(id); ok && runtime.Collector.GetCollectStatus() != collection.CollectStatusStopped {
+			return nil, validation.New([]validation.FieldIssue{{
+				Field: "enable", MsgID: "validate.collection_disable_requires_stopped",
+			}})
+		}
+	}
+	record.Enable = enable
+	record.Version = nextVersion(record.Version)
+	record.UpdatedTime = time.Now().UTC()
+	if err := s.store.Update(ctx, record); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, response.ErrCollectionNotFound(id)
+		}
+		return nil, response.ErrInternal(err)
+	}
+	return &v1.EnableVo{Enable: enable}, nil
+}
+
+// Restart reloads one collection from storage and replaces its runtime.
+func (s *Service) Restart(ctx context.Context, id string) error {
+	defer logging.Trace("collectionmgr.Restart", "collectionId", id)()
+
+	if s.runtime == nil {
+		return response.ErrInternal(errors.New("collection runtime is not initialized"))
+	}
+	record, err := s.store.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return response.ErrCollectionNotFound(id)
+	}
+	if err != nil {
+		return response.ErrInternal(err)
+	}
+	if !record.Enable {
+		return validation.New([]validation.FieldIssue{{Field: "enable", MsgID: "validate.collection_disabled"}})
+	}
+	if err := s.runtime.Replace(ctx, record); err != nil {
+		return response.ErrInternal(err)
+	}
+	return nil
 }
 
 func (s *Service) getCollection(ctx context.Context, id string) (*CollectionRecord, error) {
@@ -416,6 +641,7 @@ func toVariableVo(variable *collection.Variable) *v1.VariableVo {
 		Type:         variable.Type,
 		DataType:     variable.DataType,
 		Address:      variable.Address,
+		Bits:         variable.Bits,
 		AccessMode:   variable.AccessMode,
 		IsCalculated: variable.IsCalculated,
 		Expression:   variable.Expression,
@@ -434,35 +660,29 @@ func toCollectionVo(record *CollectionRecord) *v1.CollectionVo {
 		DriverType:       record.DriverType,
 		DriverModel:      record.DriverModel,
 		CollectStatus:    record.CollectStatus,
+		Enable:           record.Enable,
 		CollectorCycleMs: record.CollectorCycleMs,
 		ModTime:          record.UpdatedTime,
 	}
 }
 
-func toCollectionDetail(record *CollectionRecord) (any, error) {
-	switch {
-	case record.DriverType == modbustcp.DriverType && record.DriverModel == modbustcp.DriverModel:
-		item := &modbustcp.ModbusTcpCollection{
-			CollectionMeta: collection.CollectionMeta{
-				Meta: collection.Meta{
-					Name:    record.Name,
-					ID:      record.ID,
-					Version: record.Version,
-					ModTime: record.UpdatedTime,
-				},
-				DriverType:       record.DriverType,
-				DriverModel:      record.DriverModel,
-				CollectStatus:    record.CollectStatus,
-				CollectorCycleMs: record.CollectorCycleMs,
-			},
+func (s *Service) collectionDetail(ctx context.Context, record *CollectionRecord) (*v1.CollectionDetailVo, error) {
+	if s.runtime != nil {
+		if status, ok := s.runtime.Status(record.ID); ok {
+			record.CollectStatus = status
 		}
-		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
-			return nil, response.ErrInternal(err)
-		}
-		return item, nil
-	default:
-		return nil, ErrUnsupportedDriver
 	}
+	vo := toCollectionVo(record)
+	config := record.ProtocolConfig
+	if handler, ok := s.registry.resolve(record.DriverType, record.DriverModel); ok {
+		if redactor, ok := handler.(collection.ConfigRedactor); ok {
+			config = redactor.RedactConfig(config)
+		}
+	}
+	return &v1.CollectionDetailVo{
+		CollectionVo:   *vo,
+		ProtocolConfig: config,
+	}, nil
 }
 
 func nextVersion(version string) string {

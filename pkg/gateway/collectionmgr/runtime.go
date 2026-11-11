@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/validation"
 	"harns-platform/pkg/logging"
 )
 
@@ -20,6 +21,7 @@ var ErrFactoryNotFound = errors.New("collector factory not found")
 // RuntimeCollection is one collection loaded in memory.
 type RuntimeCollection struct {
 	Collector collection.Collector
+	Trace     *collection.TraceHub
 
 	opMu      sync.Mutex
 	lastError string
@@ -28,6 +30,7 @@ type RuntimeCollection struct {
 // RuntimeManager owns the in-memory collection runtime.
 type RuntimeManager struct {
 	collections sync.Map // collectionID -> *RuntimeCollection
+	hubs        sync.Map // collectionID -> *collection.TraceHub
 	factories   map[driverKey]collection.CollectorFactory
 
 	stopCh    chan struct{}
@@ -107,6 +110,9 @@ func (m *RuntimeManager) Remove(ctx context.Context, id string) error {
 	if current, ok := m.collections.LoadAndDelete(id); ok {
 		stopRuntime(ctx, current.(*RuntimeCollection))
 	}
+	if hub, ok := m.hubs.LoadAndDelete(id); ok {
+		hub.(*collection.TraceHub).Close()
+	}
 	return nil
 }
 
@@ -121,7 +127,7 @@ func (m *RuntimeManager) Restart(ctx context.Context, id string) error {
 	_ = current.Collector.Stop(ctx)
 	if err := current.Collector.Connect(ctx); err != nil {
 		current.lastError = err.Error()
-		if errors.Is(err, collection.ErrNotImplemented) {
+		if errors.Is(err, collection.ErrNotImplemented) || errors.Is(err, collection.ErrInvalidConfig) {
 			current.Collector.SetCollectStatus(collection.CollectStatusError)
 		} else {
 			current.Collector.SetCollectStatus(collection.CollectStatusUnconnected)
@@ -137,6 +143,42 @@ func (m *RuntimeManager) Restart(ctx context.Context, id string) error {
 	return nil
 }
 
+// DeliverAction serializes a write action against this runtime lifecycle.
+func (r *RuntimeCollection) DeliverAction(ctx context.Context, actions []collection.ActionValue) error {
+	if r == nil || r.Collector == nil {
+		return fmt.Errorf("collection runtime is nil")
+	}
+	handler, ok := r.Collector.(collection.ActionHandler)
+	if !ok {
+		return fmt.Errorf("collection action is not supported")
+	}
+	r.opMu.Lock()
+	defer r.opMu.Unlock()
+	switch r.Collector.GetCollectStatus() {
+	case collection.CollectStatusStopped, collection.CollectStatusUnconnected,
+		collection.CollectStatusEmptyVariable, collection.CollectStatusError:
+		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
+	}
+	return handler.DeliverAction(ctx, actions)
+}
+
+// StopCollection pauses one collection while keeping its runtime and trace hub.
+func (m *RuntimeManager) StopCollection(ctx context.Context, id, reason string) error {
+	current, ok := m.Get(id)
+	if !ok {
+		return ErrCollectionNotFound
+	}
+	current.opMu.Lock()
+	defer current.opMu.Unlock()
+	if err := current.Collector.Stop(ctx); err != nil {
+		current.lastError = err.Error()
+		return err
+	}
+	current.Collector.SetCollectStatus(collection.CollectStatusStopped)
+	current.lastError = reason
+	return nil
+}
+
 // Get returns one runtime collection.
 func (m *RuntimeManager) Get(id string) (*RuntimeCollection, bool) {
 	if m == nil {
@@ -148,6 +190,15 @@ func (m *RuntimeManager) Get(id string) (*RuntimeCollection, bool) {
 	}
 	runtime, ok := current.(*RuntimeCollection)
 	return runtime, ok
+}
+
+// SnapshotVariableValues returns runtime values for requested variables.
+func (m *RuntimeManager) SnapshotVariableValues(id string, names []string) map[string]any {
+	runtime, ok := m.Get(id)
+	if !ok {
+		return nil
+	}
+	return runtime.Collector.GetCollectionMeta().SnapshotVariableValues(names)
 }
 
 // SnapshotVariables returns runtime variable values for one collection.
@@ -180,6 +231,11 @@ func (m *RuntimeManager) Close(ctx context.Context) error {
 		m.collections.Delete(key)
 		return true
 	})
+	m.hubs.Range(func(key, value interface{}) bool {
+		value.(*collection.TraceHub).Close()
+		m.hubs.Delete(key)
+		return true
+	})
 	return nil
 }
 
@@ -201,12 +257,36 @@ func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollectio
 		CollectorCycleMs: record.CollectorCycleMs,
 		Variables:        record.Variables,
 	}
-	meta.IndexCollection()
 	collector, err := factory.NewCollector(meta, json.RawMessage(record.ProtocolConfig))
 	if err != nil {
 		return nil, err
 	}
-	return &RuntimeCollection{Collector: collector}, nil
+	hub := m.traceHub(record.ID)
+	if aware, ok := collector.(collection.FrameTracerAware); ok {
+		aware.SetFrameTracer(hub)
+	}
+	return &RuntimeCollection{Collector: collector, Trace: hub}, nil
+}
+
+func (m *RuntimeManager) traceHub(id string) *collection.TraceHub {
+	if hub, ok := m.hubs.Load(id); ok {
+		return hub.(*collection.TraceHub)
+	}
+	hub := collection.NewTraceHub()
+	actual, _ := m.hubs.LoadOrStore(id, hub)
+	return actual.(*collection.TraceHub)
+}
+
+// Trace returns the live trace hub for one collection.
+func (m *RuntimeManager) Trace(id string) (*collection.TraceHub, bool) {
+	if m == nil {
+		return nil, false
+	}
+	runtime, ok := m.Get(id)
+	if !ok || runtime.Trace == nil {
+		return nil, false
+	}
+	return runtime.Trace, true
 }
 
 func (m *RuntimeManager) connectAndStart(ctx context.Context, runtime *RuntimeCollection) {
@@ -214,7 +294,7 @@ func (m *RuntimeManager) connectAndStart(ctx context.Context, runtime *RuntimeCo
 	defer runtime.opMu.Unlock()
 	if err := runtime.Collector.Connect(ctx); err != nil {
 		runtime.lastError = err.Error()
-		if errors.Is(err, collection.ErrNotImplemented) {
+		if errors.Is(err, collection.ErrNotImplemented) || errors.Is(err, collection.ErrInvalidConfig) {
 			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		} else {
 			runtime.Collector.SetCollectStatus(collection.CollectStatusUnconnected)
@@ -253,6 +333,9 @@ func (m *RuntimeManager) retryUnconnected() {
 		defer runtime.opMu.Unlock()
 		if err := runtime.Collector.Connect(context.Background()); err != nil {
 			runtime.lastError = err.Error()
+			if errors.Is(err, collection.ErrInvalidConfig) || errors.Is(err, collection.ErrNotImplemented) {
+				runtime.Collector.SetCollectStatus(collection.CollectStatusError)
+			}
 			return true
 		}
 		if err := runtime.Collector.Start(context.Background()); err != nil {

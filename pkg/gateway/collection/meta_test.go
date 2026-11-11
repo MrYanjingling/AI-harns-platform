@@ -26,7 +26,7 @@ func TestCollectionMetaJSON(t *testing.T) {
 			Name:       "temperature",
 			Type:       "telemetry",
 			DataType:   "float32",
-			Address:    "holding:40001",
+			Address:    "1!40001",
 			AccessMode: AccessModeRead,
 			Rate:       1,
 			Precision:  2,
@@ -74,4 +74,28 @@ func TestCollectionMetaAccessors(t *testing.T) {
 	copied := &CollectionMeta{}
 	copied.SetCollectionMeta(meta)
 	assert.Equal(t, meta, copied)
+}
+
+func TestCollectionMetaSnapshotVariableValues(t *testing.T) {
+	meta := &CollectionMeta{Variables: []*Variable{
+		{Name: "temperature"},
+		{Name: "humidity"},
+		{Name: "pressure"},
+	}}
+	meta.IndexCollection()
+	meta.SetVariableValue("temperature", float64(26.5))
+	meta.SetVariableValue("humidity", nil)
+	meta.SetVariableValue("pressure", float64(101.2))
+
+	values := meta.SnapshotVariableValues([]string{"temperature", "humidity", "missing"})
+	require.Len(t, values, 2)
+	assert.Equal(t, float64(26.5), values["temperature"])
+	value, ok := values["humidity"]
+	assert.True(t, ok)
+	assert.Nil(t, value)
+	_, ok = values["missing"]
+	assert.False(t, ok)
+
+	assert.Nil(t, meta.SnapshotVariableValues(nil))
+	assert.Nil(t, (*CollectionMeta)(nil).SnapshotVariableValues([]string{"temperature"}))
 }

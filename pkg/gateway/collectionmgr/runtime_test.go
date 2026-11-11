@@ -92,7 +92,7 @@ func fakeRecord(id string) *CollectionRecord {
 		Variables: []*collection.Variable{{
 			Name:       "temperature",
 			DataType:   "float32",
-			Address:    "holding:1",
+			Address:    "1!40001",
 			AccessMode: collection.AccessModeRead,
 		}},
 	}
@@ -150,4 +150,35 @@ func TestRuntimeManagerClose(t *testing.T) {
 	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
 	require.NoError(t, manager.Close(context.Background()))
 	assert.Equal(t, 1, factory.collectors[0].stops)
+}
+
+func TestRuntimeManagerSnapshotVariableValues(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+
+	factory.collectors[0].meta.SetVariableValue("temperature", float64(26.5))
+	values := manager.SnapshotVariableValues("c1", []string{"temperature", "missing"})
+	require.Len(t, values, 1)
+	assert.Equal(t, float64(26.5), values["temperature"])
+	assert.Nil(t, manager.SnapshotVariableValues("missing", []string{"temperature"}))
+}
+
+func TestRuntimeManagerStopCollectionKeepsRuntime(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+
+	hubBefore, ok := manager.Trace("c1")
+	require.True(t, ok)
+	require.NoError(t, manager.StopCollection(context.Background(), "c1", "manual"))
+	runtime, ok := manager.Get("c1")
+	require.True(t, ok)
+	assert.Equal(t, collection.CollectStatusStopped, runtime.Collector.GetCollectStatus())
+	assert.Equal(t, 1, factory.collectors[0].stops)
+	hubAfter, ok := manager.Trace("c1")
+	require.True(t, ok)
+	assert.Same(t, hubBefore, hubAfter)
 }

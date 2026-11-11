@@ -15,6 +15,7 @@ type CollectionRecord struct {
 	DriverType       string
 	DriverModel      string
 	CollectStatus    string
+	Enable           bool
 	CollectorCycleMs uint64
 	ProtocolConfig   json.RawMessage
 	Variables        []*collection.Variable

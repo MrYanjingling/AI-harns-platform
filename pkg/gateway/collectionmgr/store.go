@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS collections (
     driver_type        TEXT NOT NULL,
     driver_model       TEXT NOT NULL,
     collect_status     TEXT NOT NULL DEFAULT 'stopped',
+    enable             INTEGER NOT NULL DEFAULT 1,
     collector_cycle_ms INTEGER NOT NULL,
     protocol_config    TEXT NOT NULL DEFAULT '{}',
     created_time       TEXT NOT NULL,
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS collection_variables (
     variable_type TEXT NOT NULL,
     data_type     TEXT NOT NULL,
     address       TEXT NOT NULL DEFAULT '',
+    bits          INTEGER NOT NULL DEFAULT 0,
     access_mode   TEXT NOT NULL,
     is_calculated INTEGER NOT NULL DEFAULT 0,
     expression    TEXT NOT NULL DEFAULT '',
@@ -70,7 +72,44 @@ CREATE INDEX IF NOT EXISTS idx_collection_variables_sort ON collection_variables
 
 // Initialize creates the collection tables.
 func (s *Store) Initialize(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, collectionSchemaSQL)
+	if _, err := s.db.ExecContext(ctx, collectionSchemaSQL); err != nil {
+		return err
+	}
+	if err := s.ensureColumn(ctx, "collection_variables", "bits", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	return s.ensureColumn(ctx, "collections", "enable", "INTEGER NOT NULL DEFAULT 1")
+}
+
+func (s *Store) ensureColumn(ctx context.Context, table, column, definition string) error {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultV   sql.NullString
+			primary    int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultV, &primary); err != nil {
+			return err
+		}
+		if name == column {
+			return rows.Err()
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `ALTER TABLE `+table+` ADD COLUMN `+column+` `+definition)
 	return err
 }
 
@@ -111,11 +150,11 @@ func (s *Store) Create(ctx context.Context, record *CollectionRecord) error {
 
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO collections (
-			id, name, version, driver_type, driver_model, collect_status,
+			id, name, version, driver_type, driver_model, collect_status, enable,
 			collector_cycle_ms, protocol_config, created_time, updated_time
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		record.ID, record.Name, record.Version, record.DriverType, record.DriverModel,
-		record.CollectStatus, record.CollectorCycleMs, string(record.ProtocolConfig),
+		record.CollectStatus, boolInt(record.Enable), record.CollectorCycleMs, string(record.ProtocolConfig),
 		record.CreatedTime.UTC().Format(time.RFC3339Nano),
 		record.UpdatedTime.UTC().Format(time.RFC3339Nano)); err != nil {
 		return err
@@ -123,9 +162,9 @@ func (s *Store) Create(ctx context.Context, record *CollectionRecord) error {
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO collection_variables (
-			collection_id, name, variable_type, data_type, address, access_mode,
+			collection_id, name, variable_type, data_type, address, bits, access_mode,
 			is_calculated, expression, value_offset, rate, precision, sort
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -134,7 +173,7 @@ func (s *Store) Create(ctx context.Context, record *CollectionRecord) error {
 	for i, variable := range record.Variables {
 		if _, err := stmt.ExecContext(ctx,
 			record.ID, variable.Name, variable.Type, variable.DataType, variable.Address,
-			string(variable.AccessMode), boolInt(variable.IsCalculated), variable.Expression,
+			variable.Bits, string(variable.AccessMode), boolInt(variable.IsCalculated), variable.Expression,
 			variable.Offset, variable.Rate, variable.Precision, i); err != nil {
 			return err
 		}
@@ -150,15 +189,17 @@ func (s *Store) GetCollection(ctx context.Context, id string) (*CollectionRecord
 		createdTime    string
 		updatedTime    string
 	)
+	var enable int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, version, driver_type, driver_model, collect_status,
+		`SELECT id, name, version, driver_type, driver_model, collect_status, enable,
 			collector_cycle_ms, protocol_config, created_time, updated_time
 		 FROM collections WHERE id = ?`, id).Scan(
 		&record.ID, &record.Name, &record.Version, &record.DriverType, &record.DriverModel,
-		&record.CollectStatus, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime)
+		&record.CollectStatus, &enable, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime)
 	if err != nil {
 		return nil, err
 	}
+	record.Enable = enable == 1
 	record.ProtocolConfig = json.RawMessage(protocolConfig)
 	record.CreatedTime, err = time.Parse(time.RFC3339Nano, createdTime)
 	if err != nil {
@@ -228,7 +269,7 @@ func (s *Store) List(ctx context.Context, q apis.PageQuery, keyword, driverType,
 
 	queryArgs := append(append([]interface{}{}, args...), q.Limit(), q.Offset())
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, version, driver_type, driver_model, collect_status,
+		`SELECT id, name, version, driver_type, driver_model, collect_status, enable,
 			collector_cycle_ms, protocol_config, created_time, updated_time
 		 FROM collections WHERE `+where+` ORDER BY created_time DESC, id ASC LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
@@ -250,10 +291,10 @@ func (s *Store) List(ctx context.Context, q apis.PageQuery, keyword, driverType,
 // Update updates collection metadata and protocol config without touching variables.
 func (s *Store) Update(ctx context.Context, record *CollectionRecord) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE collections SET name = ?, version = ?, collect_status = ?, collector_cycle_ms = ?,
-			protocol_config = ?, updated_time = ? WHERE id = ?`,
-		record.Name, record.Version, record.CollectStatus, record.CollectorCycleMs,
-		string(record.ProtocolConfig), record.UpdatedTime.UTC().Format(time.RFC3339Nano), record.ID)
+		`UPDATE collections SET name = ?, version = ?, collect_status = ?, enable = ?,
+			collector_cycle_ms = ?, protocol_config = ?, updated_time = ? WHERE id = ?`,
+		record.Name, record.Version, record.CollectStatus, boolInt(record.Enable),
+		record.CollectorCycleMs, string(record.ProtocolConfig), record.UpdatedTime.UTC().Format(time.RFC3339Nano), record.ID)
 	if err != nil {
 		return err
 	}
@@ -292,7 +333,7 @@ func (s *Store) ListVariables(ctx context.Context, collectionID string, q apis.P
 
 	queryArgs := append(append([]interface{}{}, args...), q.Limit(), q.Offset())
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT name, variable_type, data_type, address, access_mode,
+		`SELECT name, variable_type, data_type, address, bits, access_mode,
 			is_calculated, expression, value_offset, rate, precision
 		 FROM collection_variables WHERE `+where+`
 		 ORDER BY sort ASC, name ASC LIMIT ? OFFSET ?`, queryArgs...)
@@ -329,9 +370,9 @@ func (s *Store) AddVariables(ctx context.Context, collectionID string, variables
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO collection_variables (
-			collection_id, name, variable_type, data_type, address, access_mode,
+			collection_id, name, variable_type, data_type, address, bits, access_mode,
 			is_calculated, expression, value_offset, rate, precision, sort
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return 0, err
 	}
@@ -340,7 +381,7 @@ func (s *Store) AddVariables(ctx context.Context, collectionID string, variables
 	for i, variable := range variables {
 		if _, err := stmt.ExecContext(ctx,
 			collectionID, variable.Name, variable.Type, variable.DataType, variable.Address,
-			string(variable.AccessMode), boolInt(variable.IsCalculated), variable.Expression,
+			variable.Bits, string(variable.AccessMode), boolInt(variable.IsCalculated), variable.Expression,
 			variable.Offset, variable.Rate, variable.Precision, maxSort+i+1); err != nil {
 			return 0, mapCollectionWriteError(err)
 		}
@@ -377,15 +418,17 @@ func (s *Store) Get(ctx context.Context, id string) (*CollectionRecord, error) {
 		createdTime    string
 		updatedTime    string
 	)
+	var enable int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, version, driver_type, driver_model, collect_status,
+		`SELECT id, name, version, driver_type, driver_model, collect_status, enable,
 			collector_cycle_ms, protocol_config, created_time, updated_time
 		 FROM collections WHERE id = ?`, id).Scan(
 		&record.ID, &record.Name, &record.Version, &record.DriverType, &record.DriverModel,
-		&record.CollectStatus, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime)
+		&record.CollectStatus, &enable, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime)
 	if err != nil {
 		return nil, err
 	}
+	record.Enable = enable == 1
 	record.ProtocolConfig = json.RawMessage(protocolConfig)
 	record.CreatedTime, err = time.Parse(time.RFC3339Nano, createdTime)
 	if err != nil {
@@ -397,7 +440,7 @@ func (s *Store) Get(ctx context.Context, id string) (*CollectionRecord, error) {
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT name, variable_type, data_type, address, access_mode,
+		`SELECT name, variable_type, data_type, address, bits, access_mode,
 			is_calculated, expression, value_offset, rate, precision
 		 FROM collection_variables WHERE collection_id = ? ORDER BY sort ASC, name ASC`, id)
 	if err != nil {
@@ -420,13 +463,15 @@ func scanCollection(scanner rowScanner) (*CollectionRecord, error) {
 		protocolConfig string
 		createdTime    string
 		updatedTime    string
+		enable         int
 	)
 	if err := scanner.Scan(
 		&record.ID, &record.Name, &record.Version, &record.DriverType, &record.DriverModel,
-		&record.CollectStatus, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime,
+		&record.CollectStatus, &enable, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime,
 	); err != nil {
 		return nil, err
 	}
+	record.Enable = enable == 1
 	record.ProtocolConfig = json.RawMessage(protocolConfig)
 	var err error
 	record.CreatedTime, err = time.Parse(time.RFC3339Nano, createdTime)
@@ -447,7 +492,7 @@ func scanVariable(scanner rowScanner) (*collection.Variable, error) {
 		isCalculated int
 	)
 	if err := scanner.Scan(
-		&variable.Name, &variable.Type, &variable.DataType, &variable.Address, &accessMode,
+		&variable.Name, &variable.Type, &variable.DataType, &variable.Address, &variable.Bits, &accessMode,
 		&isCalculated, &variable.Expression, &variable.Offset, &variable.Rate, &variable.Precision,
 	); err != nil {
 		return nil, err

@@ -34,13 +34,10 @@ func TestInitializeIsIdempotentAndSeedsBuiltins(t *testing.T) {
 	for _, item := range items {
 		assert.True(t, item.BuiltinDriver)
 		assert.NotEmpty(t, item.PluginName)
-		if item.Model == ModelModbusTCP {
-			schema, err := ParseSchema(item.Schema)
-			require.NoError(t, err)
-			assert.Len(t, schema.Fields, 4)
-		} else {
-			assert.JSONEq(t, `{"fields":[]}`, string(item.Schema))
-		}
+		schema, err := ParseSchema(item.Schema)
+		require.NoError(t, err)
+		assert.NotEmpty(t, schema.Fields)
+		assert.NotNil(t, schema.VariableAddress)
 	}
 }
 

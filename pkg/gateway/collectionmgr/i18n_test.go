@@ -22,8 +22,8 @@ func TestCollectionValidationReturnsMultipleLocalizedErrors(t *testing.T) {
 
 	body := `{
 		"driverType":"modbus","driverModel":"modbusTcp",
-		"collectorCycleMs":1000,"location":"127.0.0.1:502","memoryLayout":"ABCD",
-		"variables":[{"name":"","dataType":"float32","address":"holding:1","accessMode":"bad"}]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"","dataType":"float32","address":"1!40001","accessMode":"bad"}]
 	}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/collections", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

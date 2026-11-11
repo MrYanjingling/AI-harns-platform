@@ -154,10 +154,10 @@ func newCOTPConnectMessage(rack uint8, slot uint8) []byte {
 		0x0a,       // TPDU size TPDU大小
 		0xc1,       // parameter code:src-tsap
 		0x02,       // parameter length
-		0x01, 0x00, // source TSAP   SourceTSAP/Rack
-		0xc2,         // parameter code:dst-tsap
+		0x01, 0x00, // source TSAP   SourceTSAP/Rack    //  s7-200取决于前端界面填的  默认10 00
+		0xc2,         // parameter code:dst-tsap。       // s7-200取决于前端界面填的  默认10 00
 		0x02,         // parameter length
-		0x01,         // Destination TSAP connectionType   01PG  02OP 03s7单边 0x10s7双边
+		0x01,         // Destination TSAP connectionType   01PG  02OP 03PC
 		rackSlotByte, // rack & solt
 	}
 	return bytes
@@ -177,7 +177,7 @@ func newS7COMMSetupMessage() []byte {
 		0x32,       // 协议id
 		0x01,       // pdu类型 [{0x01-job},{0x02-ack},{0x03-ack-data},{0x07-Userdata}]
 		0x00, 0x00, // 保留字段
-		0x04, 0x00, // Protocol Data Unit Reference |pdu的参考–由主站生成，每次新传输递增（大端）
+		0x00, 0x00, // Protocol Data Unit Reference |pdu的参考–由主站生成，每次新传输递增（大端）
 		0x00, 0x08, // 参数长度
 		0x00, 0x00, // 数据长度
 		// S7 parameter

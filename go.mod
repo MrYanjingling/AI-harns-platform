@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/evanphx/json-patch v5.6.0+incompatible
+	github.com/expr-lang/expr v1.17.6
 	github.com/gin-contrib/gzip v1.0.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.20.0

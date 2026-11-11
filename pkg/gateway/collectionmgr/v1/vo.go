@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
@@ -14,6 +15,7 @@ type CollectionVo struct {
 	DriverType       string    `json:"driverType"`
 	DriverModel      string    `json:"driverModel"`
 	CollectStatus    string    `json:"collectStatus"`
+	Enable           bool      `json:"enable"`
 	CollectorCycleMs uint64    `json:"collectorCycleMs"`
 	ModTime          time.Time `json:"modTime"`
 }
@@ -30,6 +32,7 @@ type VariableVo struct {
 	Type         string                `json:"type"`
 	DataType     string                `json:"dataType"`
 	Address      string                `json:"address"`
+	Bits         uint8                 `json:"bits"`
 	AccessMode   collection.AccessMode `json:"accessMode"`
 	IsCalculated bool                  `json:"isCalculated"`
 	Expression   string                `json:"expression,omitempty"`
@@ -37,4 +40,10 @@ type VariableVo struct {
 	Rate         float64               `json:"rate"`
 	Precision    int                   `json:"precision"`
 	Value        any                   `json:"value"`
+}
+
+// CollectionDetailVo is one collection with protocol config.
+type CollectionDetailVo struct {
+	CollectionVo
+	ProtocolConfig json.RawMessage `json:"protocolConfig"`
 }

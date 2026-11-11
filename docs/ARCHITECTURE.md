@@ -177,14 +177,39 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/collections` | GET/POST | 采集器分页列表 / 创建 |
 | `/api/v1/collections/:id` | GET/PUT/DELETE | 采集器协议详情 / 更新 / 删除 |
 | `/api/v1/collections/:id/variables` | GET/POST/DELETE | 变量分页 / 批量新增 / 批量删除 |
+| `/api/v1/collections/:id/action` | PUT | 变量反控（Modbus/S7） |
+| `/api/v1/collections/:id/restart` | POST | 手动重启采集运行时 |
+| `/api/v1/collections/:id/stop` | POST | 暂停采集并关闭连接 |
+| `/api/v1/collections/:id/start` | POST | 按最新配置启动采集 |
+| `/api/v1/collections/:id/enable` | PUT | 启用/禁用采集器 |
+| `/api/v1/collections/:id/frames/requests/stream` | GET | 实时请求报文 SSE |
+| `/api/v1/collections/:id/frames/responses/stream` | GET | 实时响应报文 SSE |
 
 `GET /api/v1/drivers` 默认按 `driverType` 分组，`flat=true` 返回扁平列表；`driverType` 使用不区分大小写的模糊匹配。
 
 `GET /api/v1/collections` 和 `GET /api/v1/collections/:id/variables` 使用平台统一分页结构；采集器详情不返回 variables。
 
-Driver `schema` 使用对象结构：`{"fields":[...]}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`。Collection 创建时按 driver schema 校验协议字段。
+Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...}}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`。Collection 创建/更新时，协议字段放在请求的 `protocolConfig` 对象中，按 driver schema 校验；详情响应也以 `protocolConfig` 返回协议字段。
 
-Collection 运行时保存在 `collectionmgr.RuntimeManager` 的 `sync.Map` 中，按 `Collector` 生命周期执行 `Connect → Start → Stop`。当前 ModbusTcp 使用占位 Collector，Connect/Start 返回未实现错误；真实采集后续替换。
+内置采集协议：
+
+- `modbusTcp`：TCP 主备、`tcpCount`、寄存器/线圈批量读取
+- `modbusRtu`：串口 RTU，固定单连接
+- `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `tcpCount`
+- `opcUa`：完整 NodeID 地址、批量 Read、`tcpCount`，详情响应密码脱敏
+- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`tcpCount`，STRING 暂不支持
+
+Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp 和 ModbusRtuOverTcp 的 `protocolConfig` 支持 `tcpCount`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
+
+更新采集器配置、增加或删除变量不会自动重启运行时，必须显式调用 `POST /api/v1/collections/:id/restart` 或 `start` 后才会按最新配置重建 Collector。`stop` 只暂停当前运行时并关闭连接，不持久化停止状态；停止期间 SSE 保持连接，但反控会被拒绝。
+
+`enable` 是持久化的自动启动开关，默认 `true`。只有 `stopped` 状态可以禁用；禁用后 `start/restart/action` 都会被拒绝。网关重启时只自动加载 `enable=true` 的 collection；启用只修改字段，不会自动启动，仍需手动 `start`。
+
+Collection 反控请求使用字符串值，例如 `{"actions":[{"name":"frequency","value":"20.5"}]}`；服务端按变量 `rate/offset` 精确反算 raw 值，整数结果必须为整数。OPC UA 暂不支持反控，Modbus FC2/FC4 禁止写入，Modbus 寄存器 BOOL 暂不支持写位。
+
+请求/响应原始报文通过两个独立 SSE 接口实时推送，16 进制显示，不保留历史；只有存在 SSE 订阅者时才记录 trace。当前支持 ModbusTcp、ModbusRtu、ModbusRtuOverTcp、S7；OPC UA 高层 API 不暴露原始 wire 字节。
+
+Collection 运行时保存在 `collectionmgr.RuntimeManager` 的 `sync.Map` 中，按 `Collector` 生命周期执行 `Connect → Start → Stop`。各协议在 `Connect` 中构建读取帧/批次并初始化连接池；`Start` 启动并发轮询。ModbusTcp 和 ModbusRtuOverTcp 支持主地址失败后切换备用，备用期间定时探测主地址，连续成功后回切。采集值按协议规则解析并支持倍率、偏移、精度；物理采集全部成功后按依赖顺序计算计算变量。
 
 ## 5. 网关数据流
 

@@ -12,6 +12,7 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/opcua"
 	v1 "harns-platform/pkg/gateway/collectionmgr/v1"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/sqlite"
@@ -29,7 +30,7 @@ func newTestService(t *testing.T) (*Service, *Store) {
 
 	store := NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	service, err := NewService(store, &modbustcp.CreateHandler{})
+	service, err := NewService(store, &modbustcp.CreateHandler{}, &opcua.CreateHandler{})
 	require.NoError(t, err)
 	return service, store
 }
@@ -41,14 +42,12 @@ func TestCreateModbusTcpCollection(t *testing.T) {
 		"driverModel":"modbusTcp",
 		"name":"modbus-tcp-1",
 		"collectorCycleMs":1000,
-		"location":"127.0.0.1:502",
-		"memoryLayout":"ABCD",
-		"positionAddress":0,
+		"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD","positionAddress":0},
 		"variables":[{
 			"name":"temperature",
 			"type":"telemetry",
 			"dataType":"float32",
-			"address":"holding:40001",
+			"address":"1!40001",
 			"accessMode":"r",
 			"offset":0,
 			"rate":0,
@@ -58,16 +57,14 @@ func TestCreateModbusTcpCollection(t *testing.T) {
 
 	result, err := service.Create(context.Background(), []byte(body))
 	require.NoError(t, err)
-	created, ok := result.(*modbustcp.ModbusTcpCollection)
+	created, ok := result.(*v1.CollectionDetailVo)
 	require.True(t, ok)
 	require.NotEmpty(t, created.ID)
 	assert.Equal(t, "modbus-tcp-1", created.Name)
 	assert.Equal(t, modbustcp.DriverType, created.DriverType)
 	assert.Equal(t, modbustcp.DriverModel, created.DriverModel)
 	assert.Equal(t, uint64(1000), created.CollectorCycleMs)
-	assert.Equal(t, "127.0.0.1:502", created.Location)
-	require.Len(t, created.Variables, 1)
-	assert.Equal(t, float64(1), created.Variables[0].Rate)
+	assert.Contains(t, string(created.ProtocolConfig), `"location":"127.0.0.1:502"`)
 
 	record, err := service.Get(context.Background(), created.ID)
 	require.NoError(t, err)
@@ -88,8 +85,7 @@ func TestCreateCollectionValidation(t *testing.T) {
 
 	body := `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad",
-		"collectorCycleMs":1000,"location":"127.0.0.1:502",
-		"memoryLayout":"ABCD",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
 		"variables":[{"name":"temperature","dataType":"float32","address":"","accessMode":"r"}]
 	}`
 	_, err = service.Create(context.Background(), []byte(body))
@@ -112,32 +108,66 @@ func TestCreateCollectionUsesDriverSchema(t *testing.T) {
 
 	body := `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
-		"collectorCycleMs":1000,"location":"127.0.0.1:70000","memoryLayout":"ABCD","variables":[]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:70000","memoryLayout":"ABCD"},"variables":[]
 	}`
 	_, err := service.Create(ctx, []byte(body))
 	require.Error(t, err)
 	var fieldErr *validation.ValidationError
 	require.True(t, errors.As(err, &fieldErr))
-	assert.Equal(t, "location", fieldErr.Issues[0].Field)
+	assert.Equal(t, "protocolConfig.location", fieldErr.Issues[0].Field)
 
 	body = `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
-		"collectorCycleMs":1000,"location":"127.0.0.1:502","memoryLayout":"ZZZZ","variables":[]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ZZZZ"},"variables":[]
 	}`
 	_, err = service.Create(ctx, []byte(body))
 	require.Error(t, err)
 	require.True(t, errors.As(err, &fieldErr))
-	assert.Equal(t, "memoryLayout", fieldErr.Issues[0].Field)
+	assert.Equal(t, "protocolConfig.memoryLayout", fieldErr.Issues[0].Field)
 
 	body = `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
-		"collectorCycleMs":1000,"location":"127.0.0.1:502","backupLocation":"bad",
-		"memoryLayout":"ABCD","variables":[]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","backupLocation":"bad","memoryLayout":"ABCD"},"variables":[]
 	}`
 	_, err = service.Create(ctx, []byte(body))
 	require.Error(t, err)
 	require.True(t, errors.As(err, &fieldErr))
-	assert.Equal(t, "backupLocation", fieldErr.Issues[0].Field)
+	assert.Equal(t, "protocolConfig.backupLocation", fieldErr.Issues[0].Field)
+
+	body = `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD","tcpCount":4},"variables":[]
+	}`
+	_, err = service.Create(ctx, []byte(body))
+	require.Error(t, err)
+	require.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "protocolConfig.tcpCount", fieldErr.Issues[0].Field)
+
+	body = `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"temperature","dataType":"float32","address":"40001","accessMode":"r"}]
+	}`
+	_, err = service.Create(ctx, []byte(body))
+	require.Error(t, err)
+	require.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "variables[0].address", fieldErr.Issues[0].Field)
+}
+
+func TestCreateCollectionPersistsBits(t *testing.T) {
+	service, _ := newTestService(t)
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"bits-test",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"flag","dataType":"bool","address":"1!40001","bits":3,"accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created := result.(*v1.CollectionDetailVo)
+	record, err := service.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Len(t, record.Variables, 1)
+	assert.Equal(t, uint8(3), record.Variables[0].Bits)
 }
 
 func TestCollectionServiceRuntimeIntegration(t *testing.T) {
@@ -150,15 +180,15 @@ func TestCollectionServiceRuntimeIntegration(t *testing.T) {
 
 	body := `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"runtime-test",
-		"collectorCycleMs":1000,"location":"127.0.0.1:502","memoryLayout":"ABCD",
-		"variables":[{"name":"temperature","dataType":"float32","address":"holding:1","accessMode":"r"}]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"temperature","dataType":"float32","address":"1!40001","accessMode":"r"}]
 	}`
 	result, err := service.Create(context.Background(), []byte(body))
 	require.NoError(t, err)
-	created := result.(*modbustcp.ModbusTcpCollection)
+	created := result.(*v1.CollectionDetailVo)
 	current, ok := runtime.Get(created.ID)
 	require.True(t, ok)
-	assert.Equal(t, collection.CollectStatusError, current.Collector.GetCollectStatus())
+	assert.Equal(t, collection.CollectStatusUnconnected, current.Collector.GetCollectStatus())
 
 	current.Collector.GetCollectionMeta().SetVariableValue("temperature", float64(26.5))
 	page, err := service.ListVariables(context.Background(), created.ID, v1.VariableQuery{PageQuery: apis.PageQuery{Page: 1, PageSize: 10}})
@@ -170,4 +200,49 @@ func TestCollectionServiceRuntimeIntegration(t *testing.T) {
 	require.NoError(t, err)
 	_, ok = runtime.Get(created.ID)
 	assert.False(t, ok)
+}
+
+func TestOpcUaPasswordIsRedactedFromDetail(t *testing.T) {
+	service, _ := newTestService(t)
+	body := `{
+		"driverType":"opcUa","driverModel":"opcUa","name":"ua-test","collectorCycleMs":1000,
+		"protocolConfig":{"location":"opc.tcp://127.0.0.1","port":4840,"username":"u","password":"secret","tcpCount":1},
+		"variables":[{"name":"temperature","dataType":"number","address":"ns=2;s=Tag","accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created := result.(*v1.CollectionDetailVo)
+	assert.Contains(t, string(created.ProtocolConfig), `"password":"***"`)
+	assert.NotContains(t, string(created.ProtocolConfig), "secret")
+
+	record, err := service.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	assert.Contains(t, string(record.ProtocolConfig), `"password":"secret"`)
+}
+
+func TestCollectionEnableLifecycle(t *testing.T) {
+	service, _ := newTestService(t)
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"enable-test",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"temperature","dataType":"float32","address":"1!40001","accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created := result.(*v1.CollectionDetailVo)
+	assert.True(t, created.Enable)
+
+	enabled, err := service.SetEnable(context.Background(), created.ID, false)
+	require.NoError(t, err)
+	assert.False(t, enabled.Enable)
+
+	_, err = service.Start(context.Background(), created.ID)
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.Equal(t, "enable", validationErr.Issues[0].Field)
+
+	enabled, err = service.SetEnable(context.Background(), created.ID, true)
+	require.NoError(t, err)
+	assert.True(t, enabled.Enable)
 }

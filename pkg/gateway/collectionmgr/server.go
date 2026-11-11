@@ -3,8 +3,10 @@ package collectionmgr
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,6 +28,13 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.POST("/:id/variables", addVariables(svc))
 	g.DELETE("/:id/variables", deleteVariables(svc))
 	g.GET("/:id/variables", listVariables(svc))
+	g.PUT("/:id/action", deliverAction(svc))
+	g.POST("/:id/restart", restartCollection(svc))
+	g.POST("/:id/stop", stopCollection(svc))
+	g.POST("/:id/start", startCollection(svc))
+	g.PUT("/:id/enable", setCollectionEnable(svc))
+	g.GET("/:id/frames/requests/stream", streamFrames(svc, true))
+	g.GET("/:id/frames/responses/stream", streamFrames(svc, false))
 }
 
 func create(svc *Service) gin.HandlerFunc {
@@ -177,5 +186,122 @@ func writeErr(c *gin.Context, err error) {
 			return
 		}
 		response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+	}
+}
+
+func deliverAction(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req v1.ActionReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrMalformedJSON)
+			return
+		}
+		result, err := svc.DeliverAction(c.Request.Context(), c.Param("id"), req)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, result)
+	}
+}
+
+func streamFrames(svc *Service, requests bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ch, cancel, err := svc.SubscribeFrames(c.Request.Context(), c.Param("id"), requests)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		defer cancel()
+
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+		if controller := http.NewResponseController(c.Writer); controller != nil {
+			_ = controller.SetWriteDeadline(time.Time{})
+		}
+		c.Status(http.StatusOK)
+		c.Writer.Flush()
+		event := "response"
+		if requests {
+			event = "request"
+		}
+		_, _ = c.Writer.WriteString("event: ready\ndata: {}\n\n")
+		c.Writer.Flush()
+
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.Request.Context().Done():
+				return
+			case <-ticker.C:
+				if _, err := c.Writer.WriteString(": heartbeat\n\n"); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			case frame, ok := <-ch:
+				if !ok {
+					return
+				}
+				payload, err := json.Marshal(frame)
+				if err != nil {
+					continue
+				}
+				if _, err := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event, payload); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			}
+		}
+	}
+}
+
+func restartCollection(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := svc.Restart(c.Request.Context(), c.Param("id")); err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, gin.H{"restarted": true})
+	}
+}
+
+func stopCollection(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.Stop(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func startCollection(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.Start(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func setCollectionEnable(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req v1.SetEnableReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrMalformedJSON)
+			return
+		}
+		result, err := svc.SetEnable(c.Request.Context(), c.Param("id"), req.Enable)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, result)
 	}
 }

@@ -13,10 +13,8 @@ func TestCreateHandlerDecodeAndBuild(t *testing.T) {
 	body := []byte(`{
 		"name":"modbus-tcp-1",
 		"collectorCycleMs":1000,
-		"location":"127.0.0.1:502",
-		"backupLocation":"127.0.0.2:502",
-		"memoryLayout":"ABCD",
-		"variables":[{"name":"temperature","dataType":"float32","address":"holding:40001","accessMode":"r"}]
+		"protocolConfig":{"location":"127.0.0.1:502","backupLocation":"127.0.0.2:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"temperature","dataType":"float32","address":"1!40001","accessMode":"r"}]
 	}`)
 
 	request, err := handler.DecodeCreate(body)
@@ -37,6 +35,7 @@ func TestCreateHandlerDecodeAndBuild(t *testing.T) {
 	var configMap map[string]any
 	require.NoError(t, json.Unmarshal(config, &configMap))
 	assert.Equal(t, "127.0.0.1:502", configMap["location"])
+	assert.Equal(t, float64(1), configMap["tcpCount"])
 }
 
 func TestCreateReqValidate(t *testing.T) {

@@ -81,6 +81,12 @@ func ValidateVariables(variables []*Variable) error {
 				MsgID: "validate.variable_precision_invalid",
 			})
 		}
+		if variable.Bits > 16 {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("variables[%d].bits", i),
+				MsgID: "validate.variable_bits_invalid",
+			})
+		}
 		if variable.IsCalculated {
 			if strings.TrimSpace(variable.Address) != "" {
 				issues = append(issues, validation.FieldIssue{

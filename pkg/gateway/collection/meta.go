@@ -64,10 +64,18 @@ func (m *CollectionMeta) GetDriverModel() string { return m.DriverModel }
 func (m *CollectionMeta) SetDriverModel(driverModel string) { m.DriverModel = driverModel }
 
 // GetCollectStatus returns the collection status.
-func (m *CollectionMeta) GetCollectStatus() string { return m.CollectStatus }
+func (m *CollectionMeta) GetCollectStatus() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.CollectStatus
+}
 
 // SetCollectStatus sets the collection status.
-func (m *CollectionMeta) SetCollectStatus(status string) { m.CollectStatus = status }
+func (m *CollectionMeta) SetCollectStatus(status string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CollectStatus = status
+}
 
 // GetCollectorCycleMs returns the collection cycle in milliseconds.
 func (m *CollectionMeta) GetCollectorCycleMs() uint64 { return m.CollectorCycleMs }
@@ -110,6 +118,25 @@ func (m *CollectionMeta) GetVariableValue(name string) (any, bool) {
 		return nil, false
 	}
 	return variable.Value, true
+}
+
+// SnapshotVariableValues returns runtime values for the requested variable names.
+func (m *CollectionMeta) SnapshotVariableValues(names []string) map[string]any {
+	if m == nil || len(names) == 0 {
+		return nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.variablesMap == nil {
+		return nil
+	}
+	values := make(map[string]any, len(names))
+	for _, name := range names {
+		if variable, ok := m.variablesMap[name]; ok {
+			values[name] = variable.Value
+		}
+	}
+	return values
 }
 
 // SnapshotVariables returns a copy of variables with runtime values.

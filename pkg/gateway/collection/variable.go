@@ -15,6 +15,7 @@ type Variable struct {
 	Type       string     `json:"type"`
 	DataType   string     `json:"dataType"`
 	Address    string     `json:"address"`
+	Bits       uint8      `json:"bits"`
 	AccessMode AccessMode `json:"accessMode"`
 
 	IsCalculated bool   `json:"isCalculated"`

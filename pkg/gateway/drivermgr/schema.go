@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/validation"
 )
 
@@ -20,7 +21,21 @@ const (
 
 // Schema describes the configurable fields of a driver.
 type Schema struct {
-	Fields []*Field `json:"fields"`
+	Fields          []*Field               `json:"fields"`
+	VariableAddress *VariableAddressSchema `json:"variableAddress,omitempty"`
+
+	compiledVariableAddress *regexp.Regexp
+}
+
+// VariableAddressSchema describes variable address rules for one driver.
+type VariableAddressSchema struct {
+	LabelZh       string `json:"labelZh"`
+	LabelEn       string `json:"labelEn"`
+	Regex         string `json:"regex"`
+	PlaceholderZh string `json:"placeholderZh,omitempty"`
+	PlaceholderEn string `json:"placeholderEn,omitempty"`
+	DescriptionZh string `json:"descriptionZh,omitempty"`
+	DescriptionEn string `json:"descriptionEn,omitempty"`
 }
 
 // Field describes one driver config field.
@@ -63,6 +78,22 @@ func ParseSchema(raw json.RawMessage) (*Schema, error) {
 func (s *Schema) Validate() error {
 	if s == nil {
 		return fmt.Errorf("schema is nil")
+	}
+	if s.VariableAddress != nil {
+		s.VariableAddress.LabelZh = strings.TrimSpace(s.VariableAddress.LabelZh)
+		s.VariableAddress.LabelEn = strings.TrimSpace(s.VariableAddress.LabelEn)
+		s.VariableAddress.Regex = strings.TrimSpace(s.VariableAddress.Regex)
+		if s.VariableAddress.LabelZh == "" || s.VariableAddress.LabelEn == "" {
+			return fmt.Errorf("variableAddress labels are required")
+		}
+		if s.VariableAddress.Regex == "" {
+			return fmt.Errorf("variableAddress regex is required")
+		}
+		re, err := regexp.Compile(s.VariableAddress.Regex)
+		if err != nil {
+			return fmt.Errorf("variableAddress regex is invalid: %w", err)
+		}
+		s.compiledVariableAddress = re
 	}
 	names := make(map[string]struct{}, len(s.Fields))
 	for i, field := range s.Fields {
@@ -120,19 +151,29 @@ func (s *Schema) ValidateBody(body []byte) error {
 	if s == nil || len(s.Fields) == 0 {
 		return nil
 	}
-	var values map[string]json.RawMessage
-	if err := json.Unmarshal(body, &values); err != nil {
+	var payload struct {
+		ProtocolConfig json.RawMessage        `json:"protocolConfig"`
+		Variables      []*collection.Variable `json:"variables"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
 		return err
+	}
+	var values map[string]json.RawMessage
+	if len(bytes.TrimSpace(payload.ProtocolConfig)) > 0 {
+		if err := json.Unmarshal(payload.ProtocolConfig, &values); err != nil {
+			return err
+		}
 	}
 	issues := make([]validation.FieldIssue, 0)
 	for _, field := range s.sortedFields() {
 		raw, exists := values[field.Name]
+		issueField := "protocolConfig." + field.Name
 		if !exists || len(bytes.TrimSpace(raw)) == 0 || string(bytes.TrimSpace(raw)) == "null" {
 			if field.Required {
 				issues = append(issues, validation.FieldIssue{
-					Field: field.Name,
+					Field: issueField,
 					MsgID: "validate.collection_field_required",
-					Args:  []interface{}{field.Name},
+					Args:  []interface{}{issueField},
 				})
 			}
 			continue
@@ -140,32 +181,71 @@ func (s *Schema) ValidateBody(body []byte) error {
 		value, err := rawString(raw)
 		if err != nil {
 			issues = append(issues, validation.FieldIssue{
-				Field: field.Name,
+				Field: issueField,
 				MsgID: "validate.collection_field_invalid",
-				Args:  []interface{}{field.Name},
+				Args:  []interface{}{issueField},
 			})
 			continue
 		}
 		if field.Type == FieldTypeSelect && !field.hasOption(value) {
 			issues = append(issues, validation.FieldIssue{
-				Field: field.Name,
+				Field: issueField,
 				MsgID: "validate.collection_select_invalid",
-				Args:  []interface{}{field.Name},
+				Args:  []interface{}{issueField},
 			})
 			continue
 		}
 		if field.compiled != nil && !field.compiled.MatchString(value) {
 			issues = append(issues, validation.FieldIssue{
-				Field: field.Name,
+				Field: issueField,
 				MsgID: "validate.collection_field_invalid",
-				Args:  []interface{}{field.Name},
+				Args:  []interface{}{issueField},
 			})
 		}
+	}
+	if s.VariableAddress != nil {
+		issues = append(issues, s.variableAddressIssues(payload.Variables)...)
 	}
 	if len(issues) == 0 {
 		return nil
 	}
 	return &validation.ValidationError{Issues: issues}
+}
+
+// ValidateVariableAddresses validates variable addresses against the driver rules.
+func (s *Schema) ValidateVariableAddresses(variables []*collection.Variable) error {
+	if s == nil || s.VariableAddress == nil {
+		return nil
+	}
+	issues := s.variableAddressIssues(variables)
+	if len(issues) == 0 {
+		return nil
+	}
+	return &validation.ValidationError{Issues: issues}
+}
+
+func (s *Schema) variableAddressIssues(variables []*collection.Variable) []validation.FieldIssue {
+	if s == nil || s.VariableAddress == nil || s.compiledVariableAddress == nil {
+		return nil
+	}
+	issues := make([]validation.FieldIssue, 0)
+	for i, variable := range variables {
+		if variable == nil || variable.IsCalculated {
+			continue
+		}
+		address := strings.TrimSpace(variable.Address)
+		if address == "" {
+			continue
+		}
+		if !s.compiledVariableAddress.MatchString(address) {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("variables[%d].address", i),
+				MsgID: "validate.variable_address_invalid",
+				Args:  []interface{}{address},
+			})
+		}
+	}
+	return issues
 }
 
 func (s *Schema) sortedFields() []*Field {

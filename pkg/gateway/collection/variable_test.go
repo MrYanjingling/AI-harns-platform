@@ -14,21 +14,21 @@ func TestNormalizeVariables(t *testing.T) {
 		Name:       " temperature ",
 		Type:       " telemetry ",
 		DataType:   " float32 ",
-		Address:    " holding:40001 ",
+		Address:    " 1!40001 ",
 		AccessMode: AccessModeRead,
 	}}
 	require.NoError(t, NormalizeVariables(variables))
 	assert.Equal(t, "temperature", variables[0].Name)
 	assert.Equal(t, "telemetry", variables[0].Type)
 	assert.Equal(t, "float32", variables[0].DataType)
-	assert.Equal(t, "holding:40001", variables[0].Address)
+	assert.Equal(t, "1!40001", variables[0].Address)
 	assert.Equal(t, float64(1), variables[0].Rate)
 }
 
 func TestValidateVariablesRejectsDuplicatesAndInvalidFields(t *testing.T) {
 	err := ValidateVariables([]*Variable{
-		{Name: "temperature", DataType: "float32", Address: "holding:1", AccessMode: AccessModeRead},
-		{Name: " temperature ", DataType: "float32", Address: "holding:2", AccessMode: AccessModeRead},
+		{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: AccessModeRead},
+		{Name: " temperature ", DataType: "float32", Address: "1!40002", AccessMode: AccessModeRead},
 	})
 	require.Error(t, err)
 	var verr *validation.ValidationError
@@ -36,7 +36,7 @@ func TestValidateVariablesRejectsDuplicatesAndInvalidFields(t *testing.T) {
 	assert.Equal(t, "variables[1].name", verr.Issues[0].Field)
 
 	err = ValidateVariables([]*Variable{{
-		Name: "temperature", DataType: "float32", Address: "holding:1", AccessMode: "bad",
+		Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: "bad",
 	}})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &verr)
@@ -64,7 +64,7 @@ func TestValidateCalculatedVariable(t *testing.T) {
 	require.Error(t, ValidateVariables([]*Variable{variable}))
 
 	variable.AccessMode = AccessModeRead
-	variable.Address = "holding:1"
+	variable.Address = "1!40001"
 	require.Error(t, ValidateVariables([]*Variable{variable}))
 
 	variable.Address = ""
@@ -74,8 +74,19 @@ func TestValidateCalculatedVariable(t *testing.T) {
 
 func TestValidateNormalVariableRejectsExpression(t *testing.T) {
 	err := ValidateVariables([]*Variable{{
-		Name: "temperature", DataType: "float32", Address: "holding:1",
+		Name: "temperature", DataType: "float32", Address: "1!40001",
 		AccessMode: AccessModeRead, Expression: "a + b",
 	}})
 	require.Error(t, err)
+}
+
+func TestValidateVariableBitsRange(t *testing.T) {
+	require.NoError(t, ValidateVariables([]*Variable{{
+		Name: "flag", DataType: "bool", Address: "1!40001", Bits: 16,
+		AccessMode: AccessModeRead,
+	}}))
+	require.Error(t, ValidateVariables([]*Variable{{
+		Name: "flag", DataType: "bool", Address: "1!40001", Bits: 17,
+		AccessMode: AccessModeRead,
+	}}))
 }
