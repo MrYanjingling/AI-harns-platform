@@ -177,7 +177,7 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/collections` | GET/POST | 采集器分页列表 / 创建 |
 | `/api/v1/collections/:id` | GET/PUT/DELETE | 采集器协议详情 / 更新 / 删除 |
 | `/api/v1/collections/:id/variables` | GET/POST/DELETE | 变量分页 / 批量新增 / 批量删除 |
-| `/api/v1/collections/:id/action` | PUT | 变量反控（Modbus/S7） |
+| `/api/v1/collections/:id/action` | PUT | 变量反控（Modbus/OPC UA/S7） |
 | `/api/v1/collections/:id/restart` | POST | 手动重启采集运行时 |
 | `/api/v1/collections/:id/stop` | POST | 暂停采集并关闭连接 |
 | `/api/v1/collections/:id/start` | POST | 按最新配置启动采集 |
@@ -189,7 +189,7 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 
 `GET /api/v1/collections` 和 `GET /api/v1/collections/:id/variables` 使用平台统一分页结构；采集器详情不返回 variables。
 
-Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...}}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`。Collection 创建/更新时，协议字段放在请求的 `protocolConfig` 对象中，按 driver schema 校验；详情响应也以 `protocolConfig` 返回协议字段。
+Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"variableDataTypes":[...]}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`；`variableDataTypes` 声明该驱动允许的变量数据类型。Collection 创建/更新时，协议字段放在请求的 `protocolConfig` 对象中，按 driver schema 校验；详情响应也以 `protocolConfig` 返回协议字段。
 
 内置采集协议：
 
@@ -205,7 +205,7 @@ Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；
 
 `enable` 是持久化的自动启动开关，默认 `true`。只有 `stopped` 状态可以禁用；禁用后 `start/restart/action` 都会被拒绝。网关重启时只自动加载 `enable=true` 的 collection；启用只修改字段，不会自动启动，仍需手动 `start`。
 
-Collection 反控请求使用字符串值，例如 `{"actions":[{"name":"frequency","value":"20.5"}]}`；服务端按变量 `rate/offset` 精确反算 raw 值，整数结果必须为整数。OPC UA 暂不支持反控，Modbus FC2/FC4 禁止写入，Modbus 寄存器 BOOL 暂不支持写位。
+Collection 反控请求使用字符串值，例如 `{"actions":[{"name":"frequency","value":"20.5"}]}`；服务端按变量 `rate/offset` 精确反算 raw 值，整数结果必须为整数。OPC UA 通过标准 Write 服务反控；Modbus FC2/FC4 禁止写入，Modbus 寄存器 BOOL 暂不支持写位。
 
 请求/响应原始报文通过两个独立 SSE 接口实时推送，16 进制显示，不保留历史；只有存在 SSE 订阅者时才记录 trace。当前支持 ModbusTcp、ModbusRtu、ModbusRtuOverTcp、S7；OPC UA 高层 API 不暴露原始 wire 字节。
 

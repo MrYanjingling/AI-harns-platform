@@ -38,6 +38,7 @@ func TestInitializeIsIdempotentAndSeedsBuiltins(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, schema.Fields)
 		assert.NotNil(t, schema.VariableAddress)
+		assert.NotEmpty(t, schema.VariableDataTypes)
 	}
 }
 

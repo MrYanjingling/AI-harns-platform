@@ -80,3 +80,33 @@ func TestParseSchemaRejectsInvalidDefinitions(t *testing.T) {
 		assert.Error(t, err, raw)
 	}
 }
+
+func TestSchemaValidateDataTypes(t *testing.T) {
+	raw := json.RawMessage(`{
+		"fields":[],
+		"variableAddress":{"labelZh":"地址","labelEn":"Address","regex":"^.*$"},
+		"variableDataTypes":[
+			{"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
+			{"value":"INT16","labelZh":"整数","labelEn":"Int16"}
+		]
+	}`)
+	schema, err := ParseSchema(raw)
+	require.NoError(t, err)
+	require.Len(t, schema.VariableDataTypes, 2)
+
+	require.NoError(t, schema.ValidateDataTypes([]*collection.Variable{
+		{Name: "a", DataType: "BOOL"},
+		{Name: "b", DataType: "int16"},
+	}))
+	err = schema.ValidateDataTypes([]*collection.Variable{{Name: "c", DataType: "NUMBER"}})
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.Equal(t, "variables[0].dataType", validationErr.Issues[0].Field)
+
+	body := []byte(`{"variables":[{"name":"c","dataType":"FLOAT32"}]}`)
+	err = schema.ValidateBody(body)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &validationErr)
+	assert.Equal(t, "variables[0].dataType", validationErr.Issues[0].Field)
+}

@@ -38,3 +38,9 @@ func TestDecodeActionBool(t *testing.T) {
 	_, err := DecodeActionValue(variable, "yes")
 	require.Error(t, err)
 }
+
+func TestDecodeActionString(t *testing.T) {
+	value, err := DecodeActionValue(&Variable{DataType: "STRING"}, "hello")
+	require.NoError(t, err)
+	assert.Equal(t, "hello", value)
+}

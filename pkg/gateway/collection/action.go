@@ -43,6 +43,9 @@ func DecodeActionValue(variable *Variable, text string) (any, error) {
 			return nil, fmt.Errorf("value %q is not a bool", text)
 		}
 	}
+	if strings.EqualFold(variable.DataType, "string") {
+		return value, nil
+	}
 	if !numericActionValuePattern.MatchString(value) {
 		return nil, fmt.Errorf("value %q must be a decimal number", text)
 	}

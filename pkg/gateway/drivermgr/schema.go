@@ -21,10 +21,12 @@ const (
 
 // Schema describes the configurable fields of a driver.
 type Schema struct {
-	Fields          []*Field               `json:"fields"`
-	VariableAddress *VariableAddressSchema `json:"variableAddress,omitempty"`
+	Fields            []*Field               `json:"fields"`
+	VariableAddress   *VariableAddressSchema `json:"variableAddress,omitempty"`
+	VariableDataTypes []*Option              `json:"variableDataTypes,omitempty"`
 
 	compiledVariableAddress *regexp.Regexp
+	allowedDataTypes        map[string]struct{}
 }
 
 // VariableAddressSchema describes variable address rules for one driver.
@@ -95,6 +97,25 @@ func (s *Schema) Validate() error {
 		}
 		s.compiledVariableAddress = re
 	}
+	if len(s.VariableDataTypes) > 0 {
+		s.allowedDataTypes = make(map[string]struct{}, len(s.VariableDataTypes))
+		for i, option := range s.VariableDataTypes {
+			if option == nil {
+				return fmt.Errorf("variableDataTypes[%d] is null", i)
+			}
+			option.Value = strings.TrimSpace(option.Value)
+			option.LabelZh = strings.TrimSpace(option.LabelZh)
+			option.LabelEn = strings.TrimSpace(option.LabelEn)
+			if option.Value == "" || option.LabelZh == "" || option.LabelEn == "" {
+				return fmt.Errorf("variableDataTypes[%d] is invalid", i)
+			}
+			key := strings.ToLower(option.Value)
+			if _, exists := s.allowedDataTypes[key]; exists {
+				return fmt.Errorf("duplicate variable data type %s", option.Value)
+			}
+			s.allowedDataTypes[key] = struct{}{}
+		}
+	}
 	names := make(map[string]struct{}, len(s.Fields))
 	for i, field := range s.Fields {
 		if field == nil {
@@ -148,7 +169,7 @@ func (s *Schema) Validate() error {
 
 // ValidateBody validates protocol fields in a request body.
 func (s *Schema) ValidateBody(body []byte) error {
-	if s == nil || len(s.Fields) == 0 {
+	if s == nil {
 		return nil
 	}
 	var payload struct {
@@ -206,10 +227,43 @@ func (s *Schema) ValidateBody(body []byte) error {
 	if s.VariableAddress != nil {
 		issues = append(issues, s.variableAddressIssues(payload.Variables)...)
 	}
+	issues = append(issues, s.dataTypeIssues(payload.Variables)...)
 	if len(issues) == 0 {
 		return nil
 	}
 	return &validation.ValidationError{Issues: issues}
+}
+
+// ValidateDataTypes validates variable data types against the driver rules.
+func (s *Schema) ValidateDataTypes(variables []*collection.Variable) error {
+	if s == nil {
+		return nil
+	}
+	issues := s.dataTypeIssues(variables)
+	if len(issues) == 0 {
+		return nil
+	}
+	return &validation.ValidationError{Issues: issues}
+}
+
+func (s *Schema) dataTypeIssues(variables []*collection.Variable) []validation.FieldIssue {
+	if s == nil || len(s.allowedDataTypes) == 0 {
+		return nil
+	}
+	issues := make([]validation.FieldIssue, 0)
+	for i, variable := range variables {
+		if variable == nil {
+			continue
+		}
+		if _, ok := s.allowedDataTypes[strings.ToLower(strings.TrimSpace(variable.DataType))]; !ok {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("variables[%d].dataType", i),
+				MsgID: "validate.variable_data_type_unsupported",
+				Args:  []interface{}{variable.DataType},
+			})
+		}
+	}
+	return issues
 }
 
 // ValidateVariableAddresses validates variable addresses against the driver rules.

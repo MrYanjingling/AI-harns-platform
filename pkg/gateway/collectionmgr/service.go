@@ -493,6 +493,9 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 	if err := schema.ValidateVariableAddresses(variables); err != nil {
 		return nil, err
 	}
+	if err := schema.ValidateDataTypes(variables); err != nil {
+		return nil, err
+	}
 	added, err := s.store.AddVariables(ctx, collectionID, variables)
 	if err != nil {
 		if errors.Is(err, ErrVariableConflict) {

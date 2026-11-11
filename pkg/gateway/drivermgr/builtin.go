@@ -106,7 +106,16 @@ const modbusTcpSchema = `{
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
-  }
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+  ]
 }`
 
 const modbusRtuSchema = `{
@@ -210,7 +219,16 @@ const modbusRtuSchema = `{
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
-  }
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+  ]
 }`
 
 const modbusRtuOverTcpSchema = `{
@@ -277,7 +295,16 @@ const modbusRtuOverTcpSchema = `{
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
-  }
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+  ]
 }`
 
 const s71500Schema = `{
@@ -337,7 +364,16 @@ const s71500Schema = `{
     "placeholderEn": "DB1.DBW0",
     "descriptionZh": "支持 DB1.DBX0.5、DB1.DBW0、DB1.DBD0、I0.0、Q0.0、M0.0",
     "descriptionEn": "Supports DB1.DBX0.5, DB1.DBW0, DB1.DBD0, I0.0, Q0.0, M0.0"
-  }
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+  ]
 }`
 
 const opcUaSchema = `{
@@ -398,7 +434,11 @@ const opcUaSchema = `{
     "placeholderEn": "ns=2;s=Tag",
     "descriptionZh": "完整 NodeID，例如 ns=2;s=Tag 或 ns=2;i=1001",
     "descriptionEn": "Full NodeID, for example ns=2;s=Tag or ns=2;i=1001"
-  }
+  },
+  "variableDataTypes": [
+    {"value":"NUMBER","labelZh":"数值","labelEn":"Number"},
+    {"value":"STRING","labelZh":"字符串","labelEn":"String"}
+  ]
 }`
 
 // BuiltinDriver is a driver shipped with the gateway binary.
