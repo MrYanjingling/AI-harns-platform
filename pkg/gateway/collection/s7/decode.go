@@ -54,6 +54,20 @@ func decodeFrame(frame *s7Frame, data []byte) ([]decodedValue, error) {
 				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
 			}
 			value = binutil.ParseFloat64BigEndian(data[base:])
+		case "string":
+			if base+int(item.Length) > len(data) {
+				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			}
+			value = strings.TrimRight(string(data[base:base+int(item.Length)]), "\x00")
+		case "byte_array":
+			if base+int(item.Length) > len(data) {
+				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			}
+			values := make([]int, 0, item.Length)
+			for _, b := range data[base : base+int(item.Length)] {
+				values = append(values, int(b))
+			}
+			value = values
 		default:
 			return nil, fmt.Errorf("variable %s data type %q is not supported", item.Variable.Name, item.Variable.DataType)
 		}

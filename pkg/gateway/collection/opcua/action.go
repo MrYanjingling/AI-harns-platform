@@ -26,12 +26,13 @@ func (c *OpcUaCollection) DeliverAction(ctx context.Context, actions []collectio
 			Field: "actions", MsgID: "validate.action_value_invalid", Args: []interface{}{"", err.Error()},
 		}})
 	}
-	client, err := runtime.pool.acquire(ctx)
+	client, err := runtime.pool.Get(ctx)
 	if err != nil {
 		return err
 	}
-	response, err := client.Write(ctx, request)
-	runtime.pool.release(client, err != nil)
+	conn := client.(*uaClient)
+	response, err := conn.client.Write(ctx, request)
+	runtime.pool.Put(client, err != nil)
 	if err != nil {
 		return err
 	}

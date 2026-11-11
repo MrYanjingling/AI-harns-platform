@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 )
 
 type collectorRuntime struct {
 	mu sync.Mutex
 
-	pool   *tcpPool
+	pool   *connpool.Pool
 	frames []*wireFrame
 	calcs  []*collection.Calculation
 

@@ -197,7 +197,7 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `modbusRtu`：串口 RTU，固定单连接
 - `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `tcpCount`
 - `opcUa`：完整 NodeID 地址、批量 Read、`tcpCount`，详情响应密码脱敏
-- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`tcpCount`，STRING 暂不支持
+- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`tcpCount`；支持 `STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持写入
 
 Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp 和 ModbusRtuOverTcp 的 `protocolConfig` 支持 `tcpCount`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
 

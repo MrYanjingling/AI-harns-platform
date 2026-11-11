@@ -12,6 +12,7 @@ import (
 	"go.bug.st/serial"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/collection/modbus"
 	"harns-platform/pkg/gateway/validation"
 )
@@ -21,15 +22,6 @@ const (
 	serialTimeout   = time.Second
 )
 
-type serialPort interface {
-	io.ReadWriteCloser
-	SetReadTimeout(time.Duration) error
-}
-
-var openSerialPort = func(location string, mode *serial.Mode) (serialPort, error) {
-	return serial.Open(location, mode)
-}
-
 type wireFrame struct {
 	frame       *modbus.Frame
 	request     []byte
@@ -38,11 +30,9 @@ type wireFrame struct {
 
 type collectorRuntime struct {
 	mu     sync.Mutex
-	portMu sync.Mutex
-
 	frames []*wireFrame
 	calcs  []*collection.Calculation
-	port   serialPort
+	pool   *connpool.Pool
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -93,17 +83,17 @@ func (c *ModbusRtuCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	port, err := openSerialPort(c.Location, &serial.Mode{
+	pool, err := newSerialPool(ctx, serial.Mode{
 		BaudRate: c.BaudRate,
 		DataBits: c.DataBits,
 		Parity:   parseParity(c.Parity),
 		StopBits: parseStopBits(c.StopBits),
-	})
+	}, c.Location)
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
-	runtime.port = port
+	runtime.pool = pool
 	c.SetCollectStatus(collection.CollectStatusStopped)
 	return nil
 }
@@ -124,7 +114,7 @@ func (c *ModbusRtuCollection) Start(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	if runtime.port == nil {
+	if runtime.pool == nil {
 		runtime.mu.Unlock()
 		return fmt.Errorf("modbusRtu serial port is not connected")
 	}
@@ -148,19 +138,19 @@ func (c *ModbusRtuCollection) Stop(ctx context.Context) error {
 	cancel := runtime.cancel
 	runtime.cancel = nil
 	runtime.started = false
-	port := runtime.port
+	pool := runtime.pool
 	runtime.mu.Unlock()
 
 	if cancel != nil {
 		cancel()
 	}
 	runtime.wg.Wait()
-	if port != nil {
-		_ = port.Close()
+	if pool != nil {
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
-	if runtime.port == port {
-		runtime.port = nil
+	if runtime.pool == pool {
+		runtime.pool = nil
 	}
 	runtime.mu.Unlock()
 	c.SetCollectStatus(collection.CollectStatusStopped)
@@ -198,7 +188,7 @@ func (c *ModbusRtuCollection) loop(ctx context.Context) {
 
 func (c *ModbusRtuCollection) poll(ctx context.Context) bool {
 	runtime := c.runtime
-	if runtime == nil || runtime.port == nil {
+	if runtime == nil || runtime.pool == nil {
 		return false
 	}
 	failed := false
@@ -235,7 +225,7 @@ func (c *ModbusRtuCollection) SetFrameTracer(tracer collection.FrameTracer) {
 
 func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame) ([]modbus.DecodedValue, error) {
 	runtime := c.runtime
-	if runtime == nil || runtime.port == nil {
+	if runtime == nil || runtime.pool == nil {
 		return nil, fmt.Errorf("modbusRtu runtime is not connected")
 	}
 	var lastErr error
@@ -263,18 +253,20 @@ func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame
 }
 
 func (c *ModbusRtuCollection) exchange(ctx context.Context, runtime *collectorRuntime, request, response []byte) error {
-	runtime.portMu.Lock()
-	defer runtime.portMu.Unlock()
-	if err := ctx.Err(); err != nil {
+	client, err := runtime.pool.Get(ctx)
+	if err != nil {
 		return err
 	}
-	if _, err := runtime.port.Write(request); err != nil {
-		return err
+	serialConn := client.(*serialClient)
+	serialConn.mu.Lock()
+	_, err = serialConn.port.Write(request)
+	if err == nil {
+		if err = serialConn.port.SetReadTimeout(serialTimeout); err == nil {
+			_, err = io.ReadFull(serialConn.port, response)
+		}
 	}
-	if err := runtime.port.SetReadTimeout(serialTimeout); err != nil {
-		return err
-	}
-	_, err := io.ReadFull(runtime.port, response)
+	serialConn.mu.Unlock()
+	runtime.pool.Put(client, err != nil)
 	return err
 }
 
@@ -315,7 +307,7 @@ func parseStopBits(value string) serial.StopBits {
 // DeliverAction writes collection variables through the serial port.
 func (c *ModbusRtuCollection) DeliverAction(ctx context.Context, actions []collection.ActionValue) error {
 	runtime := c.runtime
-	if runtime == nil || runtime.port == nil {
+	if runtime == nil || runtime.pool == nil {
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
 	for _, action := range actions {

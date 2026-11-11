@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/validation"
 	"harns-platform/pkg/utils/binutil"
 )
@@ -18,7 +19,7 @@ type collectorRuntime struct {
 	mu      sync.Mutex
 	frames  []*s7Frame
 	calcs   []*collection.Calculation
-	pool    *s7Pool
+	pool    *connpool.Pool
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 	started bool
@@ -42,6 +43,12 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 	if c.runtime != nil {
 		_ = c.Stop(ctx)
 	}
+	if c.PDUSize == 0 {
+		c.PDUSize = DefaultPDUSize
+	}
+	if c.ConnectionType == 0 {
+		c.ConnectionType = DefaultConnectionType
+	}
 	if c.TCPCount == 0 {
 		c.TCPCount = DefaultTCPCount
 	}
@@ -49,28 +56,45 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: tcpCount must be between 1 and %d", collection.ErrInvalidConfig, MaxTCPCount)
 	}
+	if c.PDUSize != 480 && c.PDUSize != 960 {
+		c.SetCollectStatus(collection.CollectStatusError)
+		return fmt.Errorf("%w: pduSize must be 480 or 960", collection.ErrInvalidConfig)
+	}
+	if c.ConnectionType < 1 || c.ConnectionType > 3 {
+		c.SetCollectStatus(collection.CollectStatusError)
+		return fmt.Errorf("%w: connectionType must be 1, 2 or 3", collection.ErrInvalidConfig)
+	}
 	variables := c.GetCollectionMeta().GetVariables()
 	calculations, err := collection.CompileCalculations(variables)
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	pool := newS7Pool(c.endpoint(), c.Rack, c.Slot, c.TCPCount)
-	if err := pool.connect(ctx); err != nil {
-		pool.close()
+	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
+		return newS7Client(ctx, c.endpoint(), c.Rack, c.Slot, c.ConnectionType, c.PDUSize)
+	})
+	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
-	frames, err := buildFrames(variables, pool.pdu)
+	client, err := pool.Get(ctx)
 	if err != nil {
-		pool.close()
+		_ = pool.Close()
+		c.SetCollectStatus(collection.CollectStatusUnconnected)
+		return err
+	}
+	pdu := client.(*s7Client).pdu
+	pool.Put(client, false)
+	frames, err := buildFrames(variables, pdu)
+	if err != nil {
+		_ = pool.Close()
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
 	runtime := &collectorRuntime{frames: frames, calcs: calculations, pool: pool}
 	c.runtime = runtime
 	if len(frames) == 0 {
-		pool.close()
+		_ = pool.Close()
 		runtime.pool = nil
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
@@ -125,7 +149,7 @@ func (c *S7Collection) Stop(ctx context.Context) error {
 	}
 	runtime.wg.Wait()
 	if pool != nil {
-		pool.close()
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
 	if runtime.pool == pool {
@@ -226,15 +250,16 @@ func (c *S7Collection) readFrame(ctx context.Context, frame *s7Frame) ([]decoded
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
-		session, err := runtime.pool.acquire(ctx)
+		client, err := runtime.pool.Get(ctx)
 		if err != nil {
 			return nil, err
 		}
+		session := client.(*s7Client)
 		traceID := c.traceRequest("read", frame.Request)
 		started := time.Now()
 		response, exchangeErr := session.ask(frame.Request)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
-		runtime.pool.release(session, exchangeErr != nil)
+		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
 			continue
@@ -288,15 +313,16 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		session, err := runtime.pool.acquire(ctx)
+		client, err := runtime.pool.Get(ctx)
 		if err != nil {
 			return err
 		}
+		session := client.(*s7Client)
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
 		response, exchangeErr := session.ask(request)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
-		runtime.pool.release(session, exchangeErr != nil)
+		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
 			return exchangeErr
 		}

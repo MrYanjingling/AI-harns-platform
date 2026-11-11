@@ -12,8 +12,8 @@ func buildWriteRequest(variable *collection.Variable, value any) ([]byte, uint8,
 	if variable == nil {
 		return nil, 0, fmt.Errorf("variable is nil")
 	}
-	if strings.EqualFold(variable.DataType, "string") {
-		return nil, 0, fmt.Errorf("s7 string is not supported")
+	if strings.EqualFold(variable.DataType, "string") || strings.EqualFold(variable.DataType, "byte_array") {
+		return nil, 0, fmt.Errorf("s7 string/byte_array write is not supported")
 	}
 	parsed, err := parseAddress(variable.Address)
 	if err != nil {
@@ -26,7 +26,7 @@ func buildWriteRequest(variable *collection.Variable, value any) ([]byte, uint8,
 	}
 	parameter := newReadParameterItem(
 		transportSize,
-		dataRequestLength(parsed.area, variable.DataType),
+		dataRequestLength(parsed.area, variable.DataType, parsed.length),
 		uint16(parsed.blockSize),
 		parsed.area.code(),
 		parsed.address,
@@ -37,7 +37,7 @@ func buildWriteRequest(variable *collection.Variable, value any) ([]byte, uint8,
 	dataItem = append(dataItem, data...)
 
 	maxBytes := 7 + 10 + 2 + 12 + len(dataItem)
-	request := []byte{0x03, 0x00, 0x00}
+	request := []byte{0x03, 0x00}
 	request = append(request, binutil.Uint16ToBytesBigEndian(uint16(maxBytes))...)
 	request = append(request, 0x02, 0xf0, 0x80)
 	request = append(request, 0x32, 0x01, 0x00, 0x00, 0x00, 0x01)

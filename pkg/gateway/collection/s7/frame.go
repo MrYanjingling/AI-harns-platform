@@ -13,6 +13,7 @@ type frameVariable struct {
 	Start     uint
 	Bit       uint8
 	BlockSize uint
+	Length    uint16
 }
 
 type frameItem struct {
@@ -32,9 +33,6 @@ func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, erro
 	for _, variable := range variables {
 		if variable == nil || variable.IsCalculated || variable.AccessMode == collection.AccessModeWrite {
 			continue
-		}
-		if strings.EqualFold(variable.DataType, "string") {
-			return nil, fmt.Errorf("variable %s: s7 string is not supported", variable.Name)
 		}
 		parsed, err := parseAddress(variable.Address)
 		if err != nil {
@@ -68,14 +66,21 @@ func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, erro
 			if err != nil {
 				return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
 			}
-			key := fmt.Sprintf("%d.%d.%d", parsed.area, parsed.blockSize, parsed.address)
+			stringType := strings.EqualFold(variable.DataType, "string") || strings.EqualFold(variable.DataType, "byte_array")
+			if stringType && (parsed.area != areaDB || parsed.length == 0) {
+				return nil, fmt.Errorf("variable %s: string/byte_array requires a DB length suffix", variable.Name)
+			}
+			if !stringType && parsed.length > 0 {
+				return nil, fmt.Errorf("variable %s: length suffix is only valid for string/byte_array", variable.Name)
+			}
+			key := fmt.Sprintf("%d.%d.%d.%d", parsed.area, parsed.blockSize, parsed.address, parsed.length)
 			item, exists := itemMap[key]
 			if !exists {
 				item = &frameItem{
 					Start: uint(offset),
 					RequestData: newReadParameterItem(
 						parsed.area.transportSize(),
-						dataRequestLength(parsed.area, variable.DataType),
+						dataRequestLength(parsed.area, variable.DataType, parsed.length),
 						uint16(parsed.blockSize),
 						parsed.area.code(),
 						parsed.address,
@@ -84,13 +89,14 @@ func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, erro
 				}
 				items = append(items, item)
 				itemMap[key] = item
-				offset += int(4 + dataResponseLength(parsed.area, variable.DataType))
+				offset += int(4 + dataResponseLength(parsed.area, variable.DataType, parsed.length))
 			}
 			frameVars = append(frameVars, &frameVariable{
 				Variable:  variable,
 				Start:     item.Start,
 				Bit:       parsed.bit,
 				BlockSize: parsed.blockSize,
+				Length:    parsed.length,
 			})
 			if len(items) == maxItems {
 				flush()
@@ -102,9 +108,9 @@ func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, erro
 }
 
 func newS7Frame(area storeArea, variables []*frameVariable, items []*frameItem, dataLength int) *s7Frame {
-	data := []byte{0x03, 0x00, 0x00}
+	data := []byte{0x03, 0x00}
 	maxBytes := 7 + 10 + 2 + len(items)*12
-	data = append(data, uint8(maxBytes))
+	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(maxBytes))...)
 	data = append(data, 0x02, 0xf0, 0x80)
 	data = append(data, 0x32, 0x01, 0x00, 0x00, 0x00, 0x01)
 	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(2+len(items)*12))...)

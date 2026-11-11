@@ -31,9 +31,6 @@ func (a storeArea) code() uint8 {
 }
 
 func (a storeArea) transportSize() uint8 {
-	if a == areaDB {
-		return 4
-	}
 	return 2
 }
 
@@ -42,6 +39,7 @@ type parsedAddress struct {
 	blockSize uint
 	address   uint32
 	bit       uint8
+	length    uint16
 }
 
 func parseAddress(value string) (parsedAddress, error) {
@@ -85,19 +83,39 @@ func parseDBAddress(value string) (parsedAddress, error) {
 		return parsedAddress{}, fmt.Errorf("invalid s7 DB block in %q", value)
 	}
 	addressPart := value[index+1:]
-	if !shortening(addressPart) {
-		if len(addressPart) < 3 {
-			return parsedAddress{}, fmt.Errorf("invalid s7 DB address %q", value)
-		}
-		addressPart = addressPart[3:]
+	result := parsedAddress{area: areaDB, blockSize: uint(block)}
+	switch {
+	case strings.HasPrefix(addressPart, "DBX"):
+		return parseByteAndBit(strings.TrimPrefix(addressPart, "DBX"), result)
+	case strings.HasPrefix(addressPart, "DBB"):
+		return parseByteLength(strings.TrimPrefix(addressPart, "DBB"), result)
+	case strings.HasPrefix(addressPart, "DBW"):
+		return parseByteLength(strings.TrimPrefix(addressPart, "DBW"), result)
+	case strings.HasPrefix(addressPart, "DBD"):
+		return parseByteLength(strings.TrimPrefix(addressPart, "DBD"), result)
+	default:
+		return parseByteAndBit(addressPart, result)
 	}
-	result, err := parseByteAndBit(addressPart, parsedAddress{area: areaDB, blockSize: uint(block)})
-	if err != nil {
-		return parsedAddress{}, err
-	}
-	return result, nil
 }
 
+func parseByteLength(value string, result parsedAddress) (parsedAddress, error) {
+	index := strings.LastIndex(value, ".")
+	addressPart := value
+	if index >= 0 {
+		addressPart = value[:index]
+		length, err := strconv.ParseUint(value[index+1:], 10, 16)
+		if err != nil || length == 0 {
+			return parsedAddress{}, fmt.Errorf("invalid s7 byte length %q", value)
+		}
+		result.length = uint16(length)
+	}
+	address, err := strconv.ParseUint(addressPart, 10, 32)
+	if err != nil {
+		return parsedAddress{}, fmt.Errorf("invalid s7 byte address %q", value)
+	}
+	result.address = uint32(address)
+	return result, nil
+}
 func parseByteAndBit(value string, result parsedAddress) (parsedAddress, error) {
 	index := strings.LastIndex(value, ".")
 	addressPart := value
@@ -124,8 +142,10 @@ func shortening(value string) bool {
 	return !(strings.HasPrefix(value, "X") || strings.HasPrefix(value, "B") || strings.HasPrefix(value, "W") || strings.HasPrefix(value, "D") || strings.HasPrefix(value, "S"))
 }
 
-func dataRequestLength(area storeArea, dataType string) uint16 {
+func dataRequestLength(area storeArea, dataType string, byteLength uint16) uint16 {
 	switch strings.ToLower(dataType) {
+	case "string", "byte_array":
+		return (byteLength + 1) / 2
 	case "bool":
 		return 1
 	case "uint16", "int16":
@@ -148,8 +168,10 @@ func dataRequestLength(area storeArea, dataType string) uint16 {
 	}
 }
 
-func dataResponseLength(area storeArea, dataType string) uint16 {
+func dataResponseLength(area storeArea, dataType string, byteLength uint16) uint16 {
 	switch strings.ToLower(dataType) {
+	case "string", "byte_array":
+		return byteLength
 	case "bool":
 		if area == areaDB {
 			return 2

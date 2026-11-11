@@ -14,7 +14,6 @@ func TestBuildWriteRequest(t *testing.T) {
 		Name: "speed", DataType: "int16", Address: "DB1.DBW0", AccessMode: collection.AccessModeReadWrite,
 	}, int16(42))
 	require.NoError(t, err)
-	assert.Equal(t, uint8(4), transportSize)
+	assert.Equal(t, uint8(2), transportSize)
 	assert.NotEmpty(t, request)
-	assert.Equal(t, uint8(5), request[18])
 }

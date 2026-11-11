@@ -110,3 +110,13 @@ func TestSchemaValidateDataTypes(t *testing.T) {
 	require.ErrorAs(t, err, &validationErr)
 	assert.Equal(t, "variables[0].dataType", validationErr.Issues[0].Field)
 }
+
+func TestS7SchemaSupportsArrayAddresses(t *testing.T) {
+	schema, err := ParseSchema(json.RawMessage(s71500Schema))
+	require.NoError(t, err)
+	for _, address := range []string{"DB1.DBB0.10", "DB1.DBW0.10", "DB1.DBD0.10", "DB1.DBX0.0", "I0", "IW0", "I0.0", "Q0", "QW0", "M0"} {
+		require.NoError(t, schema.ValidateVariableAddresses([]*collection.Variable{{
+			Name: "v", DataType: "STRING", Address: address, AccessMode: collection.AccessModeRead,
+		}}), address)
+	}
+}

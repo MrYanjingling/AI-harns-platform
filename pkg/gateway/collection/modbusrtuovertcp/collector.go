@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/collection/modbus"
 	"harns-platform/pkg/gateway/validation"
 )
@@ -33,7 +34,7 @@ type collectorRuntime struct {
 	mu     sync.Mutex
 	frames []*wireFrame
 	calcs  []*collection.Calculation
-	pool   *tcpPool
+	pool   *connpool.Pool
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -103,19 +104,23 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	pool := newTCPPool(c.Location, c.BackupLocation, c.TCPCount)
-	if c.activeBackup {
-		pool.preferBackup()
+	target := c.Location
+	if c.activeBackup && c.BackupLocation != "" {
+		target = c.BackupLocation
 	}
-	if err := pool.connect(ctx); err != nil {
-		c.activeBackup = pool.isBackup()
-		pool.close()
+	pool, err := newNetPool(ctx, target, c.TCPCount)
+	if err != nil && target == c.Location && c.BackupLocation != "" {
+		pool, err = newNetPool(ctx, c.BackupLocation, c.TCPCount)
+		if err == nil {
+			c.activeBackup = true
+		}
+	}
+	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
 	runtime.pool = pool
-	c.activeBackup = pool.isBackup()
-	if pool.isBackup() {
+	if c.activeBackup {
 		runtime.backupSince = time.Now()
 	}
 	c.SetCollectStatus(collection.CollectStatusStopped)
@@ -170,7 +175,7 @@ func (c *ModbusRtuOverTcpCollection) Stop(ctx context.Context) error {
 	}
 	runtime.wg.Wait()
 	if pool != nil {
-		pool.close()
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
 	if runtime.pool == pool {
@@ -280,7 +285,7 @@ func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wi
 		response := make([]byte, frame.responseLen)
 		traceID := c.traceRequest("read", frame.request)
 		started := time.Now()
-		exchangeErr := runtime.pool.exchange(ctx, frame.request, response)
+		exchangeErr := exchange(ctx, runtime.pool, frame.request, response)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
@@ -307,7 +312,7 @@ func (c *ModbusRtuOverTcpCollection) recordCycleFailure(ctx context.Context) {
 	runtime.mu.Lock()
 	runtime.failureStreak++
 	streak := runtime.failureStreak
-	activeBackup := runtime.pool.isBackup()
+	activeBackup := c.activeBackup
 	runtime.mu.Unlock()
 	if streak < 3 {
 		return
@@ -318,7 +323,13 @@ func (c *ModbusRtuOverTcpCollection) recordCycleFailure(ctx context.Context) {
 	if activeBackup || c.BackupLocation == "" {
 		return
 	}
-	if err := runtime.pool.switchTo(ctx, c.BackupLocation); err == nil {
+	newPool, err := newNetPool(ctx, c.BackupLocation, c.TCPCount)
+	if err == nil {
+		oldPool := runtime.pool
+		runtime.mu.Lock()
+		runtime.pool = newPool
+		runtime.mu.Unlock()
+		_ = oldPool.Close()
 		c.activeBackup = true
 		runtime.mu.Lock()
 		runtime.backupSince = time.Now()
@@ -330,7 +341,7 @@ func (c *ModbusRtuOverTcpCollection) recordCycleFailure(ctx context.Context) {
 
 func (c *ModbusRtuOverTcpCollection) maybeFailback(ctx context.Context) {
 	runtime := c.runtime
-	if runtime == nil || runtime.pool == nil || !runtime.pool.isBackup() {
+	if runtime == nil || runtime.pool == nil || !c.activeBackup {
 		return
 	}
 	now := time.Now()
@@ -362,7 +373,13 @@ func (c *ModbusRtuOverTcpCollection) maybeFailback(ctx context.Context) {
 	if success < failbackSuccessCount {
 		return
 	}
-	if err := runtime.pool.switchTo(ctx, c.Location); err == nil {
+	newPool, err := newNetPool(ctx, c.Location, c.TCPCount)
+	if err == nil {
+		oldPool := runtime.pool
+		runtime.mu.Lock()
+		runtime.pool = newPool
+		runtime.mu.Unlock()
+		_ = oldPool.Close()
 		c.activeBackup = false
 		runtime.mu.Lock()
 		runtime.backupSince = time.Time{}
@@ -383,7 +400,7 @@ func (c *ModbusRtuOverTcpCollection) probePrimary(ctx context.Context) bool {
 	}
 	frame := runtime.frames[0]
 	response := make([]byte, frame.responseLen)
-	if err := runtime.pool.probe(ctx, c.Location, frame.request, response); err != nil {
+	if err := probeTCP(ctx, c.Location, frame.request, response); err != nil {
 		return false
 	}
 	_, err := modbus.ValidateRTUResponse(response, frame.frame)
@@ -409,7 +426,7 @@ func (c *ModbusRtuOverTcpCollection) DeliverAction(ctx context.Context, actions 
 		traceID := c.traceRequest("write", request)
 		response := make([]byte, 8)
 		started := time.Now()
-		exchangeErr := runtime.pool.exchange(ctx, request, response)
+		exchangeErr := exchange(ctx, runtime.pool, request, response)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return exchangeErr

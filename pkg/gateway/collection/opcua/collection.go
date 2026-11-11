@@ -12,6 +12,7 @@ import (
 	"github.com/gopcua/opcua/ua"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 )
 
 const (
@@ -167,7 +168,7 @@ type collectorRuntime struct {
 	mu      sync.Mutex
 	batches []*readBatch
 	calcs   []*collection.Calculation
-	pool    *clientPool
+	pool    *connpool.Pool
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -216,13 +217,10 @@ func (c *OpcUaCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	pool, err := newClientPool(c.endpoint(), c.Username, c.Password, c.TCPCount)
+	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
+		return newUAClient(ctx, c.endpoint(), c.Username, c.Password)
+	})
 	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusUnconnected)
-		return err
-	}
-	if err := pool.connect(ctx); err != nil {
-		pool.close(ctx)
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
@@ -277,7 +275,7 @@ func (c *OpcUaCollection) Stop(ctx context.Context) error {
 	}
 	runtime.wg.Wait()
 	if pool != nil {
-		pool.close(ctx)
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
 	if runtime.pool == pool {
@@ -378,12 +376,13 @@ func (c *OpcUaCollection) readBatch(ctx context.Context, batch *readBatch) ([]de
 	}
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		client, err := runtime.pool.acquire(ctx)
+		client, err := runtime.pool.Get(ctx)
 		if err != nil {
 			return nil, err
 		}
-		response, err := client.Read(ctx, batch.request)
-		runtime.pool.release(client, err != nil)
+		conn := client.(*uaClient)
+		response, err := conn.client.Read(ctx, batch.request)
+		runtime.pool.Put(client, err != nil)
 		if err != nil {
 			lastErr = err
 			continue

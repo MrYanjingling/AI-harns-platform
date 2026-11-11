@@ -13,65 +13,75 @@ import (
 
 const s7Timeout = time.Second
 
-type s7Session struct {
+type s7Client struct {
 	conn    net.Conn
 	timeout time.Duration
+	pdu     uint16
 	mu      sync.Mutex
 }
 
-func newS7Session(ctx context.Context, address string, rack, slot uint8) (*s7Session, uint16, error) {
+func newS7Client(ctx context.Context, address string, rack, slot, connectionType uint8, pduSize int) (*s7Client, error) {
 	dialer := net.Dialer{Timeout: s7Timeout}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	session := &s7Session{conn: conn, timeout: s7Timeout}
+	client := &s7Client{conn: conn, timeout: s7Timeout}
 	_ = conn.SetDeadline(time.Now().Add(s7Timeout))
-	if _, err := conn.Write(newCOTPConnectMessage(rack, slot)); err != nil {
+	if _, err := conn.Write(newCOTPConnectMessage(rack, slot, connectionType)); err != nil {
 		_ = conn.Close()
-		return nil, 0, err
+		return nil, err
 	}
 	cotpResponse := make([]byte, 22)
 	if _, err := io.ReadFull(conn, cotpResponse); err != nil {
 		_ = conn.Close()
-		return nil, 0, err
+		return nil, err
 	}
 	if cotpResponse[5] != 208 {
 		_ = conn.Close()
-		return nil, 0, fmt.Errorf("s7 COTP handshake failed")
+		return nil, fmt.Errorf("s7 COTP handshake failed")
 	}
-	if _, err := conn.Write(newS7COMMSetupMessage()); err != nil {
+	if _, err := conn.Write(newS7COMMSetupMessage(pduSize)); err != nil {
 		_ = conn.Close()
-		return nil, 0, err
+		return nil, err
 	}
 	setupResponse := make([]byte, 27)
 	if _, err := io.ReadFull(conn, setupResponse); err != nil {
 		_ = conn.Close()
-		return nil, 0, err
+		return nil, err
 	}
 	if setupResponse[8] != 3 {
 		_ = conn.Close()
-		return nil, 0, fmt.Errorf("s7 setup failed")
+		return nil, fmt.Errorf("s7 setup failed")
 	}
-	pdu := binutil.ParseUint16(setupResponse[25:])
-	if pdu == 0 {
+	client.pdu = binutil.ParseUint16(setupResponse[25:])
+	if client.pdu == 0 {
 		_ = conn.Close()
-		return nil, 0, fmt.Errorf("s7 PDU length is zero")
+		return nil, fmt.Errorf("s7 PDU length is zero")
 	}
-	return session, pdu, nil
+	return client, nil
 }
 
-func (s *s7Session) ask(request []byte) ([]byte, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.conn.SetDeadline(time.Now().Add(s.timeout)); err != nil {
+func (c *s7Client) Available() bool { return c != nil && c.conn != nil }
+
+func (c *s7Client) Close() error {
+	if c == nil || c.conn == nil {
+		return nil
+	}
+	return c.conn.Close()
+}
+
+func (c *s7Client) ask(request []byte) ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
 		return nil, err
 	}
-	if _, err := s.conn.Write(request); err != nil {
+	if _, err := c.conn.Write(request); err != nil {
 		return nil, err
 	}
 	header := make([]byte, 4)
-	if _, err := io.ReadFull(s.conn, header); err != nil {
+	if _, err := io.ReadFull(c.conn, header); err != nil {
 		return nil, err
 	}
 	total := int(binutil.ParseUint16(header[2:]))
@@ -80,115 +90,33 @@ func (s *s7Session) ask(request []byte) ([]byte, error) {
 	}
 	response := make([]byte, total)
 	copy(response, header)
-	if _, err := io.ReadFull(s.conn, response[4:]); err != nil {
+	if _, err := io.ReadFull(c.conn, response[4:]); err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
-func (s *s7Session) close() {
-	if s != nil && s.conn != nil {
-		_ = s.conn.Close()
-	}
-}
-
-type s7Pool struct {
-	address string
-	rack    uint8
-	slot    uint8
-	size    int
-	pdu     uint16
-	idle    chan *s7Session
-}
-
-func newS7Pool(address string, rack, slot uint8, size int) *s7Pool {
-	if size < 1 {
-		size = 1
-	}
-	return &s7Pool{
-		address: address,
-		rack:    rack,
-		slot:    slot,
-		size:    size,
-		idle:    make(chan *s7Session, size),
-	}
-}
-
-func (p *s7Pool) connect(ctx context.Context) error {
-	sessions := make([]*s7Session, 0, p.size)
-	for i := 0; i < p.size; i++ {
-		session, pdu, err := newS7Session(ctx, p.address, p.rack, p.slot)
-		if err != nil {
-			for _, item := range sessions {
-				item.close()
-			}
-			return err
-		}
-		if p.pdu == 0 {
-			p.pdu = pdu
-		}
-		sessions = append(sessions, session)
-	}
-	for _, session := range sessions {
-		p.idle <- session
-	}
-	return nil
-}
-
-func (p *s7Pool) acquire(ctx context.Context) (*s7Session, error) {
-	select {
-	case session := <-p.idle:
-		if session == nil {
-			return nil, fmt.Errorf("s7 session pool closed")
-		}
-		return session, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
-func (p *s7Pool) release(session *s7Session, failed bool) {
-	if session == nil {
-		return
-	}
-	if failed {
-		session.close()
-		replacement, _, err := newS7Session(context.Background(), p.address, p.rack, p.slot)
-		if err == nil {
-			p.idle <- replacement
-		}
-		return
-	}
-	p.idle <- session
-}
-
-func (p *s7Pool) close() {
-	for {
-		select {
-		case session := <-p.idle:
-			session.close()
-		default:
-			return
-		}
-	}
-}
-
-func newCOTPConnectMessage(rack, slot uint8) []byte {
+func newCOTPConnectMessage(rack, slot, connectionType uint8) []byte {
 	rackSlotByte := (rack*2)<<4 + slot
 	return []byte{
 		0x03, 0x00, 0x00, 0x16,
 		0x11, 0xe0, 0x00, 0x00, 0x00, 0x01, 0x00,
 		0xc0, 0x01, 0x0a,
 		0xc1, 0x02, 0x01, 0x00,
-		0xc2, 0x02, 0x01, rackSlotByte,
+		0xc2, 0x02, connectionType, rackSlotByte,
 	}
 }
 
-func newS7COMMSetupMessage() []byte {
-	return []byte{
+func newS7COMMSetupMessage(pduSize int) []byte {
+	if pduSize == 0 {
+		pduSize = DefaultPDUSize
+	}
+	message := []byte{
 		0x03, 0x00, 0x00, 0x19,
 		0x02, 0xf0, 0x80,
 		0x32, 0x01, 0x00, 0x00, 0x04, 0x00, 0x00, 0x08, 0x00, 0x00,
 		0xf0, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0xe0,
 	}
+	binutil.WriteUint16BigEndian(message[23:], uint16(pduSize))
+	return message
 }

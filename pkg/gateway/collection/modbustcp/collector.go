@@ -88,19 +88,23 @@ func (c *ModbusTcpCollection) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	pool := newTCPPool(c.Location, c.BackupLocation, c.TCPCount)
-	if c.activeBackup {
-		pool.preferBackup()
+	target := c.Location
+	if c.activeBackup && c.BackupLocation != "" {
+		target = c.BackupLocation
 	}
-	if err := pool.connect(ctx); err != nil {
-		c.activeBackup = pool.isBackup()
-		pool.close()
+	pool, err := newNetPool(ctx, target, c.TCPCount)
+	if err != nil && target == c.Location && c.BackupLocation != "" {
+		pool, err = newNetPool(ctx, c.BackupLocation, c.TCPCount)
+		if err == nil {
+			c.activeBackup = true
+		}
+	}
+	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
 	runtime.pool = pool
-	c.activeBackup = pool.isBackup()
-	if pool.isBackup() {
+	if c.activeBackup {
 		runtime.backupSince = time.Now()
 	}
 	c.SetCollectStatus(collection.CollectStatusStopped)
@@ -157,7 +161,7 @@ func (c *ModbusTcpCollection) Stop(ctx context.Context) error {
 	}
 	runtime.wg.Wait()
 	if pool != nil {
-		pool.close()
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
 	if runtime.pool == pool {
@@ -274,7 +278,7 @@ func (c *ModbusTcpCollection) collectFrame(ctx context.Context, frame *wireFrame
 		traceID := c.traceRequest("read", request)
 		response := make([]byte, frame.responseLen)
 		started := time.Now()
-		exchangeErr := runtime.pool.exchange(ctx, request, response)
+		exchangeErr := exchange(ctx, runtime.pool, request, response)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
@@ -308,7 +312,7 @@ func (c *ModbusTcpCollection) recordCycleFailure(ctx context.Context) {
 	runtime.mu.Lock()
 	runtime.failureStreak++
 	streak := runtime.failureStreak
-	activeBackup := runtime.pool.isBackup()
+	activeBackup := c.activeBackup
 	runtime.mu.Unlock()
 	if streak < 3 {
 		return
@@ -319,7 +323,13 @@ func (c *ModbusTcpCollection) recordCycleFailure(ctx context.Context) {
 	if activeBackup || c.BackupLocation == "" {
 		return
 	}
-	if err := runtime.pool.switchTo(ctx, c.BackupLocation); err == nil {
+	newPool, err := newNetPool(ctx, c.BackupLocation, c.TCPCount)
+	if err == nil {
+		oldPool := runtime.pool
+		runtime.mu.Lock()
+		runtime.pool = newPool
+		runtime.mu.Unlock()
+		_ = oldPool.Close()
 		c.activeBackup = true
 		runtime.mu.Lock()
 		runtime.backupSince = time.Now()
@@ -331,7 +341,7 @@ func (c *ModbusTcpCollection) recordCycleFailure(ctx context.Context) {
 
 func (c *ModbusTcpCollection) maybeFailback(ctx context.Context) {
 	runtime := c.runtime
-	if runtime == nil || runtime.pool == nil || !runtime.pool.isBackup() {
+	if runtime == nil || runtime.pool == nil || !c.activeBackup {
 		return
 	}
 	now := time.Now()
@@ -363,7 +373,13 @@ func (c *ModbusTcpCollection) maybeFailback(ctx context.Context) {
 	if success < failbackSuccessCount {
 		return
 	}
-	if err := runtime.pool.switchTo(ctx, c.Location); err == nil {
+	newPool, err := newNetPool(ctx, c.Location, c.TCPCount)
+	if err == nil {
+		oldPool := runtime.pool
+		runtime.mu.Lock()
+		runtime.pool = newPool
+		runtime.mu.Unlock()
+		_ = oldPool.Close()
 		c.activeBackup = false
 		runtime.mu.Lock()
 		runtime.backupSince = time.Time{}
@@ -387,7 +403,7 @@ func (c *ModbusTcpCollection) probePrimary(ctx context.Context) bool {
 	request := append([]byte(nil), frame.request...)
 	binutil.WriteUint16BigEndian(request, transaction)
 	response := make([]byte, frame.responseLen)
-	if err := runtime.pool.probe(ctx, c.Location, request, response); err != nil {
+	if err := probeTCP(ctx, c.Location, request, response); err != nil {
 		return false
 	}
 	_, err := validateTCPReadResponse(response, frame.frame, transaction)
@@ -414,7 +430,7 @@ func (c *ModbusTcpCollection) DeliverAction(ctx context.Context, actions []colle
 		traceID := c.traceRequest("write", request)
 		response := make([]byte, 12)
 		started := time.Now()
-		exchangeErr := runtime.pool.exchange(ctx, request, response)
+		exchangeErr := exchange(ctx, runtime.pool, request, response)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return exchangeErr

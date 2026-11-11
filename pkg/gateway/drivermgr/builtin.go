@@ -343,11 +343,36 @@ const s71500Schema = `{
       "type": "input"
     },
     {
+      "name": "pduSize",
+      "labelZh": "PDU 大小",
+      "labelEn": "PDU Size",
+      "regex": "^(480|960)$",
+      "sort": 5,
+      "type": "select",
+      "options": [
+        {"value":"480","labelZh":"480","labelEn":"480"},
+        {"value":"960","labelZh":"960","labelEn":"960"}
+      ]
+    },
+    {
+      "name": "connectionType",
+      "labelZh": "连接类型",
+      "labelEn": "Connection Type",
+      "regex": "^[1-3]$",
+      "sort": 6,
+      "type": "select",
+      "options": [
+        {"value":"1","labelZh":"PG","labelEn":"PG"},
+        {"value":"2","labelZh":"OP","labelEn":"OP"},
+        {"value":"3","labelZh":"PC","labelEn":"PC"}
+      ]
+    },
+    {
       "name": "tcpCount",
       "labelZh": "TCP 连接数",
       "labelEn": "TCP Connections",
       "regex": "^[1-3]$",
-      "sort": 5,
+      "sort": 7,
       "type": "select",
       "options": [
         {"value":"1","labelZh":"1","labelEn":"1"},
@@ -359,11 +384,11 @@ const s71500Schema = `{
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "regex": "^(DB[0-9]{1,5}\\.(DB[XBWD][0-9]{1,5}(\\.[0-7])?|[XBWD][0-9]{1,5})|[IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)$",
-    "placeholderZh": "DB1.DBW0",
-    "placeholderEn": "DB1.DBW0",
-    "descriptionZh": "支持 DB1.DBX0.5、DB1.DBW0、DB1.DBD0、I0.0、Q0.0、M0.0",
-    "descriptionEn": "Supports DB1.DBX0.5, DB1.DBW0, DB1.DBD0, I0.0, Q0.0, M0.0"
+    "regex": "^(DB[0-9]{1,5}\\.(DBX[0-9]{1,5}\\.[0-7]|(DBB|DBW|DBD)[0-9]{1,5}(\\.[0-9]{1,5})?|[XBWD][0-9]{1,5}(\\.[0-9]{1,5})?)|[IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)$",
+    "placeholderZh": "DB1.DBW0 / DB1.DBW0.10",
+    "placeholderEn": "DB1.DBW0 / DB1.DBW0.10",
+    "descriptionZh": "支持 DB1.DBX0.0、DB1.DBB0、DB1.DBW0、DB1.DBD0、DB1.DBW0.10、I0、IW0、I0.0、Q0、QW0、Q0.0、M0、MW0、M0.0",
+    "descriptionEn": "Supports DB1.DBX0.0, DB1.DBB0, DB1.DBW0, DB1.DBD0, DB1.DBW0.10, I0, IW0, I0.0, Q0, QW0, Q0.0, M0, MW0, M0.0"
   },
   "variableDataTypes": [
     {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
@@ -372,7 +397,9 @@ const s71500Schema = `{
     {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
     {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
     {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"},
+    {"value":"STRING","labelZh":"字符串","labelEn":"String"},
+    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array"}
   ]
 }`
 

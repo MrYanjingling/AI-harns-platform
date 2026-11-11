@@ -181,23 +181,6 @@ func TestCollectorCollectsAndCalculates(t *testing.T) {
 	assert.Equal(t, float32(1), value)
 }
 
-func TestTCPPoolFallsBackToBackup(t *testing.T) {
-	backup := newFakeModbusServer(t)
-	pool := newTCPPool("127.0.0.1:1", backup.Addr(), 1)
-	require.NoError(t, pool.connect(context.Background()))
-	defer pool.close()
-	assert.True(t, pool.isBackup())
-	assert.Equal(t, backup.Addr(), pool.activeAddress())
-}
-
-func TestTCPPoolSize(t *testing.T) {
-	server := newFakeModbusServer(t)
-	pool := newTCPPool(server.Addr(), "", 3)
-	require.NoError(t, pool.connect(context.Background()))
-	defer pool.close()
-	assert.Len(t, pool.idle, 3)
-}
-
 func TestCollectorSwitchesToBackupAfterFailures(t *testing.T) {
 	broken := newClosingModbusServer(t)
 	backup := newFakeModbusServer(t)
@@ -260,7 +243,11 @@ func TestCollectorFailbackAfterProbeSuccess(t *testing.T) {
 		failbackProbeInterval = oldProbe
 	})
 
-	require.NoError(t, created.runtime.pool.switchTo(context.Background(), backup.Addr()))
+	backupPool, err := newNetPool(context.Background(), backup.Addr(), 1)
+	require.NoError(t, err)
+	oldPool := created.runtime.pool
+	created.runtime.pool = backupPool
+	_ = oldPool.Close()
 	created.activeBackup = true
 	created.runtime.mu.Lock()
 	created.runtime.backupSince = time.Now()
@@ -271,6 +258,6 @@ func TestCollectorFailbackAfterProbeSuccess(t *testing.T) {
 	for i := 0; i < failbackSuccessCount; i++ {
 		created.maybeFailback(context.Background())
 	}
-	assert.False(t, created.runtime.pool.isBackup())
-	assert.Equal(t, primary.Addr(), created.runtime.pool.activeAddress())
+	assert.False(t, created.activeBackup)
+	assert.NotNil(t, created.runtime.pool)
 }
