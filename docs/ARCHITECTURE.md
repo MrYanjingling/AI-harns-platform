@@ -19,7 +19,7 @@
      Modbus/OPCUA/S7  MQTT          MySQL  Redis MinIO
 ```
 
-- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向以 MQTT 发布数据。状态持久化在本地文件（`pkg/gateway/storage`）。
+- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向以 MQTT 发布数据。驱动、采集器与网关身份状态持久化在 SQLite；`pkg/gateway/storage` 仅保留给旧 device 代码。
 - **platform**：账号与权限、组织、审计、OpenAPI 文档；认证依赖 Redis 会话与 MinIO 上的 RSA 密钥。
 - **platform-ui**：管理后台，开发期通过 Vite proxy 分流到后端；`VITE_USE_MOCK=true` 时完全走内存 mock。
 
@@ -53,7 +53,7 @@ AI-harns-platform
 │   │   ├── pluginapi/     Gateway 插件 ABI（当前仅接口）
 │   │   ├── sqlite/         Gateway SQLite 连接与初始化
 │   │   ├── runtime/        设备模型、点位、序列化、校验、常量
-│   │   ├── storage/        本地文件存储（按 OS 区分根目录）
+│   │   ├── storage/        旧 device 本地文件存储（新启动流程不初始化）
 │   │   ├── v1/             HTTP DTO（ModBusDevice / OpcUaDevice / S7Device）
 │   │   └── web/            gateway 路由装配与优雅退出
 │   ├── audit/              共享审计：Event/Recorder/Store、脱敏、清理、gin 中间件
@@ -229,7 +229,7 @@ HTTP 创建/启动设备
 - 设备 Topic 固定按上述规则生成，创建和更新接口均不接收 `topic`。
 - 采集异常会把设备状态置为 `CollectingError`，连接失败为 `Unconnected`，无点位为 `EmptyVariable`。
 - 反控通过 `PUT /api/v1/devices/:id/action` 进入对应协议实现的写点位逻辑（OPC UA 当前不支持反控）。
-- 设备与网关元数据持久化在本地文件，按 OS 选择目录（`storage/store_{darwin,linux,windows}.go`）。
+- 网关身份元数据持久化在 SQLite `gateway` 表；旧 device 仍使用 `storage/store_{darwin,linux,windows}.go` 文件存储，但新 gateway 启动流程不再初始化它。
 
 ## 6. 数据模型与迁移
 

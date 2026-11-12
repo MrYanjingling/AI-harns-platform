@@ -1,20 +1,14 @@
 package gateway
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
+
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
-	"harns-platform/pkg/gateway/runtime"
-	"harns-platform/pkg/gateway/storage"
 	"harns-platform/pkg/host"
 	"harns-platform/pkg/logging"
-	"harns-platform/pkg/utils/randutil"
-	"harns-platform/pkg/utils/uuidutil"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -25,14 +19,16 @@ type Manager struct {
 	cpus        []float64
 	mux         *sync.RWMutex
 	gatewayMeta *GatewayMeta
+	service     *Service
 	stopCh      <-chan struct{}
 }
 
-func NewGatewayManager(stop <-chan struct{}, opts ...Option) *Manager {
+func NewGatewayManager(service *Service, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
 		cpus:        make([]float64, 0, 15),
 		mux:         &sync.RWMutex{},
 		gatewayMeta: &GatewayMeta{},
+		service:     service,
 		stopCh:      stop,
 	}
 	for _, opt := range opts {
@@ -41,31 +37,18 @@ func NewGatewayManager(stop <-chan struct{}, opts ...Option) *Manager {
 	return m
 }
 
-func (m *Manager) Init() {
-	client := &storage.FsClient{}
-	client.Init(storage.StoreGroupGateway)
-
-	gd, err := client.Get(gateway)
-	if err != nil && os.IsNotExist(err) {
-		m.gatewayMeta = &GatewayMeta{
-			Secret: "",
-			ObjectMeta: runtime.ObjectMeta{
-				Name:    "harnsgateway",
-				ID:      uuidutil.UUID(),
-				Version: strconv.FormatUint(randutil.Uint64n(), 10),
-				ModTime: time.Now(),
-			},
-		}
-		logging.V(3).InfoS("Gateway information not exist,been created automatically", "gatewayId", m.gatewayMeta.ID)
-		if _, err := client.Create(gateway, m.gatewayMeta); err != nil {
-			logging.V(2).InfoS("Failed to create gateway information", "err", err)
-		}
-	} else if err = json.NewDecoder(bytes.NewReader(gd.([]byte))).Decode(m.gatewayMeta); err != nil {
-		logging.V(2).InfoS("Failed to unmarshal gateway information", "err", err)
-		return
+func (m *Manager) Init(ctx context.Context) error {
+	if m.service == nil {
+		return fmt.Errorf("gateway service is nil")
 	}
-
+	meta, err := m.service.LoadOrCreate(ctx)
+	if err != nil {
+		return err
+	}
+	m.gatewayMeta = meta
+	logging.V(3).InfoS("Gateway metadata loaded", "gatewayId", meta.ID)
 	go m.collectCpu()
+	return nil
 }
 
 func (m *Manager) GetGatewayMeta() (*GatewayMeta, error) {

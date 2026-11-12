@@ -24,5 +24,3 @@ type DiskUsageInfo struct {
 	Used        string
 	UsedPercent string
 }
-
-const gateway = "meta"

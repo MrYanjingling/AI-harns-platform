@@ -101,12 +101,14 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 
 	return func(ctx context.Context) {
 		srv.SetKeepAlivesEnabled(false)
-		// Drain HTTP requests before tearing down the device manager.
+		// Drain HTTP requests before tearing down the legacy device manager.
 		if err := srv.Shutdown(ctx); err != nil {
 			logging.Error(err)
 		}
-		if err := s.Config.DeviceMgr.Shutdown(ctx); err != nil {
-			logging.Error(err)
+		if s.Config.DeviceMgr != nil {
+			if err := s.Config.DeviceMgr.Shutdown(ctx); err != nil {
+				logging.Error(err)
+			}
 		}
 		if s.Config.DB != nil {
 			if err := s.Config.DB.Close(); err != nil {

@@ -49,7 +49,7 @@ logging:
   verbosity: 2
   # Destination: "stderr", "stdout" or a file path.
   # Leave empty to write to <binary dir>/../log/<service>.log.
-  output: "../log/harns-gateway.log"
+  output: stdout
   # Log rotation (only applies when logging to a file).
   max-size: 100     # maximum size in MB of a log file before rotation
   max-backups: 7    # number of old log files to retain (0 = keep all)

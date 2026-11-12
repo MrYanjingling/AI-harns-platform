@@ -2,8 +2,6 @@ package options
 
 import (
 	"context"
-	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/pkg/gateway"
@@ -13,14 +11,10 @@ import (
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
-	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
-	"harns-platform/pkg/gateway/registry"
 	"harns-platform/pkg/gateway/sqlite"
-	"harns-platform/pkg/gateway/storage"
 	"harns-platform/pkg/generic"
 	baseoptions "harns-platform/pkg/generic/options"
-	"harns-platform/pkg/logging"
 	"time"
 )
 
@@ -86,14 +80,24 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c := &config.Config{MaxBodyBytes: o.MaxBodyBytes, CORS: o.CORS}
-	gatewayMgr := gateway.NewGatewayManager(stopCh)
-	gatewayMgr.Init()
-	c.GatewayMgr = gatewayMgr
 
 	db, err := sqlite.Open(o.SQLite.Path)
 	if err != nil {
 		return nil, err
 	}
+	gatewayStore := gateway.NewStore(db)
+	if err := gatewayStore.Initialize(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	gatewayService := gateway.NewService(gatewayStore)
+	gatewayMgr := gateway.NewGatewayManager(gatewayService, stopCh)
+	if err := gatewayMgr.Init(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	c.GatewayMgr = gatewayMgr
+
 	driverStore := drivermgr.NewStore(db)
 	if err := driverStore.Initialize(context.Background()); err != nil {
 		_ = db.Close()
@@ -137,28 +141,30 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	}
 	c.CollectionMgr = collectionMgr
 
-	gatewayMeta, _ := gatewayMgr.GetGatewayMeta()
-	store, _ := device.NewStore(storage.StoreGroupToString[storage.StoreGroupDevice], storage.Devices, registry.DeviceTypeObjectMap)
-	// mqtt
-	mqttOption := mqtt.NewClientOptions()
-	for _, s := range o.MqttBrokerUrls {
-		mqttOption = mqttOption.AddBroker(s)
-	}
-	mqttOption.SetUsername(o.MqttUsername)
-	mqttOption.SetPassword(o.MqttPassword)
-	mqttOption.SetOrderMatters(false)
-	mqttOption.SetClientID(fmt.Sprintf("gateway-id-%s", gatewayMeta.ID))
-	mqttClient := mqtt.NewClient(mqttOption)
-	logging.V(1).InfoS("Connected to MQTT", "servers", o.MqttBrokerUrls)
-	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		logging.ErrorS(token.Error(), "Failed to connect MQTT", "servers", o.MqttBrokerUrls)
-		_ = db.Close()
-		return nil, token.Error()
-	}
-	deviceMgr := device.NewManager(store, mqttClient, gatewayMeta, stopCh)
-	deviceMgr.Init()
+	// MQTT and the legacy device manager are not required while the collection
+	// runtime is the active collection path.
+	// gatewayMeta, _ := gatewayMgr.GetGatewayMeta()
+	// store, _ := device.NewStore(storage.StoreGroupToString[storage.StoreGroupDevice], storage.Devices, registry.DeviceTypeObjectMap)
+	// mqttOption := mqtt.NewClientOptions()
+	// for _, s := range o.MqttBrokerUrls {
+	// 	mqttOption = mqttOption.AddBroker(s)
+	// }
+	// mqttOption.SetUsername(o.MqttUsername)
+	// mqttOption.SetPassword(o.MqttPassword)
+	// mqttOption.SetOrderMatters(false)
+	// mqttOption.SetClientID(fmt.Sprintf("gateway-id-%s", gatewayMeta.ID))
+	// mqttClient := mqtt.NewClient(mqttOption)
+	// logging.V(1).InfoS("Connected to MQTT", "servers", o.MqttBrokerUrls)
+	// if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+	// 	logging.ErrorS(token.Error(), "Failed to connect MQTT", "servers", o.MqttBrokerUrls)
+	// 	_ = db.Close()
+	// 	return nil, token.Error()
+	// }
+	// deviceMgr := device.NewManager(store, mqttClient, gatewayMeta, stopCh)
+	// deviceMgr.Init()
+	//
+	// c.DeviceMgr = deviceMgr
 
-	c.DeviceMgr = deviceMgr
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil
