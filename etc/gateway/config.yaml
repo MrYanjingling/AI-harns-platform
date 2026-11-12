@@ -19,6 +19,9 @@ max-body-bytes: 10485760
 sqlite:
   path: "data/gateway.db"
 
+# Gateway management UI static assets. Leave empty to disable UI hosting.
+ui-dir: "ui/gateway-ui/dist"
+
 # TLS certificates. Leave both empty to serve plain HTTP.
 cert-file: ""
 key-file: ""

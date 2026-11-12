@@ -21,5 +21,6 @@ type Config struct {
 	CertFile      string
 	KeyFile       string
 	MaxBodyBytes  int64
+	UIDir         string
 	CORS          generic.CORSConfig
 }

@@ -270,7 +270,7 @@ gateway 启动参数与 platform 保持一致（`--port`、`--graceful-timeout`�
 ## 8. 已知边界
 
 - 仓库没有 `cmd/data`（端口 32201）服务；`ui/platform-ui` 的 data 相关 proxy 与页面在真实后端下不可用，只有 mock 可用。
-- `ui/eam-ui`、`ui/ems-ui`、`ui/gateway-ui` 仅有 `.gitkeep`；`make package` 会跳过没有 `package.json` 的 UI 模块。
+- `ui/eam-ui`、`ui/ems-ui` 仅有 `.gitkeep`；`ui/gateway-ui` 已可构建，`make package` 会构建并打包它。
 - `pkg/tsdb` 为 Prometheus TSDB 的裁剪副本，无业务逻辑，不应按业务代码修改。
 - CI 的 vet/test 只覆盖 `cmd/...`、`pkg/platform/...`、`pkg/generic/...`、`pkg/metrics/...`、`pkg/telemetry/...`、`apis/...`；`pkg/gateway`、`pkg/audit`、`pkg/utils` 需本地自行验证。
 - `cert/` 下为本地开发的示例证书。

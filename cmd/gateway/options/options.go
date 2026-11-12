@@ -29,6 +29,7 @@ type Options struct {
 	CertFile     string               `json:"cert-file"`
 	KeyFile      string               `json:"key-file"`
 	MaxBodyBytes int64                `json:"max-body-bytes"`
+	UIDir        string               `json:"ui-dir"`
 	CORS         generic.CORSConfig   `json:"cors"`
 	SQLite       SQLiteOptions        `json:"sqlite"`
 	baseoptions.BaseOptions
@@ -41,6 +42,7 @@ const (
 	_defaultConfigFile         = "/etc/gateway/config.yaml"
 	_defaultMaxBodyBytes int64 = 10 << 20
 	_defaultSQLitePath         = "data/gateway.db"
+	_defaultUIDir              = "ui/gateway-ui/dist"
 )
 
 func NewDefaultOptions() *Options {
@@ -53,6 +55,7 @@ func NewDefaultOptions() *Options {
 		CertFile:     "",
 		KeyFile:      "",
 		MaxBodyBytes: _defaultMaxBodyBytes,
+		UIDir:        _defaultUIDir,
 		CORS:         generic.DefaultCORSConfig(),
 		SQLite:       SQLiteOptions{Path: _defaultSQLitePath},
 		// BaseOptions: logs.NewOptions(),
@@ -68,7 +71,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 }
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
-	c := &config.Config{MaxBodyBytes: o.MaxBodyBytes, CORS: o.CORS}
+	c := &config.Config{MaxBodyBytes: o.MaxBodyBytes, UIDir: o.UIDir, CORS: o.CORS}
 
 	db, err := sqlite.Open(o.SQLite.Path)
 	if err != nil {

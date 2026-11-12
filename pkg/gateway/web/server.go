@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +20,6 @@ import (
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
-	"net/http"
 )
 
 type Server struct {
@@ -28,9 +31,6 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 	router.Use(generic.CORS(config.CORS))
 	router.Use(gin.Recovery())
 	router.HandleMethodNotAllowed = true
-	router.NoRoute(func(c *gin.Context) {
-		response.WriteError(c, http.StatusNotFound, response.ErrNotFound())
-	})
 	router.NoMethod(func(c *gin.Context) {
 		response.WriteError(c, http.StatusMethodNotAllowed, response.ErrMethodNotAllowed())
 	})
@@ -44,11 +44,72 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 		Server: s,
 		Config: config,
 	}
+	router.NoRoute(server.handleNoRoute)
+	if config.UIDir != "" {
+		if _, err := os.Stat(filepath.Join(config.UIDir, "index.html")); err != nil {
+			logging.Warnf("Gateway UI assets not found at %q: %v", config.UIDir, err)
+		}
+	}
 
 	server.InstallHandlers()
 
 	return server, nil
 
+}
+
+func (s *Server) handleNoRoute(c *gin.Context) {
+	if s.serveUI(c) {
+		return
+	}
+	response.WriteError(c, http.StatusNotFound, response.ErrNotFound())
+}
+
+func (s *Server) serveUI(c *gin.Context) bool {
+	if s == nil || strings.TrimSpace(s.Config.UIDir) == "" {
+		return false
+	}
+	if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+		return false
+	}
+	path := c.Request.URL.Path
+	if strings.HasPrefix(path, "/api/") || path == "/api" {
+		return false
+	}
+
+	dir, err := filepath.Abs(s.Config.UIDir)
+	if err != nil {
+		return false
+	}
+	indexPath := filepath.Join(dir, "index.html")
+	if info, err := os.Stat(indexPath); err != nil || info.IsDir() {
+		return false
+	}
+
+	clean := strings.TrimPrefix(filepath.Clean(path), string(filepath.Separator))
+	if clean == "" || clean == "." {
+		c.Header("Cache-Control", "no-cache")
+		c.File(indexPath)
+		return true
+	}
+	target := filepath.Join(dir, filepath.FromSlash(clean))
+	rel, err := filepath.Rel(dir, target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	if info, err := os.Stat(target); err == nil && !info.IsDir() {
+		if strings.HasPrefix(clean, "assets/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		c.File(target)
+		return true
+	}
+	if strings.HasPrefix(clean, "assets/") {
+		return false
+	}
+
+	c.Header("Cache-Control", "no-cache")
+	c.File(indexPath)
+	return true
 }
 
 func (s *Server) InstallHandlers() {

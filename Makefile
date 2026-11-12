@@ -133,3 +133,10 @@ fmt:
 clean:
 	@chmod -R u+w $(OUT_DIR) 2>/dev/null || true
 	rm -rf $(OUT_DIR)
+
+.PHONY: gateway-ui gateway
+gateway-ui:
+	cd ui/gateway-ui && pnpm install --frozen-lockfile && pnpm build
+
+gateway: gateway-ui
+	go run ./cmd/gateway -c ./etc/gateway/config.yaml

@@ -118,13 +118,15 @@ different services share the same `traceId`.
 make fmt     # gofmt
 make lint    # gofmt + go vet (tsdb excluded)
 make test    # go test
+make gateway-ui  # build gateway management UI
+make gateway     # build UI and run gateway
 make package # build binaries + UI + etc/ config, then zip
 make package UI_BUILD=0 # skip UI build (uses existing ui/*/dist if present)
 ```
 
 The archive contains `gateway/`, `platform/`, `eam/`, `ems/` and `ui/`.
-Only `ui/platform-ui` is buildable today; `ui/eam-ui`, `ui/ems-ui` and
-`ui/gateway-ui` are kept as empty placeholders.
+`ui/platform-ui` and `ui/gateway-ui` are buildable today; `ui/eam-ui` and
+`ui/ems-ui` are kept as empty placeholders.
 
 ### Docker
 
