@@ -19,7 +19,7 @@
      Modbus/OPCUA/S7  MQTT          MySQL  Redis MinIO
 ```
 
-- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500，北向以 MQTT 发布数据。状态持久化在本地文件（`pkg/gateway/storage`）。
+- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向以 MQTT 发布数据。状态持久化在本地文件（`pkg/gateway/storage`）。
 - **platform**：账号与权限、组织、审计、OpenAPI 文档；认证依赖 Redis 会话与 MinIO 上的 RSA 密钥。
 - **platform-ui**：管理后台，开发期通过 Vite proxy 分流到后端；`VITE_USE_MOCK=true` 时完全走内存 mock。
 
@@ -189,7 +189,7 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 
 `GET /api/v1/collections` 和 `GET /api/v1/collections/:id/variables` 使用平台统一分页结构；采集器详情不返回 variables。
 
-Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"variableDataTypes":[...]}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`；`variableDataTypes` 声明该驱动允许的变量数据类型。Collection 创建/更新时，协议字段放在请求的 `protocolConfig` 对象中，按 driver schema 校验；详情响应也以 `protocolConfig` 返回协议字段。
+Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"variableDataTypes":[...]}`。每个字段包含 `name`、`labelZh`、`labelEn`、`regex`、`sort`、`type`、`required`，`type=select` 时包含 `options`；`variableDataTypes` 声明该驱动允许的变量数据类型，每项必须包含 `addressRegex`，地址校验按变量类型选择对应规则。`variableAddress` 仅保留标签、占位符和说明。Collection 创建/更新时，协议字段放在请求的 `protocolConfig` 对象中，按 driver schema 校验；详情响应也以 `protocolConfig` 返回协议字段。
 
 内置采集协议：
 
@@ -197,7 +197,8 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `modbusRtu`：串口 RTU，固定单连接
 - `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `tcpCount`
 - `opcUa`：完整 NodeID 地址、批量 Read、`tcpCount`，详情响应密码脱敏
-- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`tcpCount`；支持 `STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持写入
+- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`tcpCount`；支持 `BIT`（读取返回 0/1，反控接受 0/1）、`BOOL`（返回 true/false）、`STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持 `STRING`/`BYTE_ARRAY` 写入
+- `s7-200`（`driverType=s7`）：复用 S7 读写、PDU 分帧、`tcpCount` 和变量类型；不使用 `rack`/`slot`/`connectionType`，改用十六进制字符串 `localTsap`/`remoteTsap`（默认 `0x1000`/`0x1000`）；支持 `V0.0`、`VB0`、`VW0`、`VD0`，其中 V 区映射到 DB1
 
 Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp 和 ModbusRtuOverTcp 的 `protocolConfig` 支持 `tcpCount`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
 

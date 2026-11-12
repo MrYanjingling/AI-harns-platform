@@ -44,3 +44,16 @@ func TestDecodeActionString(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hello", value)
 }
+
+func TestDecodeActionBit(t *testing.T) {
+	variable := &Variable{DataType: "BIT"}
+	for value, expected := range map[string]int{"0": 0, "1": 1} {
+		got, err := DecodeActionValue(variable, value)
+		require.NoError(t, err, value)
+		assert.Equal(t, expected, got, value)
+	}
+	for _, value := range []string{"true", "false", "2", "-1"} {
+		_, err := DecodeActionValue(variable, value)
+		require.Error(t, err, value)
+	}
+}

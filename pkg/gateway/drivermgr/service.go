@@ -16,7 +16,7 @@ import (
 	"harns-platform/pkg/logging"
 )
 
-var pluginNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+var pluginNamePattern = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
 
 // Service manages driver metadata.
 type Service struct {

@@ -61,7 +61,7 @@ func (s *Store) Initialize(ctx context.Context) error {
 		}
 		var builtinDriver int
 		err := tx.QueryRowContext(ctx,
-			`SELECT builtin_driver FROM drivers WHERE plugin_name = ?`, builtin.PluginName).Scan(&builtinDriver)
+			`SELECT builtin_driver FROM drivers WHERE id = ?`, builtin.ID).Scan(&builtinDriver)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			if _, err := tx.ExecContext(ctx,
@@ -76,8 +76,8 @@ func (s *Store) Initialize(ctx context.Context) error {
 			return ErrConflict
 		default:
 			if _, err := tx.ExecContext(ctx,
-				`UPDATE drivers SET driver_type = ?, model = ?, schema = ? WHERE plugin_name = ? AND builtin_driver = 1`,
-				builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName); err != nil {
+				`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ? WHERE id = ? AND builtin_driver = 1`,
+				builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtin.ID); err != nil {
 				return err
 			}
 		}

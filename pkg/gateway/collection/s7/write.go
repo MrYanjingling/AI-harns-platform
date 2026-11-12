@@ -8,31 +8,31 @@ import (
 	"harns-platform/pkg/utils/binutil"
 )
 
-func buildWriteRequest(variable *collection.Variable, value any) ([]byte, uint8, error) {
+func buildWriteRequest(variable *collection.Variable, value any) ([]byte, error) {
 	if variable == nil {
-		return nil, 0, fmt.Errorf("variable is nil")
+		return nil, fmt.Errorf("variable is nil")
 	}
 	if strings.EqualFold(variable.DataType, "string") || strings.EqualFold(variable.DataType, "byte_array") {
-		return nil, 0, fmt.Errorf("s7 string/byte_array write is not supported")
+		return nil, fmt.Errorf("s7 string/byte_array write is not supported")
 	}
 	parsed, err := parseAddress(variable.Address)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	transportSize := parsed.area.transportSize()
 	data, bitLength, err := encodeWriteData(value, variable.DataType)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	parameter := newReadParameterItem(
-		transportSize,
-		dataRequestLength(parsed.area, variable.DataType, parsed.length),
+	parameter := newParameterItem(
+		writeParameterTransport(variable.DataType),
+		dataRequestLength(variable.DataType, parsed.length),
 		uint16(parsed.blockSize),
 		parsed.area.code(),
 		parsed.address,
 		parsed.bit,
 	)
-	dataItem := []byte{0x00, transportSize}
+	ts := transport(variable.DataType)
+	dataItem := []byte{0x00, ts}
 	dataItem = append(dataItem, binutil.Uint16ToBytesBigEndian(bitLength)...)
 	dataItem = append(dataItem, data...)
 
@@ -46,7 +46,25 @@ func buildWriteRequest(variable *collection.Variable, value any) ([]byte, uint8,
 	request = append(request, 0x05, 0x01)
 	request = append(request, parameter...)
 	request = append(request, dataItem...)
-	return request, transportSize, nil
+	return request, nil
+}
+
+func writeParameterTransport(dataType string) uint8 {
+	switch strings.ToLower(dataType) {
+	case "bool", "bit":
+		return 0x01
+	default:
+		return 0x02
+	}
+}
+
+func transport(dataType string) uint8 {
+	switch strings.ToLower(dataType) {
+	case "bool", "bit":
+		return 3
+	default:
+		return 4
+	}
 }
 
 func encodeWriteData(value any, dataType string) ([]byte, uint16, error) {
@@ -57,9 +75,15 @@ func encodeWriteData(value any, dataType string) ([]byte, uint16, error) {
 			return nil, 0, fmt.Errorf("value is not bool")
 		}
 		if v {
-			return binutil.Uint16ToBytesBigEndian(1), 1, nil
+			return []byte{1}, 1, nil
 		}
-		return binutil.Uint16ToBytesBigEndian(0), 1, nil
+		return []byte{0}, 1, nil
+	case "bit":
+		v, ok := value.(int)
+		if !ok || (v != 0 && v != 1) {
+			return nil, 0, fmt.Errorf("value is not bit 0/1")
+		}
+		return []byte{byte(v)}, 1, nil
 	case "int16":
 		v, ok := value.(int16)
 		if !ok {

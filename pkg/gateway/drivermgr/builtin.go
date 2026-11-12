@@ -9,18 +9,21 @@ const (
 	ModelModbusRTU        = "modbusRtu"
 	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
 	ModelS71500           = "s71500"
+	ModelS7200            = "s7-200"
 	ModelOpcUa            = "opcUa"
 
-	DriverModbusTCP        = "modbus_tcp"
-	DriverModbusRTU        = "modbus_rtu"
-	DriverModbusRTUOverTCP = "modbus_rtu_over_tcp"
-	DriverS71500           = "s7_1500"
+	DriverModbusTCP        = "modbus-tcp"
+	DriverModbusRTU        = "modbus-rtu"
+	DriverModbusRTUOverTCP = "modbus-rtu-over-tcp"
+	DriverS71500           = "s7-1500"
+	DriverS7200            = "s7-200"
 	DriverOpcUa            = "opcua"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
 	BuiltinModbusRTUOverTCPID = "01M706HSSR3Q8KY52DPNYR9MW5"
 	BuiltinS71500ID           = "01M706HSSR3Q8KY52DPQZHT18E"
+	BuiltinS7200ID            = "01M706HSSR3Q8KY52DPQZHT18F"
 	BuiltinOpcUaID            = "01M706HSSR3Q8KY52DPSV88HRY"
 )
 
@@ -101,20 +104,20 @@ const modbusTcpSchema = `{
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "regex": "^[0-9]{1,3}![1-4][0-9]{1,5}$",
     "placeholderZh": "1!40001",
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
+
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -214,20 +217,20 @@ const modbusRtuSchema = `{
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "regex": "^[0-9]{1,3}![1-4][0-9]{1,5}$",
     "placeholderZh": "1!40001",
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
+
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -290,20 +293,20 @@ const modbusRtuOverTcpSchema = `{
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "regex": "^[0-9]{1,3}![1-4][0-9]{1,5}$",
     "placeholderZh": "1!40001",
     "placeholderEn": "1!40001",
     "descriptionZh": "格式：从站地址!功能码地址，例如 1!40001",
     "descriptionEn": "Format: slaveId!functionCodeAddress, for example 1!40001"
+
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"}
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -384,22 +387,107 @@ const s71500Schema = `{
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "regex": "^(DB[0-9]{1,5}\\.(DBX[0-9]{1,5}\\.[0-7]|(DBB|DBW|DBD)[0-9]{1,5}(\\.[0-9]{1,5})?|[XBWD][0-9]{1,5}(\\.[0-9]{1,5})?)|[IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)$",
     "placeholderZh": "DB1.DBW0 / DB1.DBW0.10",
     "placeholderEn": "DB1.DBW0 / DB1.DBW0.10",
     "descriptionZh": "支持 DB1.DBX0.0、DB1.DBB0、DB1.DBW0、DB1.DBD0、DB1.DBW0.10、I0、IW0、I0.0、Q0、QW0、Q0.0、M0、MW0、M0.0",
     "descriptionEn": "Supports DB1.DBX0.0, DB1.DBB0, DB1.DBW0, DB1.DBD0, DB1.DBW0.10, I0, IW0, I0.0, Q0, QW0, Q0.0, M0, MW0, M0.0"
+
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64"},
-    {"value":"STRING","labelZh":"字符串","labelEn":"String"},
-    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array"}
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
+    {"value":"BIT","labelZh":"位","labelEn":"Bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
+    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
+  ]
+}`
+
+const s7200Schema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "PLC 地址",
+      "labelEn": "PLC Address",
+      "regex": "^[A-Za-z0-9.-]+$",
+      "sort": 1,
+      "type": "input",
+      "required": true
+    },
+    {
+      "name": "port",
+      "labelZh": "端口",
+      "labelEn": "Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 2,
+      "type": "input"
+    },
+    {
+      "name": "pduSize",
+      "labelZh": "PDU 大小",
+      "labelEn": "PDU Size",
+      "regex": "^(480|960)$",
+      "sort": 3,
+      "type": "select",
+      "options": [
+        {"value":"480","labelZh":"480","labelEn":"480"},
+        {"value":"960","labelZh":"960","labelEn":"960"}
+      ]
+    },
+    {
+      "name": "tcpCount",
+      "labelZh": "TCP 连接数",
+      "labelEn": "TCP Connections",
+      "regex": "^[1-3]$",
+      "sort": 4,
+      "type": "select",
+      "options": [
+        {"value":"1","labelZh":"1","labelEn":"1"},
+        {"value":"2","labelZh":"2","labelEn":"2"},
+        {"value":"3","labelZh":"3","labelEn":"3"}
+      ]
+    },
+    {
+      "name": "localTsap",
+      "labelZh": "本地 TSAP",
+      "labelEn": "Local TSAP",
+      "regex": "^0[xX][0-9A-Fa-f]{1,4}$",
+      "sort": 5,
+      "type": "input"
+    },
+    {
+      "name": "remoteTsap",
+      "labelZh": "远程 TSAP",
+      "labelEn": "Remote TSAP",
+      "regex": "^0[xX][0-9A-Fa-f]{1,4}$",
+      "sort": 6,
+      "type": "input"
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Variable Address",
+    "placeholderZh": "VW0 / V0.0 / DB1.DBW0",
+    "placeholderEn": "VW0 / V0.0 / DB1.DBW0",
+    "descriptionZh": "支持 V0.0、VB0、VW0、VD0；V 区映射到 DB1。也支持 DB/I/Q/M 地址",
+    "descriptionEn": "Supports V0.0, VB0, VW0, VD0; V area maps to DB1. DB/I/Q/M addresses are also supported"
+
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"BIT","labelZh":"位","labelEn":"Bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
+    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
   ]
 }`
 
@@ -456,15 +544,15 @@ const opcUaSchema = `{
   "variableAddress": {
     "labelZh": "NodeID",
     "labelEn": "NodeID",
-    "regex": "^(ns=[0-9]{1,5};)?[isgb]=.+$",
     "placeholderZh": "ns=2;s=Tag",
     "placeholderEn": "ns=2;s=Tag",
     "descriptionZh": "完整 NodeID，例如 ns=2;s=Tag 或 ns=2;i=1001",
     "descriptionEn": "Full NodeID, for example ns=2;s=Tag or ns=2;i=1001"
+
   },
   "variableDataTypes": [
-    {"value":"NUMBER","labelZh":"数值","labelEn":"Number"},
-    {"value":"STRING","labelZh":"字符串","labelEn":"String"}
+    {"value":"NUMBER","labelZh":"数值","labelEn":"Number","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"},
+    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"}
   ]
 }`
 
@@ -483,5 +571,6 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinModbusRTUID, DriverTypeModbus, ModelModbusRTU, DriverModbusRTU, modbusRtuSchema},
 	{BuiltinModbusRTUOverTCPID, DriverTypeModbus, ModelModbusRTUOverTCP, DriverModbusRTUOverTCP, modbusRtuOverTcpSchema},
 	{BuiltinS71500ID, DriverTypeS7, ModelS71500, DriverS71500, s71500Schema},
+	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 }

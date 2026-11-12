@@ -124,7 +124,7 @@ error.driver_invalid: "驱动参数无效：%s。"
 validate.driver_type_required: "driverType 不能为空。"
 validate.driver_model_required: "model 不能为空。"
 validate.driver_plugin_name_required: "pluginName 不能为空。"
-validate.driver_plugin_name_invalid: "pluginName 只能包含字母、数字、下划线和连字符。"
+validate.driver_plugin_name_invalid: "pluginName 只能包含字母、数字和连字符。"
 validate.driver_schema_invalid: "schema 必须是合法的 JSON 对象。"
 
 error.collection_not_found: "采集器 [%s] 不存在。"

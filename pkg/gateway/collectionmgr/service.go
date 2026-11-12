@@ -293,12 +293,14 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		item.ApplyUpdate(&req)
 		name, cycle = item.Name, item.CollectorCycleMs
 		config, err = item.ConfigJSON()
-	case record.DriverType == s7.DriverType && record.DriverModel == s7.DriverModel:
+	case record.DriverType == s7.DriverType &&
+		(record.DriverModel == s7.DriverModel || record.DriverModel == s7.DriverModelS7200):
 		var req s7.UpdateReq
 		if err := json.Unmarshal(body, &req); err != nil {
 			return nil, err
 		}
 		item := &s7.S7Collection{}
+		item.SetDriverModel(record.DriverModel)
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
@@ -490,10 +492,7 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 	if err != nil {
 		return nil, response.ErrInternal(err)
 	}
-	if err := schema.ValidateVariableAddresses(variables); err != nil {
-		return nil, err
-	}
-	if err := schema.ValidateDataTypes(variables); err != nil {
+	if err := schema.ValidateVariables(variables); err != nil {
 		return nil, err
 	}
 	added, err := s.store.AddVariables(ctx, collectionID, variables)

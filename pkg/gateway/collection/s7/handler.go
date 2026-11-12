@@ -10,10 +10,21 @@ import (
 	"harns-platform/pkg/gateway/validation"
 )
 
-type CreateHandler struct{}
+type CreateHandler struct {
+	model string
+}
 
-func (h *CreateHandler) DriverType() string  { return DriverType }
-func (h *CreateHandler) DriverModel() string { return DriverModel }
+func NewS7200CreateHandler() *CreateHandler {
+	return &CreateHandler{model: DriverModelS7200}
+}
+
+func (h *CreateHandler) DriverType() string { return DriverType }
+func (h *CreateHandler) DriverModel() string {
+	if h == nil || h.model == "" {
+		return DriverModel
+	}
+	return h.model
+}
 
 func (h *CreateHandler) DecodeCreate(body []byte) (collection.CreateRequest, error) {
 	var req CreateReq
@@ -26,9 +37,9 @@ func (h *CreateHandler) DecodeCreate(body []byte) (collection.CreateRequest, err
 func (h *CreateHandler) BuildCreate(raw collection.CreateRequest) (collection.Collector, json.RawMessage, error) {
 	req, ok := raw.(*CreateReq)
 	if !ok {
-		return nil, nil, fmt.Errorf("invalid s71500 create request")
+		return nil, nil, fmt.Errorf("invalid s7 create request")
 	}
-	item, err := NewCollection(req)
+	item, err := newCollection(req, h.DriverModel())
 	if err != nil {
 		return nil, nil, err
 	}

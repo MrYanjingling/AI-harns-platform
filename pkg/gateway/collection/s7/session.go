@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"harns-platform/pkg/utils/binutil"
@@ -18,9 +19,10 @@ type s7Client struct {
 	timeout time.Duration
 	pdu     uint16
 	mu      sync.Mutex
+	closed  atomic.Bool
 }
 
-func newS7Client(ctx context.Context, address string, rack, slot, connectionType uint8, pduSize int) (*s7Client, error) {
+func newS7Client(ctx context.Context, address string, cotp []byte, pduSize int) (*s7Client, error) {
 	dialer := net.Dialer{Timeout: s7Timeout}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
@@ -28,7 +30,7 @@ func newS7Client(ctx context.Context, address string, rack, slot, connectionType
 	}
 	client := &s7Client{conn: conn, timeout: s7Timeout}
 	_ = conn.SetDeadline(time.Now().Add(s7Timeout))
-	if _, err := conn.Write(newCOTPConnectMessage(rack, slot, connectionType)); err != nil {
+	if _, err := conn.Write(cotp); err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
@@ -62,12 +64,15 @@ func newS7Client(ctx context.Context, address string, rack, slot, connectionType
 	return client, nil
 }
 
-func (c *s7Client) Available() bool { return c != nil && c.conn != nil }
+func (c *s7Client) Available() bool {
+	return c != nil && c.conn != nil && !c.closed.Load()
+}
 
 func (c *s7Client) Close() error {
 	if c == nil || c.conn == nil {
 		return nil
 	}
+	c.closed.Store(true)
 	return c.conn.Close()
 }
 
@@ -104,6 +109,16 @@ func newCOTPConnectMessage(rack, slot, connectionType uint8) []byte {
 		0xc0, 0x01, 0x0a,
 		0xc1, 0x02, 0x01, 0x00,
 		0xc2, 0x02, connectionType, rackSlotByte,
+	}
+}
+
+func newS7200COTPConnectMessage(localTSAP, remoteTSAP uint16) []byte {
+	return []byte{
+		0x03, 0x00, 0x00, 0x16,
+		0x11, 0xe0, 0x00, 0x00, 0x00, 0x01, 0x00,
+		0xc0, 0x01, 0x0a,
+		0xc1, 0x02, byte(localTSAP >> 8), byte(localTSAP),
+		0xc2, 0x02, byte(remoteTSAP >> 8), byte(remoteTSAP),
 	}
 }
 

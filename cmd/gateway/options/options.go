@@ -112,6 +112,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&modbusrtuovertcp.CreateHandler{},
 		&opcua.CreateHandler{},
 		&s7.CreateHandler{},
+		s7.NewS7200CreateHandler(),
 	)
 	if err != nil {
 		_ = db.Close()
@@ -123,6 +124,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&modbusrtuovertcp.CollectorFactory{},
 		&opcua.CollectorFactory{},
 		&s7.CollectorFactory{},
+		s7.NewS7200CollectorFactory(),
 	)
 	if err != nil {
 		_ = db.Close()

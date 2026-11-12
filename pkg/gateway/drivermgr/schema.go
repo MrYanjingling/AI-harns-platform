@@ -23,21 +23,31 @@ const (
 type Schema struct {
 	Fields            []*Field               `json:"fields"`
 	VariableAddress   *VariableAddressSchema `json:"variableAddress,omitempty"`
-	VariableDataTypes []*Option              `json:"variableDataTypes,omitempty"`
+	VariableDataTypes []*VariableDataType    `json:"variableDataTypes,omitempty"`
 
 	compiledVariableAddress *regexp.Regexp
-	allowedDataTypes        map[string]struct{}
+	dataTypes               map[string]*VariableDataType
 }
 
-// VariableAddressSchema describes variable address rules for one driver.
+// VariableAddressSchema describes variable address labels for one driver.
 type VariableAddressSchema struct {
 	LabelZh       string `json:"labelZh"`
 	LabelEn       string `json:"labelEn"`
-	Regex         string `json:"regex"`
+	Regex         string `json:"regex,omitempty"`
 	PlaceholderZh string `json:"placeholderZh,omitempty"`
 	PlaceholderEn string `json:"placeholderEn,omitempty"`
 	DescriptionZh string `json:"descriptionZh,omitempty"`
 	DescriptionEn string `json:"descriptionEn,omitempty"`
+}
+
+// VariableDataType describes one allowed variable data type and its address rule.
+type VariableDataType struct {
+	Value        string `json:"value"`
+	LabelZh      string `json:"labelZh"`
+	LabelEn      string `json:"labelEn"`
+	AddressRegex string `json:"addressRegex"`
+
+	compiledAddress *regexp.Regexp
 }
 
 // Field describes one driver config field.
@@ -88,32 +98,40 @@ func (s *Schema) Validate() error {
 		if s.VariableAddress.LabelZh == "" || s.VariableAddress.LabelEn == "" {
 			return fmt.Errorf("variableAddress labels are required")
 		}
-		if s.VariableAddress.Regex == "" {
-			return fmt.Errorf("variableAddress regex is required")
+		if s.VariableAddress.Regex != "" {
+			re, err := regexp.Compile(s.VariableAddress.Regex)
+			if err != nil {
+				return fmt.Errorf("variableAddress regex is invalid: %w", err)
+			}
+			s.compiledVariableAddress = re
 		}
-		re, err := regexp.Compile(s.VariableAddress.Regex)
-		if err != nil {
-			return fmt.Errorf("variableAddress regex is invalid: %w", err)
-		}
-		s.compiledVariableAddress = re
 	}
 	if len(s.VariableDataTypes) > 0 {
-		s.allowedDataTypes = make(map[string]struct{}, len(s.VariableDataTypes))
-		for i, option := range s.VariableDataTypes {
-			if option == nil {
+		s.dataTypes = make(map[string]*VariableDataType, len(s.VariableDataTypes))
+		for i, item := range s.VariableDataTypes {
+			if item == nil {
 				return fmt.Errorf("variableDataTypes[%d] is null", i)
 			}
-			option.Value = strings.TrimSpace(option.Value)
-			option.LabelZh = strings.TrimSpace(option.LabelZh)
-			option.LabelEn = strings.TrimSpace(option.LabelEn)
-			if option.Value == "" || option.LabelZh == "" || option.LabelEn == "" {
+			item.Value = strings.TrimSpace(item.Value)
+			item.LabelZh = strings.TrimSpace(item.LabelZh)
+			item.LabelEn = strings.TrimSpace(item.LabelEn)
+			item.AddressRegex = strings.TrimSpace(item.AddressRegex)
+			if item.Value == "" || item.LabelZh == "" || item.LabelEn == "" {
 				return fmt.Errorf("variableDataTypes[%d] is invalid", i)
 			}
-			key := strings.ToLower(option.Value)
-			if _, exists := s.allowedDataTypes[key]; exists {
-				return fmt.Errorf("duplicate variable data type %s", option.Value)
+			if item.AddressRegex == "" {
+				return fmt.Errorf("variableDataTypes[%d].addressRegex is required", i)
 			}
-			s.allowedDataTypes[key] = struct{}{}
+			re, err := regexp.Compile(item.AddressRegex)
+			if err != nil {
+				return fmt.Errorf("variableDataTypes[%d].addressRegex is invalid: %w", i, err)
+			}
+			item.compiledAddress = re
+			key := strings.ToLower(item.Value)
+			if _, exists := s.dataTypes[key]; exists {
+				return fmt.Errorf("duplicate variable data type %s", item.Value)
+			}
+			s.dataTypes[key] = item
 		}
 	}
 	names := make(map[string]struct{}, len(s.Fields))
@@ -224,10 +242,8 @@ func (s *Schema) ValidateBody(body []byte) error {
 			})
 		}
 	}
-	if s.VariableAddress != nil {
-		issues = append(issues, s.variableAddressIssues(payload.Variables)...)
-	}
 	issues = append(issues, s.dataTypeIssues(payload.Variables)...)
+	issues = append(issues, s.variableAddressIssues(payload.Variables)...)
 	if len(issues) == 0 {
 		return nil
 	}
@@ -247,7 +263,7 @@ func (s *Schema) ValidateDataTypes(variables []*collection.Variable) error {
 }
 
 func (s *Schema) dataTypeIssues(variables []*collection.Variable) []validation.FieldIssue {
-	if s == nil || len(s.allowedDataTypes) == 0 {
+	if s == nil || len(s.dataTypes) == 0 {
 		return nil
 	}
 	issues := make([]validation.FieldIssue, 0)
@@ -255,7 +271,7 @@ func (s *Schema) dataTypeIssues(variables []*collection.Variable) []validation.F
 		if variable == nil {
 			continue
 		}
-		if _, ok := s.allowedDataTypes[strings.ToLower(strings.TrimSpace(variable.DataType))]; !ok {
+		if _, ok := s.dataTypes[strings.ToLower(strings.TrimSpace(variable.DataType))]; !ok {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].dataType", i),
 				MsgID: "validate.variable_data_type_unsupported",
@@ -268,7 +284,7 @@ func (s *Schema) dataTypeIssues(variables []*collection.Variable) []validation.F
 
 // ValidateVariableAddresses validates variable addresses against the driver rules.
 func (s *Schema) ValidateVariableAddresses(variables []*collection.Variable) error {
-	if s == nil || s.VariableAddress == nil {
+	if s == nil {
 		return nil
 	}
 	issues := s.variableAddressIssues(variables)
@@ -279,7 +295,7 @@ func (s *Schema) ValidateVariableAddresses(variables []*collection.Variable) err
 }
 
 func (s *Schema) variableAddressIssues(variables []*collection.Variable) []validation.FieldIssue {
-	if s == nil || s.VariableAddress == nil || s.compiledVariableAddress == nil {
+	if s == nil {
 		return nil
 	}
 	issues := make([]validation.FieldIssue, 0)
@@ -291,7 +307,15 @@ func (s *Schema) variableAddressIssues(variables []*collection.Variable) []valid
 		if address == "" {
 			continue
 		}
-		if !s.compiledVariableAddress.MatchString(address) {
+		re := s.compiledVariableAddress
+		if len(s.dataTypes) > 0 {
+			rule, ok := s.dataTypes[strings.ToLower(strings.TrimSpace(variable.DataType))]
+			if !ok {
+				continue
+			}
+			re = rule.compiledAddress
+		}
+		if re != nil && !re.MatchString(address) {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].address", i),
 				MsgID: "validate.variable_address_invalid",
@@ -300,6 +324,18 @@ func (s *Schema) variableAddressIssues(variables []*collection.Variable) []valid
 		}
 	}
 	return issues
+}
+
+// ValidateVariables validates data types and their type-specific address rules.
+func (s *Schema) ValidateVariables(variables []*collection.Variable) error {
+	if s == nil {
+		return nil
+	}
+	issues := append(s.dataTypeIssues(variables), s.variableAddressIssues(variables)...)
+	if len(issues) == 0 {
+		return nil
+	}
+	return &validation.ValidationError{Issues: issues}
 }
 
 func (s *Schema) sortedFields() []*Field {

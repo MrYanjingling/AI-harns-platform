@@ -155,9 +155,8 @@ func newCOTPConnectMessage(rack uint8, slot uint8) []byte {
 		0xc1,       // parameter code:src-tsap
 		0x02,       // parameter length
 		0x01, 0x00, // source TSAP   SourceTSAP/Rack    //  s7-200取决于前端界面填的  默认10 00
-		0xc2,         // parameter code:dst-tsap。       // s7-200取决于前端界面填的  默认10 00
-		0x02,         // parameter length
-		0x01,         // Destination TSAP connectionType   01PG  02OP 03PC
+		0xc2, 0x02, // parameter code:dst-tsap。         // parameter length
+		0x01,         // Destination TSAP connectionType   01PG  02OP 03PC。// s7-200取决于前端界面填的  默认10 00
 		rackSlotByte, // rack & solt
 	}
 	return bytes

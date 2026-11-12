@@ -16,12 +16,17 @@ type decodedValue struct {
 func decodeFrame(frame *s7Frame, data []byte) ([]decodedValue, error) {
 	values := make([]decodedValue, 0, len(frame.Variables))
 	for _, item := range frame.Variables {
-		base := int(item.Start) + 4
+		base := int(item.Start)
 		if base >= len(data) {
 			return nil, fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
 		}
 		var value any
 		switch strings.ToLower(item.Variable.DataType) {
+		case "bit":
+			value = int((1 << item.Bit) & data[base])
+			if value != 0 {
+				value = 1
+			}
 		case "bool":
 			value = (1<<item.Bit)&data[base] != 0
 		case "uint16":

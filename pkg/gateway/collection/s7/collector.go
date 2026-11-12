@@ -25,10 +25,21 @@ type collectorRuntime struct {
 	started bool
 }
 
-type CollectorFactory struct{}
+type CollectorFactory struct {
+	model string
+}
 
-func (f *CollectorFactory) DriverType() string  { return DriverType }
-func (f *CollectorFactory) DriverModel() string { return DriverModel }
+func (f *CollectorFactory) DriverType() string { return DriverType }
+func (f *CollectorFactory) DriverModel() string {
+	if f == nil || f.model == "" {
+		return DriverModel
+	}
+	return f.model
+}
+
+func NewS7200CollectorFactory() *CollectorFactory {
+	return &CollectorFactory{model: DriverModelS7200}
+}
 
 func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config json.RawMessage) (collection.Collector, error) {
 	item := &S7Collection{}
@@ -46,9 +57,6 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 	if c.PDUSize == 0 {
 		c.PDUSize = DefaultPDUSize
 	}
-	if c.ConnectionType == 0 {
-		c.ConnectionType = DefaultConnectionType
-	}
 	if c.TCPCount == 0 {
 		c.TCPCount = DefaultTCPCount
 	}
@@ -60,9 +68,24 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: pduSize must be 480 or 960", collection.ErrInvalidConfig)
 	}
-	if c.ConnectionType < 1 || c.ConnectionType > 3 {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: connectionType must be 1, 2 or 3", collection.ErrInvalidConfig)
+	var cotp []byte
+	if c.GetDriverModel() == DriverModelS7200 {
+		if c.LocalTSAP == 0 {
+			c.LocalTSAP = DefaultLocalTSAP
+		}
+		if c.RemoteTSAP == 0 {
+			c.RemoteTSAP = DefaultRemoteTSAP
+		}
+		cotp = newS7200COTPConnectMessage(c.LocalTSAP, c.RemoteTSAP)
+	} else {
+		if c.ConnectionType == 0 {
+			c.ConnectionType = DefaultConnectionType
+		}
+		if c.ConnectionType < 1 || c.ConnectionType > 3 {
+			c.SetCollectStatus(collection.CollectStatusError)
+			return fmt.Errorf("%w: connectionType must be 1, 2 or 3", collection.ErrInvalidConfig)
+		}
+		cotp = newCOTPConnectMessage(c.Rack, c.Slot, c.ConnectionType)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	calculations, err := collection.CompileCalculations(variables)
@@ -71,7 +94,7 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
 	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
-		return newS7Client(ctx, c.endpoint(), c.Rack, c.Slot, c.ConnectionType, c.PDUSize)
+		return newS7Client(ctx, c.endpoint(), cotp, c.PDUSize)
 	})
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
@@ -288,10 +311,36 @@ func validateResponse(response []byte, frame *s7Frame) ([]byte, error) {
 	if response[17] != 0 || response[18] != 0 {
 		return nil, fmt.Errorf("s7 response error %d/%d", response[17], response[18])
 	}
-	if len(response[21:]) < dataLength {
+	payload := response[21:]
+	if len(payload) < dataLength {
 		return nil, fmt.Errorf("s7 response payload is too short")
 	}
-	return response[21:], nil
+	offset := 0
+	for index, item := range frame.Items {
+		if offset+4 > len(payload) {
+			return nil, fmt.Errorf("s7 response item %d header is too short", index)
+		}
+		if payload[offset] != 0xFF {
+			return nil, fmt.Errorf("s7 response item %d failed", index)
+		}
+		if payload[offset+1] != 2 {
+			return nil, fmt.Errorf("s7 response item %d has invalid transport %d", index, payload[offset+1])
+		}
+		lengthBits := int(binutil.ParseUint16(payload[offset+2:]))
+		expectedBits := int(item.Length) * 8
+		if lengthBits != expectedBits {
+			return nil, fmt.Errorf("s7 response item %d length mismatch: got %d bits, want %d", index, lengthBits, expectedBits)
+		}
+		dataBytes := (lengthBits + 7) / 8
+		if offset+4+dataBytes > len(payload) {
+			return nil, fmt.Errorf("s7 response item %d data is too short", index)
+		}
+		offset += 4 + dataBytes
+	}
+	if offset != len(payload) {
+		return nil, fmt.Errorf("s7 response payload length mismatch")
+	}
+	return payload, nil
 }
 
 func (c *S7Collection) endpoint() string {
@@ -305,7 +354,7 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
 	for _, action := range actions {
-		request, _, err := buildWriteRequest(action.Variable, action.Value)
+		request, err := buildWriteRequest(action.Variable, action.Value)
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{
 				Field: fmt.Sprintf("actions[%d].name", action.Index),

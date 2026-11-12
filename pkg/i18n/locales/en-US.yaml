@@ -124,7 +124,7 @@ error.driver_invalid: "Invalid driver: %s."
 validate.driver_type_required: "driverType is required."
 validate.driver_model_required: "model is required."
 validate.driver_plugin_name_required: "pluginName is required."
-validate.driver_plugin_name_invalid: "pluginName may contain only letters, digits, underscores and hyphens."
+validate.driver_plugin_name_invalid: "pluginName may contain only letters, digits and hyphens."
 validate.driver_schema_invalid: "schema must be a valid JSON object."
 
 error.collection_not_found: "Collection [%s] not found."

@@ -9,27 +9,28 @@ import (
 )
 
 type frameVariable struct {
-	Variable  *collection.Variable
-	Start     uint
-	Bit       uint8
-	BlockSize uint
-	Length    uint16
+	Variable *collection.Variable
+	Start    uint
+	Bit      uint8
+	Length   uint16
 }
 
 type frameItem struct {
 	RequestData []byte
 	Start       uint
+	Length      uint16
+	Variables   []*frameVariable
 }
 
 type s7Frame struct {
-	Area       storeArea
 	Request    []byte
 	DataLength int
+	Items      []*frameItem
 	Variables  []*frameVariable
 }
 
 func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, error) {
-	groups := make(map[storeArea][]*collection.Variable)
+	tags := make([]*frameVariable, 0, len(variables))
 	for _, variable := range variables {
 		if variable == nil || variable.IsCalculated || variable.AccessMode == collection.AccessModeWrite {
 			continue
@@ -38,76 +39,211 @@ func buildFrames(variables []*collection.Variable, pdu uint16) ([]*s7Frame, erro
 		if err != nil {
 			return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
 		}
-		groups[parsed.area] = append(groups[parsed.area], variable)
+		length, err := variableByteLength(variable, parsed)
+		if err != nil {
+			return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
+		}
+		tags = append(tags, &frameVariable{
+			Variable: variable,
+			Start:    uint(parsed.address),
+			Bit:      parsed.bit,
+			Length:   length,
+		})
 	}
-	maxItems := (int(pdu) - 19) / 12
-	if len(groups) > 0 && maxItems < 1 {
+	if len(tags) == 0 {
+		return nil, nil
+	}
+	sortFrameVariables(tags)
+
+	items, err := mergeTags(tags)
+	if err != nil {
+		return nil, err
+	}
+	return packItems(items, pdu)
+}
+
+func variableByteLength(variable *collection.Variable, parsed parsedAddress) (uint16, error) {
+	dataType := strings.ToLower(variable.DataType)
+	switch dataType {
+	case "string", "byte_array":
+		if parsed.area != areaDB || parsed.length == 0 {
+			return 0, fmt.Errorf("string/byte_array requires a DB length suffix")
+		}
+		return parsed.length, nil
+	case "bool", "bit":
+		if parsed.length > 0 {
+			return 0, fmt.Errorf("length suffix is only valid for string/byte_array")
+		}
+		return 1, nil
+	case "int16", "uint16":
+		if parsed.length > 0 {
+			return 0, fmt.Errorf("length suffix is only valid for string/byte_array")
+		}
+		return 2, nil
+	case "int32", "float32":
+		if parsed.length > 0 {
+			return 0, fmt.Errorf("length suffix is only valid for string/byte_array")
+		}
+		return 4, nil
+	case "int64", "float64":
+		if parsed.length > 0 {
+			return 0, fmt.Errorf("length suffix is only valid for string/byte_array")
+		}
+		return 8, nil
+	default:
+		return 0, fmt.Errorf("unsupported data type %q", variable.DataType)
+	}
+}
+
+func sortFrameVariables(values []*frameVariable) {
+	for i := 1; i < len(values); i++ {
+		for j := i; j > 0; j-- {
+			left, _ := parseAddress(values[j-1].Variable.Address)
+			right, _ := parseAddress(values[j].Variable.Address)
+			if compareFrameVariable(left, right, values[j-1], values[j]) <= 0 {
+				break
+			}
+			values[j-1], values[j] = values[j], values[j-1]
+		}
+	}
+}
+
+func compareFrameVariable(left, right parsedAddress, leftVar, rightVar *frameVariable) int {
+	if left.area != right.area {
+		if left.area < right.area {
+			return -1
+		}
+		return 1
+	}
+	if left.blockSize != right.blockSize {
+		if left.blockSize < right.blockSize {
+			return -1
+		}
+		return 1
+	}
+	if left.address != right.address {
+		if left.address < right.address {
+			return -1
+		}
+		return 1
+	}
+	if leftVar.Length != rightVar.Length {
+		if leftVar.Length < rightVar.Length {
+			return -1
+		}
+		return 1
+	}
+	if left.bit < right.bit {
+		return -1
+	}
+	if left.bit > right.bit {
+		return 1
+	}
+	return 0
+}
+
+func mergeTags(tags []*frameVariable) ([]*frameItem, error) {
+	items := make([]*frameItem, 0)
+	for _, tag := range tags {
+		parsed, err := parseAddress(tag.Variable.Address)
+		if err != nil {
+			return nil, err
+		}
+		noMerge := isNoMergeType(tag.Variable.DataType)
+		merged := false
+		if !noMerge && len(items) > 0 {
+			last := items[len(items)-1]
+			lastParsed, _ := parseAddress(last.Variables[0].Variable.Address)
+			lastNoMerge := isNoMergeType(last.Variables[0].Variable.DataType)
+			if !lastNoMerge && lastParsed.area == parsed.area && lastParsed.blockSize == parsed.blockSize {
+				newEnd := uint32(parsed.address) + uint32(tag.Length)
+				if newEnd-uint32(last.Start) < 33 {
+					tag.Start = uint(parsed.address - uint32(last.Start))
+					last.Variables = append(last.Variables, tag)
+					end := uint32(parsed.address) + uint32(tag.Length)
+					if end-uint32(last.Start) > uint32(last.Length) {
+						last.Length = uint16(end - uint32(last.Start))
+					}
+					merged = true
+				}
+			}
+		}
+		if merged {
+			continue
+		}
+		item := &frameItem{
+			Start:     uint(parsed.address),
+			Variables: []*frameVariable{tag},
+			Length:    tag.Length,
+		}
+		tag.Start = 0
+		items = append(items, item)
+	}
+	for _, item := range items {
+		parsed, _ := parseAddress(item.Variables[0].Variable.Address)
+		item.RequestData = newReadParameterItem(item.Length, uint16(parsed.blockSize), parsed.area.code(), uint32(item.Start), 0)
+	}
+	return items, nil
+}
+
+func isNoMergeType(dataType string) bool {
+	return strings.EqualFold(dataType, "string") || strings.EqualFold(dataType, "byte_array")
+}
+
+func packItems(items []*frameItem, pdu uint16) ([]*s7Frame, error) {
+	budget := int(pdu) - 21
+	if budget <= 0 {
 		return nil, fmt.Errorf("s7 pdu %d is too small", pdu)
 	}
+	const (
+		requestItemSize  = 12
+		responseItemSize = 4
+		maxProtocolItems = 255
+	)
 	frames := make([]*s7Frame, 0)
-	for area, values := range groups {
-		sortVariables(values)
-		items := make([]*frameItem, 0)
-		itemMap := make(map[string]*frameItem)
-		frameVars := make([]*frameVariable, 0)
-		offset := 0
-		flush := func() {
-			if len(items) == 0 {
-				return
-			}
-			frames = append(frames, newS7Frame(area, frameVars, items, offset))
-			items = nil
-			itemMap = make(map[string]*frameItem)
-			frameVars = nil
-			offset = 0
+	current := make([]*frameItem, 0)
+	requestCost := 0
+	responseCost := 0
+	flush := func() error {
+		if len(current) == 0 {
+			return nil
 		}
-		for _, variable := range values {
-			parsed, err := parseAddress(variable.Address)
-			if err != nil {
-				return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
+		responseOffset := 0
+		for _, item := range current {
+			item.Start = uint(responseOffset)
+			for _, variable := range item.Variables {
+				variable.Start = item.Start + responseItemSize + variable.Start
 			}
-			stringType := strings.EqualFold(variable.DataType, "string") || strings.EqualFold(variable.DataType, "byte_array")
-			if stringType && (parsed.area != areaDB || parsed.length == 0) {
-				return nil, fmt.Errorf("variable %s: string/byte_array requires a DB length suffix", variable.Name)
-			}
-			if !stringType && parsed.length > 0 {
-				return nil, fmt.Errorf("variable %s: length suffix is only valid for string/byte_array", variable.Name)
-			}
-			key := fmt.Sprintf("%d.%d.%d.%d", parsed.area, parsed.blockSize, parsed.address, parsed.length)
-			item, exists := itemMap[key]
-			if !exists {
-				item = &frameItem{
-					Start: uint(offset),
-					RequestData: newReadParameterItem(
-						parsed.area.transportSize(),
-						dataRequestLength(parsed.area, variable.DataType, parsed.length),
-						uint16(parsed.blockSize),
-						parsed.area.code(),
-						parsed.address,
-						parsed.bit,
-					),
-				}
-				items = append(items, item)
-				itemMap[key] = item
-				offset += int(4 + dataResponseLength(parsed.area, variable.DataType, parsed.length))
-			}
-			frameVars = append(frameVars, &frameVariable{
-				Variable:  variable,
-				Start:     item.Start,
-				Bit:       parsed.bit,
-				BlockSize: parsed.blockSize,
-				Length:    parsed.length,
-			})
-			if len(items) == maxItems {
-				flush()
+			responseOffset += responseItemSize + int(item.Length)
+		}
+		frames = append(frames, newS7Frame(current, responseOffset))
+		current = nil
+		requestCost = 0
+		responseCost = 0
+		return nil
+	}
+	for _, item := range items {
+		req := requestItemSize
+		resp := responseItemSize + int(item.Length)
+		if len(current) > 0 && (requestCost+req > budget || responseCost+resp > budget || len(current) >= maxProtocolItems) {
+			if err := flush(); err != nil {
+				return nil, err
 			}
 		}
-		flush()
+		if requestCost+req > budget || responseCost+resp > budget {
+			return nil, fmt.Errorf("s7 element at %d with length %d exceeds PDU budget", item.Start, item.Length)
+		}
+		current = append(current, item)
+		requestCost += req
+		responseCost += resp
+	}
+	if err := flush(); err != nil {
+		return nil, err
 	}
 	return frames, nil
 }
 
-func newS7Frame(area storeArea, variables []*frameVariable, items []*frameItem, dataLength int) *s7Frame {
+func newS7Frame(items []*frameItem, dataLength int) *s7Frame {
 	data := []byte{0x03, 0x00}
 	maxBytes := 7 + 10 + 2 + len(items)*12
 	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(maxBytes))...)
@@ -116,15 +252,16 @@ func newS7Frame(area storeArea, variables []*frameVariable, items []*frameItem, 
 	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(2+len(items)*12))...)
 	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 	data = append(data, uint8(4), uint8(len(items)))
+	variables := make([]*frameVariable, 0)
 	for _, item := range items {
 		data = append(data, item.RequestData...)
+		variables = append(variables, item.Variables...)
 	}
-	return &s7Frame{Area: area, Request: data, DataLength: dataLength, Variables: variables}
+	return &s7Frame{Request: data, DataLength: dataLength, Items: items, Variables: variables}
 }
 
-func newReadParameterItem(transportSize uint8, length uint16, dbNumber uint16, zone uint8, address uint32, bitAddress uint8) []byte {
-	item := []byte{0x12, 0x0a, 0x10}
-	item = append(item, transportSize)
+func newParameterItem(transportSize uint8, length uint16, dbNumber uint16, zone uint8, address uint32, bitAddress uint8) []byte {
+	item := []byte{0x12, 0x0a, 0x10, transportSize}
 	item = append(item, binutil.Uint16ToBytesBigEndian(length)...)
 	item = append(item, binutil.Uint16ToBytesBigEndian(dbNumber)...)
 	item = append(item, zone)
@@ -132,4 +269,8 @@ func newReadParameterItem(transportSize uint8, length uint16, dbNumber uint16, z
 	item = append(item, uint8((address<<3)/256%256))
 	item = append(item, uint8((address<<3)%256)+bitAddress)
 	return item
+}
+
+func newReadParameterItem(length uint16, dbNumber uint16, zone uint8, address uint32, bitAddress uint8) []byte {
+	return newParameterItem(0x02, length, dbNumber, zone, address, bitAddress)
 }

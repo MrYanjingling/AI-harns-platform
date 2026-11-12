@@ -20,7 +20,7 @@ func TestDriverRoutes(t *testing.T) {
 	engine := gin.New()
 	InstallHandler(engine.Group("/api/v1"), service)
 
-	createBody := `{"driverType":"modbus","model":"customTcp","pluginName":"custom_tcp","schema":{"type":"object"}}`
+	createBody := `{"driverType":"modbus","model":"customTcp","pluginName":"custom-tcp","schema":{"type":"object"}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/drivers", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -69,5 +69,5 @@ func TestDriverRoutesReturnLocalizedFieldErrors(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"code":20004`)
 	assert.Contains(t, rec.Body.String(), `"field":"pluginName"`)
-	assert.Contains(t, rec.Body.String(), `"message":"pluginName 只能包含字母、数字、下划线和连字符。"`)
+	assert.Contains(t, rec.Body.String(), `"message":"pluginName 只能包含字母、数字和连字符。"`)
 }

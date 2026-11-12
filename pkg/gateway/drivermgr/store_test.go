@@ -34,6 +34,7 @@ func TestInitializeIsIdempotentAndSeedsBuiltins(t *testing.T) {
 	for _, item := range items {
 		assert.True(t, item.BuiltinDriver)
 		assert.NotEmpty(t, item.PluginName)
+		assert.NotContains(t, item.PluginName, "_")
 		schema, err := ParseSchema(item.Schema)
 		require.NoError(t, err)
 		assert.NotEmpty(t, schema.Fields)
@@ -50,7 +51,7 @@ func TestCreateUpdateDeleteCustomDriver(t *testing.T) {
 		DriverType: "modbus",
 		Model:      "customTcp",
 		Schema:     json.RawMessage(`{"type":"object","properties":{"host":{"type":"string"}}}`),
-		PluginName: "custom_tcp",
+		PluginName: "custom-tcp",
 	})
 	require.NoError(t, err)
 	assert.False(t, created.BuiltinDriver)
@@ -60,11 +61,11 @@ func TestCreateUpdateDeleteCustomDriver(t *testing.T) {
 		DriverType: "modbus",
 		Model:      "customTcpV2",
 		Schema:     json.RawMessage(`{"type":"object"}`),
-		PluginName: "custom_tcp_v2",
+		PluginName: "custom-tcp-v2",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "customTcpV2", updated.Model)
-	assert.Equal(t, "custom_tcp_v2", updated.PluginName)
+	assert.Equal(t, "custom-tcp-v2", updated.PluginName)
 
 	require.NoError(t, service.Delete(ctx, created.ID))
 	_, err = service.Get(ctx, created.ID)
@@ -79,7 +80,7 @@ func TestCreateRejectsDuplicateAndInvalidValues(t *testing.T) {
 	_, err := service.Create(ctx, &v1.CreateDriverReq{
 		DriverType: "modbus",
 		Model:      "modbusTcp",
-		PluginName: "another_modbus_tcp",
+		PluginName: "another-modbus-tcp",
 	})
 	require.Error(t, err)
 	assert.Equal(t, int(response.ErrCodeDriverConflict), response.ErrorCode(err))
@@ -126,8 +127,12 @@ func TestListFiltersByDriverType(t *testing.T) {
 	service, _ := newTestService(t)
 	items, err := service.List(context.Background(), DriverTypeS7)
 	require.NoError(t, err)
-	require.Len(t, items, 1)
-	assert.Equal(t, ModelS71500, items[0].Model)
+	require.Len(t, items, 2)
+	models := make([]string, 0, len(items))
+	for _, item := range items {
+		models = append(models, item.Model)
+	}
+	assert.ElementsMatch(t, []string{ModelS71500, ModelS7200}, models)
 }
 
 func TestListGroupedAndFuzzyDriverType(t *testing.T) {

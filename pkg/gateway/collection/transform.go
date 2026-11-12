@@ -7,7 +7,7 @@ import (
 
 // ApplyTransform applies rate, offset, precision and data type conversion.
 func ApplyTransform(value any, variable *Variable) any {
-	if variable == nil || strings.EqualFold(variable.DataType, "bool") {
+	if variable == nil || strings.EqualFold(variable.DataType, "bool") || strings.EqualFold(variable.DataType, "bit") {
 		return value
 	}
 	number, ok := ToFloat64(value)

@@ -58,6 +58,8 @@ func parseAddress(value string) (parsedAddress, error) {
 	case strings.HasPrefix(value, "M"):
 		result.area = areaM
 		return parseAreaAddress(value, result)
+	case strings.HasPrefix(value, "V"):
+		return parseVAddress(value)
 	case strings.HasPrefix(value, "DB"):
 		return parseDBAddress(value)
 	default:
@@ -71,6 +73,23 @@ func parseAreaAddress(value string, result parsedAddress) (parsedAddress, error)
 		addressPart = addressPart[1:]
 	}
 	return parseByteAndBit(addressPart, result)
+}
+
+func parseVAddress(value string) (parsedAddress, error) {
+	rest := strings.TrimPrefix(value, "V")
+	if rest == "" {
+		return parsedAddress{}, fmt.Errorf("invalid s7 V address %q", value)
+	}
+	result := parsedAddress{area: areaDB, blockSize: 1}
+	if strings.Contains(rest, ".") {
+		return parseByteAndBit(rest, result)
+	}
+	switch rest[0] {
+	case 'B', 'W', 'D':
+		return parseByteLength(rest[1:], result)
+	default:
+		return parsedAddress{}, fmt.Errorf("invalid s7 V address %q", value)
+	}
 }
 
 func parseDBAddress(value string) (parsedAddress, error) {
@@ -142,26 +161,17 @@ func shortening(value string) bool {
 	return !(strings.HasPrefix(value, "X") || strings.HasPrefix(value, "B") || strings.HasPrefix(value, "W") || strings.HasPrefix(value, "D") || strings.HasPrefix(value, "S"))
 }
 
-func dataRequestLength(area storeArea, dataType string, byteLength uint16) uint16 {
+func dataRequestLength(dataType string, byteLength uint16) uint16 {
 	switch strings.ToLower(dataType) {
 	case "string", "byte_array":
 		return (byteLength + 1) / 2
-	case "bool":
+	case "bool", "bit":
 		return 1
 	case "uint16", "int16":
-		if area == areaDB {
-			return 1
-		}
 		return 2
 	case "int32", "float32":
-		if area == areaDB {
-			return 2
-		}
 		return 4
 	case "int64", "float64":
-		if area == areaDB {
-			return 4
-		}
 		return 8
 	default:
 		return 1

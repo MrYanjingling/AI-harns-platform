@@ -43,6 +43,16 @@ func DecodeActionValue(variable *Variable, text string) (any, error) {
 			return nil, fmt.Errorf("value %q is not a bool", text)
 		}
 	}
+	if strings.EqualFold(variable.DataType, "bit") {
+		switch value {
+		case "0":
+			return 0, nil
+		case "1":
+			return 1, nil
+		default:
+			return nil, fmt.Errorf("value %q is not a bit (0/1)", text)
+		}
+	}
 	if strings.EqualFold(variable.DataType, "string") {
 		return value, nil
 	}
