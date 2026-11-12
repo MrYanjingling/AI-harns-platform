@@ -67,20 +67,20 @@ export function Dialog({
         sizes[size],
       )}
     >
-      <div className="flex items-start justify-between gap-4 px-5 pt-5">
+      <div className="flex items-start justify-between gap-3 px-4 pt-4">
         <div className="min-w-0">
-          {title ? <h2 className="text-base font-semibold tracking-tight">{title}</h2> : null}
+          {title ? <h2 className="text-sm font-semibold tracking-tight">{title}</h2> : null}
           {description ? (
-            <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted">{description}</p>
           ) : null}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('components.dialog.close')}>
           <X className="size-4" />
         </Button>
       </div>
-      {children ? <div className="px-5 py-4">{children}</div> : null}
+      {children ? <div className="px-4 py-3">{children}</div> : null}
       {footer ? (
-        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
           {footer}
         </div>
       ) : null}

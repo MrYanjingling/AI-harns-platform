@@ -1,11 +1,13 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { Button, Input, Select, Table, TBody, TD, TH, THead, TR, useI18n } from '@harns/core'
-import type { DeviceType } from '@/api/types'
-import { ACCESS_MODES, dataTypesFor } from '@/lib/constants'
-import type { VariableFormValues } from '@/lib/device-form'
+import type { DriverSchema } from '@/api/types'
+import { ACCESS_MODES } from '@/lib/constants'
+import type { VariableFormValues } from '@/lib/collection-form'
+import { variableTypes } from '@/lib/collection-form'
+import { localized } from '@/lib/labels'
 
 interface VariablesEditorProps {
-  deviceType: DeviceType
+  schema: DriverSchema
   variables: VariableFormValues[]
   errors: Record<string, string>
   onAdd: () => void
@@ -18,16 +20,25 @@ function FieldError({ message }: { message?: string }) {
   return <p className="mt-1 text-[11px] leading-tight text-danger">{message}</p>
 }
 
+/** 变量定义编辑器;数据类型与地址规则来自驱动 Schema。 */
 export function VariablesEditor({
-  deviceType,
+  schema,
   variables,
   errors,
   onAdd,
   onRemove,
   onChange,
 }: VariablesEditorProps) {
-  const { t } = useI18n()
-  const dataTypes = dataTypesFor(deviceType)
+  const { t, locale } = useI18n()
+  const types = variableTypes(schema)
+  const address = schema.variableAddress
+  const addressLabel = address ? localized(address.labelZh, address.labelEn, locale) : ''
+  const placeholder = address
+    ? localized(address.placeholderZh, address.placeholderEn, locale)
+    : ''
+  const description = address
+    ? localized(address.descriptionZh, address.descriptionEn, locale)
+    : ''
 
   return (
     <div className="space-y-2">
@@ -35,25 +46,13 @@ export function VariablesEditor({
         <Table>
           <THead>
             <TR>
-              <TH className="min-w-36">{t('gateway.form.field.variableName')}</TH>
-              <TH className="min-w-28">{t('gateway.form.field.dataType')}</TH>
-              <TH className="min-w-28">{t('gateway.form.field.address')}</TH>
-              {deviceType === 'modbus' ? (
-                <>
-                  <TH className="min-w-24">{t('gateway.form.field.functionCode')}</TH>
-                  <TH className="min-w-20">{t('gateway.form.field.bits')}</TH>
-                  <TH className="min-w-24">{t('gateway.form.field.amount')}</TH>
-                </>
-              ) : null}
-              {deviceType === 'opcUa' ? (
-                <TH className="min-w-28">{t('gateway.form.field.namespace')}</TH>
-              ) : null}
-              {deviceType !== 'opcUa' ? (
-                <TH className="min-w-24">{t('gateway.form.field.rate')}</TH>
-              ) : null}
-              <TH className="min-w-32">{t('gateway.form.field.defaultValue')}</TH>
-              <TH className="min-w-24">{t('gateway.form.field.accessMode')}</TH>
-              <TH className="w-12 text-right">{t('common.field.actions')}</TH>
+              <TH className="min-w-32">{t('gateway.variable.name')}</TH>
+              <TH className="min-w-28">{t('gateway.variable.dataType')}</TH>
+              <TH className="min-w-36">{addressLabel || t('gateway.variable.address')}</TH>
+              <TH className="min-w-20">{t('gateway.variable.bits')}</TH>
+              <TH className="min-w-20">{t('gateway.variable.rate')}</TH>
+              <TH className="min-w-24">{t('gateway.variable.accessMode')}</TH>
+              <TH className="w-10 text-right">{t('common.field.actions')}</TH>
             </TR>
           </THead>
           <TBody>
@@ -64,110 +63,68 @@ export function VariablesEditor({
                   <TD>
                     <Input
                       value={variable.name}
-                      aria-label={t('gateway.form.field.variableName')}
-                      placeholder={t('gateway.form.variableRow', { index: index + 1 })}
+                      aria-label={t('gateway.variable.name')}
+                      placeholder={t('gateway.variable.namePlaceholder')}
                       onChange={(event) => onChange(index, { name: event.target.value })}
                     />
                     <FieldError message={errors[`${prefix}.name`]} />
                   </TD>
                   <TD>
-                    <Select
-                      value={variable.dataType}
-                      aria-label={t('gateway.form.field.dataType')}
-                      onChange={(event) => onChange(index, { dataType: event.target.value })}
-                    >
-                      {dataTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </Select>
+                    {types.length > 0 ? (
+                      <Select
+                        value={variable.dataType}
+                        aria-label={t('gateway.variable.dataType')}
+                        onChange={(event) => onChange(index, { dataType: event.target.value })}
+                      >
+                        {types.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {localized(type.labelZh, type.labelEn, locale) || type.value}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input
+                        value={variable.dataType}
+                        aria-label={t('gateway.variable.dataType')}
+                        onChange={(event) => onChange(index, { dataType: event.target.value })}
+                      />
+                    )}
+                    <FieldError message={errors[`${prefix}.dataType`]} />
                   </TD>
                   <TD>
                     <Input
                       value={variable.address}
-                      aria-label={t('gateway.form.field.address')}
-                      inputMode={deviceType === 'modbus' ? 'numeric' : 'text'}
-                      placeholder={deviceType === 'modbus' ? '0' : 'ns=2;s=Tag'}
+                      aria-label={t('gateway.variable.address')}
+                      placeholder={placeholder || t('gateway.variable.addressPlaceholder')}
+                      autoComplete="off"
                       onChange={(event) => onChange(index, { address: event.target.value })}
                     />
                     <FieldError message={errors[`${prefix}.address`]} />
                   </TD>
-                  {deviceType === 'modbus' ? (
-                    <>
-                      <TD>
-                        <Select
-                          value={variable.functionCode}
-                          aria-label={t('gateway.form.field.functionCode')}
-                          onChange={(event) =>
-                            onChange(index, { functionCode: event.target.value })
-                          }
-                        >
-                          {[1, 2, 3, 4].map((code) => (
-                            <option key={code} value={String(code)}>
-                              {code}
-                            </option>
-                          ))}
-                        </Select>
-                        <FieldError message={errors[`${prefix}.functionCode`]} />
-                      </TD>
-                      <TD>
-                        <Input
-                          value={variable.bits}
-                          aria-label={t('gateway.form.field.bits')}
-                          inputMode="numeric"
-                          placeholder="0"
-                          onChange={(event) => onChange(index, { bits: event.target.value })}
-                        />
-                        <FieldError message={errors[`${prefix}.bits`]} />
-                      </TD>
-                      <TD>
-                        <Input
-                          value={variable.amount}
-                          aria-label={t('gateway.form.field.amount')}
-                          inputMode="numeric"
-                          placeholder="1"
-                          onChange={(event) => onChange(index, { amount: event.target.value })}
-                        />
-                        <FieldError message={errors[`${prefix}.amount`]} />
-                      </TD>
-                    </>
-                  ) : null}
-                  {deviceType === 'opcUa' ? (
-                    <TD>
-                      <Input
-                        value={variable.namespace}
-                        aria-label={t('gateway.form.field.namespace')}
-                        inputMode="numeric"
-                        placeholder="1"
-                        onChange={(event) => onChange(index, { namespace: event.target.value })}
-                      />
-                      <FieldError message={errors[`${prefix}.namespace`]} />
-                    </TD>
-                  ) : null}
-                  {deviceType !== 'opcUa' ? (
-                    <TD>
-                      <Input
-                        value={variable.rate}
-                        aria-label={t('gateway.form.field.rate')}
-                        inputMode="decimal"
-                        placeholder="1"
-                        onChange={(event) => onChange(index, { rate: event.target.value })}
-                      />
-                      <FieldError message={errors[`${prefix}.rate`]} />
-                    </TD>
-                  ) : null}
                   <TD>
                     <Input
-                      value={variable.defaultValue}
-                      aria-label={t('gateway.form.field.defaultValue')}
-                      onChange={(event) => onChange(index, { defaultValue: event.target.value })}
+                      value={variable.bits}
+                      aria-label={t('gateway.variable.bits')}
+                      inputMode="numeric"
+                      placeholder="—"
+                      onChange={(event) => onChange(index, { bits: event.target.value })}
                     />
+                    <FieldError message={errors[`${prefix}.bits`]} />
+                  </TD>
+                  <TD>
+                    <Input
+                      value={variable.rate}
+                      aria-label={t('gateway.variable.rate')}
+                      inputMode="decimal"
+                      placeholder="1"
+                      onChange={(event) => onChange(index, { rate: event.target.value })}
+                    />
+                    <FieldError message={errors[`${prefix}.rate`]} />
                   </TD>
                   <TD>
                     <Select
                       value={variable.accessMode}
-                      aria-label={t('gateway.form.field.accessMode')}
+                      aria-label={t('gateway.variable.accessMode')}
                       onChange={(event) =>
                         onChange(index, {
                           accessMode: event.target.value as VariableFormValues['accessMode'],
@@ -185,8 +142,8 @@ export function VariablesEditor({
                     <Button
                       variant="ghost"
                       size="icon"
-                      title={t('gateway.form.removeVariable')}
-                      aria-label={t('gateway.form.removeVariable')}
+                      title={t('gateway.variable.remove')}
+                      aria-label={t('gateway.variable.remove')}
                       onClick={() => onRemove(index)}
                       disabled={variables.length <= 1}
                     >
@@ -199,12 +156,12 @@ export function VariablesEditor({
           </TBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" size="sm" onClick={onAdd} icon={<Plus className="size-3.5" />}>
-          {t('gateway.form.addVariable')}
+          {t('gateway.variable.add')}
         </Button>
-        {variables.length === 0 ? (
-          <p className="text-xs text-danger">{t('gateway.form.emptyVariables')}</p>
+        {description ? (
+          <p className="text-[11px] text-faint">{description}</p>
         ) : null}
       </div>
       {errors.variables ? <p className="text-xs text-danger">{errors.variables}</p> : null}

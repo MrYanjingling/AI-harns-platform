@@ -30,21 +30,21 @@ export function Sidebar({
   if (!section) return null
 
   return (
-    <nav className="flex h-full flex-col overflow-y-auto py-1" aria-label={t(section.labelKey)}>
+    <nav className="flex h-full flex-col overflow-y-auto py-1.5" aria-label={t(section.labelKey)}>
       {section.groups.map((group, index) => {
         const key = groupKey(section, group, index)
         const open = !collapsed[key]
 
         if (!group.labelKey) {
           return (
-            <div key={key} className="py-0.5">
+            <div key={key} className="px-2 py-0.5">
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.end}
                   onClick={onNavigate}
-                  className={({ isActive }) => cn(navLeafClass(isActive, false), 'flex items-center gap-2')}
+                  className={({ isActive }) => navLeafClass(isActive, false)}
                 >
                   {item.icon ? <NavIcon>{item.icon}</NavIcon> : null}
                   {t(item.labelKey)}
@@ -55,32 +55,30 @@ export function Sidebar({
         }
 
         return (
-          <div key={key} className="py-0.5">
+          <div key={key} className="px-2 py-0.5">
             <button
               type="button"
               onClick={() => toggle(key)}
               aria-expanded={open}
-              className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-fg transition-colors hover:bg-surface-2"
+              className="flex w-full items-center justify-between rounded-sm px-2 py-2 text-xs font-medium text-faint transition-colors hover:text-fg"
             >
               <span>{t(group.labelKey)}</span>
               <ChevronDown
                 className={cn(
-                  'size-3.5 text-faint transition-transform',
+                  'size-3.5 transition-transform duration-150',
                   open ? 'rotate-0' : '-rotate-90',
                 )}
               />
             </button>
             {open ? (
-              <div>
+              <div className="animate-fade-up">
                 {group.items.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.end}
                     onClick={onNavigate}
-                    className={({ isActive }) =>
-                      cn(navLeafClass(isActive, true), 'flex items-center gap-2')
-                    }
+                    className={({ isActive }) => navLeafClass(isActive, true)}
                   >
                     {item.icon ? <NavIcon>{item.icon}</NavIcon> : null}
                     {t(item.labelKey)}

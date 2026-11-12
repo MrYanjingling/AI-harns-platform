@@ -1,16 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell, NotFoundPage, useI18n } from '@harns/core'
-import {
-  LoginPage,
-  PlatformAccountMenu,
-  RequireAuth,
-  createPlatformNav,
-  platformRoutes,
-} from '@harns/platform-ui'
-import { createGatewayNav, gatewayRoutes } from '@harns/gateway-ui'
+import { LoginPage, PlatformAccountMenu, RequireAuth, createPlatformNav, platformRoutes } from '@harns/platform-ui'
 
-/** 主应用合并两个子应用的一级导航:平台管理 / 网关管理。 */
-const sections = [...createPlatformNav('/platform'), ...createGatewayNav('/gateway')]
+/** 主应用装配平台子应用的导航。 */
+const sections = createPlatformNav('/platform')
 
 function HostShell() {
   const { t } = useI18n()
@@ -39,7 +32,6 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/platform" replace /> },
       { path: 'platform', children: platformRoutes },
-      { path: 'gateway', children: gatewayRoutes },
       { path: '*', element: <NotFoundPage homeTo="/platform" /> },
     ],
   },

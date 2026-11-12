@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "AI-harns-platform 前端工作区:主应用 + platform / gateway 子应用 + 公共核心库",
+  "description": "AI-harns-platform 前端工作区:主应用 + platform 子应用 + 独立 gateway 应用 + 公共核心库",
   "engines": {
     "node": ">=20"
   },

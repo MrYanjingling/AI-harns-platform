@@ -74,7 +74,7 @@ define PACKAGE_HELP_INFO
 #   UI_BUILD: Set to 0 to skip the frontend build and package an existing
 #     ui/<module>/dist when present. Default: 1.
 #   UI_MODULES: UI modules to include. Default: host (主应用)。
-#     子应用单独打包示例: make package UI_MODULES="platform-ui gateway-ui"
+#     前端模块单独打包示例: make package UI_MODULES="platform-ui gateway-ui"
 #
 # Example:
 #   make package

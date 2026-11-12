@@ -1,10 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { handlePlatform } from '../../platform-ui/mock/platform'
-import { handleGateway } from '../../gateway-ui/mock/gateway'
-import { send } from '../../gateway-ui/mock/utils'
+import { send } from '../../platform-ui/mock/utils'
 
-/** 主应用开发期 mock:同一 /api/v1 前缀下分派到平台与网关两套内存 API。 */
+/** 主应用开发期 mock:平台内存 API。 */
 
 const PREFIX = '/api/v1'
 const LATENCY_MS = 120
@@ -22,12 +21,9 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolea
   const pathname = url.pathname.slice(PREFIX.length) || '/'
 
   if (
-    pathname.startsWith('/auth/') ||
-    pathname === '/iot' ||
-    pathname.startsWith('/iot/')
+    (pathname.startsWith('/auth/') || pathname === '/iot' || pathname.startsWith('/iot/')) &&
+    (await handlePlatform(req, res, method, pathname, url.searchParams))
   ) {
-    if (await handlePlatform(req, res, method, pathname, url.searchParams)) return true
-  } else if (await handleGateway(req, res, method, pathname, url.searchParams)) {
     return true
   }
 

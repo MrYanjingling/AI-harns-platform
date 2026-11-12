@@ -1,40 +1,66 @@
+import { createElement } from 'react'
+import {
+  Activity,
+  Cpu,
+  LayoutDashboard,
+  Radio,
+  ScrollText,
+  Send,
+} from 'lucide-react'
 import type { NavSection } from '@harns/core'
 
-/** 网关子应用的侧边栏结构;五个菜单对应 pkg/gateway 的能力。 */
-export function createGatewayNav(base = '/gateway'): NavSection[] {
+function icon(component: typeof LayoutDashboard) {
+  return createElement(component, { className: 'size-4' })
+}
+
+/** 网关应用的侧边栏;六个菜单覆盖采集、推送、驱动、日志与资源。 */
+export function createGatewayNav(base = ''): NavSection[] {
   return [
     {
       key: 'gateway',
       labelKey: 'gateway.nav.section',
-      entry: `${base}/collection`,
-      prefixes: [base],
+      icon: icon(LayoutDashboard),
+      entry: `${base}/overview`,
+      prefixes: [base || '/'],
       groups: [
         {
           items: [
             {
-              to: `${base}/subscriptions`,
-              labelKey: 'gateway.nav.subscriptions',
-              hintKey: 'gateway.nav.subscriptionsHint',
+              to: `${base}/overview`,
+              labelKey: 'gateway.nav.overview',
+              hintKey: 'gateway.nav.overviewHint',
+              icon: icon(LayoutDashboard),
+              end: true,
             },
             {
-              to: `${base}/collection`,
+              to: `${base}/collections`,
               labelKey: 'gateway.nav.collection',
               hintKey: 'gateway.nav.collectionHint',
+              icon: icon(Radio),
             },
             {
-              to: `${base}/plugins`,
-              labelKey: 'gateway.nav.plugins',
-              hintKey: 'gateway.nav.pluginsHint',
+              to: `${base}/push`,
+              labelKey: 'gateway.nav.push',
+              hintKey: 'gateway.nav.pushHint',
+              icon: icon(Send),
+            },
+            {
+              to: `${base}/drivers`,
+              labelKey: 'gateway.nav.drivers',
+              hintKey: 'gateway.nav.driversHint',
+              icon: icon(Cpu),
             },
             {
               to: `${base}/logs`,
               labelKey: 'gateway.nav.logs',
               hintKey: 'gateway.nav.logsHint',
+              icon: icon(ScrollText),
             },
             {
               to: `${base}/performance`,
               labelKey: 'gateway.nav.performance',
               hintKey: 'gateway.nav.performanceHint',
+              icon: icon(Activity),
             },
           ],
         },

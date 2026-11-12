@@ -35,7 +35,7 @@ ui/
 │   ├── providers/      # AuthProvider
 │   ├── i18n/           # 平台字典
 │   └── features/       # auth/dashboard/thing-models/things/identity/audit
-├── gateway-ui/src/     # 网关子应用
+├── gateway-ui/src/     # 独立网关应用
 │   ├── api/            # 网关契约类型与 hooks
 │   ├── lib/            # 设备表单、协议常量、操作日志
 │   ├── i18n/           # 网关字典
@@ -43,17 +43,26 @@ ui/
 └── pnpm-workspace.yaml
 ```
 
-- `core` 禁止出现业务概念（设备、物模型、用户、审计等）。业务常量、接口类型、页面放各自子应用。
+- `core` 禁止出现业务概念（设备、物模型、用户、审计等）。业务常量、接口类型、页面放各自应用。
 - 依赖方向：`features → api/lib → @harns/core`；禁止 `features` 之间互相导入。
-- `platform-ui` 与 `gateway-ui` 不得互相导入；跨子应用共享的代码先抽到 `@harns/core`。
+- `platform-ui` 与 `gateway-ui` 不得互相导入；跨应用共享的代码先抽到 `@harns/core`。
 
-## 子应用组合契约
+## 应用组合契约
+
+### platform-ui（由 host 构建期组合）
 
 - 子应用只通过 `app.d.ts` 暴露稳定接口（路由、导航段、字典、认证组件）。主应用类型检查只读 `app.d.ts`。
 - 子应用的 `src/app.tsx` 必须与 `app.d.ts` 同步；新增公开能力时同时改两处。
 - 子应用内部继续用 `@/` 指向自己的 `src/`；host 的 Vite 插件按 importer 解析，不要在主应用里手写子应用源码的相对路径。
 - 路由使用相对路径，标题放在 `handle.titleKey`；导航用 `createXxxNav(base)` 返回 `NavSection[]`，由 host 拼接。
 - 子应用保持可独立启动：`src/main.tsx` + 自带 AppShell。不要把 `BrowserRouter` 写进可复用组件。
+
+### gateway-ui（独立应用）
+
+- 自带 `index.html`、`src/main.tsx`、路由、导航与 i18n 注册，`pnpm dev:gateway` 独立启动；不向 host 暴露 `app.d.ts`。
+- 路由部署在站点根路径，构建产物由 `cmd/gateway` 直接托管（`etc/gateway/config.yaml` 的 `ui-dir`）。
+- 只通过 `@harns/core` 与 host、platform-ui 共享公共代码；不得从 host 或 platform-ui 导入业务代码。
+- 不要把 `BrowserRouter` 写进可复用组件；入口统一在 `src/main.tsx` 装配 `AppShell`。
 
 ## 登录态
 
@@ -69,7 +78,7 @@ ui/
   - `service` 为 `'gateway'` 或 `'platform'`。网关服务基址默认 `/api/v1`，平台服务基址由 `VITE_PLATFORM_BASE` 决定（默认 `/api/v1`），由 Vite proxy 或生产反向代理分流。
   - 错误统一抛 `ApiError`，展示时用 `errorMessage(error)`。
   - 上传图片用 `request('platform', path, { formData })`，不要手写 multipart 头。
-- 后端契约类型集中在各子应用的 `src/api/types.ts`；改类型前核对 `apis/` 与 Go 源码，不在组件里临时声明接口。
+- 后端契约类型集中在各应用的 `src/api/types.ts`；改类型前核对 `apis/` 与 Go 源码，不在组件里临时声明接口。
 - Query key 集中定义在 `src/api/query-keys.ts`；组件中禁止手写 key 数组。
 - 每个接口一个函数（`src/api/*.ts`），每个接口一个 hook（`src/api/hooks.ts`）：
   - 网关设备列表 10s 轮询、详情 5s；平台物列表 10s、详情 5s；其余查询按需配置。
@@ -82,7 +91,7 @@ ui/
 ## 组件
 
 - `@harns/core` 的 `components/ui` 只放通用原语；`components/shared` 放跨应用组件；`components/layout` 放 AppShell、导航与账户菜单。
-- 跨两个以上页面复用的业务组件放对应子应用的 `components/shared`；只服务单一页面的放 `features`。
+- 跨两个以上页面复用的业务组件放对应应用的 `components/shared`；只服务单一页面的放 `features`。
 - 复用现有视觉语义：卡片 `rounded-2xl border border-border bg-surface`，主色 `text-primary`，弱文本 `text-muted/faint`，数字用 `tabular`。
 - 颜色只引用 `core/src/styles.css` 中的语义令牌（`bg-surface`、`border-border`、`text-danger` 等）；不写死 zinc/emerald 调色板（状态徽标等既有例外除外）。
 - 弹窗使用原生 `<dialog>`（`core` 的 `Dialog.tsx`），自带焦点陷阱；危险操作使用 `ConfirmDialog`。
@@ -100,7 +109,7 @@ ui/
 
 - `VITE_USE_MOCK=true` 时启用各应用 `mock/`，同时不注册 Vite proxy。
 - mock 是**有状态**的：创建/更新/删除都会改变内存数据并递增版本号；刷新页面重置。
-- `host/mock/index.ts` 在同一个 `/api/v1` 前缀下分派到平台与网关两套 handler；新增子应用 mock 时在此挂载。
+- `host/mock/index.ts` 承载平台接口；网关 mock 由 `gateway-ui/vite.config.ts` 通过 `mockApiPlugin` 自行挂载；新增 mock 时在对应应用内注册。
 - 平台接口在 `platform-ui/mock/platform.ts`；网关接口在 `gateway-ui/mock/gateway.ts`。
 - 新接口必须同时实现 mock 路由；未实现的 `/api/v1/*` 显式返回 404，避免误判为真实后端。
 - mock 响应形状必须与 Go 一致，尤其外层 `{code,message,data}`、`eTag`、`cpus/mem/disk`、`Total/Used/UsedPercent` 与平台分页结构。
@@ -118,7 +127,7 @@ ui/
 - 界面文案只支持 `zh-CN` / `en-US`，默认 `zh-CN`；语言持久化到 `localStorage['harns-locale']`，切换时同步 `<html lang>`，并随请求发送 `Accept-Language`。
 - 组件内使用 `useI18n()` 的 `t(key, vars?)`；非组件模块使用 `translate(key, vars?)`。禁止在 JSX、toast、校验提示里硬编码中英文。
 - 字典放各应用 `src/i18n/messages/<domain>.ts`，用 `defineMessages` 并排维护；key 以域名为前缀（如 `things.title`），两种语言的 key 必须完全一致，缺键会在 `pnpm typecheck` 报错。
-- host 用 `registerMessages(mergeMessages(coreMessages, platformMessages, gatewayMessages))` 合并字典；新增子应用时同步注册。
+- host 用 `registerMessages(mergeMessages(coreMessages, platformMessages))` 合并字典；gateway-ui 在自己的 `main.tsx` 注册 `coreMessages + gatewayMessages`；新增应用时在各自入口注册。
 - 插值用 `{name}`；带数量的文案提供 `xxx.one` / `xxx.other` 两个 key，由 `t` 按 `count` 自动选择。
 - 状态、协议、审计动作等枚举的展示文案存 `labelKey` / `descriptionKey`，在渲染处 `t(...)`；技术名称（Modbus、OPC UA、S7、bool 等）不翻译。
 - zod 校验消息通过 `createXxxSchema(t)` 工厂构建，表单内用 `useMemo` 缓存；不要在模块顶层固化某一种语言。

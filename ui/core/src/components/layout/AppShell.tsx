@@ -63,7 +63,7 @@ export function AppShell({
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       <TechBackdrop />
-      <header className="relative z-10 flex h-11 shrink-0 items-center bg-header text-header-fg">
+      <header className="relative z-30 flex h-12 shrink-0 items-center bg-header header-gradient text-header-fg">
         <Button
           variant="ghost"
           size="icon"
@@ -76,12 +76,12 @@ export function AppShell({
 
         <Link to={homeTo} className="flex shrink-0 items-center pl-3 lg:pl-4">
           <span className="mr-2 text-lg font-bold tracking-wide">{brand}</span>
-          <span className="hidden text-sm text-header-muted sm:inline">{appName}</span>
+          <span className="hidden text-xs text-header-muted sm:inline">{appName}</span>
         </Link>
 
         {sections.length > 1 ? (
           <nav
-            className="ml-4 hidden h-full items-stretch lg:flex"
+            className="ml-3 hidden h-full items-stretch lg:flex"
             aria-label={t('layout.shell.primaryNav')}
           >
             {sections.map((item) => (
@@ -89,19 +89,20 @@ export function AppShell({
                 key={item.key}
                 to={item.entry}
                 className={cn(
-                  'flex items-center px-4 text-sm transition-colors',
+                  'flex items-center gap-1.5 px-3.5 text-sm transition-colors',
                   item.key === section.key
                     ? 'bg-primary font-medium text-primary-fg'
                     : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
                 )}
               >
+                {item.icon ? <span className="flex size-4 items-center justify-center">{item.icon}</span> : null}
                 {t(item.labelKey)}
               </Link>
             ))}
           </nav>
         ) : null}
 
-        <div className="ml-auto flex items-center gap-1 pr-3 sm:pr-4">
+        <div className="ml-auto flex items-center gap-1 pr-2 sm:pr-3">
           {isMock ? (
             <span className="mr-1 hidden rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[11px] text-amber-200 sm:inline">
               {t('layout.shell.mockBadge')}
@@ -113,7 +114,7 @@ export function AppShell({
             onClick={() => setSearchOpen(true)}
             aria-label={t('layout.shell.searchMenu')}
             title={t('layout.shell.searchMenuShortcut')}
-            className="flex size-8 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
+            className="flex size-9 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
           >
             <Search className="size-4" />
           </button>
@@ -123,7 +124,7 @@ export function AppShell({
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1">
-        <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
+        <aside className="hidden w-52 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
           <Sidebar sections={sections} sectionKey={section.key} />
         </aside>
 
@@ -142,12 +143,12 @@ export function AppShell({
           />
           <aside
             className={cn(
-              'absolute inset-y-0 left-0 w-64 border-r border-border bg-surface shadow-2xl transition-transform duration-200',
+              'absolute inset-y-0 left-0 w-60 border-r border-border bg-surface shadow-2xl transition-transform duration-200 ease-out',
               mobileOpen ? 'translate-x-0' : '-translate-x-full',
             )}
           >
             <div className="flex h-full flex-col">
-              <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
+              <div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
                 <span className="text-sm font-semibold tracking-wide">
                   {t('layout.shell.mobileBrand')}
                 </span>

@@ -21,7 +21,7 @@ import './index.css'
 
 registerMessages(mergeMessages(coreMessages, gatewayMessages))
 
-const sections = createGatewayNav('/gateway')
+const sections = createGatewayNav()
 
 const router = createBrowserRouter([
   {
@@ -30,14 +30,11 @@ const router = createBrowserRouter([
       <AppShell
         sections={sections}
         appName="AI-harns-gateway"
-        homeTo="/gateway/collection"
+        homeTo="/overview"
         accountMenu={<AccountMenu />}
       />
     ),
-    children: [
-      { index: true, element: <Navigate to="/gateway/collection" replace /> },
-      { path: 'gateway', children: gatewayRoutes },
-    ],
+    children: [{ index: true, element: <Navigate to="/overview" replace /> }, ...gatewayRoutes],
   },
 ])
 

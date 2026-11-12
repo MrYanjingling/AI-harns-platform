@@ -13,11 +13,10 @@ import {
   useTheme,
 } from '@harns/core'
 import { AuthProvider, platformMessages } from '@harns/platform-ui'
-import { gatewayMessages } from '@harns/gateway-ui'
 import { router } from './routes'
 import './index.css'
 
-registerMessages(mergeMessages(coreMessages, platformMessages, gatewayMessages))
+registerMessages(mergeMessages(coreMessages, platformMessages))
 
 function AppToaster() {
   const { theme } = useTheme()

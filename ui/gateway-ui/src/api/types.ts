@@ -1,14 +1,18 @@
 /* ============================================================
- * 网关后端契约类型 — 对应 pkg/gateway/runtime、pkg/gateway/v1
- * 以及 pkg/gateway/{device,gateway}/server.go。
- * 注意:网关与平台一样返回 {code,message,data} 信封。
+ * 网关后端契约类型 — 对应 pkg/gateway/{collectionmgr,drivermgr,pushmgr}
+ * 以及 pkg/gateway/{gateway,server}.go。
+ * 网关与平台一样返回 {code,message,data} 信封;分页结构同平台。
  * ============================================================ */
 
-export type DeviceType = 'modbus' | 'opcUa' | 's7'
-export type DeviceModel = 'modbusTcp' | 'modbusRtu' | 'modbusRtuOverTcp' | 'opcUa' | 's71500'
-export type AccessMode = 'r' | 'rw'
+export interface PageResp<T> {
+  total: number
+  page: number
+  pageSize: number
+  list: T[]
+}
 
-/** 采集状态,pkg/gateway/runtime/meta.go。 */
+/* ---------------- 采集器 ---------------- */
+
 export type CollectStatus =
   | 'collecting'
   | 'collectingError'
@@ -17,80 +21,186 @@ export type CollectStatus =
   | 'stopped'
   | 'error'
 
-export type DeviceOperator = 'start' | 'stop' | 'restart'
+export type AccessMode = 'r' | 'w' | 'rw'
 
-export interface GatewayDevice {
-  name: string
+export interface Collection {
   id: string
-  /** 后端 ObjectMeta.Version 的 JSON 字段名。 */
-  eTag: string
-  modTime: string
-  topic?: string
-  deviceCode?: string
-  deviceType: DeviceType | string
-  deviceModel: string
+  name: string
+  version: string
+  driverType: string
+  driverModel: string
   collectStatus: CollectStatus | string
+  enable: boolean
+  collectorCycleMs: number
+  modTime: string
 }
 
-export interface GatewayAddressOption {
-  port?: number
-  baudRate?: number
-  dataBits?: number
-  parity?: string
-  stopBits?: string
-  username?: string
-  password?: string
-  rack?: number
-  slot?: number
+export interface CollectionDetail extends Collection {
+  protocolConfig: Record<string, unknown>
 }
 
-export interface GatewayAddress {
-  location: string
-  option?: GatewayAddressOption
-}
-
-export interface GatewayVariable {
+/** 变量定义;创建/新增变量时使用。 */
+export interface CollectionVariableInput {
   name: string
   dataType: string
-  address: number | string
+  address: string
   bits?: number
-  functionCode?: number
-  rate?: number
-  amount?: number
-  namespace?: number
-  defaultValue?: unknown
   accessMode: AccessMode
+  rate?: number
+  offset?: number
+  precision?: number
+  isCalculated?: boolean
+  expression?: string
 }
 
-export interface GatewayDeviceDetail extends GatewayDevice {
-  collectorCycle: number
-  variableInterval?: number
-  address: GatewayAddress
-  variables: GatewayVariable[]
-  /** Modbus 专有 */
-  slave?: number
-  memoryLayout?: string
-  positionAddress?: number
+/** 变量列表响应,额外携带运行时值。 */
+export interface CollectionVariable extends CollectionVariableInput {
+  type?: string
+  value?: unknown
 }
 
-export interface DeviceListResponse {
-  devices: GatewayDeviceDetail[]
-}
-
-/** 写入后端的设备结构;protocol 专有字段按 deviceType 选择。 */
-export interface DevicePayload {
+export interface CollectionPayload {
+  driverType: string
+  driverModel: string
   name: string
-  deviceCode: string
-  deviceType: DeviceType
-  deviceModel: string
-  collectorCycle: number
-  variableInterval?: number
-  topic?: string
-  address: GatewayAddress
-  variables: GatewayVariable[]
-  slave?: number
-  memoryLayout?: string
-  positionAddress?: number
+  collectorCycleMs: number
+  variables?: CollectionVariableInput[]
+  protocolConfig: Record<string, unknown>
+}
+
+export interface AddVariablesResult {
+  added: number
+  variables: CollectionVariableInput[]
+}
+
+export interface CollectionAction {
+  name: string
+  value: string
+}
+
+/* ---------------- 驱动 ---------------- */
+
+export interface DriverFieldOption {
+  value: string
+  labelZh: string
+  labelEn: string
+}
+
+export interface DriverField {
+  name: string
+  labelZh: string
+  labelEn: string
+  regex: string
+  sort: number
+  type: 'input' | 'select'
+  required?: boolean
+  options?: DriverFieldOption[]
+}
+
+export interface VariableAddressSchema {
+  labelZh: string
+  labelEn: string
+  regex?: string
+  placeholderZh?: string
+  placeholderEn?: string
+  descriptionZh?: string
+  descriptionEn?: string
+}
+
+export interface VariableDataType {
+  value: string
+  labelZh: string
+  labelEn: string
+  addressRegex: string
+}
+
+export interface DriverSchema {
+  fields: DriverField[]
+  variableAddress?: VariableAddressSchema
+  variableDataTypes?: VariableDataType[]
+}
+
+export interface Driver {
+  id: string
+  driverType: string
+  model: string
+  builtinDriver: boolean
+  schema: DriverSchema
+  pluginName: string
+  createdTime: string
+}
+
+export interface DriverGroup {
+  driverType: string
+  models: Driver[]
+}
+
+export interface DriverSchemaResponse {
+  driverType: string
+  driverModel: string
+  schema: DriverSchema
+}
+
+export interface DriverPayload {
+  driverType: string
+  model: string
+  schema: DriverSchema
+  pluginName: string
+}
+
+/* ---------------- 推送 ---------------- */
+
+export interface MQTTConfig {
+  brokerUrl: string
+  username?: string
+  password?: string
+  dataTopic: string
+  commandTopic?: string
+  clientId?: string
+  qos?: number
+  retain?: boolean
+  keepAlive?: number
+}
+
+export type ConnectorStatus = 'running' | 'stopped'
+
+export interface PushConnector {
+  id: string
+  type: string
+  name: string
+  pushConfig: MQTTConfig
+  status: ConnectorStatus | string
+  version: number
+  createdTime: string
+  updatedTime: string
+}
+
+export interface PushConnectorPayload {
+  type: string
+  name: string
+  pushConfig: MQTTConfig
+}
+
+export interface PushGroup {
+  id: string
+  name: string
+  connectorId: string
+  pushIntervalMs: number
+  allCollections: boolean
+  collectionIds: string[]
+  maxCollectionsPerPushMessage: number
+  version: number
+  createdTime: string
+  updatedTime: string
+}
+
+export interface PushGroupPayload {
+  name: string
+  connectorId: string
+  pushIntervalMs: number
+  allCollections: boolean
+  collectionIds: string[]
+  maxCollectionsPerPushMessage?: number
 }
 
 /* ---------------- 网关资源 ---------------- */
@@ -126,32 +236,19 @@ export interface GatewayDiskResponse {
   disk?: Record<string, UsageInfo>
 }
 
-/* ---------------- 订阅 / 插件 / 日志(前端派生) ---------------- */
+/* ---------------- 帧报文 ---------------- */
 
-export type SubscriptionSource = 'custom' | 'auto'
-
-export interface SubscriptionView {
-  deviceId: string
-  deviceName: string
-  deviceCode: string
-  deviceType: string
-  deviceModel: string
-  topic: string
-  source: SubscriptionSource
-  status: CollectStatus | string
+export interface FrameEvent {
+  traceId: number
+  time: string
+  operation: string
+  hex: string
+  length: number
+  durationMs?: number
+  error?: string
 }
 
-export type PluginKey = DeviceType
-
-export interface PluginCatalogItem {
-  key: PluginKey
-  name: string
-  models: string[]
-  transports: string[]
-  dataTypes: string[]
-  capabilities: string[]
-  descriptionKey: string
-}
+/* ---------------- 本地日志 ---------------- */
 
 export type OperationAction =
   | 'create'
@@ -161,6 +258,8 @@ export type OperationAction =
   | 'stop'
   | 'restart'
   | 'control'
+  | 'enable'
+  | 'push'
 
 export type OperationResult = 'success' | 'failure'
 
@@ -182,5 +281,5 @@ export interface GatewayLogEntry {
   source: 'event' | 'operation'
   title: string
   message: string
-  deviceId?: string
+  collectionId?: string
 }

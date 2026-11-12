@@ -1,11 +1,5 @@
 import type { MessageKey } from '@harns/core'
-import type {
-  AccessMode,
-  CollectStatus,
-  DeviceModel,
-  DeviceType,
-  PluginCatalogItem,
-} from '@/api/types'
+import type { AccessMode, CollectStatus, ConnectorStatus } from '@/api/types'
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 
@@ -14,77 +8,6 @@ export interface StatusMeta {
   descriptionKey: MessageKey
   tone: StatusTone
   dotClassName: string
-}
-
-export interface DeviceModelMeta {
-  value: DeviceModel
-  /** 技术名称不翻译 */
-  label: string
-  descriptionKey: MessageKey
-}
-
-export interface DeviceTypeMeta {
-  value: DeviceType
-  label: string
-  descriptionKey: MessageKey
-  models: DeviceModelMeta[]
-}
-
-export const DEVICE_TYPES: DeviceTypeMeta[] = [
-  {
-    value: 'modbus',
-    label: 'Modbus',
-    descriptionKey: 'gateway.protocol.modbus.description',
-    models: [
-      {
-        value: 'modbusTcp',
-        label: 'Modbus TCP',
-        descriptionKey: 'gateway.model.modbusTcp.description',
-      },
-      {
-        value: 'modbusRtu',
-        label: 'Modbus RTU',
-        descriptionKey: 'gateway.model.modbusRtu.description',
-      },
-      {
-        value: 'modbusRtuOverTcp',
-        label: 'Modbus RTU over TCP',
-        descriptionKey: 'gateway.model.modbusRtuOverTcp.description',
-      },
-    ],
-  },
-  {
-    value: 'opcUa',
-    label: 'OPC UA',
-    descriptionKey: 'gateway.protocol.opcUa.description',
-    models: [
-      {
-        value: 'opcUa',
-        label: 'OPC UA',
-        descriptionKey: 'gateway.model.opcUa.description',
-      },
-    ],
-  },
-  {
-    value: 's7',
-    label: 'S7',
-    descriptionKey: 'gateway.protocol.s7.description',
-    models: [
-      {
-        value: 's71500',
-        label: 'S7-1500',
-        descriptionKey: 'gateway.model.s71500.description',
-      },
-    ],
-  },
-]
-
-export function deviceTypeMeta(type: string): DeviceTypeMeta | undefined {
-  return DEVICE_TYPES.find((item) => item.value === type)
-}
-
-export function deviceModelMeta(type: string, model: string): DeviceModelMeta | undefined {
-  return deviceTypeMeta(type)?.models.find((item) => item.value === model)
 }
 
 export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
@@ -150,92 +73,96 @@ export function isAbnormalStatus(status: string | undefined): boolean {
   )
 }
 
+export const CONNECTOR_STATUS: Record<ConnectorStatus, StatusMeta> = {
+  running: {
+    labelKey: 'gateway.push.status.running',
+    descriptionKey: 'gateway.push.status.runningHint',
+    tone: 'success',
+    dotClassName: 'bg-emerald-500',
+  },
+  stopped: {
+    labelKey: 'gateway.push.status.stopped',
+    descriptionKey: 'gateway.push.status.stoppedHint',
+    tone: 'neutral',
+    dotClassName: 'bg-zinc-400',
+  },
+}
+
+export function connectorStatusMeta(status: string | undefined): StatusMeta {
+  if (status === 'running' || status === 'stopped') return CONNECTOR_STATUS[status]
+  return UNKNOWN_COLLECT_STATUS
+}
+
 export const ACCESS_MODES: Array<{ value: AccessMode; labelKey: MessageKey }> = [
-  { value: 'r', labelKey: 'gateway.form.accessMode.r' },
-  { value: 'rw', labelKey: 'gateway.form.accessMode.rw' },
+  { value: 'r', labelKey: 'gateway.variable.accessMode.r' },
+  { value: 'w', labelKey: 'gateway.variable.accessMode.w' },
+  { value: 'rw', labelKey: 'gateway.variable.accessMode.rw' },
 ]
 
-export const MODBUS_DATA_TYPES = [
-  'bool',
-  'int16',
-  'float32',
-  'float64',
-  'int32',
-  'int64',
-  'uint16',
-] as const
-
-export const OPCUA_DATA_TYPES = ['string', 'number'] as const
-
-export const S7_DATA_TYPES = [
-  'bool',
-  'int16',
-  'float32',
-  'float64',
-  'int32',
-  'int64',
-  'uint16',
-] as const
-
-export function dataTypesFor(deviceType: DeviceType | string): readonly string[] {
-  if (deviceType === 'opcUa') return OPCUA_DATA_TYPES
-  if (deviceType === 's7') return S7_DATA_TYPES
-  return MODBUS_DATA_TYPES
+/** 内置驱动类型的技术名称;未知类型原样展示。 */
+const DRIVER_TYPE_LABELS: Record<string, string> = {
+  modbus: 'Modbus',
+  s7: 'S7',
+  opcUa: 'OPC UA',
 }
 
-export const BAUD_RATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200] as const
-export const DATA_BITS = [5, 6, 7, 8] as const
-export const PARITIES = ['noParity', 'oddParity', 'evenParity', 'markParity', 'spaceParity'] as const
-export const STOP_BITS = ['1', '1.5', '2'] as const
-export const MEMORY_LAYOUTS = ['ABCD', 'BADC', 'CDAB', 'DCBA'] as const
-export const FUNCTION_CODES = [1, 2, 3, 4] as const
-
-export const SERIAL_MODELS: readonly string[] = ['modbusRtu']
-
-export function usesSerial(deviceModel: string): boolean {
-  return SERIAL_MODELS.includes(deviceModel)
+const DRIVER_MODEL_LABELS: Record<string, string> = {
+  modbusTcp: 'Modbus TCP',
+  modbusRtu: 'Modbus RTU',
+  modbusRtuOverTcp: 'Modbus RTU over TCP',
+  opcUa: 'OPC UA',
+  s71500: 'S7-1500',
+  's7-200': 'S7-200',
 }
 
-/** 内置协议插件目录;后端通过 registry.DeviceTypeMap 注册,前端只读展示。 */
-export const PLUGIN_CATALOG: PluginCatalogItem[] = [
-  {
-    key: 'modbus',
-    name: 'Modbus',
-    models: ['modbusTcp', 'modbusRtu', 'modbusRtuOverTcp'],
-    transports: ['TCP', 'RTU', 'RTU over TCP'],
-    dataTypes: [...MODBUS_DATA_TYPES],
-    capabilities: [
-      'gateway.plugins.capability.read',
-      'gateway.plugins.capability.write',
-      'gateway.plugins.capability.cycle',
-    ],
-    descriptionKey: 'gateway.protocol.modbus.description',
-  },
-  {
-    key: 'opcUa',
-    name: 'OPC UA',
-    models: ['opcUa'],
-    transports: ['TCP'],
-    dataTypes: [...OPCUA_DATA_TYPES],
-    capabilities: ['gateway.plugins.capability.read', 'gateway.plugins.capability.cycle'],
-    descriptionKey: 'gateway.protocol.opcUa.description',
-  },
-  {
-    key: 's7',
-    name: 'S7',
-    models: ['s71500'],
-    transports: ['TCP'],
-    dataTypes: [...S7_DATA_TYPES],
-    capabilities: [
-      'gateway.plugins.capability.read',
-      'gateway.plugins.capability.write',
-      'gateway.plugins.capability.cycle',
-    ],
-    descriptionKey: 'gateway.protocol.s7.description',
-  },
-]
+export function driverTypeLabel(type: string): string {
+  return DRIVER_TYPE_LABELS[type] ?? type
+}
 
-/** 网关 MQTT 发布 topic 规则,与 pkg/gateway/device/manager.go 一致。 */
-export function defaultTopic(gatewayId: string, deviceId: string): string {
-  return `data/${gatewayId}/v1/${deviceId}`
+export function driverModelLabel(model: string): string {
+  return DRIVER_MODEL_LABELS[model] ?? model
+}
+
+/**
+ * 驱动 Schema 的协议字段均以字符串编辑,但后端结构体要求数字。
+ * 这些字段在提交前转换为数字;localTsap/remoteTsap 支持 0x 前缀。
+ */
+export const NUMERIC_PROTOCOL_FIELDS = new Set([
+  'positionAddress',
+  'tcpCount',
+  'baudRate',
+  'dataBits',
+  'port',
+  'rack',
+  'slot',
+  'pduSize',
+  'connectionType',
+  'localTsap',
+  'remoteTsap',
+])
+
+export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])
+
+/** OPC UA 详情会脱敏密码;编辑时保留原值而不回写。 */
+export const REDACTED_VALUE = '***'
+
+export function toProtocolValue(name: string, raw: string): string | number | undefined {
+  const value = raw.trim()
+  if (value === '') return undefined
+  if (HEX_PROTOCOL_FIELDS.has(name)) {
+    const parsed = Number.parseInt(value, value.toLowerCase().startsWith('0x') ? 16 : 10)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  if (NUMERIC_PROTOCOL_FIELDS.has(name)) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : value
+  }
+  return value
+}
+
+/** 采集周期以毫秒存储,界面按秒展示(支持小数)。 */
+export function formatCycle(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '—'
+  const seconds = ms / 1000
+  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`
 }

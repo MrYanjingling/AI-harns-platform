@@ -3,15 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "AI-harns-platform 网关子应用",
-  "exports": {
-    ".": {
-      "types": "./app.d.ts",
-      "import": "./src/app.tsx",
-      "default": "./src/app.tsx"
-    }
-  },
-  "types": "./app.d.ts",
+  "description": "AI-harns-platform 网关管理应用(独立运行)",
   "engines": {
     "node": ">=20"
   },

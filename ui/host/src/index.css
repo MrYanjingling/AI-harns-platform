@@ -1,5 +1,4 @@
 @import "../../core/src/styles.css";
 @source "../../core/src";
 @source "../../platform-ui/src";
-@source "../../gateway-ui/src";
 @source "./src";

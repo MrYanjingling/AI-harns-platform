@@ -32,7 +32,7 @@ export function Tabs<T extends string>({
           aria-selected={value === item.value}
           onClick={() => onChange(item.value)}
           className={cn(
-            'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
             value === item.value
               ? 'bg-surface text-fg shadow-sm'
               : 'text-muted hover:text-fg',

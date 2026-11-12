@@ -19,6 +19,8 @@ export interface NavGroup {
 export interface NavSection {
   key: string
   labelKey: string
+  /** 顶栏一级导航图标 */
+  icon?: ReactNode
   /** 顶栏点击后进入的默认页面 */
   entry: string
   /** 用于判断当前路径属于哪个一级导航 */

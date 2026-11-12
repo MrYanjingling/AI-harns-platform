@@ -1,19 +1,12 @@
-import { useI18n } from '@harns/core'
-import { deviceModelMeta, deviceTypeMeta } from '@/lib/constants'
+import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 
-/** 协议与型号:技术名称按原样展示,描述走字典。 */
+/** 协议与型号:技术名称按原样展示,不做翻译。 */
 export function ProtocolLabel({ type, model }: { type: string; model: string }) {
-  const { t } = useI18n()
-  const typeMeta = deviceTypeMeta(type)
-  const modelMeta = deviceModelMeta(type, model)
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm text-fg">{typeMeta?.label ?? (type || '—')}</p>
-      <p
-        className="truncate text-xs text-faint"
-        title={modelMeta ? t(modelMeta.descriptionKey) : model}
-      >
-        {modelMeta?.label ?? (model || '—')}
+      <p className="truncate text-[13px] text-fg">{driverTypeLabel(type) || '—'}</p>
+      <p className="truncate text-[11px] text-faint" title={model}>
+        {driverModelLabel(model) || '—'}
       </p>
     </div>
   )

@@ -143,9 +143,6 @@ importers:
       '@harns/core':
         specifier: workspace:*
         version: link:../core
-      '@harns/gateway-ui':
-        specifier: workspace:*
-        version: link:../gateway-ui
       '@harns/platform-ui':
         specifier: workspace:*
         version: link:../platform-ui

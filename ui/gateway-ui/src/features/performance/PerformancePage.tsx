@@ -53,7 +53,7 @@ function Sparkline({ samples }: { samples: Sample[] }) {
   if (samples.length < 2) return null
 
   return (
-    <svg viewBox="0 0 300 80" preserveAspectRatio="none" className="h-24 w-full" aria-hidden="true">
+    <svg viewBox="0 0 300 80" preserveAspectRatio="none" className="h-20 w-full" aria-hidden="true">
       <defs>
         <linearGradient id="gateway-cpu-fill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" />
@@ -114,7 +114,7 @@ export function PerformancePage() {
   const metaData = meta.data
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={t('gateway.performance.title')}
         description={t('gateway.performance.description')}
@@ -135,7 +135,7 @@ export function PerformancePage() {
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_60%)] opacity-70"
         />
-        <div className="relative flex flex-col gap-5 p-5 md:flex-row md:items-start md:justify-between">
+        <div className="relative flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={meta.isError ? 'danger' : 'success'} dot>
@@ -165,7 +165,7 @@ export function PerformancePage() {
             )}
           </div>
 
-          <div className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3 text-xs md:min-w-80">
+          <div className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3 text-xs md:min-w-72">
             <div>
               <p className="text-faint">{t('gateway.performance.field.version')}</p>
               <p className="mt-1 font-mono text-fg">{metaData?.eTag ?? '—'}</p>
@@ -214,7 +214,7 @@ export function PerformancePage() {
         </div>
       </Card>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-2.5 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <div>
@@ -241,7 +241,7 @@ export function PerformancePage() {
                         key={gauge.key}
                         value={value}
                         label={t(gauge.labelKey)}
-                        size={84}
+                        size={78}
                         strokeWidth={7}
                         tone={toneForPercent(value)}
                       />
@@ -283,7 +283,7 @@ export function PerformancePage() {
                 <GaugeRing
                   value={percentValue(memData.UsedPercent)}
                   label={`${memData.Used} / ${memData.Total}`}
-                  size={112}
+                  size={100}
                   tone={toneForPercent(percentValue(memData.UsedPercent))}
                 />
                 <div className="grid w-full grid-cols-3 gap-2 text-center text-xs">

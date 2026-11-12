@@ -18,20 +18,20 @@ export function StatCard({
   footer?: ReactNode
 }) {
   return (
-    <Card className={cn('p-5', className)}>
+    <Card className={cn('group p-4 transition-colors hover:border-border-strong', className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight tabular">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-faint">{hint}</p> : null}
+          <p className="text-[11px] font-medium text-muted">{label}</p>
+          <p className="mt-1.5 text-xl font-semibold tracking-tight tabular">{value}</p>
+          {hint ? <p className="mt-0.5 text-[11px] text-faint">{hint}</p> : null}
         </div>
         {icon ? (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-muted">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-muted transition-colors group-hover:text-primary">
             {icon}
           </div>
         ) : null}
       </div>
-      {footer ? <div className="mt-4">{footer}</div> : null}
+      {footer ? <div className="mt-3">{footer}</div> : null}
     </Card>
   )
 }
