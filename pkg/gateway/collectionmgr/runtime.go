@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -208,6 +209,23 @@ func (m *RuntimeManager) SnapshotVariables(id string) []*collection.Variable {
 		return nil
 	}
 	return runtime.Collector.GetCollectionMeta().SnapshotVariables()
+}
+
+// IDs returns the currently loaded collection IDs.
+func (m *RuntimeManager) IDs() []string {
+	if m == nil {
+		return nil
+	}
+	ids := make([]string, 0)
+	m.collections.Range(func(key, _ interface{}) bool {
+		id, ok := key.(string)
+		if ok {
+			ids = append(ids, id)
+		}
+		return true
+	})
+	sort.Strings(ids)
+	return ids
 }
 
 // Status returns the live collection status.

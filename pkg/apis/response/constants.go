@@ -73,6 +73,12 @@ const (
 	ErrCodeCollectionNotFound            // 20005
 	ErrCodeCollectionConflict            // 20006
 	ErrCodeCollectionInvalid             // 20007
+	ErrCodePushConnectorNotFound         // 20008
+	ErrCodePushConnectorConflict         // 20009
+	ErrCodePushConnectorInvalid          // 20010
+	ErrCodePushGroupNotFound             // 20011
+	ErrCodePushGroupConflict             // 20012
+	ErrCodePushGroupInvalid              // 20013
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

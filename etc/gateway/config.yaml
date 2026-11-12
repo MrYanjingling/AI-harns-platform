@@ -19,14 +19,6 @@ max-body-bytes: 10485760
 sqlite:
   path: "data/gateway.db"
 
-# MQTT settings are read from this file only; they are not exposed as CLI flags.
-# MQTT broker urls. Scheme must be one of "tcp", "ssl" or "ws".
-mqtt-broker-urls:
-  - tcp://127.0.0.1:1883
-
-mqtt-username: ""
-mqtt-password: ""
-
 # TLS certificates. Leave both empty to serve plain HTTP.
 cert-file: ""
 key-file: ""

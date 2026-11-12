@@ -69,6 +69,12 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeCollectionNotFound:         "error.collection_not_found",
 	ErrCodeCollectionConflict:         "error.collection_conflict",
 	ErrCodeCollectionInvalid:          "error.collection_invalid",
+	ErrCodePushConnectorNotFound:      "error.push_connector_not_found",
+	ErrCodePushConnectorConflict:      "error.push_connector_conflict",
+	ErrCodePushConnectorInvalid:       "error.push_connector_invalid",
+	ErrCodePushGroupNotFound:          "error.push_group_not_found",
+	ErrCodePushGroupConflict:          "error.push_group_conflict",
+	ErrCodePushGroupInvalid:           "error.push_group_invalid",
 }
 
 func messageID(code ErrCode) string {

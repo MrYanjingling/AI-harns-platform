@@ -460,3 +460,33 @@ func ErrCollectionConflict(value string) *responseError {
 func ErrCollectionInvalid() *responseError {
 	return generateError(ErrCodeCollectionInvalid)
 }
+
+// ErrPushConnectorNotFound reports that a push connector does not exist.
+func ErrPushConnectorNotFound(id string) *responseError {
+	return generateError(ErrCodePushConnectorNotFound, id)
+}
+
+// ErrPushConnectorConflict reports that a push connector is still referenced.
+func ErrPushConnectorConflict(value string) *responseError {
+	return generateError(ErrCodePushConnectorConflict, value)
+}
+
+// ErrPushConnectorInvalid reports invalid push connector metadata.
+func ErrPushConnectorInvalid() *responseError {
+	return generateError(ErrCodePushConnectorInvalid)
+}
+
+// ErrPushGroupNotFound reports that a push group does not exist.
+func ErrPushGroupNotFound(id string) *responseError {
+	return generateError(ErrCodePushGroupNotFound, id)
+}
+
+// ErrPushGroupConflict reports a push group conflict.
+func ErrPushGroupConflict(value string) *responseError {
+	return generateError(ErrCodePushGroupConflict, value)
+}
+
+// ErrPushGroupInvalid reports invalid push group metadata.
+func ErrPushGroupInvalid() *responseError {
+	return generateError(ErrCodePushGroupInvalid)
+}

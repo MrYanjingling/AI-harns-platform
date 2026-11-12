@@ -7,6 +7,7 @@ import (
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
+	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/generic"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 	GatewayMgr    *gateway.Manager
 	DriverMgr     *drivermgr.Service
 	CollectionMgr *collectionmgr.Service
+	PushMgr       *pushmgr.Service
 	DB            *sql.DB
 	CertFile      string
 	KeyFile       string

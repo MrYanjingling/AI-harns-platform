@@ -13,6 +13,7 @@ import (
 	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
+	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
 	"net/http"
@@ -58,6 +59,7 @@ func (s *Server) InstallHandlers() {
 	gateway.InstallHandler(v1, s.Config.GatewayMgr)
 	drivermgr.InstallHandler(v1, s.Config.DriverMgr)
 	collectionmgr.InstallHandler(v1, s.Config.CollectionMgr)
+	pushmgr.InstallHandler(v1, s.Config.PushMgr)
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {
@@ -109,6 +111,9 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 			if err := s.Config.DeviceMgr.Shutdown(ctx); err != nil {
 				logging.Error(err)
 			}
+		}
+		if s.Config.PushMgr != nil {
+			s.Config.PushMgr.Close(ctx)
 		}
 		if s.Config.DB != nil {
 			if err := s.Config.DB.Close(); err != nil {

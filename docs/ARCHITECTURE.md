@@ -19,7 +19,7 @@
      Modbus/OPCUA/S7  MQTT          MySQL  Redis MinIO
 ```
 
-- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向以 MQTT 发布数据。驱动、采集器与网关身份状态持久化在 SQLite；`pkg/gateway/storage` 仅保留给旧 device 代码。
+- **gateway**：南向通过 `pkg/gateway/protocol/` 采集 Modbus（TCP/RTU/RTU-over-TCP）、OPC UA、S7-1500/S7-200，北向 MQTT 发布待重新设计。驱动、采集器与网关身份状态持久化在 SQLite；`pkg/gateway/storage` 仅保留给旧 device 代码。
 - **platform**：账号与权限、组织、审计、OpenAPI 文档；认证依赖 Redis 会话与 MinIO 上的 RSA 密钥。
 - **platform-ui**：管理后台，开发期通过 Vite proxy 分流到后端；`VITE_USE_MOCK=true` 时完全走内存 mock。
 
@@ -50,6 +50,7 @@ AI-harns-platform
 │   │   ├── protocol/       modbus、opcua、s7，各自含 model 与 runtime
 │   │   ├── drivermgr/    驱动元数据管理（SQLite，内置驱动种子）
 │   │   ├── collectionmgr/ 采集器 CRUD 与运行时管理（sync.Map、生命周期）
+│   │   ├── pushmgr/       推送连接器、推送组与 MQTT 推送 runtime
 │   │   ├── pluginapi/     Gateway 插件 ABI（当前仅接口）
 │   │   ├── sqlite/         Gateway SQLite 连接与初始化
 │   │   ├── runtime/        设备模型、点位、序列化、校验、常量
@@ -100,10 +101,11 @@ main → app.NewXxxCmd()（cobra + pflag，DisableFlagParsing）
 
 **gateway 的 `Config()`**（`cmd/gateway/options/options.go:74`）：
 
-1. `gateway.NewGatewayManager` 加载/生成网关身份（写入本地存储）。
-2. `device.NewStore` 从存储恢复设备。
-3. 连接 MQTT broker（ClientID 为 `gateway-id-<gatewayId>`），失败即启动失败。
-4. `device.NewManager` 并恢复设备采集。
+1. 打开 SQLite 并初始化 `gateway`、`drivers`、`collections` 表。
+2. `gateway.NewService` 从 SQLite 加载/生成网关身份。
+3. 初始化 driver/collection store 与采集 runtime。
+4. 初始化 push store，加载连接器和推送组，按组创建 MQTT 连接与推送 ticker。
+5. 启动 HTTP 服务；网关启动参数不包含 MQTT broker 配置。
 
 ## 4. HTTP 请求链路
 
@@ -184,6 +186,10 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/collections/:id/enable` | PUT | 启用/禁用采集器 |
 | `/api/v1/collections/:id/frames/requests/stream` | GET | 实时请求报文 SSE |
 | `/api/v1/collections/:id/frames/responses/stream` | GET | 实时响应报文 SSE |
+| `/api/v1/push/connectors` | GET/POST | 推送连接器列表 / 创建 |
+| `/api/v1/push/connectors/:id` | GET/PUT/DELETE | 推送连接器详情 / 更新 / 删除，删除支持 `cascade=true` |
+| `/api/v1/push/groups` | GET/POST | 推送组列表 / 创建 |
+| `/api/v1/push/groups/:id` | GET/PUT/DELETE | 推送组详情 / 更新 / 删除 |
 
 `GET /api/v1/drivers` 默认按 `driverType` 分组，`flat=true` 返回扁平列表；`driverType` 使用不区分大小写的模糊匹配。
 
@@ -229,7 +235,7 @@ HTTP 创建/启动设备
 - 设备 Topic 固定按上述规则生成，创建和更新接口均不接收 `topic`。
 - 采集异常会把设备状态置为 `CollectingError`，连接失败为 `Unconnected`，无点位为 `EmptyVariable`。
 - 反控通过 `PUT /api/v1/devices/:id/action` 进入对应协议实现的写点位逻辑（OPC UA 当前不支持反控）。
-- 网关身份元数据持久化在 SQLite `gateway` 表；旧 device 仍使用 `storage/store_{darwin,linux,windows}.go` 文件存储，但新 gateway 启动流程不再初始化它。
+- 网关身份元数据持久化在 SQLite `gateway` 表；推送连接器和推送组持久化在 `push_connectors`、`push_groups` 表；旧 device 仍使用 `storage/store_{darwin,linux,windows}.go` 文件存储，但新 gateway 启动流程不再初始化它。
 
 ## 6. 数据模型与迁移
 
@@ -244,13 +250,13 @@ HTTP 创建/启动设备
 
 | 文件 | 用途 |
 |---|---|
-| `etc/gateway/config.yaml` | 网关默认配置（端口、MQTT、TLS、CORS、日志） |
+| `etc/gateway/config.yaml` | 网关默认配置（端口、SQLite、TLS、CORS、日志） |
 | `etc/platform/config.yaml` | 平台默认配置（端口、Redis、MySQL、MinIO、安全、CORS、审计） |
 | `etc/platform/config.docker.yaml` | docker compose 使用的容器内配置 |
 
 配置加载优先级：CLI flag > 配置文件 > `NewDefaultOptions`。platform 默认配置路径 `/etc/platform/config.yaml`，gateway 默认配置路径 `/etc/gateway/config.yaml`，均可用 `-c` 覆盖。
 
-gateway 的 MQTT broker、username、password 只从配置文件读取，不提供 CLI flag；其他启动参数与 platform 保持一致（`--port`、`--graceful-timeout`、`--cert-file`、`--key-file`）。
+gateway 启动参数与 platform 保持一致（`--port`、`--graceful-timeout`、`--cert-file`、`--key-file`）；MQTT 参数已从启动配置中移除，待重新设计。
 
 构建与发布：
 
