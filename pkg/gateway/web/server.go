@@ -12,7 +12,6 @@ import (
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collectionmgr"
-	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
@@ -54,7 +53,8 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
 	v1.Use(generic.BodyLimit(s.Config.MaxBodyBytes))
-	device.InstallHandler(v1, s.Config.DeviceMgr)
+	// Legacy device manager endpoints are disabled in favor of collections.
+	// device.InstallHandler(v1, s.Config.DeviceMgr)
 	gateway.InstallHandler(v1, s.Config.GatewayMgr)
 	drivermgr.InstallHandler(v1, s.Config.DriverMgr)
 	collectionmgr.InstallHandler(v1, s.Config.CollectionMgr)
