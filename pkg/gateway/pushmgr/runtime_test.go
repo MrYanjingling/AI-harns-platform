@@ -184,3 +184,33 @@ func TestConnectorStatus(t *testing.T) {
 	assert.Equal(t, ConnectorStatusStopped, runtime.ConnectorStatus("conn-1"))
 	runtime.Close(context.Background())
 }
+
+func TestRuntimeStartStopConnector(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	require.NoError(t, runtime.ReplaceConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)}, true))
+	assert.Equal(t, ConnectorStatusRunning, runtime.ConnectorStatus("conn-1"))
+	require.ErrorIs(t, runtime.StartConnector(context.Background(), "conn-1"), ErrConnectorAlreadyRunning)
+
+	require.NoError(t, runtime.StopConnector(context.Background(), "conn-1"))
+	assert.Equal(t, ConnectorStatusStopped, runtime.ConnectorStatus("conn-1"))
+	require.ErrorIs(t, runtime.StopConnector(context.Background(), "conn-1"), ErrConnectorAlreadyStopped)
+
+	require.NoError(t, runtime.StartConnector(context.Background(), "conn-1"))
+	assert.Equal(t, ConnectorStatusRunning, runtime.ConnectorStatus("conn-1"))
+	runtime.Close(context.Background())
+}
+
+func TestRuntimeConnectFailureStatus(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{connectErr: errors.New("broker unavailable")}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	err = runtime.ReplaceConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)}, true)
+	require.Error(t, err)
+	var startErr *ConnectorStartError
+	require.ErrorAs(t, err, &startErr)
+	assert.Equal(t, ConnectorStatusStopped, runtime.ConnectorStatus("conn-1"))
+}

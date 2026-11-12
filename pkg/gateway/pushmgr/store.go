@@ -4,18 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"harns-platform/pkg/apis"
-)
-
-var (
-	ErrConnectorNotFound = errors.New("push connector not found")
-	ErrConnectorInUse    = errors.New("push connector is in use")
-	ErrGroupNotFound     = errors.New("push group not found")
 )
 
 const pushSchemaSQL = `

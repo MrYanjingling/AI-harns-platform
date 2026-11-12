@@ -181,3 +181,7 @@ validate.push_group_collection_mode_invalid: "allCollections is true, collection
 validate.push_group_collection_required: "collectionIds must not be empty when allCollections is false."
 validate.push_group_collection_not_found: "Collection [%s] not found."
 validate.push_group_max_collections_invalid: "maxCollectionsPerPushMessage must not be negative."
+error.push_connector_already_running: "Push connector [%s] is already running."
+error.push_connector_already_stopped: "Push connector [%s] is already stopped."
+error.push_connector_start_failed: "Push connector start failed: %s."
+error.push_connector_stop_failed: "Push connector stop failed: %s."

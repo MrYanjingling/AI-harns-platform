@@ -116,11 +116,16 @@ func (s *Service) UpdateConnector(ctx context.Context, id string, req *v1.Update
 	item.PushConfig = req.PushConfig
 	item.Version++
 	item.UpdatedTime = time.Now().UTC()
+	wasRunning := s.runtime != nil && s.runtime.ConnectorStatus(id) == ConnectorStatusRunning
 	if err := s.store.UpdateConnector(ctx, item); err != nil {
 		return nil, err
 	}
 	if s.runtime != nil {
-		s.runtime.UpsertConnector(ctx, item)
+		if wasRunning {
+			_ = s.runtime.ReplaceConnector(ctx, item, true)
+		} else {
+			_ = s.runtime.ReplaceConnector(ctx, item, false)
+		}
 	}
 	return s.connectorVO(item), nil
 }
@@ -137,6 +142,44 @@ func (s *Service) DeleteConnector(ctx context.Context, id string, cascade bool) 
 		}
 	}
 	return nil
+}
+
+func (s *Service) StartConnector(ctx context.Context, id string) (string, error) {
+	item, err := s.store.GetConnector(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrConnectorNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if s.runtime == nil {
+		return "", &ConnectorStartError{Reason: "push runtime is not initialized"}
+	}
+	if s.runtime.ConnectorStatus(id) == ConnectorStatusRunning {
+		return ConnectorStatusRunning, ErrConnectorAlreadyRunning
+	}
+	if err := s.runtime.ReplaceConnector(ctx, item, true); err != nil {
+		return ConnectorStatusStopped, err
+	}
+	return ConnectorStatusRunning, nil
+}
+
+func (s *Service) StopConnector(ctx context.Context, id string) (string, error) {
+	if _, err := s.store.GetConnector(ctx, id); errors.Is(err, sql.ErrNoRows) {
+		return "", ErrConnectorNotFound
+	} else if err != nil {
+		return "", err
+	}
+	if s.runtime == nil {
+		return ConnectorStatusStopped, nil
+	}
+	if s.runtime.ConnectorStatus(id) == ConnectorStatusStopped {
+		return ConnectorStatusStopped, ErrConnectorAlreadyStopped
+	}
+	if err := s.runtime.StopConnector(ctx, id); err != nil {
+		return ConnectorStatusStopped, err
+	}
+	return ConnectorStatusStopped, nil
 }
 
 func (s *Service) ListGroups(ctx context.Context, q apis.PageQuery, keyword string) (*apis.PageResp[*v1.PushGroupVo], error) {

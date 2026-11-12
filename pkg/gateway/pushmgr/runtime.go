@@ -80,7 +80,7 @@ func NewRuntimeManager(source CollectionSource, gatewayID string, factories ...C
 
 func (m *RuntimeManager) Start(ctx context.Context, connectors []*ConnectorRecord, groups []*PushGroup) error {
 	for _, connector := range connectors {
-		m.upsertConnector(ctx, connector)
+		m.UpsertConnector(ctx, connector)
 	}
 	for _, group := range groups {
 		m.upsertGroup(group)
@@ -89,22 +89,21 @@ func (m *RuntimeManager) Start(ctx context.Context, connectors []*ConnectorRecor
 }
 
 func (m *RuntimeManager) UpsertConnector(ctx context.Context, record *ConnectorRecord) {
-	m.upsertConnector(ctx, record)
+	_ = m.ReplaceConnector(ctx, record, true)
 }
 
-func (m *RuntimeManager) upsertConnector(ctx context.Context, record *ConnectorRecord) {
+// ReplaceConnector installs a connector runtime and optionally connects it.
+func (m *RuntimeManager) ReplaceConnector(ctx context.Context, record *ConnectorRecord, connect bool) error {
 	if m == nil || record == nil {
-		return
+		return fmt.Errorf("push connector is nil")
 	}
 	factory, ok := m.factories[record.Type]
 	if !ok {
-		logging.ErrorS(fmt.Errorf("unsupported connector type %q", record.Type), "Failed to load push connector", "connectorId", record.ID)
-		return
+		return &ConnectorStartError{Reason: fmt.Sprintf("unsupported connector type %q", record.Type)}
 	}
 	connector, err := factory.New(record.ID, record.PushConfig)
 	if err != nil {
-		logging.ErrorS(err, "Failed to create push connector", "connectorId", record.ID)
-		return
+		return &ConnectorStartError{Reason: err.Error()}
 	}
 	runtime := &connectorRuntime{record: record, connector: connector, status: ConnectorStatusStopped}
 	m.mu.Lock()
@@ -114,15 +113,65 @@ func (m *RuntimeManager) upsertConnector(ctx context.Context, record *ConnectorR
 	if old != nil {
 		_ = old.connector.Close(ctx)
 	}
-	if err := connector.Connect(ctx); err != nil {
-		logging.ErrorS(err, "Failed to connect push connector", "connectorId", record.ID)
-		return
+	if !connect {
+		return nil
 	}
-	if err := connector.SubscribeCommands(ctx, m.handleCommand); err != nil {
-		logging.ErrorS(err, "Failed to subscribe push commands", "connectorId", record.ID)
-		return
+	if err := m.connectRuntime(ctx, runtime); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *RuntimeManager) connectRuntime(ctx context.Context, runtime *connectorRuntime) error {
+	if runtime == nil || runtime.connector == nil {
+		return &ConnectorStartError{Reason: "connector is nil"}
+	}
+	runtime.setStatus(ConnectorStatusStopped)
+	if err := runtime.connector.Connect(ctx); err != nil {
+		return &ConnectorStartError{Reason: err.Error()}
+	}
+	if err := runtime.connector.SubscribeCommands(ctx, m.handleCommand); err != nil {
+		return &ConnectorStartError{Reason: err.Error()}
 	}
 	runtime.setStatus(ConnectorStatusRunning)
+	return nil
+}
+
+func (m *RuntimeManager) StartConnector(ctx context.Context, id string) error {
+	if m == nil {
+		return ErrConnectorNotFound
+	}
+	m.mu.Lock()
+	runtime := m.connectors[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return ErrConnectorNotFound
+	}
+	if runtime.getStatus() == ConnectorStatusRunning {
+		return ErrConnectorAlreadyRunning
+	}
+	return m.connectRuntime(ctx, runtime)
+}
+
+func (m *RuntimeManager) StopConnector(ctx context.Context, id string) error {
+	if m == nil {
+		return ErrConnectorNotFound
+	}
+	m.mu.Lock()
+	runtime := m.connectors[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return ErrConnectorNotFound
+	}
+	if runtime.getStatus() == ConnectorStatusStopped {
+		return ErrConnectorAlreadyStopped
+	}
+	err := runtime.connector.Close(ctx)
+	runtime.setStatus(ConnectorStatusStopped)
+	if err != nil {
+		return &ConnectorStopError{Reason: err.Error()}
+	}
+	return nil
 }
 
 // ConnectorStatus returns the live connector status.
@@ -236,8 +285,7 @@ func (m *RuntimeManager) pushGroup(ctx context.Context, groupID string) {
 	m.mu.Lock()
 	connectorRuntime := m.connectors[group.ConnectorID]
 	m.mu.Unlock()
-	if connectorRuntime == nil || connectorRuntime.connector == nil {
-		logging.ErrorS(fmt.Errorf("connector is not available"), "Failed to push group", "groupId", group.ID)
+	if connectorRuntime == nil || connectorRuntime.connector == nil || connectorRuntime.getStatus() != ConnectorStatusRunning {
 		return
 	}
 	snapshots, err := m.source.Snapshots(ctx, group.AllCollections, group.CollectionIDs)

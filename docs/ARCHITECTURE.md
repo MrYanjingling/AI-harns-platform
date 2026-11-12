@@ -188,6 +188,8 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/collections/:id/frames/responses/stream` | GET | 实时响应报文 SSE |
 | `/api/v1/push/connectors` | GET/POST | 推送连接器列表 / 创建 |
 | `/api/v1/push/connectors/:id` | GET/PUT/DELETE | 推送连接器详情 / 更新 / 删除，删除支持 `cascade=true` |
+| `/api/v1/push/connectors/:id/start` | POST | 启动推送连接器 |
+| `/api/v1/push/connectors/:id/stop` | POST | 停止推送连接器 |
 | `/api/v1/push/groups` | GET/POST | 推送组列表 / 创建 |
 | `/api/v1/push/groups/:id` | GET/PUT/DELETE | 推送组详情 / 更新 / 删除 |
 

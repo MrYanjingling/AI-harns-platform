@@ -26,6 +26,8 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.GET("/connectors/:id", getConnector(svc))
 	g.PUT("/connectors/:id", updateConnector(svc))
 	g.DELETE("/connectors/:id", deleteConnector(svc))
+	g.POST("/connectors/:id/start", startConnector(svc))
+	g.POST("/connectors/:id/stop", stopConnector(svc))
 	g.POST("/groups", createGroup(svc))
 	g.GET("/groups", listGroups(svc))
 	g.GET("/groups/:id", getGroup(svc))
@@ -100,6 +102,28 @@ func deleteConnector(svc *Service) gin.HandlerFunc {
 			return
 		}
 		response.WriteOK(c, gin.H{"deleted": true})
+	}
+}
+
+func startConnector(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.StartConnector(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushConnectorInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func stopConnector(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.StopConnector(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushConnectorInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
 	}
 }
 
@@ -182,13 +206,31 @@ func writeErr(c *gin.Context, err error, validationCode response.ErrCode) {
 		response.WriteFieldErrors(c, http.StatusBadRequest, validationCode, items)
 		return
 	}
+	var startErr *ConnectorStartError
+	if errors.As(err, &startErr) {
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStartFailed(startErr.Reason))
+		return
+	}
+	var stopErr *ConnectorStopError
+	if errors.As(err, &stopErr) {
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStopFailed(stopErr.Reason))
+		return
+	}
 	switch {
 	case errors.Is(err, ErrConnectorNotFound):
-		response.WriteError(c, http.StatusNotFound, response.ErrPushConnectorNotFound(c.Param("id")))
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorNotFound(c.Param("id")))
 	case errors.Is(err, ErrGroupNotFound):
-		response.WriteError(c, http.StatusNotFound, response.ErrPushGroupNotFound(c.Param("id")))
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushGroupNotFound(c.Param("id")))
 	case errors.Is(err, ErrConnectorInUse):
 		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorConflict(c.Param("id")))
+	case errors.Is(err, ErrConnectorAlreadyRunning):
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorAlreadyRunning(c.Param("id")))
+	case errors.Is(err, ErrConnectorAlreadyStopped):
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorAlreadyStopped(c.Param("id")))
+	case errors.Is(err, ErrConnectorStartFailed):
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStartFailed(err.Error()))
+	case errors.Is(err, ErrConnectorStopFailed):
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStopFailed(err.Error()))
 	default:
 		response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
 	}

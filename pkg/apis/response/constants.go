@@ -65,20 +65,24 @@ const (
 
 // Gateway error codes use the 20000 range.
 const (
-	_                            ErrCode = 20000 + iota
-	ErrCodeDriverNotFound                // 20001
-	ErrCodeDriverConflict                // 20002
-	ErrCodeDriverBuiltinReadOnly         // 20003
-	ErrCodeDriverInvalid                 // 20004
-	ErrCodeCollectionNotFound            // 20005
-	ErrCodeCollectionConflict            // 20006
-	ErrCodeCollectionInvalid             // 20007
-	ErrCodePushConnectorNotFound         // 20008
-	ErrCodePushConnectorConflict         // 20009
-	ErrCodePushConnectorInvalid          // 20010
-	ErrCodePushGroupNotFound             // 20011
-	ErrCodePushGroupConflict             // 20012
-	ErrCodePushGroupInvalid              // 20013
+	_                                  ErrCode = 20000 + iota
+	ErrCodeDriverNotFound                      // 20001
+	ErrCodeDriverConflict                      // 20002
+	ErrCodeDriverBuiltinReadOnly               // 20003
+	ErrCodeDriverInvalid                       // 20004
+	ErrCodeCollectionNotFound                  // 20005
+	ErrCodeCollectionConflict                  // 20006
+	ErrCodeCollectionInvalid                   // 20007
+	ErrCodePushConnectorNotFound               // 20008
+	ErrCodePushConnectorConflict               // 20009
+	ErrCodePushConnectorInvalid                // 20010
+	ErrCodePushGroupNotFound                   // 20011
+	ErrCodePushGroupConflict                   // 20012
+	ErrCodePushGroupInvalid                    // 20013
+	ErrCodePushConnectorAlreadyRunning         // 20014
+	ErrCodePushConnectorAlreadyStopped         // 20015
+	ErrCodePushConnectorStartFailed            // 20016
+	ErrCodePushConnectorStopFailed             // 20017
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

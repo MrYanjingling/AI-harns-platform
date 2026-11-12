@@ -490,3 +490,23 @@ func ErrPushGroupConflict(value string) *responseError {
 func ErrPushGroupInvalid() *responseError {
 	return generateError(ErrCodePushGroupInvalid)
 }
+
+// ErrPushConnectorAlreadyRunning reports that a push connector is already running.
+func ErrPushConnectorAlreadyRunning(id string) *responseError {
+	return generateError(ErrCodePushConnectorAlreadyRunning, id)
+}
+
+// ErrPushConnectorAlreadyStopped reports that a push connector is already stopped.
+func ErrPushConnectorAlreadyStopped(id string) *responseError {
+	return generateError(ErrCodePushConnectorAlreadyStopped, id)
+}
+
+// ErrPushConnectorStartFailed reports a push connector start failure.
+func ErrPushConnectorStartFailed(reason string) *responseError {
+	return generateError(ErrCodePushConnectorStartFailed, reason)
+}
+
+// ErrPushConnectorStopFailed reports a push connector stop failure.
+func ErrPushConnectorStopFailed(reason string) *responseError {
+	return generateError(ErrCodePushConnectorStopFailed, reason)
+}

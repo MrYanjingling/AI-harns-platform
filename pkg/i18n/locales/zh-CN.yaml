@@ -181,3 +181,7 @@ validate.push_group_collection_mode_invalid: "allCollections 为 true 时 collec
 validate.push_group_collection_required: "allCollections 为 false 时 collectionIds 不能为空。"
 validate.push_group_collection_not_found: "采集器 [%s] 不存在。"
 validate.push_group_max_collections_invalid: "maxCollectionsPerPushMessage 不能为负数。"
+error.push_connector_already_running: "推送连接器 [%s] 已经是 running 状态。"
+error.push_connector_already_stopped: "推送连接器 [%s] 已经是 stopped 状态。"
+error.push_connector_start_failed: "推送连接器启动失败：%s。"
+error.push_connector_stop_failed: "推送连接器停止失败：%s。"
