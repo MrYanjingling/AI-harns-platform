@@ -1,0 +1,68 @@
+import { defineMessages } from '@harns/core'
+
+export const dashboard = defineMessages({
+  'zh-CN': {
+    'dashboard.title': '概览',
+    'dashboard.description': '网关运行状态与资源占用一览。',
+    'dashboard.refreshSuccess': '已刷新',
+
+    'dashboard.gateway.unavailable': '网关不可用',
+    'dashboard.gateway.running': '网关运行中',
+    'dashboard.gateway.connecting': '连接中',
+    'dashboard.gateway.edgeNode': '边缘节点',
+    'dashboard.gateway.loadErrorTitle': '无法读取网关信息',
+    'dashboard.gateway.loadErrorDescription':
+      '请确认网关服务已启动 (默认端口 32200),或在 `.env` 中开启 `VITE_USE_MOCK`。',
+    'dashboard.gateway.version': '版本号 (ETag)',
+    'dashboard.gateway.updatedAt': '最近更新',
+    'dashboard.gateway.secret': '网关密钥',
+    'dashboard.gateway.showSecret': '显示密钥',
+    'dashboard.gateway.hideSecret': '隐藏密钥',
+    'dashboard.gateway.secretCopied': '密钥已复制',
+
+    'dashboard.resources.title': '资源使用',
+    'dashboard.resources.description': '每 10 秒自动刷新',
+    'dashboard.resources.cpu': 'CPU',
+    'dashboard.resources.cpuUnavailable': 'CPU 数据不可用',
+    'dashboard.resources.memory': '内存',
+    'dashboard.resources.memoryUnavailable': '内存数据不可用',
+    'dashboard.resources.disk': '磁盘',
+    'dashboard.resources.diskUnavailable': '磁盘数据不可用',
+    'dashboard.resources.noMounts': '暂无挂载点信息',
+    'dashboard.resources.cpu1m': '1 分钟',
+    'dashboard.resources.cpu5m': '5 分钟',
+    'dashboard.resources.cpu15m': '15 分钟',
+  },
+  'en-US': {
+    'dashboard.title': 'Overview',
+    'dashboard.description': 'Gateway health and resource usage at a glance.',
+    'dashboard.refreshSuccess': 'Refreshed',
+
+    'dashboard.gateway.unavailable': 'Gateway unavailable',
+    'dashboard.gateway.running': 'Gateway running',
+    'dashboard.gateway.connecting': 'Connecting',
+    'dashboard.gateway.edgeNode': 'Edge node',
+    'dashboard.gateway.loadErrorTitle': 'Unable to read gateway information',
+    'dashboard.gateway.loadErrorDescription':
+      'Make sure the gateway service is running (default port 32200), or enable `VITE_USE_MOCK` in `.env`.',
+    'dashboard.gateway.version': 'Version (ETag)',
+    'dashboard.gateway.updatedAt': 'Last updated',
+    'dashboard.gateway.secret': 'Gateway secret',
+    'dashboard.gateway.showSecret': 'Show secret',
+    'dashboard.gateway.hideSecret': 'Hide secret',
+    'dashboard.gateway.secretCopied': 'Secret copied',
+
+    'dashboard.resources.title': 'Resource usage',
+    'dashboard.resources.description': 'Refreshes every 10 seconds',
+    'dashboard.resources.cpu': 'CPU',
+    'dashboard.resources.cpuUnavailable': 'CPU data unavailable',
+    'dashboard.resources.memory': 'Memory',
+    'dashboard.resources.memoryUnavailable': 'Memory data unavailable',
+    'dashboard.resources.disk': 'Disk',
+    'dashboard.resources.diskUnavailable': 'Disk data unavailable',
+    'dashboard.resources.noMounts': 'No mount points',
+    'dashboard.resources.cpu1m': '1 min',
+    'dashboard.resources.cpu5m': '5 min',
+    'dashboard.resources.cpu15m': '15 min',
+  },
+})

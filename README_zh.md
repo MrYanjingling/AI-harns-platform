@@ -116,8 +116,8 @@ make package UI_BUILD=0 # 跳过 UI 构建（若已有 dist 则直接打包）
 ```
 
 打包结果包含 `gateway/`、`platform/`、`eam/`、`ems/` 和 `ui/`。
-当前只有 `ui/platform-ui` 可构建；`ui/eam-ui`、`ui/ems-ui`、`ui/gateway-ui`
-先作为空目录占位。
+`ui/platform-ui`（由 `ui/host` 构建期组合）与 `ui/gateway-ui`（独立应用，由
+`cmd/gateway` 托管）均可构建；`ui/eam-ui`、`ui/ems-ui` 先作为空目录占位。
 
 ### Docker
 

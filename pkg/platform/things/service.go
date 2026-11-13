@@ -216,10 +216,10 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateThingsReq) ([]*v1.Th
 
 // List returns a page of things with online status from Redis.
 func (s *Service) List(ctx context.Context, q v1.ThingQuery) (*apis.PageResp[*v1.ThingVo], error) {
-	defer logging.Trace("things.List", "keyword", q.Keyword, "page", q.Page, "pageSize", q.PageSize)()
+	defer logging.Trace("things.List", "keyword", q.Keyword, "thingModelId", q.ThingModelID, "page", q.Page, "pageSize", q.PageSize)()
 
 	q.Normalize()
-	items, total, err := s.store.ListThings(ctx, q.PageQuery, q.Keyword)
+	items, total, err := s.store.ListThings(ctx, q.PageQuery, q.Keyword, q.ThingModelID)
 	if err != nil {
 		return nil, response.ErrInternal(err)
 	}

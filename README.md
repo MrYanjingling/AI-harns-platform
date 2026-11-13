@@ -125,8 +125,8 @@ make package UI_BUILD=0 # skip UI build (uses existing ui/*/dist if present)
 ```
 
 The archive contains `gateway/`, `platform/`, `eam/`, `ems/` and `ui/`.
-`ui/platform-ui` and `ui/gateway-ui` are buildable today; `ui/eam-ui` and
-`ui/ems-ui` are kept as empty placeholders.
+`ui/platform-ui` (composed by `ui/host`) and `ui/gateway-ui` (standalone, served by
+`cmd/gateway`) are buildable today; `ui/eam-ui` and `ui/ems-ui` are kept as empty placeholders.
 
 ### Docker
 

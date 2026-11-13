@@ -1,9 +1,17 @@
 {
-  "name": "ai-harns-platform-ui",
+  "name": "@harns/platform-ui",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "AI-harns-platform 工业物联网平台管理后台",
+  "description": "AI-harns-platform 平台子应用",
+  "exports": {
+    ".": {
+      "types": "./app.d.ts",
+      "import": "./src/app.tsx",
+      "default": "./src/app.tsx"
+    }
+  },
+  "types": "./app.d.ts",
   "engines": {
     "node": ">=20"
   },
@@ -14,6 +22,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@harns/core": "workspace:*",
     "@hookform/resolvers": "^3.10.0",
     "@tanstack/react-query": "^5.90.2",
     "clsx": "^2.1.1",
@@ -22,7 +31,6 @@
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.64.0",
     "react-router-dom": "^7.9.3",
-    "recharts": "^3.2.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"

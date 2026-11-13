@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@host/*": ["./src/*"],
+      "@harns/core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src", "mock", "vite.config.ts"]
+}

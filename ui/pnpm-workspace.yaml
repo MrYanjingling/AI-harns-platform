@@ -1,0 +1,8 @@
+packages:
+  - core
+  - platform-ui
+  - gateway-ui
+  - host
+
+allowBuilds:
+  esbuild: true
