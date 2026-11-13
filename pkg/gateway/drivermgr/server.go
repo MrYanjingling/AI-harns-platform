@@ -130,11 +130,11 @@ func writeErr(c *gin.Context, err error) {
 	}
 	switch response.ErrorCode(err) {
 	case int(response.ErrCodeDriverNotFound):
-		response.WriteError(c, http.StatusNotFound, err)
+		response.WriteError(c, http.StatusBadRequest, err)
 	case int(response.ErrCodeDriverConflict), int(response.ErrCodeDriverBuiltinReadOnly):
 		response.WriteError(c, http.StatusBadRequest, err)
 	case int(response.ErrCodeInternal):
-		response.WriteError(c, http.StatusInternalServerError, err)
+		response.WriteError(c, http.StatusBadRequest, err)
 	default:
 		response.WriteError(c, http.StatusBadRequest, err)
 	}

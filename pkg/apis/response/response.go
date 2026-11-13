@@ -515,3 +515,19 @@ func ErrPushConnectorStopFailed(reason string) *responseError {
 func ErrSystemLogFileUnavailable() *responseError {
 	return generateError(ErrCodeSystemLogFileUnavailable)
 }
+
+func ErrForbidden() *responseError {
+	return generateError(ErrCodeForbidden)
+}
+
+func ErrUserProtected() *responseError {
+	return generateError(ErrCodeUserProtected)
+}
+
+func ErrUserInvalid() *responseError {
+	return generateError(ErrCodeUserInvalid)
+}
+
+func ErrUserPasswordMismatch() *responseError {
+	return generateError(ErrCodeUserPasswordMismatch)
+}

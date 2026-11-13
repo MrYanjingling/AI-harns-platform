@@ -3,6 +3,7 @@ package drivermgr
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -171,4 +172,17 @@ func TestModbusSchemaTypeAddressRules(t *testing.T) {
 	require.Error(t, schema.ValidateVariables([]*collection.Variable{{
 		Name: "bad", DataType: "INT16", Address: "1!10001", AccessMode: collection.AccessModeRead,
 	}}))
+}
+
+func TestBuiltinDataTypeLabelsUseCanonicalEnglish(t *testing.T) {
+	for _, builtin := range BuiltinDrivers {
+		schema, err := ParseSchema(json.RawMessage(builtin.Schema))
+		require.NoError(t, err, builtin.PluginName)
+		require.NotEmpty(t, schema.VariableDataTypes, builtin.PluginName)
+		for _, item := range schema.VariableDataTypes {
+			want := strings.ToLower(item.Value)
+			assert.Equal(t, want, item.LabelZh, builtin.PluginName)
+			assert.Equal(t, want, item.LabelEn, builtin.PluginName)
+		}
+	}
 }

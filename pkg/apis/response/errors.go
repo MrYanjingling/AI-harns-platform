@@ -80,6 +80,10 @@ var messageIDs = map[ErrCode]string{
 	ErrCodePushConnectorStartFailed:    "error.push_connector_start_failed",
 	ErrCodePushConnectorStopFailed:     "error.push_connector_stop_failed",
 	ErrCodeSystemLogFileUnavailable:    "error.system_log_file_unavailable",
+	ErrCodeForbidden:                   "error.forbidden",
+	ErrCodeUserProtected:               "error.user_protected",
+	ErrCodeUserInvalid:                 "error.user_invalid",
+	ErrCodeUserPasswordMismatch:        "error.user_password_mismatch",
 }
 
 func messageID(code ErrCode) string {

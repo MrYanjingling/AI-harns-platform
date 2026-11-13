@@ -20,7 +20,7 @@ func getGatewayMeta(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		g, err := mgr.GetGatewayMetaVo()
 		if err != nil {
-			response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+			response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 			return
 		}
 		c.Header(apis.ETag, fmt.Sprintf("%s", g.GetVersion()))
@@ -32,7 +32,7 @@ func getGatewayCpu(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cpu, err := mgr.getGatewayCpu()
 		if err != nil {
-			response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+			response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 			return
 		}
 		response.WriteOK(c, ResponseModel{Cpus: cpu})
@@ -43,7 +43,7 @@ func getGatewayMem(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		mem, err := mgr.getGatewayMem()
 		if err != nil {
-			response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+			response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 			return
 		}
 		response.WriteOK(c, ResponseModel{Mem: mem})
@@ -54,7 +54,7 @@ func getGatewayDisk(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		disks, err := mgr.getGatewayDisk()
 		if err != nil {
-			response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+			response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 			return
 		}
 		response.WriteOK(c, ResponseModel{Disks: disks})

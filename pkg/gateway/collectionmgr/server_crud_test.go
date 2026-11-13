@@ -82,7 +82,7 @@ func TestCollectionListUpdateDetailDelete(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/collections/"+id, nil)
 	rec = httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 }
 
 func TestCollectionVariableBatchAndPagination(t *testing.T) {

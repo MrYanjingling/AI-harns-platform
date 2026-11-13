@@ -232,6 +232,6 @@ func writeErr(c *gin.Context, err error, validationCode response.ErrCode) {
 	case errors.Is(err, ErrConnectorStopFailed):
 		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStopFailed(err.Error()))
 	default:
-		response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+		response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 	}
 }

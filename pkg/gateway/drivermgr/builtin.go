@@ -111,13 +111,13 @@ const modbusTcpSchema = `{
 
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -224,13 +224,13 @@ const modbusRtuSchema = `{
 
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -300,13 +300,13 @@ const modbusRtuOverTcpSchema = `{
 
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]{1,3}![1-4][0-9]{1,5}$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
 
@@ -394,16 +394,16 @@ const s71500Schema = `{
 
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
-    {"value":"BIT","labelZh":"位","labelEn":"Bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
-    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
-    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?))$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
   ]
 }`
 
@@ -478,16 +478,16 @@ const s7200Schema = `{
 
   },
   "variableDataTypes": [
-    {"value":"BOOL","labelZh":"布尔","labelEn":"Boolean","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
-    {"value":"BIT","labelZh":"位","labelEn":"Bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
-    {"value":"INT16","labelZh":"16 位整数","labelEn":"Int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"UINT16","labelZh":"16 位无符号整数","labelEn":"Uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"INT32","labelZh":"32 位整数","labelEn":"Int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"INT64","labelZh":"64 位整数","labelEn":"Int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"FLOAT32","labelZh":"32 位浮点数","labelEn":"Float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"FLOAT64","labelZh":"64 位浮点数","labelEn":"Float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
-    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
-    {"value":"BYTE_ARRAY","labelZh":"字节数组","labelEn":"Byte Array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|([IQM][XBWD]?[0-9]{1,5}(\\.[0-7])?)|(V[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|([IQM][XBWD]?[0-9]{1,5})|(V[BDW][0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}$"}
   ]
 }`
 
@@ -551,8 +551,8 @@ const opcUaSchema = `{
 
   },
   "variableDataTypes": [
-    {"value":"NUMBER","labelZh":"数值","labelEn":"Number","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"},
-    {"value":"STRING","labelZh":"字符串","labelEn":"String","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"}
+    {"value":"NUMBER","labelZh":"number","labelEn":"number","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(ns=[0-9]{1,5};)?[isgb]=.+$"}
   ]
 }`
 

@@ -52,7 +52,7 @@ func TestCollectionNotFoundIsLocalized(t *testing.T) {
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"code":20005`)
 	assert.Contains(t, rec.Body.String(), `采集器 [missing] 不存在。`)
 }

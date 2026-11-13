@@ -19,6 +19,7 @@ import (
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/logapi"
 	"harns-platform/pkg/gateway/pushmgr"
+	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
 )
@@ -33,7 +34,7 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 	router.Use(gin.Recovery())
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(c *gin.Context) {
-		response.WriteError(c, http.StatusMethodNotAllowed, response.ErrMethodNotAllowed())
+		response.WriteError(c, http.StatusBadRequest, response.ErrMethodNotAllowed())
 	})
 
 	s := &generic.Server{
@@ -60,6 +61,10 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 
 func (s *Server) handleNoRoute(c *gin.Context) {
 	if s.serveUI(c) {
+		return
+	}
+	if strings.HasPrefix(c.Request.URL.Path, "/api") {
+		response.WriteError(c, http.StatusBadRequest, response.ErrNotFound())
 		return
 	}
 	response.WriteError(c, http.StatusNotFound, response.ErrNotFound())
@@ -116,13 +121,16 @@ func (s *Server) serveUI(c *gin.Context) bool {
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
 	v1.Use(generic.BodyLimit(s.Config.MaxBodyBytes))
-	// Legacy device manager endpoints are disabled in favor of collections.
-	// device.InstallHandler(v1, s.Config.DeviceMgr)
-	gateway.InstallHandler(v1, s.Config.GatewayMgr)
-	drivermgr.InstallHandler(v1, s.Config.DriverMgr)
-	collectionmgr.InstallHandler(v1, s.Config.CollectionMgr)
-	pushmgr.InstallHandler(v1, s.Config.PushMgr)
-	logapi.InstallHandler(v1, s.Config.LogFilePath)
+	usermgr.InstallPublicHandler(v1, s.Config.UserMgr)
+
+	authed := v1.Group("")
+	authed.Use(s.Config.UserMgr.RequireAuth())
+	gateway.InstallHandler(authed, s.Config.GatewayMgr)
+	drivermgr.InstallHandler(authed, s.Config.DriverMgr)
+	collectionmgr.InstallHandler(authed, s.Config.CollectionMgr)
+	pushmgr.InstallHandler(authed, s.Config.PushMgr)
+	logapi.InstallHandler(authed, s.Config.LogFilePath)
+	usermgr.InstallHandler(authed, s.Config.UserMgr)
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {

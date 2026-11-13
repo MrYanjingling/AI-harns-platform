@@ -29,7 +29,7 @@ func TestGetDriverSchemaByModel(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/drivers/schema?driverModel=missing", nil)
 	rec = httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/drivers/schema", nil)
 	rec = httptest.NewRecorder()

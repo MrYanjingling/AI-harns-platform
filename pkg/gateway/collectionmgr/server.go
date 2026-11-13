@@ -170,11 +170,11 @@ func writeErr(c *gin.Context, err error) {
 
 	switch response.ErrorCode(err) {
 	case int(response.ErrCodeCollectionNotFound):
-		response.WriteError(c, http.StatusNotFound, err)
+		response.WriteError(c, http.StatusBadRequest, err)
 	case int(response.ErrCodeCollectionConflict), int(response.ErrCodeCollectionInvalid):
 		response.WriteError(c, http.StatusBadRequest, err)
 	case int(response.ErrCodeInternal):
-		response.WriteError(c, http.StatusInternalServerError, err)
+		response.WriteError(c, http.StatusBadRequest, err)
 	default:
 		var syntaxErr *json.SyntaxError
 		if errors.As(err, &syntaxErr) || errors.Is(err, io.ErrUnexpectedEOF) {
@@ -185,7 +185,7 @@ func writeErr(c *gin.Context, err error) {
 			response.WriteError(c, http.StatusBadRequest, response.ErrCollectionInvalid())
 			return
 		}
-		response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+		response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 	}
 }
 

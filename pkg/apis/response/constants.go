@@ -84,6 +84,10 @@ const (
 	ErrCodePushConnectorStartFailed            // 20016
 	ErrCodePushConnectorStopFailed             // 20017
 	ErrCodeSystemLogFileUnavailable            // 20018
+	ErrCodeForbidden                           // 20019
+	ErrCodeUserProtected                       // 20020
+	ErrCodeUserInvalid                         // 20021
+	ErrCodeUserPasswordMismatch                // 20022
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

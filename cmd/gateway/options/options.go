@@ -14,6 +14,7 @@ import (
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/sqlite"
+	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	baseoptions "harns-platform/pkg/generic/options"
 	"time"
@@ -102,6 +103,17 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	}
 	c.DB = db
 	c.DriverMgr = drivermgr.NewService(driverStore)
+	userStore := usermgr.NewStore(db)
+	if err := userStore.Initialize(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	userService := usermgr.NewService(userStore)
+	if err := userService.BootstrapSuperuser(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	c.UserMgr = userService
 	collectionStore := collectionmgr.NewStore(db)
 	if err := collectionStore.Initialize(context.Background()); err != nil {
 		_ = db.Close()
