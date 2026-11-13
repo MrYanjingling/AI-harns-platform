@@ -44,7 +44,7 @@ export function ImageUploadField({
 
   return (
     <div className="flex flex-wrap items-start gap-4">
-      <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-surface-2">
+      <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
         {previewUrl ? (
           <img src={previewUrl} alt={t('image.alt')} className="size-full object-cover" />
         ) : (

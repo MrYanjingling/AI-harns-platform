@@ -20,7 +20,7 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative inline-flex h-5.5 w-10 shrink-0 items-center rounded-full border transition-colors',
+        'relative inline-flex h-5.5 w-10 shrink-0 items-center rounded-full border transition-all hover:brightness-105 active:scale-95',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         'disabled:cursor-not-allowed disabled:opacity-50',
         checked ? 'border-primary bg-primary' : 'border-border-strong bg-surface-3',

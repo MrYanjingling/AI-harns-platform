@@ -327,7 +327,7 @@ export function UserFormDialog({
 
         {!isEdit ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded border border-border p-3">
+            <div className="rounded-xl border border-border p-3">
               <p className="mb-2 text-xs font-medium text-muted">
                 {t('identity.userForm.bindRoles')}
               </p>
@@ -359,7 +359,7 @@ export function UserFormDialog({
               )}
             </div>
 
-            <div className="rounded border border-border p-3">
+            <div className="rounded-xl border border-border p-3">
               <p className="mb-2 text-xs font-medium text-muted">
                 {t('identity.userForm.bindOrgs')}
               </p>
@@ -393,7 +393,7 @@ export function UserFormDialog({
             </div>
           </div>
         ) : (
-          <div className="rounded border border-border bg-surface-2/50 px-3 py-2 text-[11px] leading-relaxed text-muted">
+          <div className="rounded-xl border border-border bg-surface-2/50 px-3 py-2 text-[11px] leading-relaxed text-muted">
             {t('identity.userForm.boundRoles', {
               names: user?.roles?.length
                 ? user.roles.map((role) => role.name).join(t('identity.listSeparator'))

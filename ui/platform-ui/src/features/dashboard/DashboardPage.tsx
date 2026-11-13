@@ -147,7 +147,7 @@ export function DashboardPage() {
           <Server className="size-4 text-faint" />
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-2 gap-4 rounded border border-border bg-surface-2/50 p-4">
+          <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-surface-2/50 p-4">
             <div>
               <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
                 <Cpu className="size-3.5" /> {t('dashboard.resources.cpu')}

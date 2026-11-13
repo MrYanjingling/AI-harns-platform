@@ -176,7 +176,7 @@ export function PropertyDialog({
           </Field>
         </div>
 
-        <div className="flex items-center justify-between rounded border border-border bg-surface-2/50 px-3 py-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
           <div>
             <p className="text-xs font-medium">{t('propertyDialog.required')}</p>
             <p className="text-[11px] text-faint">{t('propertyDialog.requiredHint')}</p>

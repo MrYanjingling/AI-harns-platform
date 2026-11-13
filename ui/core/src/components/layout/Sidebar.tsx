@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { useI18n } from '../../i18n'
 import { cn } from '../../lib/cn'
 import type { NavGroup, NavSection } from './nav'
-import { NavIcon, navLeafClass } from './nav-visuals'
+import { NavIcon, navGroupArrowClass, navGroupHeaderClass, navLeafClass } from './nav-visuals'
 
 function groupKey(section: NavSection, group: NavGroup, index: number) {
   return `${section.key}-${group.labelKey ?? 'flat'}-${index}`
@@ -20,6 +20,7 @@ export function Sidebar({
   onNavigate?: () => void
 }) {
   const { t } = useI18n()
+  const idBase = useId()
   const section = sections.find((item) => item.key === sectionKey) ?? sections[0]
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -54,38 +55,48 @@ export function Sidebar({
           )
         }
 
+        const panelId = `${idBase}-group-${index}`
+
         return (
           <div key={key} className="px-2 py-0.5">
             <button
               type="button"
               onClick={() => toggle(key)}
               aria-expanded={open}
-              className="flex w-full items-center justify-between rounded-sm px-2 py-2 text-xs font-medium text-faint transition-colors hover:text-fg"
+              aria-controls={panelId}
+              className={navGroupHeaderClass(open)}
             >
-              <span>{t(group.labelKey)}</span>
-              <ChevronDown
-                className={cn(
-                  'size-3.5 transition-transform duration-150',
-                  open ? 'rotate-0' : '-rotate-90',
-                )}
-              />
+              <span className="truncate">{t(group.labelKey)}</span>
+              <ChevronDown className={navGroupArrowClass(open)} aria-hidden="true" />
             </button>
-            {open ? (
-              <div className="animate-fade-up">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={onNavigate}
-                    className={({ isActive }) => navLeafClass(isActive, true)}
-                  >
-                    {item.icon ? <NavIcon>{item.icon}</NavIcon> : null}
-                    {t(item.labelKey)}
-                  </NavLink>
-                ))}
+
+            {/* 0fr → 1fr 的 grid 过渡可以按内容真实高度收起,不必测量高度 */}
+            <div
+              id={panelId}
+              inert={!open}
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+              )}
+            >
+              <div className="overflow-hidden">
+                <div className="pt-0.5">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={onNavigate}
+                      tabIndex={open ? undefined : -1}
+                      className={({ isActive }) => navLeafClass(isActive, true)}
+                    >
+                      {item.icon ? <NavIcon>{item.icon}</NavIcon> : null}
+                      {t(item.labelKey)}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
-            ) : null}
+            </div>
           </div>
         )
       })}

@@ -42,7 +42,7 @@ export function VariablesEditor({
 
   return (
     <div className="space-y-2">
-      <div className="overflow-hidden rounded border border-border">
+      <div className="overflow-hidden rounded-xl border border-border">
         <Table>
           <THead>
             <TR>

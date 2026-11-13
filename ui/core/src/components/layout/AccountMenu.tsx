@@ -48,7 +48,7 @@ export function AccountMenu({ name, subtitle, onSignOut, signingOut }: AccountMe
         aria-expanded={open}
         aria-label={t('layout.shell.accountMenu')}
         title={displayName}
-        className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-fg transition-opacity hover:opacity-90"
+        className="gradient-brand flex size-7 items-center justify-center rounded-full text-xs font-medium text-primary-fg transition-all hover:brightness-110 active:scale-95"
       >
         {initial || <Settings2 className="size-3.5" />}
       </button>
@@ -56,7 +56,7 @@ export function AccountMenu({ name, subtitle, onSignOut, signingOut }: AccountMe
       {open ? (
         <div
           role="menu"
-          className="animate-pop absolute top-full right-0 z-[60] mt-2 w-56 origin-top-right rounded border border-border bg-surface py-1 text-fg shadow-xl"
+          className="animate-pop absolute top-full right-0 z-[60] mt-2 w-56 origin-top-right rounded-xl border border-border bg-surface py-1 text-fg shadow-xl"
         >
           <div className="border-b border-border px-3 py-2">
             <p className="truncate text-sm font-medium">{displayName}</p>

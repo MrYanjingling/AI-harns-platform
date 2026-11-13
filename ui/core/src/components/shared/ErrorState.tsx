@@ -18,7 +18,7 @@ export function ErrorState({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-3 rounded border border-danger/25 bg-danger/5 px-4 py-3 text-sm">
+      <div className="flex items-center gap-3 rounded-xl border border-danger/25 bg-danger/5 px-4 py-3 text-sm">
         <AlertTriangle className="size-4 shrink-0 text-danger" />
         <span className="min-w-0 flex-1 text-fg">{message}</span>
         {onRetry ? (
@@ -32,7 +32,7 @@ export function ErrorState({
 
   return (
     <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded border border-danger/25 bg-danger/5 text-danger">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border border-danger/25 bg-danger/5 text-danger">
         <AlertTriangle className="size-5" />
       </div>
       <h3 className="text-sm font-semibold">{t('components.error.title')}</h3>

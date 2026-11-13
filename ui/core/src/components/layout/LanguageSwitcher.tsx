@@ -15,7 +15,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       title={`${t('layout.languageSwitcher')}: ${nextLabel}`}
       className={
         className ??
-        'flex h-8 items-center gap-1 rounded px-2 text-xs text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg'
+        'flex h-8 items-center gap-1 rounded px-2 text-xs text-header-muted transition-all hover:bg-header-hover hover:text-header-fg active:scale-95'
       }
     >
       <Languages className="size-4" />

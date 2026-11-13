@@ -20,15 +20,15 @@ const NODES = [
 ] as const
 
 /**
- * 深色主题的科技感底纹:网格 + 光晕 + PCB 走线。
- * 纯装饰层,亮度由 index.css 中的 --backdrop-* 变量控制,避免抢走前景内容的注意力。
+ * 全主题的科技感底纹:光晕 + PCB 走线。
+ * 纯装饰层,亮度由 index.css 中的 --backdrop-* 变量控制,避免抢走前景内容的注意力;
+ * 走线只在深色主题出现,浅色主题只保留低对比度的光晕。
  */
 export function TechBackdrop() {
   return (
-    <div className="tech-backdrop hidden dark:block" aria-hidden="true">
+    <div className="tech-backdrop" aria-hidden="true">
       <div className="tech-backdrop__glow tech-backdrop__glow--a" />
       <div className="tech-backdrop__glow tech-backdrop__glow--b" />
-      <div className="tech-backdrop__grid" />
 
       <svg
         className="tech-backdrop__circuit"

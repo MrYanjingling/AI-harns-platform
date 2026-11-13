@@ -72,10 +72,10 @@ export function LoginPage() {
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg px-4 py-10">
       <TechBackdrop />
-      <div className="relative z-10 grid w-full max-w-4xl overflow-hidden rounded border border-border bg-surface shadow-xl lg:grid-cols-[1.05fr_1fr]">
+      <div className="relative z-10 grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-surface shadow-xl lg:grid-cols-[1.05fr_1fr]">
         <div className="relative hidden flex-col justify-between bg-gradient-to-br from-primary via-primary-hover to-header p-9 text-white lg:flex">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded bg-white/15 backdrop-blur">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
               <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden="true">
                 <path
                   d="M7 15V8m0 3.5h5M12 15V8m0 3.5h5V15"
@@ -105,7 +105,7 @@ export function LoginPage() {
 
           <dl className="grid grid-cols-3 gap-3 text-center">
             {LOGIN_FEATURES.map(([title, desc]) => (
-              <div key={title} className="rounded bg-white/10 px-2 py-3 backdrop-blur">
+              <div key={title} className="rounded-xl bg-white/10 px-2 py-3 backdrop-blur">
                 <dt className="text-xs font-medium">{t(title)}</dt>
                 <dd className="mt-0.5 text-[10px] text-white/60">{t(desc)}</dd>
               </div>
@@ -160,7 +160,7 @@ export function LoginPage() {
             {error ? (
               <div
                 role="alert"
-                className="flex items-start gap-2 rounded border border-danger/25 bg-danger/5 px-3 py-2.5 text-xs text-danger"
+                className="flex items-start gap-2 rounded-xl border border-danger/25 bg-danger/5 px-3 py-2.5 text-xs text-danger"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 <span className="leading-relaxed">{error}</span>
@@ -180,7 +180,7 @@ export function LoginPage() {
           </form>
 
           {isMock ? (
-            <p className="mt-5 rounded border border-amber-600/25 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <p className="mt-5 rounded-xl border border-amber-600/25 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
               {t('auth.login.mockHint')}
             </p>
           ) : (

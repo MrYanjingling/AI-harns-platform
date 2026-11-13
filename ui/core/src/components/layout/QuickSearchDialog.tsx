@@ -82,8 +82,8 @@ export function QuickSearchDialog({
                 type="button"
                 onClick={() => go(entry.to)}
                 className={cn(
-                  'flex w-full items-center justify-between gap-3 rounded px-2 py-2 text-left transition-colors',
-                  'hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none',
+                  'flex w-full items-center justify-between gap-3 rounded px-2 py-2 text-left transition-all',
+                  'hover:translate-x-0.5 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none',
                 )}
               >
                 <span className="min-w-0">

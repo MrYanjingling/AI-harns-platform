@@ -298,7 +298,7 @@ export function DriversPage() {
                 {group.models.map((driver) => (
                   <div
                     key={driver.id}
-                    className="rounded border border-border px-3 py-2 transition-colors hover:border-border-strong"
+                    className="rounded-lg border border-border px-3 py-2 transition-colors hover:border-border-strong"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
@@ -489,7 +489,7 @@ function SchemaDialog({ driver, onClose }: { driver: Driver | null; onClose: () 
             {sortedFields(schema).length === 0 ? (
               <p className="text-xs text-faint">{t('gateway.drivers.schema.empty')}</p>
             ) : (
-              <div className="overflow-hidden rounded border border-border">
+              <div className="overflow-hidden rounded-xl border border-border">
                 <Table>
                   <THead>
                     <TR>
@@ -554,7 +554,7 @@ function SchemaDialog({ driver, onClose }: { driver: Driver | null; onClose: () 
               <h3 className="mb-1.5 text-xs font-medium text-muted">
                 {t('gateway.drivers.schema.variableAddress')}
               </h3>
-              <div className="rounded border border-border bg-surface-2 px-3 py-2 text-xs">
+              <div className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs">
                 <p className="font-mono text-fg">
                   {localized(
                     schema.variableAddress.labelZh,

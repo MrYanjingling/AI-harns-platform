@@ -149,7 +149,7 @@ export function OverviewPage() {
         />
         <div className="relative flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-primary">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-2 text-primary">
               <Server className="size-5" />
             </div>
             <div className="min-w-0">
@@ -359,7 +359,7 @@ export function OverviewPage() {
                 ))}
               </div>
             ) : attention.length === 0 ? (
-              <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-xs text-emerald-700 dark:border-emerald-600/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-xs text-emerald-700 dark:border-emerald-600/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <CircleCheck className="size-4 shrink-0" />
                 {t('gateway.overview.attention.empty')}
               </div>
@@ -415,7 +415,7 @@ export function OverviewPage() {
                   <Link
                     key={collection.id}
                     to={`/collections/${collection.id}`}
-                    className="flex items-center justify-between gap-2 rounded border border-border px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-surface-2"
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-surface-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-fg">{collection.name}</p>
@@ -488,7 +488,7 @@ export function OverviewPage() {
                 {recentOperations.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between gap-2 rounded px-1.5 py-1.5 transition-colors hover:bg-surface-2"
+                    className="flex items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface-2"
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <span
@@ -521,7 +521,7 @@ function AttentionRow({ collection }: { collection: Collection }) {
   return (
     <Link
       to={`/collections/${collection.id}`}
-      className="flex items-center justify-between gap-2 rounded border border-danger/20 bg-danger/5 px-2.5 py-2 transition-colors hover:border-danger/40"
+      className="flex items-center justify-between gap-2 rounded-lg border border-danger/20 bg-danger/5 px-2.5 py-2 transition-colors hover:border-danger/40"
     >
       <div className="min-w-0">
         <p className="truncate text-xs font-medium text-fg">{collection.name}</p>

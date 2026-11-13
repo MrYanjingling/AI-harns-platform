@@ -17,7 +17,7 @@ export function EmptyState({
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-16 text-center', className)}>
-      <div className="mb-3 flex size-10 items-center justify-center rounded border border-border bg-surface-2 text-faint">
+      <div className="gradient-brand-soft mb-3 flex size-10 items-center justify-center rounded-xl border border-border text-primary">
         {icon ?? <Inbox className="size-5" />}
       </div>
       <h3 className="text-sm font-semibold text-fg">{title}</h3>

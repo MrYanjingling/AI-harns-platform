@@ -61,7 +61,7 @@ export function Dialog({
         if (closeOnBackdrop && event.target === ref.current) onClose()
       }}
       className={cn(
-        'm-auto w-[calc(100vw-2rem)] rounded border border-border bg-surface p-0 text-fg shadow-2xl',
+        'm-auto w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-0 text-fg shadow-2xl',
         'backdrop:bg-black/45 backdrop:backdrop-blur-[2px]',
         'open:animate-fade-up',
         sizes[size],

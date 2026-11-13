@@ -258,7 +258,7 @@ export function ThingCreatePage() {
                 </Select>
               </Field>
               {model.data ? (
-                <div className="rounded border border-border bg-surface-2/50 px-3 py-2.5 text-xs text-muted">
+                <div className="rounded-xl border border-border bg-surface-2/50 px-3 py-2.5 text-xs text-muted">
                   <p>
                     {t('thingCreate.modelSummary', {
                       name: model.data.name,
@@ -295,7 +295,7 @@ export function ThingCreatePage() {
               {rows.map((row, index) => {
                 const rowErrors = errors[row.key] ?? {}
                 return (
-                  <div key={row.key} className="rounded border border-border p-3">
+                  <div key={row.key} className="rounded-xl border border-border p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs font-medium text-muted">
                         {t('thingCreate.rowTitle', { index: index + 1 })}

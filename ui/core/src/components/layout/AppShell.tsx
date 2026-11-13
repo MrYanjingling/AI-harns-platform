@@ -74,8 +74,12 @@ export function AppShell({
           <Menu className="size-4" />
         </Button>
 
-        <Link to={homeTo} className="flex shrink-0 items-center pl-3 lg:pl-4">
-          <span className="mr-2 text-lg font-bold tracking-wide">{brand}</span>
+        <Link to={homeTo} className="group flex shrink-0 items-center gap-2 pl-3 lg:pl-4">
+          <span
+            className="brand-mark size-5 rounded-[5px] transition-transform duration-300 group-hover:scale-110"
+            aria-hidden="true"
+          />
+          <span className="text-lg font-bold tracking-wide">{brand}</span>
           <span className="hidden text-xs text-header-muted sm:inline">{appName}</span>
         </Link>
 
@@ -89,9 +93,9 @@ export function AppShell({
                 key={item.key}
                 to={item.entry}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 text-sm transition-colors',
+                  'mx-0.5 my-2 flex items-center gap-1.5 rounded-lg px-3.5 text-sm transition-colors',
                   item.key === section.key
-                    ? 'bg-primary font-medium text-primary-fg'
+                    ? 'gradient-brand font-medium text-primary-fg hover:brightness-110'
                     : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
                 )}
               >
@@ -104,7 +108,7 @@ export function AppShell({
 
         <div className="ml-auto flex items-center gap-1 pr-2 sm:pr-3">
           {isMock ? (
-            <span className="mr-1 hidden rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[11px] text-amber-200 sm:inline">
+            <span className="mr-1 hidden rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning sm:inline">
               {t('layout.shell.mockBadge')}
             </span>
           ) : null}
@@ -114,7 +118,7 @@ export function AppShell({
             onClick={() => setSearchOpen(true)}
             aria-label={t('layout.shell.searchMenu')}
             title={t('layout.shell.searchMenuShortcut')}
-            className="flex size-9 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
+            className="flex size-9 items-center justify-center rounded-lg text-header-muted transition-all hover:bg-header-hover hover:text-header-fg active:scale-95"
           >
             <Search className="size-4" />
           </button>
@@ -124,7 +128,8 @@ export function AppShell({
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1">
-        <aside className="hidden w-52 shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
+        {/* 悬浮卡片式侧栏:与顶栏、正文留出间隙,靠圆角与阴影浮在底纹之上 */}
+        <aside className="sidebar-gradient m-2 hidden w-56 shrink-0 overflow-hidden rounded-2xl border border-border shadow-lg shadow-black/5 lg:block">
           <Sidebar sections={sections} sectionKey={section.key} />
         </aside>
 
@@ -143,7 +148,7 @@ export function AppShell({
           />
           <aside
             className={cn(
-              'absolute inset-y-0 left-0 w-60 border-r border-border bg-surface shadow-2xl transition-transform duration-200 ease-out',
+              'sidebar-gradient absolute inset-y-2 left-2 w-64 overflow-hidden rounded-2xl border border-border shadow-2xl transition-transform duration-200 ease-out',
               mobileOpen ? 'translate-x-0' : '-translate-x-full',
             )}
           >
@@ -170,9 +175,9 @@ export function AppShell({
                         to={item.entry}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
-                          'rounded px-2 py-1.5 text-center text-xs transition-colors',
+                          'rounded-lg px-2 py-1.5 text-center text-xs transition-all',
                           item.key === section.key
-                            ? 'bg-primary font-medium text-primary-fg'
+                            ? 'gradient-brand font-medium text-primary-fg hover:brightness-110'
                             : 'bg-surface-2 text-muted hover:bg-surface-3 hover:text-fg',
                         )}
                       >

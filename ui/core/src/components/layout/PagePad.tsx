@@ -5,7 +5,7 @@ export function PagePad() {
   const { pathname } = useLocation()
   return (
     <div className="p-2.5 sm:p-3">
-      <div key={pathname} className="animate-fade-up">
+      <div key={pathname} className="animate-page-in">
         <Outlet />
       </div>
     </div>

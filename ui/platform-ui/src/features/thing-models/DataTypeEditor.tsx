@@ -32,7 +32,7 @@ export function DataTypeEditor({
   }
 
   return (
-    <div className={cn('space-y-3', depth > 0 && 'rounded border border-border bg-surface-2/40 p-3')}>
+    <div className={cn('space-y-3', depth > 0 && 'rounded-xl border border-border bg-surface-2/40 p-3')}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={depth === 0 ? t('dataType.label') : t('dataType.elementLabel')}>
           <Select
@@ -253,7 +253,7 @@ export function DataTypeEditor({
             </Button>
           </div>
           {(value.structSpec?.fields ?? []).map((field, index) => (
-            <div key={index} className="space-y-2 rounded border border-border p-3">
+            <div key={index} className="space-y-2 rounded-xl border border-border p-3">
               <div className="flex items-center gap-2">
                 <Input
                   aria-label={t('dataType.fieldIdentifierAria', { index: index + 1 })}

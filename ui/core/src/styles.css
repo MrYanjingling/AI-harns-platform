@@ -24,67 +24,130 @@
   --color-header-fg: var(--header-fg);
   --color-header-muted: var(--header-muted);
   --color-header-hover: var(--header-hover);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-muted: var(--sidebar-muted);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* 全局圆角放大一档:控件 8px、卡片 20px,和悬浮侧栏保持同一套圆角语言 */
+  --radius: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
 }
 
 :root {
-  --bg: oklch(1 0 0);
+  /* 页面底用雾蓝灰,白色卡片与控件浮在上面,和侧栏渐变同属一支蓝 */
+  --bg: oklch(0.972 0.005 248);
   --surface: oklch(1 0 0);
-  --surface-2: oklch(0.984 0.003 247.858);
-  --surface-3: oklch(0.968 0.007 247.896);
+  --surface-2: oklch(0.955 0.008 248);
+  --surface-3: oklch(0.93 0.012 248);
   --fg: oklch(0.279 0.041 260.031);
   --muted: oklch(0.446 0.043 257.281);
   --faint: oklch(0.704 0.04 256.788);
-  --border: oklch(0.929 0.013 255.508);
-  --border-strong: oklch(0.869 0.022 252.894);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-hover: oklch(0.488 0.243 264.376);
+  --border: oklch(0.915 0.012 250);
+  --border-strong: oklch(0.85 0.02 250);
+  --primary: oklch(0.5 0.12 245);
+  --primary-hover: oklch(0.44 0.13 247);
   --primary-fg: oklch(0.99 0 0);
-  --primary-soft: oklch(0.97 0.014 254.604);
+  --primary-soft: oklch(0.955 0.015 248);
   --success: oklch(0.627 0.194 149.214);
   --warning: oklch(0.666 0.179 58.318);
   --danger: oklch(0.577 0.245 27.325);
-  --info: oklch(0.546 0.245 262.881);
-  --header: oklch(0.208 0.042 265.755);
-  --header-fg: oklch(0.984 0.003 247.858);
-  --header-muted: oklch(0.869 0.022 252.894);
-  --header-hover: oklch(0.279 0.041 260.031);
+  --info: oklch(0.5 0.12 245);
+  /* 日间顶栏跟随主题走浅色,用雾蓝渐变与正文区分,而不是继续压深 */
+  --header: oklch(0.985 0.006 250);
+  --header-fg: oklch(0.3 0.035 260);
+  --header-muted: oklch(0.5 0.035 255);
+  --header-hover: oklch(0.93 0.02 250);
+
+  /* Steam 式渐变:只用同一支蓝色,钢蓝 → 亮蓝的双色过渡,不再混入紫与青 */
+  --brand-from: oklch(0.5 0.14 250);
+  --brand-to: oklch(0.58 0.12 228);
+  /* 带透明度的同色系,用于柔光、卡片光斑与骨架扫光,避免在组件里临时 color-mix */
+  --brand-from-soft: oklch(0.5 0.14 250 / 0.16);
+  --brand-to-soft: oklch(0.58 0.12 228 / 0.14);
+  --brand-wash: oklch(0.5 0.14 250 / 0.05);
+  --skeleton-sheen: oklch(0.45 0.03 250 / 0.07);
+  --gradient-header-from: oklch(0.99 0.004 248);
+  --gradient-header-to: oklch(0.9 0.028 247);
+  --gradient-header-edge: oklch(0.9 0.03 250);
+  --glow-primary: oklch(0.68 0.12 240 / 0.22);
+
+  /* 侧栏纵向渐变:上浅下深,长列表滚到底部时仍有纵深,不会退成一块死灰 */
+  --sidebar-from: oklch(0.995 0.002 250);
+  --sidebar-mid: oklch(0.978 0.006 249);
+  --sidebar-deep: oklch(0.958 0.01 248);
+  --sidebar-to: oklch(0.938 0.014 247);
+  /* 渐变底上的悬停:用半透明墨色叠加,换主题不用再改一处色值 */
+  --sidebar-hover: oklch(0.45 0.04 250 / 0.09);
+  /* 侧栏文字单独取值:浅色主题沿用正文色阶,深色主题要压在钢蓝上仍保持 4.5:1 */
+  --sidebar-fg: oklch(0.279 0.041 260.031);
+  --sidebar-muted: oklch(0.446 0.043 257.281);
+
+  --backdrop-glow: oklch(0.75 0.13 242 / 0.14);
+  --backdrop-glow-accent: oklch(0.8 0.1 220 / 0.14);
+  --backdrop-trace: oklch(0.6 0.1 235 / 0.1);
+  --backdrop-trace-pulse: oklch(0.55 0.14 240 / 0.4);
   color-scheme: light;
 }
 
 .dark {
-  /* 底色带蓝调并抬高亮度,避免接近纯黑后层次发闷 */
-  --bg: oklch(0.205 0.022 264);
-  --surface: oklch(0.243 0.023 264);
-  --surface-2: oklch(0.281 0.024 264);
-  --surface-3: oklch(0.32 0.025 264);
-  --fg: oklch(0.958 0.005 258);
-  --muted: oklch(0.74 0.016 258);
-  --faint: oklch(0.6 0.015 258);
-  --border: oklch(0.335 0.024 264);
-  --border-strong: oklch(0.42 0.026 264);
-  --primary: oklch(0.64 0.2 257);
-  --primary-hover: oklch(0.72 0.16 253);
-  --primary-fg: oklch(0.99 0 0);
-  --primary-soft: oklch(0.3 0.085 265);
-  --success: oklch(0.723 0.219 149.579);
-  --warning: oklch(0.769 0.188 70.08);
-  --danger: oklch(0.637 0.237 25.331);
-  --info: oklch(0.64 0.2 257);
-  --header: oklch(0.225 0.028 266);
-  --header-fg: oklch(0.984 0.003 247.858);
-  --header-muted: oklch(0.85 0.02 252.894);
-  --header-hover: oklch(0.3 0.028 264);
+  /* Steam 深色基线:steam-dark #1b2838 底、钢蓝卡片面,与侧栏渐变同一色相 */
+  --bg: oklch(0.273 0.032 252); /* #1b2838 steam-dark */
+  --surface: oklch(0.345 0.042 250); /* 卡片面:比页面底提一档的钢蓝 */
+  --surface-2: oklch(0.385 0.044 250); /* 表头与次级面 */
+  --surface-3: oklch(0.43 0.046 249); /* 悬停与分割 */
+  --fg: oklch(0.866 0.022 241.4); /* #c7d5e0 steam-text */
+  --muted: oklch(0.755 0.033 246.8); /* #9fb2c4 */
+  --faint: oklch(0.65 0.036 244.2); /* #7d92a4 */
+  --border: oklch(0.42 0.045 250); /* 与卡片面同族的描边 */
+  --border-strong: oklch(0.48 0.05 249);
+  --primary: oklch(0.772 0.114 236.2); /* #66c0f4 steam-accent */
+  --primary-hover: oklch(0.828 0.101 230.3); /* #7dd3fc sky-300 */
+  /* 强调色足够亮,前景改用深海军蓝,对比度优于白字 */
+  --primary-fg: oklch(0.218 0.015 266.9); /* #171a21 steam-deeper */
+  --primary-soft: oklch(0.395 0.058 247.8); /* #2c4964 */
+  --success: oklch(0.8 0.182 151.7); /* #4ade80 green-400 */
+  --warning: oklch(0.758 0.159 55.9); /* #fb923c orange-400 */
+  --danger: oklch(0.637 0.208 25.3); /* #ef4444 red-500 */
+  --info: oklch(0.772 0.114 236.2); /* #66c0f4 steam-accent */
+  --header: oklch(0.225 0.022 251); /* 与侧栏同色相的深海军蓝 */
+  --header-fg: oklch(0.943 0.011 243.7); /* #e6edf3 */
+  --header-muted: oklch(0.755 0.033 246.8); /* #9fb2c4 */
+  --header-hover: oklch(0.345 0.042 250); /* 与卡片面同档 */
+
+  /* 品牌渐变收敛到 steam-accent 一支蓝,按钮与激活导航保持冷蓝金属感 */
+  --brand-from: oklch(0.772 0.114 236.2); /* #66c0f4 */
+  --brand-to: oklch(0.699 0.121 238.2); /* #4aa8e0 */
+  --brand-from-soft: oklch(0.772 0.114 236.2 / 0.22);
+  --brand-to-soft: oklch(0.699 0.121 238.2 / 0.2);
+  --brand-wash: oklch(0.772 0.114 236.2 / 0.06);
+  --skeleton-sheen: oklch(0.98 0.005 240 / 0.06);
+  --gradient-header-from: oklch(0.225 0.022 251);
+  --gradient-header-to: oklch(0.335 0.045 250);
+  --gradient-header-edge: oklch(0.42 0.045 250);
+  --glow-primary: oklch(0.772 0.114 236.2 / 0.32);
+
+  /* 深色侧栏采用 Steam 式钢蓝:顶部提亮、底部压深,与 #1b2838 页面底拉开层次 */
+  --sidebar-from: oklch(0.44 0.045 246);
+  --sidebar-mid: oklch(0.4 0.043 248);
+  --sidebar-deep: oklch(0.355 0.04 250);
+  --sidebar-to: oklch(0.3 0.035 252);
+  --sidebar-hover: oklch(0.99 0.005 240 / 0.09);
+  --sidebar-fg: oklch(0.93 0.015 242);
+  --sidebar-muted: oklch(0.86 0.025 244);
 
   /* 科技感底纹专用色:透明度即强度,调整这里即可整体收敛或加强 */
-  --backdrop-grid: oklch(0.75 0.08 240 / 0.05);
-  --backdrop-grid-major: oklch(0.78 0.1 235 / 0.075);
-  --backdrop-glow: oklch(0.6 0.2 265 / 0.16);
-  --backdrop-glow-accent: oklch(0.7 0.15 205 / 0.11);
-  --backdrop-trace: oklch(0.72 0.1 225 / 0.13);
-  --backdrop-trace-pulse: oklch(0.86 0.12 200 / 0.5);
+  --backdrop-glow: oklch(0.6 0.16 245 / 0.16);
+  --backdrop-glow-accent: oklch(0.75 0.12 225 / 0.12);
+  --backdrop-trace: oklch(0.72 0.1 230 / 0.14);
+  --backdrop-trace-pulse: oklch(0.86 0.12 205 / 0.5);
   color-scheme: dark;
 }
 
@@ -177,14 +240,129 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   animation: pop-in 150ms ease-out both;
 }
 
-/* 顶栏渐变:主色在 header 暗底上轻微晕染,跟随主题变量。 */
+/* 页面切换:轻微上浮 + 去模糊,比纯淡入更有纵深 */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@utility animate-page-in {
+  animation: page-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
+/* 顶栏渐变:浅色主题是白 → 雾蓝,深色主题是 Steam 深海军蓝 → 钢蓝,底部用 1px 内阴影收边。 */
 @utility header-gradient {
   background-image: linear-gradient(
     100deg,
-    var(--header) 0%,
-    color-mix(in oklab, var(--header) 90%, var(--primary)) 55%,
-    color-mix(in oklab, var(--header) 78%, var(--primary)) 100%
+    var(--gradient-header-from) 0%,
+    var(--gradient-header-to) 100%
   );
+  background-size: 220% 100%;
+  background-position: 0% 50%;
+  box-shadow: inset 0 -1px 0 var(--gradient-header-edge);
+  animation: header-gradient-pan 28s ease-in-out infinite alternate;
+}
+
+@keyframes header-gradient-pan {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+/* 品牌渐变:主按钮、激活态导航、强调块共用,保证不同页面视觉一致。 */
+@utility gradient-brand {
+  background-image: linear-gradient(120deg, var(--brand-from) 0%, var(--brand-to) 100%);
+}
+
+@utility gradient-brand-soft {
+  background-image: linear-gradient(
+    120deg,
+    var(--brand-from-soft) 0%,
+    var(--brand-to-soft) 100%
+  );
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(100deg, var(--brand-from) 0%, var(--brand-to) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 卡片悬停时从左上角晕开的单色光斑 */
+@utility card-sheen {
+  background-image: radial-gradient(
+    120% 140% at 0% 0%,
+    var(--brand-from-soft) 0%,
+    transparent 58%
+  );
+}
+
+/* 侧栏与面的顶部微光,让大面积纯色不至于死板 */
+@utility surface-sheen {
+  background-image: linear-gradient(180deg, var(--brand-wash) 0%, transparent 38%);
+}
+
+/* 侧栏背景:180° 上浅下深四段渐变,色相与顶栏、品牌蓝同属一支 */
+@utility sidebar-gradient {
+  background-color: var(--sidebar-to);
+  background-image: linear-gradient(
+    180deg,
+    var(--sidebar-from) 0%,
+    var(--sidebar-mid) 35%,
+    var(--sidebar-deep) 70%,
+    var(--sidebar-to) 100%
+  );
+}
+
+/* 顶栏品牌标记:渐变方块 + 呼吸光晕 */
+.brand-mark {
+  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  box-shadow: 0 0 12px var(--glow-primary);
+  animation: brand-breathe 4.5s ease-in-out infinite;
+}
+
+@keyframes brand-breathe {
+  0%,
+  100% {
+    filter: saturate(1) brightness(1);
+  }
+  50% {
+    filter: saturate(1.25) brightness(1.12);
+  }
+}
+
+/* 骨架加载:扫光替代整块呼吸,视觉上更接近真实内容流 */
+.skeleton {
+  background-color: var(--surface-2);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    var(--skeleton-sheen) 42%,
+    transparent 64%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.6s linear infinite;
 }
 
 @utility text-balance {
@@ -204,24 +382,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-}
-
-.tech-backdrop__grid {
-  position: absolute;
-  inset: -25%;
-  background-image:
-    linear-gradient(to right, var(--backdrop-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--backdrop-grid) 1px, transparent 1px),
-    linear-gradient(to right, var(--backdrop-grid-major) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--backdrop-grid-major) 1px, transparent 1px);
-  background-size:
-    64px 64px,
-    64px 64px,
-    256px 256px,
-    256px 256px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
-  mask-image: radial-gradient(ellipse 80% 75% at 50% 30%, #000 0%, transparent 76%);
-  animation: tech-grid-drift 90s linear infinite;
 }
 
 .tech-backdrop__glow {
@@ -253,6 +413,12 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   inset: 0;
   width: 100%;
   height: 100%;
+  /* 走线在浅色底上会变成噪点,只在深色主题显示 */
+  display: none;
+}
+
+.dark .tech-backdrop__circuit {
+  display: block;
 }
 
 .tech-backdrop__trace {
@@ -285,15 +451,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       transparent 52%,
       color-mix(in oklab, var(--bg) 68%, transparent) 100%
     );
-}
-
-@keyframes tech-grid-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(64px, 64px, 0);
-  }
 }
 
 @keyframes tech-glow-drift-a {

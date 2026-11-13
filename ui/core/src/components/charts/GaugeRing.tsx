@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { cn } from '../../lib/cn'
 
 const TONES = {
@@ -37,11 +38,23 @@ export function GaugeRing({
   const circumference = 2 * Math.PI * radius
   const dash = (clamped / 100) * circumference
   const resolvedTone = tone ?? toneForPercent(clamped)
+  // useId 生成的冒号在 SVG url(#…) 引用里需要剔除
+  const gradientId = `gauge-arc-${useId().replace(/:/g, '')}`
 
   return (
     <div className={cn('flex flex-col items-center gap-2', className)}>
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg
+          width={size}
+          height={size}
+          className={cn('-rotate-90', TONES[resolvedTone])}
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="currentColor" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="currentColor" stopOpacity={1} />
+            </linearGradient>
+          </defs>
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -58,8 +71,8 @@ export function GaugeRing({
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${circumference - dash}`}
-            className={cn('transition-all duration-700', TONES[resolvedTone])}
-            stroke="currentColor"
+            stroke={`url(#${gradientId})`}
+            className="transition-all duration-700"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">

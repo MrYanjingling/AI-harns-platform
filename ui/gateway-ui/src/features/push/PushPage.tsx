@@ -946,7 +946,7 @@ function GroupsTab() {
             </Field>
           </div>
 
-          <div className="flex items-center gap-2 rounded border border-border bg-surface-2 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2">
             <Switch
               checked={form.allCollections}
               label={t('gateway.push.scope.all')}
@@ -974,7 +974,7 @@ function GroupsTab() {
                   className="w-44"
                 />
               </div>
-              <div className="max-h-56 overflow-y-auto rounded border border-border">
+              <div className="max-h-56 overflow-y-auto rounded-xl border border-border">
                 {collectionList.length === 0 ? (
                   <p className="px-3 py-4 text-center text-xs text-faint">
                     {t('gateway.push.group.noCollections')}
