@@ -79,6 +79,7 @@ var messageIDs = map[ErrCode]string{
 	ErrCodePushConnectorAlreadyStopped: "error.push_connector_already_stopped",
 	ErrCodePushConnectorStartFailed:    "error.push_connector_start_failed",
 	ErrCodePushConnectorStopFailed:     "error.push_connector_stop_failed",
+	ErrCodeSystemLogFileUnavailable:    "error.system_log_file_unavailable",
 }
 
 func messageID(code ErrCode) string {

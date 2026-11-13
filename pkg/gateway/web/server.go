@@ -17,6 +17,7 @@ import (
 	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
+	"harns-platform/pkg/gateway/logapi"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
@@ -121,6 +122,7 @@ func (s *Server) InstallHandlers() {
 	drivermgr.InstallHandler(v1, s.Config.DriverMgr)
 	collectionmgr.InstallHandler(v1, s.Config.CollectionMgr)
 	pushmgr.InstallHandler(v1, s.Config.PushMgr)
+	logapi.InstallHandler(v1, s.Config.LogFilePath)
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {

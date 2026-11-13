@@ -55,6 +55,14 @@ func (m *Manager) GetGatewayMeta() (*GatewayMeta, error) {
 	return m.gatewayMeta, nil
 }
 
+// GetGatewayMetaVo returns gateway metadata with current uptime values.
+func (m *Manager) GetGatewayMetaVo() (*GatewayMetaVo, error) {
+	if m == nil || m.gatewayMeta == nil {
+		return nil, fmt.Errorf("gateway metadata is not initialized")
+	}
+	return m.gatewayMeta.ToVo(time.Now().UTC()), nil
+}
+
 func (m *Manager) getGatewayCpu() (map[string]string, error) {
 	m.mux.RLock()
 	data := make(map[string]string, 0)

@@ -22,5 +22,6 @@ type Config struct {
 	KeyFile       string
 	MaxBodyBytes  int64
 	UIDir         string
+	LogFilePath   string
 	CORS          generic.CORSConfig
 }

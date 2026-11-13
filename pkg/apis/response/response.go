@@ -510,3 +510,8 @@ func ErrPushConnectorStartFailed(reason string) *responseError {
 func ErrPushConnectorStopFailed(reason string) *responseError {
 	return generateError(ErrCodePushConnectorStopFailed, reason)
 }
+
+// ErrSystemLogFileUnavailable reports that file-based logging is disabled.
+func ErrSystemLogFileUnavailable() *responseError {
+	return generateError(ErrCodeSystemLogFileUnavailable)
+}

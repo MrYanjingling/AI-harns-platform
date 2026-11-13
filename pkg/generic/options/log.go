@@ -63,6 +63,22 @@ func (l *LoggingConfiguration) ValidateAndApply() error {
 	return nil
 }
 
+// FilePath returns the active log file path, or empty when logging to stdio.
+func (l *LoggingConfiguration) FilePath() string {
+	switch l.Output {
+	case "stderr", "stdout":
+		return ""
+	case "":
+		return defaultLogFile()
+	default:
+		path, err := filepath.Abs(l.Output)
+		if err != nil {
+			return l.Output
+		}
+		return path
+	}
+}
+
 func (l *LoggingConfiguration) outputWriter() (io.Writer, error) {
 	switch l.Output {
 	case "stderr":

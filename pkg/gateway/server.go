@@ -18,7 +18,11 @@ func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 
 func getGatewayMeta(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		g, _ := mgr.GetGatewayMeta()
+		g, err := mgr.GetGatewayMetaVo()
+		if err != nil {
+			response.WriteError(c, http.StatusInternalServerError, response.ErrInternal(err))
+			return
+		}
 		c.Header(apis.ETag, fmt.Sprintf("%s", g.GetVersion()))
 		response.WriteOK(c, g)
 	}

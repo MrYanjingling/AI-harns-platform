@@ -83,6 +83,7 @@ const (
 	ErrCodePushConnectorAlreadyStopped         // 20015
 	ErrCodePushConnectorStartFailed            // 20016
 	ErrCodePushConnectorStopFailed             // 20017
+	ErrCodeSystemLogFileUnavailable            // 20018
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

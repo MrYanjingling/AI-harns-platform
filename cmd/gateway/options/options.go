@@ -71,7 +71,12 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 }
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
-	c := &config.Config{MaxBodyBytes: o.MaxBodyBytes, UIDir: o.UIDir, CORS: o.CORS}
+	c := &config.Config{
+		MaxBodyBytes: o.MaxBodyBytes,
+		UIDir:        o.UIDir,
+		LogFilePath:  o.Logging.FilePath(),
+		CORS:         o.CORS,
+	}
 
 	db, err := sqlite.Open(o.SQLite.Path)
 	if err != nil {

@@ -185,3 +185,4 @@ error.push_connector_already_running: "推送连接器 [%s] 已经是 running �
 error.push_connector_already_stopped: "推送连接器 [%s] 已经是 stopped 状态。"
 error.push_connector_start_failed: "推送连接器启动失败：%s。"
 error.push_connector_stop_failed: "推送连接器停止失败：%s。"
+error.system_log_file_unavailable: "当前日志输出为 stdout/stderr，无法实时查看日志。"
