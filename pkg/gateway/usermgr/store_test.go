@@ -22,7 +22,7 @@ func newTestService(t *testing.T) (*Service, *Store) {
 	t.Cleanup(func() { _ = db.Close() })
 	store := NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	return NewService(store), store
+	return NewService(store, true), store
 }
 
 func newBootstrappedService(t *testing.T) (*Service, *Store) {

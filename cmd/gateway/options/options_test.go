@@ -16,3 +16,14 @@ func TestGatewayFlagsMatchPlatform(t *testing.T) {
 		assert.NotNil(t, fs.Lookup(name), "missing flag %s", name)
 	}
 }
+
+func TestAuthEnabledFromEnv(t *testing.T) {
+	t.Setenv(_envAuthEnabled, "")
+	assert.False(t, authEnabledFromEnv())
+	t.Setenv(_envAuthEnabled, "true")
+	assert.True(t, authEnabledFromEnv())
+	t.Setenv(_envAuthEnabled, "false")
+	assert.False(t, authEnabledFromEnv())
+	t.Setenv(_envAuthEnabled, "invalid")
+	assert.False(t, authEnabledFromEnv())
+}

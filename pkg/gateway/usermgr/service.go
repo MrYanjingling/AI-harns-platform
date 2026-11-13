@@ -20,14 +20,16 @@ import (
 )
 
 type Service struct {
-	store    *Store
-	sessions *sessionStore
+	store       *Store
+	sessions    *sessionStore
+	authEnabled bool
 }
 
-func NewService(store *Store) *Service {
+func NewService(store *Store, authEnabled bool) *Service {
 	return &Service{
-		store:    store,
-		sessions: newSessionStore(),
+		store:       store,
+		sessions:    newSessionStore(),
+		authEnabled: authEnabled,
 	}
 }
 
@@ -264,7 +266,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 func (s *Service) ChangePassword(ctx context.Context, id, actorID, oldPassword, newPassword string) (*v1.UserVo, error) {
 	defer logging.Trace("usermgr.ChangePassword", "id", id)()
 
-	if id != actorID {
+	if s.authEnabled && id != actorID {
 		return nil, response.ErrForbidden()
 	}
 	item, err := s.store.Get(ctx, id)

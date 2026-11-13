@@ -27,7 +27,7 @@ func TestGatewayAPIAuthenticationWiring(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 	store := usermgr.NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	users := usermgr.NewService(store)
+	users := usermgr.NewService(store, true)
 	require.NoError(t, users.BootstrapSuperuser(context.Background()))
 
 	server, err := NewServer(gin.New(), options.NewDefaultOptions(), &config.Config{

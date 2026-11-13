@@ -4,6 +4,10 @@
 # or point to it explicitly with:  ./gateway -c /etc/gateway/config.yaml
 #
 # Command-line flags always override values defined here.
+#
+# Token authentication is disabled by default for local debugging.
+# Set GATEWAY_AUTH_ENABLED=true to require Bearer tokens on all /api/v1
+# endpoints except /api/v1/auth/login.
 
 # HTTP/HTTPS port exposed by the gateway.
 port: "32200"

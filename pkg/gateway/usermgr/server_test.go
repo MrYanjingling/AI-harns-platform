@@ -18,8 +18,14 @@ import (
 
 func newTestEngine(t *testing.T) (*Service, *Store, *gin.Engine) {
 	t.Helper()
+	return newTestEngineWithAuth(t, true)
+}
+
+func newTestEngineWithAuth(t *testing.T, authEnabled bool) (*Service, *Store, *gin.Engine) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	service, store := newBootstrappedService(t)
+	service = NewService(store, authEnabled)
 	engine := gin.New()
 	v1Group := engine.Group("/api/v1")
 	InstallPublicHandler(v1Group, service)
@@ -165,4 +171,24 @@ func assertResponseCode(t *testing.T, rec *httptest.ResponseRecorder, code respo
 	var result response.Result
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
 	assert.Equal(t, int(code), result.Code, rec.Body.String())
+}
+
+func TestServerAuthCanBeDisabled(t *testing.T) {
+	_, _, engine := newTestEngineWithAuth(t, false)
+
+	rec := doJSON(engine, http.MethodGet, "/api/v1/users", "", "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	rec = doJSON(engine, http.MethodPost, "/api/v1/users", "", `{"username":"operator","password":"secret1"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var created response.Result
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	userID := created.Data.(map[string]interface{})["id"].(string)
+
+	rec = doJSON(engine, http.MethodPut, "/api/v1/users/"+userID, "", `{"remark":"debug"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec = doJSON(engine, http.MethodPost, "/api/v1/users/"+userID+"/password/reset", "", "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec = doJSON(engine, http.MethodDelete, "/api/v1/users/"+userID, "", "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }

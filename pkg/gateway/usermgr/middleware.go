@@ -10,6 +10,12 @@ import (
 )
 
 func (s *Service) RequireAuth() gin.HandlerFunc {
+	if !s.authEnabled {
+		return func(c *gin.Context) {
+			c.Set(sessionContextKey, &Session{IsAdmin: true})
+			c.Next()
+		}
+	}
 	return func(c *gin.Context) {
 		token := bearerToken(c.GetHeader("Authorization"))
 		if token == "" {
@@ -29,6 +35,11 @@ func (s *Service) RequireAuth() gin.HandlerFunc {
 }
 
 func (s *Service) RequireAdmin() gin.HandlerFunc {
+	if !s.authEnabled {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
 	return func(c *gin.Context) {
 		session := currentSession(c)
 		if session == nil {

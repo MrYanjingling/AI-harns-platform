@@ -2,6 +2,10 @@ package options
 
 import (
 	"context"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/pkg/gateway"
@@ -17,6 +21,7 @@ import (
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	baseoptions "harns-platform/pkg/generic/options"
+	"harns-platform/pkg/logging"
 	"time"
 )
 
@@ -44,6 +49,7 @@ const (
 	_defaultMaxBodyBytes int64 = 10 << 20
 	_defaultSQLitePath         = "data/gateway.db"
 	_defaultUIDir              = "ui/gateway-ui/dist"
+	_envAuthEnabled            = "GATEWAY_AUTH_ENABLED"
 )
 
 func NewDefaultOptions() *Options {
@@ -108,7 +114,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	userService := usermgr.NewService(userStore)
+	authEnabled := authEnabledFromEnv()
+	if !authEnabled {
+		logging.Warnf("Gateway token authentication is disabled; set %s=true to enable it", _envAuthEnabled)
+	}
+	userService := usermgr.NewService(userStore, authEnabled)
 	if err := userService.BootstrapSuperuser(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -176,4 +186,17 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil
+}
+
+func authEnabledFromEnv() bool {
+	raw := strings.TrimSpace(os.Getenv(_envAuthEnabled))
+	if raw == "" {
+		return false
+	}
+	enabled, err := strconv.ParseBool(raw)
+	if err != nil {
+		logging.Warnf("Invalid %s=%q; token authentication stays disabled", _envAuthEnabled, raw)
+		return false
+	}
+	return enabled
 }
