@@ -5,12 +5,13 @@
 #
 # Command-line flags always override values defined here.
 #
-# Token authentication is disabled by default for local debugging.
-# Set GATEWAY_AUTH_ENABLED=true to require Bearer tokens on all /api/v1
-# endpoints except /api/v1/auth/login.
 
 # HTTP/HTTPS port exposed by the gateway.
 port: "32200"
+
+# Require Bearer token authentication for all /api/v1 endpoints except login.
+# Defaults to false for local debugging. GATEWAY_AUTH_ENABLED overrides it.
+auth-enabled: false
 
 # The duration the server gracefully waits for existing connections to finish
 # before shutting down (e.g. 15s, 1m).
@@ -22,6 +23,11 @@ max-body-bytes: 10485760
 # Gateway metadata database (protocol management).
 sqlite:
   path: "data/gateway.db"
+
+# License verification (RS256 JWT signed by the license issuer).
+license:
+  # RSA public key PEM used to verify imported licenses (PKIX or PKCS1).
+  public-key-file: "etc/gateway/license-public.pem"
 
 # Gateway management UI static assets. Leave empty to disable UI hosting.
 ui-dir: "ui/gateway-ui/dist"

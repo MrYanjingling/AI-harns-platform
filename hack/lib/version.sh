@@ -84,6 +84,10 @@ harnsgateway::version::get_version_vars() {
       fi
     fi
   fi
+
+  if [[ -z ${HARNSGATEWAY_GIT_VERSION-} ]]; then
+    HARNSGATEWAY_GIT_VERSION="v3.0.0"
+  fi
 }
 
 # Saves the environment flags to $1
@@ -136,9 +140,10 @@ harnsgateway::version::ldflags() {
     add_ldflag "gitTreeState" "${HARNSGATEWAY_GIT_TREE_STATE}"
   fi
 
-  if [[ -n ${HARNSGATEWAY_GIT_VERSION-} ]]; then
-    add_ldflag "gitVersion" "${HARNSGATEWAY_GIT_VERSION}"
+  if [[ -z ${HARNSGATEWAY_GIT_VERSION-} ]]; then
+    HARNSGATEWAY_GIT_VERSION="v3.0.0"
   fi
+  add_ldflag "gitVersion" "${HARNSGATEWAY_GIT_VERSION}"
 
   if [[ -n ${HARNSGATEWAY_GIT_MAJOR-} && -n ${HARNSGATEWAY_GIT_MINOR-} ]]; then
     add_ldflag "gitMajor" "${HARNSGATEWAY_GIT_MAJOR}"

@@ -1,16 +1,18 @@
-package gateway
+package gatewaymgr
 
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
 	"harns-platform/pkg/host"
 	"harns-platform/pkg/logging"
-	"sync"
-	"time"
+	"harns-platform/pkg/version"
 )
 
 type Option func(*Manager)
@@ -18,6 +20,7 @@ type Option func(*Manager)
 type Manager struct {
 	cpus        []float64
 	mux         *sync.RWMutex
+	metaMu      sync.RWMutex
 	gatewayMeta *GatewayMeta
 	service     *Service
 	stopCh      <-chan struct{}
@@ -45,21 +48,68 @@ func (m *Manager) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.metaMu.Lock()
 	m.gatewayMeta = meta
+	m.metaMu.Unlock()
 	logging.V(3).InfoS("Gateway metadata loaded", "gatewayId", meta.ID)
 	go m.collectCpu()
 	return nil
 }
 
 func (m *Manager) GetGatewayMeta() (*GatewayMeta, error) {
-	return m.gatewayMeta, nil
+	if m == nil {
+		return nil, fmt.Errorf("gateway manager is nil")
+	}
+	m.metaMu.RLock()
+	defer m.metaMu.RUnlock()
+	if m.gatewayMeta == nil {
+		return nil, nil
+	}
+	copied := *m.gatewayMeta
+	return &copied, nil
 }
 
 // GetGatewayMetaVo returns gateway metadata with current uptime values.
 func (m *Manager) GetGatewayMetaVo() (*GatewayMetaVo, error) {
-	if m == nil || m.gatewayMeta == nil {
+	if m == nil {
 		return nil, fmt.Errorf("gateway metadata is not initialized")
 	}
+	m.metaMu.RLock()
+	defer m.metaMu.RUnlock()
+	if m.gatewayMeta == nil {
+		return nil, fmt.Errorf("gateway metadata is not initialized")
+	}
+	return m.gatewayMeta.ToVo(time.Now().UTC()), nil
+}
+
+func (m *Manager) GetSystemInfoMeta(ctx context.Context) *SystemInfoMeta {
+	info := host.GetSystemInfo(ctx)
+	return &SystemInfoMeta{
+		Version:       version.Version(),
+		CommitID:      version.CommitID(),
+		HardwareID:    info.HardwareID,
+		Architecture:  info.Architecture,
+		OSVersion:     info.OSVersion,
+		KernelVersion: info.KernelVersion,
+	}
+}
+
+func (m *Manager) UpdateGatewayName(ctx context.Context, name string) (*GatewayMetaVo, error) {
+	if m == nil || m.service == nil {
+		return nil, fmt.Errorf("gateway service is nil")
+	}
+	m.metaMu.Lock()
+	defer m.metaMu.Unlock()
+	if m.gatewayMeta == nil {
+		return nil, fmt.Errorf("gateway metadata is not initialized")
+	}
+	name = strings.TrimSpace(name)
+	eTag, err := m.service.Rename(ctx, m.gatewayMeta.ID, name)
+	if err != nil {
+		return nil, err
+	}
+	m.gatewayMeta.Name = name
+	m.gatewayMeta.Version = eTag
 	return m.gatewayMeta.ToVo(time.Now().UTC()), nil
 }
 

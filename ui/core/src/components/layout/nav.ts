@@ -13,6 +13,7 @@ export interface NavLeaf {
 export interface NavGroup {
   /** 有 labelKey 时渲染为可折叠分组,否则平铺 */
   labelKey?: string
+  icon?: ReactNode
   items: NavLeaf[]
 }
 
@@ -70,6 +71,30 @@ export function titleKeyFromMatches(
     if (handle && typeof handle === 'object' && 'titleKey' in handle) {
       const value = (handle as { titleKey?: unknown }).titleKey
       if (typeof value === 'string' && value) return value
+    }
+  }
+  return undefined
+}
+
+export function navItemMatches(pathname: string, to: string, end = false): boolean {
+  if (end) return pathname === to
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+export function breadcrumbForPath(
+  pathname: string,
+  sections: NavSection[],
+): { parentLabelKey?: string; itemLabelKey: string } | undefined {
+  for (const section of sections) {
+    for (const group of section.groups) {
+      for (const item of group.items) {
+        if (navItemMatches(pathname, item.to, item.end)) {
+          return {
+            parentLabelKey: group.labelKey,
+            itemLabelKey: item.labelKey,
+          }
+        }
+      }
     }
   }
   return undefined

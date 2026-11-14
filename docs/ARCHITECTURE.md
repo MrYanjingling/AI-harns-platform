@@ -47,6 +47,8 @@ AI-harns-platform
 │   │   ├── things/         设备（Thing）：凭证、MQTT 配置、在线状态
 │   │   └── web/            路由装配、health/ready、OpenAPI/Swagger
 │   ├── gateway/
+│   │   ├── gatewaymgr/     网关元信息、系统信息与资源接口
+│   │   ├── licensemgr/     license JWT 验签、内存缓存与 SQLite 持久化
 │   │   ├── device/         设备 CRUD、启停、反控、采集调度、MQTT 发布
 │   │   ├── registry/       deviceType → v1 model / runtime device / broker 工厂
 │   │   ├── protocol/       modbus、opcua、s7，各自含 model 与 runtime
@@ -178,7 +180,8 @@ i18n → Trace → accessLogger → securityHeaders → metrics → gzip
 | `/api/v1/devices/:id` | GET/PUT/PATCH/DELETE | 详情 / 全量更新 / 局部更新 / 删除 |
 | `/api/v1/devices/:id/:status` | PUT | 启停（start/stop/restart） |
 | `/api/v1/devices/:id/action` | PUT | 变量反控 |
-| `/api/v1/gatewayMeta` | GET | 网关身份与版本（带 ETag） |
+| `/api/v1/gatewayMeta` | GET/PUT | 网关身份与版本（带独立 ETag）/ 修改网关名称 |
+| `/api/v1/systemInfo` | GET | 应用版本、commit 与系统硬件/发行版/内核信息 |
 | `/api/v1/gatewayCpu|Mem|Disk` | GET | 网关资源使用 |
 | `/api/v1/drivers` | GET/POST | 驱动元数据列表 / 创建自定义驱动 |
 | `/api/v1/drivers/schema` | GET | 根据 `driverModel` 查询 Schema |

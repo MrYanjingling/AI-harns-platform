@@ -88,6 +88,11 @@ const (
 	ErrCodeUserProtected                       // 20020
 	ErrCodeUserInvalid                         // 20021
 	ErrCodeUserPasswordMismatch                // 20022
+	ErrCodeGatewayMetaInvalid                  // 20023
+	ErrCodeLicenseInvalid                      // 20024
+	ErrCodeLicenseGatewayMismatch              // 20025
+	ErrCodeLicenseExpired                      // 20026
+	ErrCodeLicensePublicKeyUnavailable         // 20027
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

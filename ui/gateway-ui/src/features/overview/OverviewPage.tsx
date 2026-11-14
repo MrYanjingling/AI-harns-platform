@@ -1,15 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
+  Check,
   CircleCheck,
   CircleDashed,
+  Copy as CopyIcon,
   Cpu,
   HardDrive,
+  KeyRound,
   MemoryStick,
   RadioTower,
-  RefreshCw,
   Server,
   TriangleAlert,
   Waypoints,
@@ -22,14 +24,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CopyButton,
+  Dialog,
   EmptyState,
   ErrorState,
   GaugeRing,
-  PageHeader,
   ProgressBar,
   Skeleton,
   StatCard,
-  formatDateTime,
+  cn,
   formatRelative,
   percentValue,
   toneForPercent,
@@ -47,8 +50,10 @@ import {
 import type { Collection } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import { ProtocolLabel } from '@/components/ProtocolLabel'
-import { driverTypeLabel, formatCycle, isAbnormalStatus } from '@/lib/constants'
+import { driverTypeLabel, isAbnormalStatus } from '@/lib/constants'
 import { useOperationLogs } from '@/lib/operation-log'
+
+const overviewCardClass = 'border-[1.5px] border-border-strong/75 shadow-[0_1px_3px_rgba(28,47,76,0.06)]'
 
 export function OverviewPage() {
   const { t } = useI18n()
@@ -60,6 +65,7 @@ export function OverviewPage() {
   const connectors = usePushConnectors({ page: 1, pageSize: 100 })
   const groups = usePushGroups({ page: 1, pageSize: 100 })
   const operationLogs = useOperationLogs()
+  const [secretOpen, setSecretOpen] = useState(false)
 
   const list = collections.data?.list ?? []
   const connectorList = connectors.data?.list ?? []
@@ -103,56 +109,24 @@ export function OverviewPage() {
   )
 
   const recentOperations = operationLogs.slice(0, 6)
-  const refreshing =
-    meta.isFetching ||
-    cpu.isFetching ||
-    mem.isFetching ||
-    disk.isFetching ||
-    collections.isFetching ||
-    connectors.isFetching
-
-  const refresh = () => {
-    void meta.refetch()
-    void cpu.refetch()
-    void mem.refetch()
-    void disk.refetch()
-    void collections.refetch()
-    void connectors.refetch()
-    void groups.refetch()
-  }
 
   const memData = mem.data?.mem
   const diskEntries = Object.entries(disk.data?.disk ?? {})
   const error = collections.error ?? connectors.error
 
   return (
-    <div className="space-y-3">
-      <PageHeader
-        title={t('gateway.overview.title')}
-        description={t('gateway.overview.description')}
-        actions={
-          <Button
-            variant="outline"
-            loading={refreshing}
-            onClick={refresh}
-            icon={<RefreshCw className="size-3.5" />}
-          >
-            {t('common.action.refresh')}
-          </Button>
-        }
-      />
-
-      <Card className="relative overflow-hidden">
+    <div className="min-h-full space-y-4 bg-surface-3 p-4 sm:p-6">
+      <Card className={cn('relative overflow-hidden', overviewCardClass)}>
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,var(--primary-soft),transparent_62%)] opacity-70"
         />
         <div className="relative flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-primary">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded border border-border bg-surface-2 text-primary">
               <Server className="size-5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 {meta.isLoading ? (
                   <Skeleton className="h-6 w-40" />
@@ -161,37 +135,32 @@ export function OverviewPage() {
                     {meta.data?.name ?? t('gateway.overview.unknownGateway')}
                   </h2>
                 )}
-                <Badge tone={meta.isError ? 'danger' : 'success'} dot>
-                  {meta.isError
-                    ? t('gateway.overview.metaError')
-                    : t('gateway.overview.metaOk')}
-                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<KeyRound className="size-3.5" />}
+                  onClick={() => setSecretOpen(true)}
+                  disabled={!meta.data?.secret}
+                >
+                  {t('gateway.overview.secret.show')}
+                </Button>
               </div>
-              <p className="mt-0.5 truncate font-mono text-[11px] text-faint">
-                {meta.data?.id ?? '—'}
-              </p>
+              <div className="flex h-5 min-w-0 items-center gap-1.5">
+                <p className="min-w-0 truncate whitespace-nowrap font-mono text-xs text-fg">
+                  {meta.data?.id ?? '—'}
+                </p>
+                {meta.data?.id ? <CopyButton value={meta.data.id} className="size-5" /> : null}
+              </div>
             </div>
           </div>
-          <div className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2 text-[11px] sm:grid-cols-3">
+          <div className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2 text-[11px]">
             <div>
-              <p className="text-faint">{t('gateway.performance.field.version')}</p>
-              <p className="mt-0.5 font-mono text-xs text-fg">{meta.data?.eTag ?? '—'}</p>
+              <p className="text-faint">{t('gateway.overview.field.currentUptime')}</p>
+              <p className="mt-0.5 font-mono text-xs text-fg">{meta.data?.currentUptime ?? '—'}</p>
             </div>
             <div>
-              <p className="text-faint">{t('gateway.performance.field.modTime')}</p>
-              <p className="mt-0.5 text-xs text-fg">{formatDateTime(meta.data?.modTime)}</p>
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-faint">{t('gateway.overview.field.collectCycle')}</p>
-              <p className="mt-0.5 text-xs text-fg">
-                {list.length > 0
-                  ? formatCycle(
-                      Math.round(
-                        list.reduce((sum, item) => sum + item.collectorCycleMs, 0) / list.length,
-                      ),
-                    )
-                  : '—'}
-              </p>
+              <p className="text-faint">{t('gateway.overview.field.totalUptime')}</p>
+              <p className="mt-0.5 font-mono text-xs text-fg">{meta.data?.totalUptime ?? '—'}</p>
             </div>
           </div>
         </div>
@@ -201,39 +170,43 @@ export function OverviewPage() {
         <ErrorState error={error} onRetry={() => void collections.refetch()} compact />
       ) : null}
 
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t('gateway.overview.stat.collections')}
           value={stats.total}
-          hint={t('gateway.overview.stat.collectionsHint', {
-            collecting: stats.collecting,
-            stopped: stats.stopped,
-          })}
-          icon={<Activity className="size-3.5" />}
+          icon={<Activity />}
+          variant="summary"
+          tone="primary"
+          className={overviewCardClass}
         />
         <StatCard
           label={t('gateway.overview.stat.abnormal')}
           value={stats.abnormal}
-          hint={t('gateway.overview.stat.abnormalHint')}
-          icon={<TriangleAlert className="size-3.5" />}
-          className={stats.abnormal > 0 ? 'border-danger/30' : undefined}
+          icon={<TriangleAlert />}
+          variant="summary"
+          tone="danger"
+          className={cn(overviewCardClass, stats.abnormal > 0 && 'border-danger/30')}
         />
         <StatCard
           label={t('gateway.overview.stat.connectors')}
           value={`${stats.runningConnectors}/${stats.connectors}`}
-          hint={t('gateway.overview.stat.connectorsHint')}
-          icon={<RadioTower className="size-3.5" />}
+          icon={<RadioTower />}
+          variant="summary"
+          tone="success"
+          className={overviewCardClass}
         />
         <StatCard
           label={t('gateway.overview.stat.groups')}
           value={stats.groups}
-          hint={t('gateway.overview.stat.groupsHint')}
-          icon={<Waypoints className="size-3.5" />}
+          icon={<Waypoints />}
+          variant="summary"
+          tone="neutral"
+          className={overviewCardClass}
         />
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-3">
-        <Card>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle className="flex items-center gap-1.5">
@@ -266,7 +239,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle className="flex items-center gap-1.5">
@@ -298,7 +271,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle className="flex items-center gap-1.5">
@@ -336,8 +309,8 @@ export function OverviewPage() {
         </Card>
       </div>
 
-      <div className="grid items-start gap-3 lg:grid-cols-2">
-        <Card>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle>{t('gateway.overview.attention.title')}</CardTitle>
@@ -373,7 +346,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle>{t('gateway.overview.recent.title')}</CardTitle>
@@ -435,7 +408,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle>{t('gateway.overview.protocol.title')}</CardTitle>
@@ -466,7 +439,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={overviewCardClass}>
           <CardHeader>
             <div>
               <CardTitle>{t('gateway.overview.operations.title')}</CardTitle>
@@ -513,7 +486,52 @@ export function OverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={secretOpen}
+        onClose={() => setSecretOpen(false)}
+        title={t('gateway.overview.secret.title')}
+        description={t('gateway.overview.secret.description')}
+        size="md"
+      >
+        <div className="flex flex-nowrap items-center gap-2 rounded border border-border bg-surface-2 px-3 py-2">
+          <code
+            title={meta.data?.secret}
+            className="block min-w-0 flex-1 truncate whitespace-nowrap font-mono text-xs text-fg"
+          >
+            {meta.data?.secret || t('common.state.unset')}
+          </code>
+          {meta.data?.secret ? <SecretCopyButton value={meta.data.secret} /> : null}
+        </div>
+      </Dialog>
     </div>
+  )
+}
+
+function SecretCopyButton({ value }: { value: string }) {
+  const { t } = useI18n()
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore clipboard failures */
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded p-1.5 text-xs text-muted transition-colors hover:bg-surface-3 hover:text-fg"
+      aria-label={copied ? t('common.action.copied') : t('common.action.copy')}
+    >
+      {copied ? <Check className="size-3.5 text-primary" /> : <CopyIcon className="size-3.5" />}
+      {copied ? <span>{t('common.action.copied')}</span> : null}
+    </button>
   )
 }
 

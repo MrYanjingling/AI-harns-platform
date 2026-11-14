@@ -4,6 +4,8 @@ import { defineMessages } from './define'
 export const layout = defineMessages({
   'zh-CN': {
     'layout.shell.primaryNav': '一级导航',
+    'layout.shell.breadcrumb': '面包屑导航',
+    'layout.shell.resizeSidebar': '调整菜单宽度',
     'layout.shell.openMenu': '打开菜单',
     'layout.shell.closeMenu': '关闭菜单',
     'layout.shell.searchMenu': '搜索菜单',
@@ -14,6 +16,8 @@ export const layout = defineMessages({
     'layout.shell.documentTitle': '{title} · {appName}',
     'layout.shell.accountMenu': '账户菜单',
     'layout.shell.preferences': '偏好设置',
+    'layout.shell.collapseSidebar': '收起侧边栏',
+    'layout.shell.expandSidebar': '展开侧边栏',
     'layout.shell.quickSearch.title': '搜索菜单',
     'layout.shell.quickSearch.placeholder': '搜索页面或功能…',
     'layout.shell.quickSearch.empty': '没有匹配的页面',
@@ -23,6 +27,8 @@ export const layout = defineMessages({
   },
   'en-US': {
     'layout.shell.primaryNav': 'Primary navigation',
+    'layout.shell.breadcrumb': 'Breadcrumb',
+    'layout.shell.resizeSidebar': 'Resize menu',
     'layout.shell.openMenu': 'Open menu',
     'layout.shell.closeMenu': 'Close menu',
     'layout.shell.searchMenu': 'Search menu',
@@ -33,6 +39,8 @@ export const layout = defineMessages({
     'layout.shell.documentTitle': '{title} · {appName}',
     'layout.shell.accountMenu': 'Account menu',
     'layout.shell.preferences': 'Preferences',
+    'layout.shell.collapseSidebar': 'Collapse sidebar',
+    'layout.shell.expandSidebar': 'Expand sidebar',
     'layout.shell.quickSearch.title': 'Search menus',
     'layout.shell.quickSearch.placeholder': 'Search pages or features…',
     'layout.shell.quickSearch.empty': 'No matching pages',

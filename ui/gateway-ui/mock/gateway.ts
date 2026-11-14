@@ -16,6 +16,7 @@ import {
   connectors,
   drivers,
   gatewayMeta,
+  systemInfo,
   pushGroups,
   ulid,
 } from './fixtures'
@@ -169,6 +170,11 @@ export async function handleGateway(
 
   if (method === 'GET' && pathname === '/gatewayMeta') {
     send(res, 200, ok(gatewayMeta), { ETag: gatewayMeta.eTag })
+    return true
+  }
+
+  if (method === 'GET' && pathname === '/systemInfo') {
+    send(res, 200, ok(systemInfo))
     return true
   }
 

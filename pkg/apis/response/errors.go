@@ -84,6 +84,11 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeUserProtected:               "error.user_protected",
 	ErrCodeUserInvalid:                 "error.user_invalid",
 	ErrCodeUserPasswordMismatch:        "error.user_password_mismatch",
+	ErrCodeGatewayMetaInvalid:          "error.gateway_meta_invalid",
+	ErrCodeLicenseInvalid:              "error.license_invalid",
+	ErrCodeLicenseGatewayMismatch:      "error.license_gateway_mismatch",
+	ErrCodeLicenseExpired:              "error.license_expired",
+	ErrCodeLicensePublicKeyUnavailable: "error.license_public_key_unavailable",
 }
 
 func messageID(code ErrCode) string {

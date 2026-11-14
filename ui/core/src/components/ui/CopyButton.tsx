@@ -20,7 +20,7 @@ export function CopyButton({
     try {
       await navigator.clipboard.writeText(value)
       setCopied(true)
-      toast.success(label ?? t('components.copy.success'))
+      toast.success(label ?? t('components.copy.success'), { duration: 1500 })
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
       toast.error(t('components.copy.failed'))
@@ -33,7 +33,7 @@ export function CopyButton({
       onClick={copy}
       aria-label={t('components.copy.aria')}
       className={cn(
-        'inline-flex size-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-fg',
+        'inline-flex size-7 shrink-0 items-center justify-center whitespace-nowrap rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-fg',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
         className,
       )}

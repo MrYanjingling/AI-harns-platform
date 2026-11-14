@@ -19,8 +19,5 @@ func CommitID() string {
 			}
 		}
 	}
-	if version := strings.TrimSpace(Get().GitVersion); version != "" && !strings.Contains(version, "$Format") {
-		return version
-	}
 	return "unknown"
 }

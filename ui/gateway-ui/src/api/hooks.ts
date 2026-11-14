@@ -19,6 +19,7 @@ import {
   getGatewayDisk,
   getGatewayMem,
   getGatewayMeta,
+  getSystemInfo,
   listCollectionVariables,
   listCollections,
   listDriverGroups,
@@ -47,10 +48,10 @@ import type {
 } from './types'
 import { appendOperationLog } from '@/lib/operation-log'
 
-const COLLECTION_POLL_MS = 10_000
+const COLLECTION_POLL_MS = 15_000
 const COLLECTION_DETAIL_POLL_MS = 5_000
-const PUSH_POLL_MS = 10_000
-const RESOURCE_POLL_MS = 10_000
+const PUSH_POLL_MS = 15_000
+const RESOURCE_POLL_MS = 15_000
 
 export interface CollectionQueryParams {
   page: number
@@ -553,7 +554,19 @@ export function useDeletePushGroup() {
 /* ---------------- 网关资源 ---------------- */
 
 export function useGatewayMeta() {
-  return useQuery({ queryKey: queryKeys.gateway.meta, queryFn: getGatewayMeta })
+  return useQuery({
+    queryKey: queryKeys.gateway.meta,
+    queryFn: getGatewayMeta,
+    refetchInterval: RESOURCE_POLL_MS,
+  })
+}
+
+export function useSystemInfo() {
+  return useQuery({
+    queryKey: queryKeys.gateway.systemInfo,
+    queryFn: getSystemInfo,
+    refetchInterval: RESOURCE_POLL_MS,
+  })
 }
 
 export function useGatewayCpu() {

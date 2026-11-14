@@ -1,5 +1,5 @@
-// Package pluginapi defines the shared Gateway plugin ABI.
-package pluginapi
+// Package pluginmgr defines the shared Gateway plugin ABI.
+package pluginmgr
 
 import (
 	"encoding/json"

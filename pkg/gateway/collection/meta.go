@@ -47,8 +47,9 @@ type CollectionMeta struct {
 	CollectorCycleMs uint64      `json:"collectorCycleMs"`
 	Variables        []*Variable `json:"variables,omitempty"`
 
-	variablesMap map[string]*Variable
-	mu           sync.RWMutex
+	variablesMap  map[string]*Variable
+	errorReporter func(error)
+	mu            sync.RWMutex
 }
 
 // GetDriverType returns the driver type.
@@ -75,6 +76,21 @@ func (m *CollectionMeta) SetCollectStatus(status string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.CollectStatus = status
+}
+
+func (m *CollectionMeta) SetErrorReporter(reporter func(error)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.errorReporter = reporter
+}
+
+func (m *CollectionMeta) ReportError(err error) {
+	m.mu.RLock()
+	reporter := m.errorReporter
+	m.mu.RUnlock()
+	if reporter != nil {
+		reporter(err)
+	}
 }
 
 // GetCollectorCycleMs returns the collection cycle in milliseconds.

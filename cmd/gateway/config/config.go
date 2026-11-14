@@ -3,10 +3,11 @@ package config
 import (
 	"database/sql"
 
-	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
+	"harns-platform/pkg/gateway/gatewaymgr"
+	"harns-platform/pkg/gateway/licensemgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
@@ -14,11 +15,12 @@ import (
 
 type Config struct {
 	DeviceMgr     *device.Manager
-	GatewayMgr    *gateway.Manager
+	GatewayMgr    *gatewaymgr.Manager
 	DriverMgr     *drivermgr.Service
 	CollectionMgr *collectionmgr.Service
 	PushMgr       *pushmgr.Service
 	UserMgr       *usermgr.Service
+	LicenseMgr    *licensemgr.Service
 	DB            *sql.DB
 	CertFile      string
 	KeyFile       string

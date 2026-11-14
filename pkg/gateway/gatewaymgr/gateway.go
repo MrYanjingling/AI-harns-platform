@@ -1,4 +1,4 @@
-package gateway
+package gatewaymgr
 
 import (
 	"fmt"
@@ -18,6 +18,15 @@ type GatewayMetaVo struct {
 	GatewayMeta
 	TotalUptime   string `json:"totalUptime"`
 	CurrentUptime string `json:"currentUptime"`
+}
+
+type SystemInfoMeta struct {
+	Version       string `json:"version"`
+	CommitID      string `json:"commitId"`
+	HardwareID    string `json:"hardwareId"`
+	Architecture  string `json:"architecture"`
+	OSVersion     string `json:"osVersion"`
+	KernelVersion string `json:"kernelVersion"`
 }
 
 // ToVo builds a response copy with uptime values at the given time.

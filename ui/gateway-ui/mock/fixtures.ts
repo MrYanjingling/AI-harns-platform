@@ -4,9 +4,19 @@ import type {
   Driver,
   DriverSchema,
   GatewayMeta,
+  SystemInfoMeta,
   PushConnector,
   PushGroup,
 } from '../src/api/types'
+
+export const systemInfo: SystemInfoMeta = {
+  version: '3.0.0',
+  commitId: '4a2931a74c24aeb64419d731f79ba64e1f34b817',
+  hardwareId: 'demo-hardware-id',
+  architecture: 'x86_64',
+  osVersion: 'Ubuntu 22.04',
+  kernelVersion: '5.15.0',
+}
 
 export const gatewayMeta: GatewayMeta = {
   name: 'harnsgateway',
@@ -14,6 +24,9 @@ export const gatewayMeta: GatewayMeta = {
   eTag: '1732684500123456789',
   secret: 'gw-secret-5f8c1d7a9b2e4c6d',
   modTime: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  initTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString(),
+  currentUptime: '0d0h12m0s',
+  totalUptime: '12d0h0m0s',
 }
 
 export function iso(minutesAgo: number): string {

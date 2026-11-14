@@ -1,4 +1,4 @@
-package gateway
+package gatewaymgr
 
 import (
 	"context"
@@ -76,6 +76,25 @@ func (s *Store) GetMeta(ctx context.Context) (*GatewayMeta, error) {
 			ModTime: modTS,
 		},
 	}, nil
+}
+
+// UpdateName updates the gateway display name.
+func (s *Store) UpdateName(ctx context.Context, id, name, eTag string) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("gateway store database is nil")
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE gateway SET name = ?, version = ? WHERE id = ?`, name, eTag, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // CreateMeta inserts gateway metadata.

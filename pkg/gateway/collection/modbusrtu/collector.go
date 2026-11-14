@@ -192,10 +192,14 @@ func (c *ModbusRtuCollection) poll(ctx context.Context) bool {
 		return false
 	}
 	failed := false
+	var cycleErr error
 	for _, frame := range runtime.frames {
 		values, err := c.collectFrame(ctx, frame)
 		if err != nil {
 			failed = true
+			if cycleErr == nil {
+				cycleErr = err
+			}
 			continue
 		}
 		for _, item := range values {
@@ -208,13 +212,17 @@ func (c *ModbusRtuCollection) poll(ctx context.Context) bool {
 		return false
 	}
 	if failed {
+		c.GetCollectionMeta().ReportError(cycleErr)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
+		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
 	}
+	c.GetCollectionMeta().ReportError(nil)
 	return true
 }
 

@@ -3,8 +3,10 @@ package collectionmgr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -139,6 +141,7 @@ func TestRuntimeManagerNotImplementedStatus(t *testing.T) {
 	runtime, ok := manager.Get("c1")
 	require.True(t, ok)
 	assert.Equal(t, collection.CollectStatusError, runtime.Collector.GetCollectStatus())
+	assert.Equal(t, collection.ErrNotImplemented.Error(), runtime.LastError())
 	assert.Equal(t, 0, factory.collectors[0].starts)
 }
 
@@ -181,4 +184,68 @@ func TestRuntimeManagerStopCollectionKeepsRuntime(t *testing.T) {
 	hubAfter, ok := manager.Trace("c1")
 	require.True(t, ok)
 	assert.Same(t, hubBefore, hubAfter)
+}
+
+func TestRetryPolicyDelay(t *testing.T) {
+	policy := retryPolicy{
+		initial:    15 * time.Second,
+		max:        5 * time.Minute,
+		multiplier: 2,
+	}
+	assert.Equal(t, 15*time.Second, policy.delay(1))
+	assert.Equal(t, 30*time.Second, policy.delay(2))
+	assert.Equal(t, time.Minute, policy.delay(3))
+	assert.Equal(t, 2*time.Minute, policy.delay(4))
+	assert.Equal(t, 4*time.Minute, policy.delay(5))
+	assert.Equal(t, 5*time.Minute, policy.delay(6))
+	assert.Equal(t, 5*time.Minute, policy.delay(20))
+}
+
+func TestRuntimeManagerRetryBackoffAndRecovery(t *testing.T) {
+	connectErr := errors.New("dial failed")
+	factory := &fakeCollectorFactory{connectErr: connectErr}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	manager.retryPolicy = retryPolicy{
+		initial:    10 * time.Millisecond,
+		max:        80 * time.Millisecond,
+		timeout:    50 * time.Millisecond,
+		multiplier: 2,
+	}
+
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+	runtime, ok := manager.Get("c1")
+	require.True(t, ok)
+	assert.Equal(t, collection.CollectStatusUnconnected, runtime.Collector.GetCollectStatus())
+	assert.Equal(t, connectErr.Error(), runtime.LastError())
+
+	state := manager.ensureRetryState("c1")
+	manager.wg.Add(1)
+	manager.retryOne("c1", runtime, state)
+	state.mu.Lock()
+	assert.Equal(t, 2, state.attempts)
+	assert.False(t, state.retrying)
+	assert.True(t, state.nextRetryAt.After(time.Now()))
+	state.mu.Unlock()
+
+	factory.collectors[0].mu.Lock()
+	factory.collectors[0].connectErr = nil
+	factory.collectors[0].mu.Unlock()
+	manager.wg.Add(1)
+	manager.retryOne("c1", runtime, state)
+	assert.Equal(t, collection.CollectStatusCollecting, runtime.Collector.GetCollectStatus())
+	assert.Empty(t, runtime.LastError())
+	_, exists := manager.retryStates.Load("c1")
+	assert.False(t, exists)
+}
+
+func TestRuntimeCollectionLastErrorFromReporter(t *testing.T) {
+	runtime := &RuntimeCollection{}
+	meta := &collection.CollectionMeta{}
+	meta.SetErrorReporter(runtime.SetLastError)
+
+	meta.ReportError(errors.New("read failed"))
+	assert.Equal(t, "read failed", runtime.LastError())
+	meta.ReportError(nil)
+	assert.Empty(t, runtime.LastError())
 }

@@ -228,9 +228,13 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	var cycleErr error
 	for result := range results {
 		if result.err != nil {
 			failed = true
+			if cycleErr == nil {
+				cycleErr = result.err
+			}
 			continue
 		}
 		for _, item := range result.values {
@@ -243,6 +247,7 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 		return false
 	}
 	if failed {
+		c.GetCollectionMeta().ReportError(cycleErr)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
 		c.recordCycleFailure(ctx)
 		return true
@@ -253,9 +258,11 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 	runtime.failureStreak = 0
 	runtime.mu.Unlock()
 	if err := c.calculate(); err != nil {
+		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
 		return true
 	}
+	c.GetCollectionMeta().ReportError(nil)
 	c.maybeFailback(ctx)
 	return true
 }

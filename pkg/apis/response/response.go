@@ -531,3 +531,23 @@ func ErrUserInvalid() *responseError {
 func ErrUserPasswordMismatch() *responseError {
 	return generateError(ErrCodeUserPasswordMismatch)
 }
+
+func ErrGatewayMetaInvalid() *responseError {
+	return generateError(ErrCodeGatewayMetaInvalid)
+}
+
+func ErrLicenseInvalid() *responseError {
+	return generateError(ErrCodeLicenseInvalid)
+}
+
+func ErrLicenseGatewayMismatch() *responseError {
+	return generateError(ErrCodeLicenseGatewayMismatch)
+}
+
+func ErrLicenseExpired() *responseError {
+	return generateError(ErrCodeLicenseExpired)
+}
+
+func ErrLicensePublicKeyUnavailable() *responseError {
+	return generateError(ErrCodeLicensePublicKeyUnavailable)
+}

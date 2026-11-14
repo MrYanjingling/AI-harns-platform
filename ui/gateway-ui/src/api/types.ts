@@ -211,6 +211,18 @@ export interface GatewayMeta {
   eTag: string
   secret: string
   modTime: string
+  initTime: string
+  currentUptime: string
+  totalUptime: string
+}
+
+export interface SystemInfoMeta {
+  version: string
+  commitId: string
+  hardwareId: string
+  architecture: string
+  osVersion: string
+  kernelVersion: string
 }
 
 /** 后端字段名首字母大写:Total / Used / UsedPercent。 */

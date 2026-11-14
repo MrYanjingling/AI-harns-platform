@@ -24,9 +24,15 @@ function AppToaster() {
     <Toaster
       theme={theme}
       position="top-center"
-      richColors
       closeButton
-      toastOptions={{ style: { fontSize: '13px' } }}
+      toastOptions={{
+        style: {
+          background: 'var(--surface)',
+          color: 'var(--fg)',
+          border: '1px solid var(--border)',
+          fontSize: '13px',
+        },
+      }}
     />
   )
 }

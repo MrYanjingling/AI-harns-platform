@@ -10,18 +10,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/cmd/gateway/options"
 	"harns-platform/pkg/apis/response"
-	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
-	"harns-platform/pkg/gateway/logapi"
+	"harns-platform/pkg/gateway/gatewaymgr"
+	"harns-platform/pkg/gateway/licensemgr"
+	"harns-platform/pkg/gateway/logmgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
@@ -125,11 +127,14 @@ func (s *Server) InstallHandlers() {
 
 	authed := v1.Group("")
 	authed.Use(s.Config.UserMgr.RequireAuth())
-	gateway.InstallHandler(authed, s.Config.GatewayMgr)
+	gatewaymgr.InstallHandler(authed, s.Config.GatewayMgr)
 	drivermgr.InstallHandler(authed, s.Config.DriverMgr)
 	collectionmgr.InstallHandler(authed, s.Config.CollectionMgr)
 	pushmgr.InstallHandler(authed, s.Config.PushMgr)
-	logapi.InstallHandler(authed, s.Config.LogFilePath)
+	logmgr.InstallHandler(authed, s.Config.LogFilePath)
+	if s.Config.LicenseMgr != nil {
+		licensemgr.InstallHandler(authed, s.Config.LicenseMgr, s.Config.UserMgr.RequireAdmin())
+	}
 	usermgr.InstallHandler(authed, s.Config.UserMgr)
 }
 

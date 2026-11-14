@@ -8,7 +8,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
-	"harns-platform/pkg/gateway"
+	"harns-platform/pkg/gateway/gatewaymgr"
 	"harns-platform/pkg/gateway/registry"
 	"harns-platform/pkg/gateway/runtime"
 	"harns-platform/pkg/gateway/runtime/constant"
@@ -23,7 +23,7 @@ import (
 type Option func(*Manager)
 
 type Manager struct {
-	gatewayMeta      *gateway.GatewayMeta
+	gatewayMeta      *gatewaymgr.GatewayMeta
 	mqttClient       mqtt.Client
 	mu               *sync.Mutex
 	deviceManager    map[string]DeviceManager
@@ -37,7 +37,7 @@ type Manager struct {
 	closers          []runtime.LabeledCloser
 }
 
-func NewManager(store *Store, mqttClient mqtt.Client, gatewayMeta *gateway.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
+func NewManager(store *Store, mqttClient mqtt.Client, gatewayMeta *gatewaymgr.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
 		gatewayMeta:      gatewayMeta,
 		mqttClient:       mqttClient,

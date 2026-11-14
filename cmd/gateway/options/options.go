@@ -2,13 +2,13 @@ package options
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
-	"harns-platform/pkg/gateway"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
@@ -16,6 +16,8 @@ import (
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
+	"harns-platform/pkg/gateway/gatewaymgr"
+	"harns-platform/pkg/gateway/licensemgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/sqlite"
 	"harns-platform/pkg/gateway/usermgr"
@@ -29,8 +31,13 @@ type SQLiteOptions struct {
 	Path string `json:"path"`
 }
 
+type LicenseOptions struct {
+	PublicKeyFile string `json:"public-key-file"`
+}
+
 type Options struct {
 	Port         string               `json:"port"`
+	AuthEnabled  bool                 `json:"auth-enabled"`
 	Wait         baseoptions.Duration `json:"graceful-timeout"`
 	CertFile     string               `json:"cert-file"`
 	KeyFile      string               `json:"key-file"`
@@ -38,18 +45,20 @@ type Options struct {
 	UIDir        string               `json:"ui-dir"`
 	CORS         generic.CORSConfig   `json:"cors"`
 	SQLite       SQLiteOptions        `json:"sqlite"`
+	License      LicenseOptions       `json:"license"`
 	baseoptions.BaseOptions
 	// logs.BaseOptions
 }
 
 const (
-	_defaultPort               = "32200"
-	_defaultWait               = baseoptions.Duration(15 * time.Second)
-	_defaultConfigFile         = "/etc/gateway/config.yaml"
-	_defaultMaxBodyBytes int64 = 10 << 20
-	_defaultSQLitePath         = "data/gateway.db"
-	_defaultUIDir              = "ui/gateway-ui/dist"
-	_envAuthEnabled            = "GATEWAY_AUTH_ENABLED"
+	_defaultPort                   = "32200"
+	_defaultWait                   = baseoptions.Duration(15 * time.Second)
+	_defaultConfigFile             = "/etc/gateway/config.yaml"
+	_defaultMaxBodyBytes     int64 = 10 << 20
+	_defaultSQLitePath             = "data/gateway.db"
+	_defaultUIDir                  = "ui/gateway-ui/dist"
+	_defaultLicensePublicKey       = "etc/gateway/license-public.pem"
+	_envAuthEnabled                = "GATEWAY_AUTH_ENABLED"
 )
 
 func NewDefaultOptions() *Options {
@@ -57,6 +66,7 @@ func NewDefaultOptions() *Options {
 	base.ConfigFile = _defaultConfigFile
 	return &Options{
 		Port:         _defaultPort,
+		AuthEnabled:  false,
 		Wait:         _defaultWait,
 		BaseOptions:  base,
 		CertFile:     "",
@@ -65,6 +75,7 @@ func NewDefaultOptions() *Options {
 		UIDir:        _defaultUIDir,
 		CORS:         generic.DefaultCORSConfig(),
 		SQLite:       SQLiteOptions{Path: _defaultSQLitePath},
+		License:      LicenseOptions{PublicKeyFile: _defaultLicensePublicKey},
 		// BaseOptions: logs.NewOptions(),
 	}
 }
@@ -72,9 +83,11 @@ func NewDefaultOptions() *Options {
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	// refer to node port assignment https://rancher.com/docs/rancher/v2.x/en/installation/requirements/ports/#commonly-used-ports
 	fs.StringVarP(&o.Port, "port", "P", o.Port, "Port exposed")
+	fs.BoolVar(&o.AuthEnabled, "auth-enabled", o.AuthEnabled, "Require bearer token authentication")
 	baseoptions.DurationVar(fs, &o.Wait, "graceful-timeout", "The duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
 	fs.StringVarP(&o.KeyFile, "key-file", "", o.KeyFile, "The Key file")
+	fs.StringVar(&o.License.PublicKeyFile, "license-public-key-file", o.License.PublicKeyFile, "License JWT verification public key PEM file")
 }
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
@@ -89,18 +102,38 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	gatewayStore := gateway.NewStore(db)
+	gatewayStore := gatewaymgr.NewStore(db)
 	if err := gatewayStore.Initialize(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
-	gatewayService := gateway.NewService(gatewayStore)
-	gatewayMgr := gateway.NewGatewayManager(gatewayService, stopCh)
+	gatewayService := gatewaymgr.NewService(gatewayStore)
+	gatewayMgr := gatewaymgr.NewGatewayManager(gatewayService, stopCh)
 	if err := gatewayMgr.Init(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 	c.GatewayMgr = gatewayMgr
+
+	licenseStore := licensemgr.NewStore(db)
+	if err := licenseStore.Initialize(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	licenseService := licensemgr.NewService(licenseStore, func() (string, string, error) {
+		meta, err := gatewayMgr.GetGatewayMeta()
+		if err != nil {
+			return "", "", err
+		}
+		if meta == nil {
+			return "", "", fmt.Errorf("gateway metadata is not initialized")
+		}
+		return meta.ID, meta.Secret, nil
+	}, o.License.PublicKeyFile)
+	if err := licenseService.Load(context.Background()); err != nil {
+		logging.Warnf("Failed to load persisted license: %v", err)
+	}
+	c.LicenseMgr = licenseService
 
 	driverStore := drivermgr.NewStore(db)
 	if err := driverStore.Initialize(context.Background()); err != nil {
@@ -114,9 +147,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	authEnabled := authEnabledFromEnv()
+	authEnabled := resolveAuthEnabled(o.AuthEnabled)
 	if !authEnabled {
-		logging.Warnf("Gateway token authentication is disabled; set %s=true to enable it", _envAuthEnabled)
+		logging.Warnf("Gateway token authentication is disabled; set auth-enabled=true or %s=true to enable it", _envAuthEnabled)
 	}
 	userService := usermgr.NewService(userStore, authEnabled)
 	if err := userService.BootstrapSuperuser(context.Background()); err != nil {
@@ -188,15 +221,15 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	return c, nil
 }
 
-func authEnabledFromEnv() bool {
-	raw := strings.TrimSpace(os.Getenv(_envAuthEnabled))
-	if raw == "" {
-		return false
+func resolveAuthEnabled(configured bool) bool {
+	raw, ok := os.LookupEnv(_envAuthEnabled)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return configured
 	}
-	enabled, err := strconv.ParseBool(raw)
+	enabled, err := strconv.ParseBool(strings.TrimSpace(raw))
 	if err != nil {
-		logging.Warnf("Invalid %s=%q; token authentication stays disabled", _envAuthEnabled, raw)
-		return false
+		logging.Warnf("Invalid %s=%q; using auth-enabled=%t", _envAuthEnabled, raw, configured)
+		return configured
 	}
 	return enabled
 }

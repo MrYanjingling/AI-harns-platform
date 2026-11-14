@@ -20,6 +20,7 @@ import type {
   PushConnectorPayload,
   PushGroup,
   PushGroupPayload,
+  SystemInfoMeta,
 } from './types'
 
 /** 网关与平台共用统一响应信封。 */
@@ -264,6 +265,10 @@ export function deletePushGroup(id: string): Promise<{ deleted: boolean }> {
 export async function getGatewayMeta(): Promise<GatewayMeta> {
   const { data, etag } = await request<GatewayEnvelope<GatewayMeta>>('gateway', '/gatewayMeta')
   return { ...data.data, eTag: data.data.eTag || etag || '' }
+}
+
+export function getSystemInfo(): Promise<SystemInfoMeta> {
+  return gatewayData<SystemInfoMeta>('/systemInfo')
 }
 
 export function getGatewayCpu(): Promise<GatewayCpuResponse> {

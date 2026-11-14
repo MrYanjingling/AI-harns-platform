@@ -1,9 +1,11 @@
-package gateway
+package gatewaymgr
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 
 	"harns-platform/pkg/gateway/runtime"
 	"harns-platform/pkg/gateway/sqlite"
+	"harns-platform/pkg/gateway/validation"
 )
 
 func TestGatewayServiceLoadOrCreate(t *testing.T) {
@@ -33,7 +36,7 @@ func TestGatewayServiceLoadOrCreate(t *testing.T) {
 	require.NotNil(t, first)
 	assert.NotEmpty(t, first.ID)
 	assert.Equal(t, "harnsgateway", first.Name)
-	assert.NotEmpty(t, first.Version)
+	assert.Len(t, first.Version, 32)
 	assert.Len(t, first.Secret, 64)
 	assert.Regexp(t, "^[0-9a-f]{64}$", first.Secret)
 	assert.False(t, first.InitTime.IsZero())
@@ -56,6 +59,12 @@ func TestGatewayServiceLoadOrCreate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, third.Secret, 64)
 	assert.NotEqual(t, first.Secret, third.Secret)
+
+	_, err = store.db.ExecContext(ctx, `UPDATE gateway SET version = ? WHERE id = ?`, strings.Repeat("a", 40), first.ID)
+	require.NoError(t, err)
+	fourth, err := service.LoadOrCreate(ctx)
+	require.NoError(t, err)
+	assert.Len(t, fourth.Version, 32)
 }
 
 func TestGatewayMetaVoUptimeAndJSON(t *testing.T) {
@@ -81,5 +90,37 @@ func TestGatewayMetaVoUptimeAndJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(payload, &decoded))
 	for _, key := range []string{"secret", "name", "id", "eTag", "modTime", "initTime", "totalUptime", "currentUptime"} {
 		assert.Contains(t, decoded, key)
+	}
+}
+
+func TestGatewayServiceRename(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(ctx))
+	service := NewService(store)
+	first, err := service.LoadOrCreate(ctx)
+	require.NoError(t, err)
+
+	eTag, err := service.Rename(ctx, first.ID, "  plant gateway  ")
+	require.NoError(t, err)
+	updated, err := store.GetMeta(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "plant gateway", updated.Name)
+	assert.Equal(t, first.ID, updated.ID)
+	assert.Equal(t, first.Secret, updated.Secret)
+	assert.NotEqual(t, first.Version, eTag)
+	assert.Equal(t, eTag, updated.Version)
+	assert.Equal(t, first.InitTime, updated.InitTime)
+	assert.Equal(t, first.ModTime, updated.ModTime)
+
+	for _, invalid := range []string{"", "   ", "bad/name", strings.Repeat("a", 65)} {
+		_, err = service.Rename(ctx, first.ID, invalid)
+		require.Error(t, err, invalid)
+		var validationErr *validation.ValidationError
+		require.True(t, errors.As(err, &validationErr), invalid)
+		assert.Equal(t, "name", validationErr.Issues[0].Field)
 	}
 }

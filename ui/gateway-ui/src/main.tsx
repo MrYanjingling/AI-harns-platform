@@ -4,7 +4,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import {
-  AccountMenu,
   AppShell,
   coreMessages,
   I18nProvider,
@@ -14,6 +13,9 @@ import {
   ThemeProvider,
   useTheme,
 } from '@harns/core'
+import { useSystemInfo } from '@/api/hooks'
+import { GatewayAccountMenu } from '@/components/layout/GatewayAccountMenu'
+import { GatewaySettingsPopover } from '@/components/layout/GatewaySettingsPopover'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
 import { gatewayRoutes } from '@/routes'
@@ -23,6 +25,19 @@ registerMessages(mergeMessages(coreMessages, gatewayMessages))
 
 const sections = createGatewayNav()
 
+function GatewaySidebarVersion() {
+  const systemInfo = useSystemInfo()
+  const version = systemInfo.data?.version || '—'
+  return (
+    <span
+      title={version}
+      className="block truncate font-mono text-[10px] text-faint"
+    >
+      V{version}
+    </span>
+  )
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -30,8 +45,15 @@ const router = createBrowserRouter([
       <AppShell
         sections={sections}
         appName="AI-harns-gateway"
+        documentTitle="HarnsGateway"
         homeTo="/overview"
-        accountMenu={<AccountMenu />}
+        headerTools={<GatewaySettingsPopover />}
+        accountMenu={<GatewayAccountMenu />}
+        sidebarWidth={172}
+        sidebarCollapsedWidth={56}
+        sidebarCollapsible
+        sidebarResizable
+        sidebarFooter={<GatewaySidebarVersion />}
       />
     ),
     children: [{ index: true, element: <Navigate to="/overview" replace /> }, ...gatewayRoutes],
@@ -44,9 +66,15 @@ function AppToaster() {
     <Toaster
       theme={theme}
       position="top-center"
-      richColors
       closeButton
-      toastOptions={{ style: { fontSize: '13px' } }}
+      toastOptions={{
+        style: {
+          background: 'var(--surface)',
+          color: 'var(--fg)',
+          border: '1px solid var(--border)',
+          fontSize: '13px',
+        },
+      }}
     />
   )
 }

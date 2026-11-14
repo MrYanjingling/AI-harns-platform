@@ -1,0 +1,127 @@
+package licensemgr
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"harns-platform/pkg/gateway/validation"
+	"harns-platform/pkg/logging"
+)
+
+// IdentityProvider returns the current gateway id and secret.
+type IdentityProvider func() (gatewayID, secret string, err error)
+
+// Service validates licenses and keeps the active license in memory.
+type Service struct {
+	store         *Store
+	identity      IdentityProvider
+	publicKeyFile string
+
+	mu     sync.RWMutex
+	claims *Claims
+}
+
+// NewService creates a license service.
+func NewService(store *Store, identity IdentityProvider, publicKeyFile string) *Service {
+	return &Service{
+		store:         store,
+		identity:      identity,
+		publicKeyFile: strings.TrimSpace(publicKeyFile),
+	}
+}
+
+// Load restores the persisted license into memory.
+func (s *Service) Load(ctx context.Context) error {
+	defer logging.Trace("licensemgr.Load")()
+	if s == nil || s.store == nil {
+		return fmt.Errorf("license service store is nil")
+	}
+	data, err := s.store.Get(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	claims, err := s.parseAndMatch(data)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.claims = claims
+	s.mu.Unlock()
+	return nil
+}
+
+// Import verifies and persists a license, then updates the memory cache.
+func (s *Service) Import(ctx context.Context, data string) (*Status, error) {
+	defer logging.Trace("licensemgr.Import", "dataLength", len(data))()
+	data = strings.TrimSpace(data)
+	if data == "" {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "data", MsgID: "validate.license_data_required",
+		}})
+	}
+	claims, err := s.parseAndMatch(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateForImport(claims, time.Now().UTC()); err != nil {
+		return nil, err
+	}
+	if err := s.store.Save(ctx, data); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.claims = claims
+	s.mu.Unlock()
+	return &Status{
+		Status:  StatusAuthorized,
+		License: claimsToInfo(claims),
+	}, nil
+}
+
+// GetStatus returns the current authorization status from memory.
+func (s *Service) GetStatus() *Status {
+	defer logging.Trace("licensemgr.GetStatus")()
+	if s == nil {
+		return &Status{Status: StatusUnauthorized}
+	}
+	s.mu.RLock()
+	claims := s.claims
+	s.mu.RUnlock()
+	if claims == nil || ValidateForImport(claims, time.Now().UTC()) != nil {
+		return &Status{Status: StatusUnauthorized}
+	}
+	return &Status{
+		Status:  StatusAuthorized,
+		License: claimsToInfo(claims),
+	}
+}
+
+func (s *Service) parseAndMatch(data string) (*Claims, error) {
+	if s == nil || s.identity == nil {
+		return nil, fmt.Errorf("license service identity provider is nil")
+	}
+	publicKey, err := LoadPublicKey(s.publicKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	claims, err := ParseLicense(data, publicKey)
+	if err != nil {
+		return nil, err
+	}
+	gatewayID, secret, err := s.identity()
+	if err != nil {
+		return nil, fmt.Errorf("load gateway identity: %w", err)
+	}
+	if err := MatchGateway(claims, gatewayID, secret); err != nil {
+		return nil, err
+	}
+	return claims, nil
+}

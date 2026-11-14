@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand/v2"
 	"sort"
 	"sync"
 	"time"
@@ -14,10 +16,74 @@ import (
 	"harns-platform/pkg/logging"
 )
 
-const runtimeRetryInterval = 15 * time.Second
+const (
+	defaultRetryInterval    = 15 * time.Second
+	defaultRetryMaxInterval = 5 * time.Minute
+	defaultRetryTimeout     = 5 * time.Second
+	defaultRetryMultiplier  = 2
+	defaultRetryJitter      = 0.2
+	retryScanInterval       = time.Second
+)
 
 // ErrFactoryNotFound reports that no collector factory matches a driver.
 var ErrFactoryNotFound = errors.New("collector factory not found")
+
+type retryPolicy struct {
+	initial    time.Duration
+	max        time.Duration
+	timeout    time.Duration
+	multiplier float64
+	jitter     float64
+}
+
+func defaultRetryPolicy() retryPolicy {
+	return retryPolicy{
+		initial:    defaultRetryInterval,
+		max:        defaultRetryMaxInterval,
+		timeout:    defaultRetryTimeout,
+		multiplier: defaultRetryMultiplier,
+		jitter:     defaultRetryJitter,
+	}
+}
+
+func (p retryPolicy) delay(attempts int) time.Duration {
+	if attempts < 1 {
+		attempts = 1
+	}
+	initial := p.initial
+	if initial <= 0 {
+		initial = defaultRetryInterval
+	}
+	maxInterval := p.max
+	if maxInterval < initial {
+		maxInterval = initial
+	}
+	multiplier := p.multiplier
+	if multiplier < 1 {
+		multiplier = 1
+	}
+	delay := float64(initial) * math.Pow(multiplier, float64(attempts-1))
+	if delay > float64(maxInterval) {
+		delay = float64(maxInterval)
+	}
+	if p.jitter > 0 {
+		delay *= 1 + (rand.Float64()*2-1)*p.jitter
+	}
+	if delay < float64(initial) {
+		delay = float64(initial)
+	}
+	if delay > float64(maxInterval) {
+		delay = float64(maxInterval)
+	}
+	return time.Duration(delay)
+}
+
+type retryState struct {
+	mu          sync.Mutex
+	attempts    int
+	nextRetryAt time.Time
+	retrying    bool
+}
 
 // RuntimeCollection is one collection loaded in memory.
 type RuntimeCollection struct {
@@ -25,14 +91,48 @@ type RuntimeCollection struct {
 	Trace     *collection.TraceHub
 
 	opMu      sync.Mutex
+	errMu     sync.RWMutex
 	lastError string
+}
+
+func (r *RuntimeCollection) SetLastError(err error) {
+	if r == nil {
+		return
+	}
+	r.errMu.Lock()
+	defer r.errMu.Unlock()
+	if err == nil {
+		r.lastError = ""
+		return
+	}
+	r.lastError = err.Error()
+}
+
+func (r *RuntimeCollection) ClearLastError() {
+	if r == nil {
+		return
+	}
+	r.errMu.Lock()
+	defer r.errMu.Unlock()
+	r.lastError = ""
+}
+
+func (r *RuntimeCollection) LastError() string {
+	if r == nil {
+		return ""
+	}
+	r.errMu.RLock()
+	defer r.errMu.RUnlock()
+	return r.lastError
 }
 
 // RuntimeManager owns the in-memory collection runtime.
 type RuntimeManager struct {
 	collections sync.Map // collectionID -> *RuntimeCollection
 	hubs        sync.Map // collectionID -> *collection.TraceHub
+	retryStates sync.Map // collectionID -> *retryState
 	factories   map[driverKey]collection.CollectorFactory
+	retryPolicy retryPolicy
 
 	stopCh    chan struct{}
 	closeOnce sync.Once
@@ -42,8 +142,9 @@ type RuntimeManager struct {
 // NewRuntimeManager creates a runtime manager and registers factories.
 func NewRuntimeManager(factories ...collection.CollectorFactory) (*RuntimeManager, error) {
 	manager := &RuntimeManager{
-		factories: make(map[driverKey]collection.CollectorFactory, len(factories)),
-		stopCh:    make(chan struct{}),
+		factories:   make(map[driverKey]collection.CollectorFactory, len(factories)),
+		retryPolicy: defaultRetryPolicy(),
+		stopCh:      make(chan struct{}),
 	}
 	for _, factory := range factories {
 		if factory == nil {
@@ -83,6 +184,7 @@ func (m *RuntimeManager) Register(ctx context.Context, record *CollectionRecord)
 	if m == nil || record == nil {
 		return nil
 	}
+	m.deleteRetryState(record.ID)
 	runtime, err := m.newRuntime(record)
 	if err != nil {
 		return err
@@ -97,6 +199,7 @@ func (m *RuntimeManager) Replace(ctx context.Context, record *CollectionRecord) 
 	if m == nil || record == nil {
 		return nil
 	}
+	m.deleteRetryState(record.ID)
 	if old, ok := m.collections.LoadAndDelete(record.ID); ok {
 		stopRuntime(ctx, old.(*RuntimeCollection))
 	}
@@ -108,6 +211,7 @@ func (m *RuntimeManager) Remove(ctx context.Context, id string) error {
 	if m == nil {
 		return nil
 	}
+	m.deleteRetryState(id)
 	if current, ok := m.collections.LoadAndDelete(id); ok {
 		stopRuntime(ctx, current.(*RuntimeCollection))
 	}
@@ -123,11 +227,13 @@ func (m *RuntimeManager) Restart(ctx context.Context, id string) error {
 	if !ok {
 		return ErrCollectionNotFound
 	}
+	m.deleteRetryState(id)
 	current.opMu.Lock()
 	defer current.opMu.Unlock()
+	defer m.refreshRetryState(id, current)
 	_ = current.Collector.Stop(ctx)
 	if err := current.Collector.Connect(ctx); err != nil {
-		current.lastError = err.Error()
+		current.SetLastError(err)
 		if errors.Is(err, collection.ErrNotImplemented) || errors.Is(err, collection.ErrInvalidConfig) {
 			current.Collector.SetCollectStatus(collection.CollectStatusError)
 		} else {
@@ -136,11 +242,11 @@ func (m *RuntimeManager) Restart(ctx context.Context, id string) error {
 		return err
 	}
 	if err := current.Collector.Start(ctx); err != nil {
-		current.lastError = err.Error()
+		current.SetLastError(err)
 		current.Collector.SetCollectStatus(collection.CollectStatusError)
 		return err
 	}
-	current.lastError = ""
+	current.ClearLastError()
 	return nil
 }
 
@@ -172,11 +278,12 @@ func (m *RuntimeManager) StopCollection(ctx context.Context, id, reason string) 
 	current.opMu.Lock()
 	defer current.opMu.Unlock()
 	if err := current.Collector.Stop(ctx); err != nil {
-		current.lastError = err.Error()
+		current.SetLastError(err)
 		return err
 	}
 	current.Collector.SetCollectStatus(collection.CollectStatusStopped)
-	current.lastError = reason
+	current.ClearLastError()
+	m.deleteRetryState(id)
 	return nil
 }
 
@@ -249,6 +356,10 @@ func (m *RuntimeManager) Close(ctx context.Context) error {
 		m.collections.Delete(key)
 		return true
 	})
+	m.retryStates.Range(func(key, _ interface{}) bool {
+		m.retryStates.Delete(key)
+		return true
+	})
 	m.hubs.Range(func(key, value interface{}) bool {
 		value.(*collection.TraceHub).Close()
 		m.hubs.Delete(key)
@@ -283,7 +394,9 @@ func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollectio
 	if aware, ok := collector.(collection.FrameTracerAware); ok {
 		aware.SetFrameTracer(hub)
 	}
-	return &RuntimeCollection{Collector: collector, Trace: hub}, nil
+	runtime := &RuntimeCollection{Collector: collector, Trace: hub}
+	meta.SetErrorReporter(runtime.SetLastError)
+	return runtime, nil
 }
 
 func (m *RuntimeManager) traceHub(id string) *collection.TraceHub {
@@ -310,8 +423,14 @@ func (m *RuntimeManager) Trace(id string) (*collection.TraceHub, bool) {
 func (m *RuntimeManager) connectAndStart(ctx context.Context, runtime *RuntimeCollection) {
 	runtime.opMu.Lock()
 	defer runtime.opMu.Unlock()
+	id := runtime.Collector.GetCollectionMeta().GetID()
+	defer m.refreshRetryState(id, runtime)
+	m.connectAndStartLocked(ctx, runtime)
+}
+
+func (m *RuntimeManager) connectAndStartLocked(ctx context.Context, runtime *RuntimeCollection) {
 	if err := runtime.Collector.Connect(ctx); err != nil {
-		runtime.lastError = err.Error()
+		runtime.SetLastError(err)
 		if errors.Is(err, collection.ErrNotImplemented) || errors.Is(err, collection.ErrInvalidConfig) {
 			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		} else {
@@ -320,16 +439,16 @@ func (m *RuntimeManager) connectAndStart(ctx context.Context, runtime *RuntimeCo
 		return
 	}
 	if err := runtime.Collector.Start(ctx); err != nil {
-		runtime.lastError = err.Error()
+		runtime.SetLastError(err)
 		runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		return
 	}
-	runtime.lastError = ""
+	runtime.ClearLastError()
 }
 
 func (m *RuntimeManager) retryLoop() {
 	defer m.wg.Done()
-	ticker := time.NewTicker(runtimeRetryInterval)
+	ticker := time.NewTicker(retryScanInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -342,28 +461,97 @@ func (m *RuntimeManager) retryLoop() {
 }
 
 func (m *RuntimeManager) retryUnconnected() {
-	m.collections.Range(func(_, value interface{}) bool {
+	now := time.Now()
+	m.collections.Range(func(key, value interface{}) bool {
+		id, ok := key.(string)
+		if !ok {
+			return true
+		}
 		runtime := value.(*RuntimeCollection)
 		if runtime.Collector.GetCollectStatus() != collection.CollectStatusUnconnected {
+			m.retryStates.Delete(id)
 			return true
 		}
-		runtime.opMu.Lock()
-		defer runtime.opMu.Unlock()
-		if err := runtime.Collector.Connect(context.Background()); err != nil {
-			runtime.lastError = err.Error()
-			if errors.Is(err, collection.ErrInvalidConfig) || errors.Is(err, collection.ErrNotImplemented) {
-				runtime.Collector.SetCollectStatus(collection.CollectStatusError)
-			}
+		state := m.ensureRetryState(id)
+		state.mu.Lock()
+		if state.retrying || now.Before(state.nextRetryAt) {
+			state.mu.Unlock()
 			return true
 		}
-		if err := runtime.Collector.Start(context.Background()); err != nil {
-			runtime.lastError = err.Error()
-			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
-			return true
-		}
-		runtime.lastError = ""
+		state.retrying = true
+		state.mu.Unlock()
+		m.wg.Add(1)
+		go m.retryOne(id, runtime, state)
 		return true
 	})
+}
+
+func (m *RuntimeManager) retryOne(id string, runtime *RuntimeCollection, state *retryState) {
+	defer m.wg.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), m.retryPolicy.timeout)
+	defer cancel()
+
+	runtime.opMu.Lock()
+	connectErr := runtime.Collector.Connect(ctx)
+	var startErr error
+	if connectErr == nil {
+		startErr = runtime.Collector.Start(ctx)
+	}
+	runtime.opMu.Unlock()
+
+	now := time.Now()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.retrying = false
+
+	switch {
+	case connectErr != nil:
+		runtime.SetLastError(connectErr)
+		if errors.Is(connectErr, collection.ErrInvalidConfig) || errors.Is(connectErr, collection.ErrNotImplemented) {
+			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
+			m.retryStates.Delete(id)
+			return
+		}
+		runtime.Collector.SetCollectStatus(collection.CollectStatusUnconnected)
+		state.attempts++
+		state.nextRetryAt = now.Add(m.retryPolicy.delay(state.attempts))
+	case startErr != nil:
+		runtime.SetLastError(startErr)
+		runtime.Collector.SetCollectStatus(collection.CollectStatusError)
+		m.retryStates.Delete(id)
+	default:
+		runtime.ClearLastError()
+		m.retryStates.Delete(id)
+	}
+}
+
+func (m *RuntimeManager) ensureRetryState(id string) *retryState {
+	state := &retryState{}
+	actual, _ := m.retryStates.LoadOrStore(id, state)
+	return actual.(*retryState)
+}
+
+func (m *RuntimeManager) refreshRetryState(id string, runtime *RuntimeCollection) {
+	if runtime == nil || runtime.Collector.GetCollectStatus() != collection.CollectStatusUnconnected {
+		m.retryStates.Delete(id)
+		return
+	}
+	state := m.ensureRetryState(id)
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.attempts == 0 {
+		state.attempts = 1
+	}
+	if state.nextRetryAt.IsZero() {
+		state.nextRetryAt = time.Now().Add(m.retryPolicy.delay(state.attempts))
+	}
+}
+
+func (m *RuntimeManager) deleteRetryState(id string) {
+	if m == nil {
+		return
+	}
+	m.retryStates.Delete(id)
 }
 
 func stopRuntime(ctx context.Context, runtime *RuntimeCollection) {
@@ -375,4 +563,5 @@ func stopRuntime(ctx context.Context, runtime *RuntimeCollection) {
 	if err := runtime.Collector.Stop(ctx); err != nil {
 		logging.ErrorS(err, "Failed to stop collection", "collectionId", runtime.Collector.GetCollectionMeta().GetID())
 	}
+	runtime.ClearLastError()
 }

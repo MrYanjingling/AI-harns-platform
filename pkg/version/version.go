@@ -19,9 +19,25 @@ package version
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
 )
+
+const DefaultVersion = "3.0.0"
+
+// Version returns the application version without a leading v prefix.
+func Version() string {
+	version := strings.TrimSpace(Get().GitVersion)
+	if version == "" || strings.Contains(version, "$Format") {
+		return DefaultVersion
+	}
+	version = strings.TrimPrefix(version, "v")
+	if version == "" {
+		return DefaultVersion
+	}
+	return version
+}
 
 // Get returns the overall codebase version. It's for detecting
 // what code a binary was built from.

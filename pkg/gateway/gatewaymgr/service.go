@@ -1,4 +1,4 @@
-package gateway
+package gatewaymgr
 
 import (
 	"context"
@@ -7,12 +7,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"harns-platform/pkg/gateway/runtime"
+	"harns-platform/pkg/gateway/validation"
 	"harns-platform/pkg/utils/uuidutil"
-	"harns-platform/pkg/version"
 )
+
+var gatewayNamePattern = regexp.MustCompile(`^[\p{L}_0-9_. ]+$`)
 
 // Service manages gateway metadata.
 type Service struct {
@@ -39,8 +44,10 @@ func (s *Service) LoadOrCreate(ctx context.Context) (*GatewayMeta, error) {
 			}
 			meta.Secret = secret
 		}
+		if meta.Version == "" || isLegacyCommitETag(meta.Version) {
+			meta.Version = uuidutil.UUID()
+		}
 		meta.ModTime = now
-		meta.Version = version.CommitID()
 		if err := s.store.UpdateMeta(ctx, meta); err != nil {
 			return nil, err
 		}
@@ -59,7 +66,7 @@ func (s *Service) LoadOrCreate(ctx context.Context) (*GatewayMeta, error) {
 		ObjectMeta: runtime.ObjectMeta{
 			Name:    "harnsgateway",
 			ID:      uuidutil.UUID(),
-			Version: version.CommitID(),
+			Version: uuidutil.UUID(),
 			ModTime: now,
 		},
 	}
@@ -67,6 +74,47 @@ func (s *Service) LoadOrCreate(ctx context.Context) (*GatewayMeta, error) {
 		return nil, err
 	}
 	return meta, nil
+}
+
+func (s *Service) Rename(ctx context.Context, id, name string) (string, error) {
+	if s == nil || s.store == nil {
+		return "", fmt.Errorf("gateway service store is nil")
+	}
+	name = strings.TrimSpace(name)
+	if err := validateGatewayName(name); err != nil {
+		return "", err
+	}
+	eTag := uuidutil.UUID()
+	if err := s.store.UpdateName(ctx, id, name, eTag); err != nil {
+		return "", err
+	}
+	return eTag, nil
+}
+
+func isLegacyCommitETag(value string) bool {
+	if len(value) != 40 {
+		return false
+	}
+	for _, char := range value {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", char) {
+			return false
+		}
+	}
+	return true
+}
+
+func validateGatewayName(name string) error {
+	issues := make([]validation.FieldIssue, 0, 1)
+	switch {
+	case name == "":
+		issues = append(issues, validation.FieldIssue{Field: "name", MsgID: "validate.gateway_name_required"})
+	case utf8.RuneCountInString(name) > 64 || !gatewayNamePattern.MatchString(name):
+		issues = append(issues, validation.FieldIssue{Field: "name", MsgID: "validate.gateway_name_invalid"})
+	}
+	if err := validation.New(issues); err != nil {
+		return err
+	}
+	return nil
 }
 
 func generateGatewaySecret() (string, error) {
