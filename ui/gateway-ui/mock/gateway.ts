@@ -16,6 +16,7 @@ import {
   connectors,
   drivers,
   gatewayMeta,
+  license,
   systemInfo,
   pushGroups,
   ulid,
@@ -175,6 +176,21 @@ export async function handleGateway(
 
   if (method === 'GET' && pathname === '/systemInfo') {
     send(res, 200, ok(systemInfo))
+    return true
+  }
+
+  if (method === 'GET' && pathname === '/license') {
+    send(res, 200, ok(license))
+    return true
+  }
+
+  if (method === 'POST' && pathname === '/license/import') {
+    const body = await readObject(req)
+    if (!body || typeof body.data !== 'string' || !body.data.trim()) {
+      badRequest(res, 'license data is required')
+      return true
+    }
+    send(res, 200, ok(license))
     return true
   }
 

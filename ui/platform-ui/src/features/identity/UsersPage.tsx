@@ -5,7 +5,7 @@ import { useDeleteUser, useResetUserPassword, useUsers } from '@/api/hooks'
 import type { UserInfo } from '@/api/types'
 import { useI18n } from '@harns/core'
 import { formatDateTime } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Badge } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card } from '@harns/core'
@@ -66,7 +66,7 @@ export function UsersPage() {
       toast.success(t('identity.users.resetToast', { name: resetTarget.userName }))
       setResetTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -77,7 +77,7 @@ export function UsersPage() {
       toast.success(t('identity.users.deletedToast', { name: deleteTarget.userName }))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

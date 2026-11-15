@@ -35,6 +35,7 @@ export function GatewayAccountMenu() {
   const [form, setForm] = useState<PasswordForm>(emptyForm)
   const [errors, setErrors] = useState<PasswordErrors>({})
   const containerRef = useRef<HTMLDivElement>(null)
+  const currentUsername = t('common.user.notSignedIn')
 
   useEffect(() => {
     if (!open) return
@@ -95,7 +96,7 @@ export function GatewayAccountMenu() {
           aria-haspopup="menu"
           aria-expanded={open}
           aria-label={t('gateway.account.title')}
-          title={t('common.user.notSignedIn')}
+          title={currentUsername}
           className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-fg transition-opacity hover:opacity-90"
         >
           <UserRound className="size-3.5" />
@@ -104,8 +105,14 @@ export function GatewayAccountMenu() {
         {open ? (
           <div
             role="menu"
-            className="animate-pop absolute top-full right-0 z-[60] mt-2 w-[100px] origin-top-right rounded border border-border bg-surface py-1 text-fg shadow-xl"
+            className="animate-pop absolute top-full right-0 z-[60] mt-2 w-[110px] origin-top-right rounded border border-border bg-surface py-1 text-fg shadow-xl"
           >
+            <div className="flex items-center gap-1.5 border-b border-border px-2 py-2">
+              <UserRound className="size-3.5 shrink-0" />
+              <span className="min-w-0 truncate text-sm" title={currentUsername}>
+                {currentUsername}
+              </span>
+            </div>
             <button
               type="button"
               role="menuitem"

@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useDeleteThingModel, useThingModels } from '@/api/hooks'
 import { useI18n } from '@harns/core'
 import { formatDateTime } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card } from '@harns/core'
 import { ConfirmDialog } from '@harns/core'
@@ -48,7 +48,7 @@ export function ThingModelsPage() {
       toast.success(t('thingModels.deletedToast', { name: deleteTarget.name }))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

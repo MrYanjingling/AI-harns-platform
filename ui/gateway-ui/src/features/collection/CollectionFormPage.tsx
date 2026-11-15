@@ -15,7 +15,7 @@ import {
   PageLoading,
   Select,
   Skeleton,
-  errorMessage,
+  showErrorToast,
   useI18n,
 } from '@harns/core'
 import {
@@ -142,7 +142,7 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
         navigate(`/collections/${id}`)
       }
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

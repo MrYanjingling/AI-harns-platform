@@ -4,6 +4,7 @@ import type {
   Driver,
   DriverSchema,
   GatewayMeta,
+  LicenseStatus,
   SystemInfoMeta,
   PushConnector,
   PushGroup,
@@ -16,6 +17,18 @@ export const systemInfo: SystemInfoMeta = {
   architecture: 'x86_64',
   osVersion: 'Ubuntu 22.04',
   kernelVersion: '5.15.0',
+}
+
+export const license: LicenseStatus = {
+  status: 'authorized',
+  license: {
+    maxVariable: 1000,
+    contact: '张三',
+    contactEmail: 'zhangsan@example.com',
+    company: 'ACME',
+    licenseExpiresAt: '2027-01-01T00:00:00Z',
+    softwareRunDeadline: '2027-06-01T00:00:00Z',
+  },
 }
 
 export const gatewayMeta: GatewayMeta = {

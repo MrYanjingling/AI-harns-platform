@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 import { Spinner } from './Spinner'
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'dangerSoft'
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'success' | 'danger' | 'dangerSoft'
 type Size = 'sm' | 'md' | 'lg' | 'icon'
 
 const variants: Record<Variant, string> = {
@@ -12,6 +12,7 @@ const variants: Record<Variant, string> = {
   outline:
     'border border-border-strong bg-surface text-fg hover:bg-surface-2 active:translate-y-px',
   ghost: 'text-muted hover:bg-surface-2 hover:text-fg',
+  success: 'bg-success text-white hover:opacity-90 active:translate-y-px',
   danger: 'bg-danger text-white hover:opacity-90 active:translate-y-px',
   dangerSoft:
     'border border-danger/25 bg-danger/5 text-danger hover:bg-danger/10 active:translate-y-px',

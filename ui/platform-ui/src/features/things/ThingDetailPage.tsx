@@ -6,7 +6,7 @@ import { useDeleteThings, useThing, useThingModel, useUpdateThing } from '@/api/
 import type { ThingDetail, ThingModelFeature, UpdateThingRequest } from '@/api/types'
 import { useI18n } from '@harns/core'
 import { formatDateTime, formatRelative, maskSecret } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Badge } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@harns/core'
@@ -55,7 +55,7 @@ export function ThingDetailPage() {
       await updateMutation.mutateAsync({ id: thing.id, payload })
       return true
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
       return false
     }
   }
@@ -89,7 +89,7 @@ export function ThingDetailPage() {
       toast.success(t('thingDetail.deleted'))
       navigate('/platform/things', { replace: true })
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

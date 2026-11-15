@@ -6,7 +6,7 @@ import { useDeleteThings, useThingModels, useThings } from '@/api/hooks'
 import { useI18n } from '@harns/core'
 import { cn } from '@harns/core'
 import { formatRelative } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Badge } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card } from '@harns/core'
@@ -107,7 +107,7 @@ export function ThingsPage() {
       setSelected(new Set())
       setDeleteOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

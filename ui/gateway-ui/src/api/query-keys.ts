@@ -13,6 +13,7 @@ export const queryKeys = {
       ['gateway', 'push', 'groups', params] as const,
     meta: ['gateway', 'meta'] as const,
     systemInfo: ['gateway', 'system-info'] as const,
+    license: ['gateway', 'license'] as const,
     cpu: ['gateway', 'cpu'] as const,
     mem: ['gateway', 'mem'] as const,
     disk: ['gateway', 'disk'] as const,

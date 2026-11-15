@@ -15,6 +15,7 @@ import type {
   GatewayDiskResponse,
   GatewayMemResponse,
   GatewayMeta,
+  LicenseStatus,
   PageResp,
   PushConnector,
   PushConnectorPayload,
@@ -269,6 +270,17 @@ export async function getGatewayMeta(): Promise<GatewayMeta> {
 
 export function getSystemInfo(): Promise<SystemInfoMeta> {
   return gatewayData<SystemInfoMeta>('/systemInfo')
+}
+
+export function getLicense(): Promise<LicenseStatus> {
+  return gatewayData<LicenseStatus>('/license')
+}
+
+export function importLicense(data: string): Promise<LicenseStatus> {
+  return gatewayData<LicenseStatus>('/license/import', {
+    method: 'POST',
+    body: { data },
+  })
 }
 
 export function getGatewayCpu(): Promise<GatewayCpuResponse> {

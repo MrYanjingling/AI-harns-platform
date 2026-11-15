@@ -33,7 +33,7 @@ import {
   THead,
   TR,
   Textarea,
-  errorMessage,
+  showErrorToast,
   formatDateTime,
   useI18n,
 } from '@harns/core'
@@ -190,7 +190,7 @@ export function DriversPage() {
       }
       closeForm()
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -204,7 +204,7 @@ export function DriversPage() {
       toast.success(t('gateway.drivers.toast.deleted'))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

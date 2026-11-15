@@ -19,7 +19,9 @@ import {
   getGatewayDisk,
   getGatewayMem,
   getGatewayMeta,
+  getLicense,
   getSystemInfo,
+  importLicense,
   listCollectionVariables,
   listCollections,
   listDriverGroups,
@@ -566,6 +568,24 @@ export function useSystemInfo() {
     queryKey: queryKeys.gateway.systemInfo,
     queryFn: getSystemInfo,
     refetchInterval: RESOURCE_POLL_MS,
+  })
+}
+
+export function useLicense() {
+  return useQuery({
+    queryKey: queryKeys.gateway.license,
+    queryFn: getLicense,
+    refetchInterval: RESOURCE_POLL_MS,
+  })
+}
+
+export function useImportLicense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: string) => importLicense(data),
+    onSuccess: (status) => {
+      queryClient.setQueryData(queryKeys.gateway.license, status)
+    },
   })
 }
 

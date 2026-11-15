@@ -5,7 +5,7 @@ import { useDeleteRole, useRoles } from '@/api/hooks'
 import type { RoleInfo } from '@/api/types'
 import { useI18n } from '@harns/core'
 import { formatDateTime } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Badge } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card } from '@harns/core'
@@ -54,7 +54,7 @@ export function RolesPage() {
       toast.success(t('identity.roles.deletedToast', { name: deleteTarget.name }))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

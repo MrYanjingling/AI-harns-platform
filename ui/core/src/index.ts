@@ -33,6 +33,7 @@ export {
   setSessionToken,
 } from './lib/session'
 export { queryClient } from './lib/query-client'
+export { errorToastContent, showErrorToast } from './lib/toast'
 export { PAGE_SIZES } from './lib/constants'
 
 export {

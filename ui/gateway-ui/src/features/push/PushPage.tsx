@@ -34,7 +34,7 @@ import {
   THead,
   TR,
   Tabs,
-  errorMessage,
+  showErrorToast,
   formatDateTime,
   useI18n,
 } from '@harns/core'
@@ -273,7 +273,7 @@ function ConnectorsTab() {
       }
       setDialogOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -287,7 +287,7 @@ function ConnectorsTab() {
           : t('gateway.push.toast.stopped'),
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -302,7 +302,7 @@ function ConnectorsTab() {
       toast.success(t('gateway.push.toast.connectorDeleted'))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -690,7 +690,7 @@ function GroupsTab() {
       }
       setDialogOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -701,7 +701,7 @@ function GroupsTab() {
       toast.success(t('gateway.push.toast.groupDeleted'))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

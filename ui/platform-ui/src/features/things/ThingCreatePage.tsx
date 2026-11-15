@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useCreateThings, useThingModel, useThingModels } from '@/api/hooks'
 import type { ThingDetail } from '@/api/types'
 import { useI18n } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { errorMessage, showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@harns/core'
 import { Dialog } from '@harns/core'
@@ -177,7 +177,7 @@ export function ThingCreatePage() {
       setCreated(result)
       toast.success(t('thingCreate.createdToast', { count: result.length }))
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

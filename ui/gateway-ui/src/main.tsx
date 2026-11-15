@@ -67,11 +67,15 @@ function AppToaster() {
       theme={theme}
       position="top-center"
       closeButton
+      richColors
+      style={{ zIndex: 1000, width: 'min(560px, calc(100vw - 2rem))' }}
       toastOptions={{
         style: {
-          background: 'var(--surface)',
-          color: 'var(--fg)',
-          border: '1px solid var(--border)',
+          left: '50%',
+          translate: '-50% 0',
+          width: 'max-content',
+          minWidth: '240px',
+          maxWidth: 'min(560px, calc(100vw - 2rem))',
           fontSize: '13px',
         },
       }}

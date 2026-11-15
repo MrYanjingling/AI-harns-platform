@@ -31,7 +31,7 @@ import {
   TH,
   THead,
   TR,
-  errorMessage,
+  showErrorToast,
   formatRelative,
   useI18n,
 } from '@harns/core'
@@ -126,7 +126,7 @@ export function CollectionPage() {
       )
       setPending(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -137,7 +137,7 @@ export function CollectionPage() {
         enable ? t('gateway.collection.toast.enabled') : t('gateway.collection.toast.disabled'),
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

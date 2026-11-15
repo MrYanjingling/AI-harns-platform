@@ -7,7 +7,7 @@ import { useCreateUser, useOrgTree, useRoles, useUpdateUser } from '@/api/hooks'
 import type { UserInfo } from '@/api/types'
 import { useI18n, type Translate } from '@harns/core'
 import { AUTH_MODES, GENDERS } from '@/lib/constants'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { cn } from '@harns/core'
 import { Button } from '@harns/core'
 import { Dialog } from '@harns/core'
@@ -185,7 +185,7 @@ export function UserFormDialog({
       }
       onClose()
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   })
 

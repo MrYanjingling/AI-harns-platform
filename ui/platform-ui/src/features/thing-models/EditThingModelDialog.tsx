@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { useUpdateThingModel } from '@/api/hooks'
 import type { ThingModelInfo } from '@/api/types'
 import { useI18n, type Translate } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Dialog } from '@harns/core'
 import { Field, Input, Textarea } from '@harns/core'
@@ -59,7 +59,7 @@ export function EditThingModelDialog({
       toast.success(t('editThingModel.updatedToast'))
       onClose()
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   })
 

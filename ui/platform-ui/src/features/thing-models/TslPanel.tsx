@@ -5,7 +5,7 @@ import { useImportThingModel } from '@/api/hooks'
 import { exportThingModel } from '@/api/thing-models'
 import type { ThingModelDetail, ThingModelDocument } from '@/api/types'
 import { useI18n } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@harns/core'
 import { Dialog } from '@harns/core'
@@ -37,7 +37,7 @@ export function TslPanel({ model }: { model: ThingModelDetail }) {
       URL.revokeObjectURL(url)
       toast.success(t('tsl.exported'))
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     } finally {
       setExporting(false)
     }
@@ -49,7 +49,7 @@ export function TslPanel({ model }: { model: ThingModelDetail }) {
       const doc = await exportThingModel(model.id)
       setText(JSON.stringify(doc, null, 2))
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     } finally {
       setLoadingCurrent(false)
     }
@@ -97,7 +97,7 @@ export function TslPanel({ model }: { model: ThingModelDetail }) {
       toast.success(t('tsl.imported'))
       setOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

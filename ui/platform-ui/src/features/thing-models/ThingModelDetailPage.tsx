@@ -10,7 +10,7 @@ import {
 import type { ThingModelProperty } from '@/api/types'
 import { useI18n, type MessageKey } from '@harns/core'
 import { formatDateTime } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Badge } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card } from '@harns/core'
@@ -75,7 +75,7 @@ export function ThingModelDetailPage() {
       toast.success(t('thingModelDetail.modelDeleted'))
       navigate('/platform/thing-models', { replace: true })
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -89,7 +89,7 @@ export function ThingModelDetailPage() {
       toast.success(t('thingModelDetail.propertyDeleted'))
       setDeleteProperty(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

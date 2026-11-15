@@ -36,7 +36,7 @@ import {
   TH,
   THead,
   TR,
-  errorMessage,
+  showErrorToast,
   formatDateTime,
   useI18n,
 } from '@harns/core'
@@ -123,7 +123,7 @@ export function CollectionDetailPage() {
             : t('gateway.collection.toast.restarted'),
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -135,7 +135,7 @@ export function CollectionDetailPage() {
         enable ? t('gateway.collection.toast.enabled') : t('gateway.collection.toast.disabled'),
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -160,7 +160,7 @@ export function CollectionDetailPage() {
       toast.success(t('gateway.detail.variables.added'))
       setAddOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -175,7 +175,7 @@ export function CollectionDetailPage() {
       toast.success(t('gateway.detail.variables.deleted'))
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -195,7 +195,7 @@ export function CollectionDetailPage() {
       toast.success(t('gateway.detail.control.toast'))
       setControlOpen(false)
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 
@@ -206,7 +206,7 @@ export function CollectionDetailPage() {
       toast.success(t('gateway.collection.toast.deleted'))
       navigate('/collections')
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

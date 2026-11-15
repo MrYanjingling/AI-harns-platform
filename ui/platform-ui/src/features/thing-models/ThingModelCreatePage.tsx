@@ -7,7 +7,7 @@ import { Boxes, Info } from 'lucide-react'
 import { z } from 'zod'
 import { useCreateThingModel } from '@/api/hooks'
 import { useI18n, type Translate } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@harns/core'
 import { Field, Input, Textarea } from '@harns/core'
@@ -63,7 +63,7 @@ export function ThingModelCreatePage() {
       toast.success(t('thingModelCreate.createdToast'))
       navigate(`/platform/thing-models/${created.id}`, { replace: true })
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   })
 

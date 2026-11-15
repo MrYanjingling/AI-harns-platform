@@ -1,6 +1,10 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	_ "embed"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +15,9 @@ import (
 
 	"harns-platform/pkg/gateway/licensemgr"
 )
+
+//go:embed dev-private.pem
+var devLicensePrivateKeyPEM string
 
 func main() {
 	var (
@@ -37,9 +44,6 @@ func main() {
 	flag.StringVar(&output, "out", "", "Output file (default stdout)")
 	flag.Parse()
 
-	if strings.TrimSpace(privateKey) == "" {
-		fail("--private-key is required")
-	}
 	expiresAt, err := parseTime("--license-expires-at", licenseExpiresAt)
 	if err != nil {
 		fail(err.Error())
@@ -49,7 +53,13 @@ func main() {
 		fail(err.Error())
 	}
 
-	key, err := licensemgr.LoadPrivateKey(privateKey)
+	var key *rsa.PrivateKey
+	if strings.TrimSpace(privateKey) == "" {
+		fmt.Fprintln(os.Stderr, "using embedded dev/test license private key")
+		key, err = parsePrivateKeyPEM([]byte(devLicensePrivateKeyPEM))
+	} else {
+		key, err = licensemgr.LoadPrivateKey(privateKey)
+	}
 	if err != nil {
 		fail(err.Error())
 	}
@@ -77,6 +87,21 @@ func main() {
 	if err := os.WriteFile(output, []byte(license+"\n"), 0o600); err != nil {
 		fail(err.Error())
 	}
+}
+
+func parsePrivateKeyPEM(data []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("invalid private key PEM")
+	}
+	if parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
+		key, ok := parsed.(*rsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("private key is not RSA")
+		}
+		return key, nil
+	}
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 func parseTime(flagName, value string) (time.Time, error) {

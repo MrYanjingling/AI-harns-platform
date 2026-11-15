@@ -3,7 +3,7 @@ import { ImagePlus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUploadImage } from '@/api/hooks'
 import { useI18n } from '@harns/core'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Spinner } from '@harns/core'
 
@@ -38,7 +38,7 @@ export function ImageUploadField({
       onChange(result.key)
       toast.success(t('image.uploaded'))
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

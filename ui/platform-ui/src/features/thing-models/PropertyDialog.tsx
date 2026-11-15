@@ -4,7 +4,7 @@ import { useAddThingModelProperties, useUpdateThingModelProperty } from '@/api/h
 import type { RwFlag, ThingDataTypeDetail, ThingModelProperty } from '@/api/types'
 import { useI18n } from '@harns/core'
 import { RW_FLAGS } from '@/lib/constants'
-import { errorMessage } from '@harns/core'
+import { showErrorToast } from '@harns/core'
 import { Button } from '@harns/core'
 import { Dialog } from '@harns/core'
 import { Field, Input, Select, Textarea } from '@harns/core'
@@ -94,7 +94,7 @@ export function PropertyDialog({
       }
       onClose()
     } catch (error) {
-      toast.error(errorMessage(error))
+      showErrorToast(error)
     }
   }
 

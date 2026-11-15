@@ -225,6 +225,20 @@ export interface SystemInfoMeta {
   kernelVersion: string
 }
 
+export interface LicenseInfo {
+  maxVariable: number
+  contact: string
+  contactEmail: string
+  company: string
+  licenseExpiresAt: string
+  softwareRunDeadline: string
+}
+
+export interface LicenseStatus {
+  status: 'authorized' | 'unauthorized' | string
+  license?: LicenseInfo
+}
+
 /** 后端字段名首字母大写:Total / Used / UsedPercent。 */
 export interface UsageInfo {
   Total: string
