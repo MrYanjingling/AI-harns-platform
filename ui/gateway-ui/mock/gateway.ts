@@ -4,6 +4,7 @@ import type {
   CollectionVariable,
   CollectionVariableInput,
   Driver,
+  GatewayUser,
   MQTTConfig,
   PushConnector,
   PushConnectorPayload,
@@ -16,6 +17,7 @@ import {
   connectors,
   drivers,
   gatewayMeta,
+  gatewayUsers,
   license,
   systemInfo,
   pushGroups,
@@ -191,6 +193,91 @@ export async function handleGateway(
       return true
     }
     send(res, 200, ok(license))
+    return true
+  }
+
+  if (pathname === '/users' && method === 'GET') {
+    const { page, pageSize } = pageParams(query)
+    const keyword = query.get('keyword')
+    const list = gatewayUsers
+      .filter((item) => keywordMatch([item.username, item.remark], keyword))
+      .slice()
+      .sort((left, right) => right.updatedTime.localeCompare(left.updatedTime))
+    send(res, 200, ok(paginate(list, page, pageSize)))
+    return true
+  }
+
+  if (pathname === '/users' && method === 'POST') {
+    const body = await readObject(req)
+    const username = typeof body?.username === 'string' ? body.username.trim() : ''
+    if (!username) {
+      badRequest(res, 'username is required')
+      return true
+    }
+    if (gatewayUsers.some((item) => item.username === username)) {
+      badRequest(res, 'username already exists')
+      return true
+    }
+    const now = nowIso()
+    const user: GatewayUser = {
+      id: ulid(),
+      version: 1,
+      username,
+      remark: typeof body?.remark === 'string' ? body.remark : '',
+      isAdmin: false,
+      createdTime: now,
+      updatedTime: now,
+    }
+    gatewayUsers.push(user)
+    send(res, 200, ok(user))
+    return true
+  }
+
+  const userMatch = pathname.match(/^\/users\/([^/]+)(\/password\/reset)?$/)
+  if (userMatch) {
+    const user = gatewayUsers.find((item) => item.id === userMatch[1])
+    if (!user) {
+      notFound(res, 'user not found')
+      return true
+    }
+    if (userMatch[2]) {
+      if (method !== 'POST') {
+        res.setHeader('Allow', 'POST')
+        fail(res, 405, 10005, 'method not allowed')
+        return true
+      }
+      user.version += 1
+      user.updatedTime = nowIso()
+      send(res, 200, ok(user))
+      return true
+    }
+    if (method === 'PUT') {
+      const body = await readObject(req)
+      if (typeof body?.username === 'string' && body.username.trim()) {
+        if (user.isAdmin && body.username.trim() !== user.username) {
+          badRequest(res, 'superuser username cannot be changed')
+          return true
+        }
+        user.username = body.username.trim()
+      }
+      if (typeof body?.remark === 'string') user.remark = body.remark
+      user.version += 1
+      user.updatedTime = nowIso()
+      send(res, 200, ok(user))
+      return true
+    }
+    if (method === 'DELETE') {
+      if (user.isAdmin) {
+        badRequest(res, 'superuser cannot be deleted')
+        return true
+      }
+      const index = gatewayUsers.findIndex((item) => item.id === user.id)
+      gatewayUsers.splice(index, 1)
+      send(res, 200, ok({ deleted: true }))
+      return true
+    }
+    res.setHeader('Allow', 'GET, PUT, DELETE')
+    fail(res, 405, 10005, 'method not allowed')
     return true
   }
 

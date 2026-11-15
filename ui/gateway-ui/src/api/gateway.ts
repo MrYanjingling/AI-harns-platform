@@ -15,6 +15,8 @@ import type {
   GatewayDiskResponse,
   GatewayMemResponse,
   GatewayMeta,
+  GatewayUser,
+  GatewayUserPayload,
   LicenseStatus,
   PageResp,
   PushConnector,
@@ -281,6 +283,37 @@ export function importLicense(data: string): Promise<LicenseStatus> {
     method: 'POST',
     body: { data },
   })
+}
+
+/* ---------------- 用户 ---------------- */
+
+export function listUsers(query: ListQuery = {}): Promise<PageResp<GatewayUser>> {
+  return gatewayData<PageResp<GatewayUser>>(
+    `/users${buildQuery({
+      page: query.page,
+      pageSize: query.pageSize,
+      keyword: query.keyword,
+    })}`,
+  )
+}
+
+export function createUser(payload: GatewayUserPayload): Promise<GatewayUser> {
+  return gatewayData<GatewayUser>('/users', { method: 'POST', body: payload })
+}
+
+export function updateUser(
+  id: string,
+  payload: Omit<GatewayUserPayload, 'password'>,
+): Promise<GatewayUser> {
+  return gatewayData<GatewayUser>(`/users/${id}`, { method: 'PUT', body: payload })
+}
+
+export function deleteUser(id: string): Promise<{ deleted: boolean }> {
+  return gatewayData<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' })
+}
+
+export function resetUserPassword(id: string): Promise<GatewayUser> {
+  return gatewayData<GatewayUser>(`/users/${id}/password/reset`, { method: 'POST' })
 }
 
 export function getGatewayCpu(): Promise<GatewayCpuResponse> {

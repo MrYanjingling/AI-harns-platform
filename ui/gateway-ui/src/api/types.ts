@@ -239,6 +239,22 @@ export interface LicenseStatus {
   license?: LicenseInfo
 }
 
+export interface GatewayUser {
+  id: string
+  version: number
+  username: string
+  remark: string
+  isAdmin: boolean
+  createdTime: string
+  updatedTime: string
+}
+
+export interface GatewayUserPayload {
+  username: string
+  password?: string
+  remark?: string
+}
+
 /** 后端字段名首字母大写:Total / Used / UsedPercent。 */
 export interface UsageInfo {
   Total: string

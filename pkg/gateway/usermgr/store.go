@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
     CHECK (username <> '')
 );
 CREATE INDEX IF NOT EXISTS idx_users_created_time ON users (created_time);
+CREATE INDEX IF NOT EXISTS idx_users_updated_time ON users (updated_time DESC);
 `
 
 type Store struct {
@@ -57,7 +58,7 @@ func (s *Store) List(ctx context.Context, q apis.PageQuery, keyword string) ([]*
 	queryArgs := append(append([]interface{}{}, args...), q.Limit(), q.Offset())
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, username, password_hash, remark, is_admin, version, created_time, updated_time
-		 FROM users WHERE `+where+` ORDER BY created_time ASC, id ASC LIMIT ? OFFSET ?`, queryArgs...)
+		 FROM users WHERE `+where+` ORDER BY updated_time DESC, id DESC LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

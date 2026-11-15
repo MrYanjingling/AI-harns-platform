@@ -4,6 +4,7 @@ import type {
   Driver,
   DriverSchema,
   GatewayMeta,
+  GatewayUser,
   LicenseStatus,
   SystemInfoMeta,
   PushConnector,
@@ -30,6 +31,27 @@ export const license: LicenseStatus = {
     softwareRunDeadline: '2027-06-01T00:00:00Z',
   },
 }
+
+export const gatewayUsers: GatewayUser[] = [
+  {
+    id: '01J00000000000000000000001',
+    version: 1,
+    username: 'admin',
+    remark: '超级管理员',
+    isAdmin: true,
+    createdTime: '2026-01-01T00:00:00Z',
+    updatedTime: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: '01J00000000000000000000002',
+    version: 1,
+    username: 'operator',
+    remark: '运维人员',
+    isAdmin: false,
+    createdTime: '2026-01-02T00:00:00Z',
+    updatedTime: '2026-01-02T00:00:00Z',
+  },
+]
 
 export const gatewayMeta: GatewayMeta = {
   name: 'harnsgateway',

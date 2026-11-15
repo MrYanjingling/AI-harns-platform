@@ -7,11 +7,13 @@ import {
   createDriver,
   createPushConnector,
   createPushGroup,
+  createUser,
   deleteCollection,
   deleteCollectionVariables,
   deleteDriver,
   deletePushConnector,
   deletePushGroup,
+  deleteUser,
   deliverCollectionAction,
   getCollection,
   getDriverSchema,
@@ -22,12 +24,14 @@ import {
   getLicense,
   getSystemInfo,
   importLicense,
+  listUsers,
   listCollectionVariables,
   listCollections,
   listDriverGroups,
   listDriversFlat,
   listPushConnectors,
   listPushGroups,
+  resetUserPassword,
   restartCollection,
   setCollectionEnable,
   startCollection,
@@ -38,6 +42,7 @@ import {
   updateDriver,
   updatePushConnector,
   updatePushGroup,
+  updateUser,
 } from './gateway'
 import { queryKeys } from './query-keys'
 import type {
@@ -45,6 +50,7 @@ import type {
   CollectionPayload,
   CollectionVariableInput,
   DriverPayload,
+  GatewayUserPayload,
   PushConnectorPayload,
   PushGroupPayload,
 } from './types'
@@ -586,6 +592,53 @@ export function useImportLicense() {
     onSuccess: (status) => {
       queryClient.setQueryData(queryKeys.gateway.license, status)
     },
+  })
+}
+
+/* ---------------- 用户 ---------------- */
+
+export function useUsers(params: PageParams) {
+  return useQuery({
+    queryKey: queryKeys.gateway.users(params),
+    queryFn: () => listUsers(params),
+    placeholderData: keepPreviousData,
+  })
+}
+
+function invalidateUsers(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['gateway', 'users'] })
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: GatewayUserPayload) => createUser(payload),
+    onSuccess: () => invalidateUsers(queryClient),
+  })
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; payload: Omit<GatewayUserPayload, 'password'> }) =>
+      updateUser(vars.id, vars.payload),
+    onSuccess: () => invalidateUsers(queryClient),
+  })
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteUser(id),
+    onSuccess: () => invalidateUsers(queryClient),
+  })
+}
+
+export function useResetUserPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => resetUserPassword(id),
+    onSuccess: () => invalidateUsers(queryClient),
   })
 }
 
