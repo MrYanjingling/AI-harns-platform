@@ -90,15 +90,15 @@ export function AboutPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4">
-      <div className="grid items-start gap-4 xl:grid-cols-2">
-        <Card className={aboutCardClass}>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card className={cn(aboutCardClass, 'flex h-full flex-col')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted">
               <Server className="size-4 text-faint" />
               {t('gateway.about.basic.title')}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="flex-1 p-0">
             {systemInfo.isError ? (
               <div className="p-4">
                 <ErrorState error={systemInfo.error} onRetry={() => void systemInfo.refetch()} compact />
@@ -122,6 +122,10 @@ export function AboutPage() {
                   value={systemInfo.data?.architecture}
                 />
                 <DescriptionRow
+                  label={t('gateway.about.field.cpuModel')}
+                  value={systemInfo.data?.cpuModel}
+                />
+                <DescriptionRow
                   label={t('gateway.about.field.osVersion')}
                   value={systemInfo.data?.osVersion}
                 />
@@ -134,7 +138,7 @@ export function AboutPage() {
           </CardContent>
         </Card>
 
-        <Card className={aboutCardClass}>
+        <Card className={cn(aboutCardClass, 'flex h-full flex-col')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted">
               <ShieldCheck className="size-4 text-faint" />
@@ -149,7 +153,7 @@ export function AboutPage() {
               {t('gateway.about.license.import')}
             </Button>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="flex-1 p-0">
             {license.isError ? (
               <div className="p-4">
                 <ErrorState error={license.error} onRetry={() => void license.refetch()} compact />
@@ -206,9 +210,9 @@ export function AboutPage() {
         open={importOpen}
         onClose={closeImport}
         title={t('gateway.about.license.importTitle')}
-        className="w-[574px] max-w-[calc(100vw-2rem)]"
+        className="w-[574px] max-w-[calc(100vw-2rem)] rounded-lg"
         headerClassName="h-10 items-center pt-0"
-        footerClassName="min-h-10 items-center border-t-0 py-1"
+        footerClassName="min-h-10 items-center py-1"
         footer={
           <>
             <Button variant="outline" onClick={closeImport}>

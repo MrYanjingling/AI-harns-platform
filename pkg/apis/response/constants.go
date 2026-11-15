@@ -93,6 +93,7 @@ const (
 	ErrCodeLicenseGatewayMismatch              // 20025
 	ErrCodeLicenseExpired                      // 20026
 	ErrCodeLicensePublicKeyUnavailable         // 20027
+	ErrCodeSystemLogLevelInvalid               // 20028
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

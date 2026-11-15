@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { CircleHelp } from 'lucide-react'
-import { Button, Dialog, Field, Input, Label, showErrorToast, useI18n } from '@harns/core'
+import { Button, Dialog, Field, Input, Label, Textarea, showErrorToast, useI18n } from '@harns/core'
 import { toast } from 'sonner'
 import { useCreateUser, useUpdateUser } from '@/api/hooks'
 import type { GatewayUser } from '@/api/types'
@@ -74,6 +74,7 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
       onClose={onClose}
       title={t(user ? 'gateway.users.editTitle' : 'gateway.users.createTitle')}
       size="sm"
+      className="rounded-lg"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -125,11 +126,13 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
           </div>
         ) : null}
         <Field label={t('gateway.users.form.remark')} htmlFor="gateway-user-remark" error={errors.remark}>
-          <Input
+          <Textarea
             id="gateway-user-remark"
             value={remark}
             onChange={(event) => setRemark(event.target.value)}
             maxLength={255}
+            rows={3}
+            className="min-h-20 resize-none"
           />
         </Field>
       </form>

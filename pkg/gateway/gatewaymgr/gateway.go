@@ -25,6 +25,7 @@ type SystemInfoMeta struct {
 	CommitID      string `json:"commitId"`
 	HardwareID    string `json:"hardwareId"`
 	Architecture  string `json:"architecture"`
+	CPUModel      string `json:"cpuModel"`
 	OSVersion     string `json:"osVersion"`
 	KernelVersion string `json:"kernelVersion"`
 }

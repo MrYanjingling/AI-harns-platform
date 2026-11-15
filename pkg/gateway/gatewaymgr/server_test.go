@@ -73,7 +73,7 @@ func TestSystemInfoHandler(t *testing.T) {
 	data := result.Data.(map[string]interface{})
 	assert.Equal(t, version.Version(), data["version"])
 	assert.Equal(t, version.CommitID(), data["commitId"])
-	for _, key := range []string{"hardwareId", "architecture", "osVersion", "kernelVersion"} {
+	for _, key := range []string{"hardwareId", "architecture", "cpuModel", "osVersion", "kernelVersion"} {
 		assert.Contains(t, data, key)
 	}
 }

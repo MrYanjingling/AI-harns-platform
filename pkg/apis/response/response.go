@@ -516,6 +516,10 @@ func ErrSystemLogFileUnavailable() *responseError {
 	return generateError(ErrCodeSystemLogFileUnavailable)
 }
 
+func ErrSystemLogLevelInvalid(level string) *responseError {
+	return generateError(ErrCodeSystemLogLevelInvalid, level)
+}
+
 func ErrForbidden() *responseError {
 	return generateError(ErrCodeForbidden)
 }

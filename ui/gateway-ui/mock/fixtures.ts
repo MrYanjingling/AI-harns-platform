@@ -16,6 +16,7 @@ export const systemInfo: SystemInfoMeta = {
   commitId: '4a2931a74c24aeb64419d731f79ba64e1f34b817',
   hardwareId: 'demo-hardware-id',
   architecture: 'x86_64',
+  cpuModel: 'Intel(R) Xeon(R) Silver 4314 CPU @ 2.40GHz',
   osVersion: 'Ubuntu 22.04',
   kernelVersion: '5.15.0',
 }

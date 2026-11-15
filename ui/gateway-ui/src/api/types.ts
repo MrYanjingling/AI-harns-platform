@@ -221,6 +221,7 @@ export interface SystemInfoMeta {
   commitId: string
   hardwareId: string
   architecture: string
+  cpuModel: string
   osVersion: string
   kernelVersion: string
 }

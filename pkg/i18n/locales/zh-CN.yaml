@@ -186,6 +186,7 @@ error.push_connector_already_stopped: "推送连接器 [%s] 已经是 stopped �
 error.push_connector_start_failed: "推送连接器启动失败：%s。"
 error.push_connector_stop_failed: "推送连接器停止失败：%s。"
 error.system_log_file_unavailable: "当前日志输出为 stdout/stderr，无法实时查看日志。"
+error.system_log_level_invalid: "日志级别 [%s] 无效，仅支持 error、warn、info。"
 error.forbidden: "无权限操作。"
 error.user_protected: "超级用户不允许删除或修改用户名。"
 error.user_invalid: "用户参数无效。"

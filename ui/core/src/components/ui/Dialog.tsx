@@ -156,7 +156,7 @@ export function Dialog({
         </div>
         {children ? <div className={cn('px-4 py-3', bodyClassName)}>{children}</div> : null}
         {footer ? (
-          <div className={cn('flex items-center justify-end gap-2 border-t border-border px-4 py-3', footerClassName)}>
+          <div className={cn('flex items-center justify-end gap-2 px-4 py-3', footerClassName)}>
             {footer}
           </div>
         ) : null}

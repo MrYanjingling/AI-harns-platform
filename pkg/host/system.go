@@ -5,12 +5,14 @@ import (
 	"runtime"
 	"strings"
 
+	gopsutilcpu "github.com/shirou/gopsutil/v3/cpu"
 	gopsutilhost "github.com/shirou/gopsutil/v3/host"
 )
 
 type SystemInfo struct {
 	HardwareID    string
 	Architecture  string
+	CPUModel      string
 	OSVersion     string
 	KernelVersion string
 }
@@ -21,6 +23,7 @@ func GetSystemInfo(ctx context.Context) SystemInfo {
 		return SystemInfo{
 			HardwareID:    "unknown",
 			Architecture:  runtime.GOARCH,
+			CPUModel:      "unknown",
 			OSVersion:     runtime.GOOS,
 			KernelVersion: "unknown",
 		}
@@ -44,9 +47,19 @@ func GetSystemInfo(ctx context.Context) SystemInfo {
 	if kernelVersion == "" {
 		kernelVersion = "unknown"
 	}
+	cpuModel := "unknown"
+	if cpuInfo, err := gopsutilcpu.InfoWithContext(ctx); err == nil {
+		for _, item := range cpuInfo {
+			if model := strings.TrimSpace(item.ModelName); model != "" {
+				cpuModel = model
+				break
+			}
+		}
+	}
 	return SystemInfo{
 		HardwareID:    hardwareID,
 		Architecture:  architecture,
+		CPUModel:      cpuModel,
 		OSVersion:     osVersion,
 		KernelVersion: kernelVersion,
 	}

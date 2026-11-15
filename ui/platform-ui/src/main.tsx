@@ -28,6 +28,12 @@ function AppToaster() {
       richColors
       style={{ zIndex: 1000, width: 'min(560px, calc(100vw - 2rem))' }}
       toastOptions={{
+        classNames: {
+          toast: 'justify-center',
+          content: 'flex-none!',
+          title: 'text-center',
+          description: 'text-center',
+        },
         style: {
           left: '50%',
           translate: '-50% 0',

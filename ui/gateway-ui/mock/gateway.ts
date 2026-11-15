@@ -196,6 +196,26 @@ export async function handleGateway(
     return true
   }
 
+  if (pathname === '/system/logs/export' && method === 'GET') {
+    const level = (query.get('level') ?? '').toLowerCase()
+    if (!['error', 'warn', 'info'].includes(level)) {
+      badRequest(res, 'invalid log level')
+      return true
+    }
+    const timestamp = nowIso()
+    const lines = [
+      `time=${timestamp} level=INFO msg=mock info log`,
+      `time=${timestamp} level=WARN msg=mock warn log`,
+      `time=${timestamp} level=ERROR msg=mock error log`,
+    ]
+    const filtered = lines.filter((line) => line.includes(`level=${level.toUpperCase()}`))
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-store')
+    res.end(filtered.join('\n') + (filtered.length > 0 ? '\n' : ''))
+    return true
+  }
+
   if (pathname === '/users' && method === 'GET') {
     const { page, pageSize } = pageParams(query)
     const keyword = query.get('keyword')

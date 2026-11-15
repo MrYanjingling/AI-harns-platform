@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,9 +21,74 @@ const (
 	heartbeat    = 15 * time.Second
 )
 
-// InstallHandler registers the real-time log stream endpoint.
+var (
+	textLevelPattern = regexp.MustCompile(`(?i)\blevel=(error|warn|info)\b`)
+	jsonLevelPattern = regexp.MustCompile(`(?i)"level"\s*:\s*"(error|warn|info)"`)
+)
+
+// InstallHandler registers the real-time log stream and export endpoints.
 func InstallHandler(group *gin.RouterGroup, logPath string) {
 	group.GET("/system/logs/stream", streamLogs(logPath))
+	group.GET("/system/logs/export", exportLogs(logPath))
+}
+
+func exportLogs(logPath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rawLevel := strings.TrimSpace(c.Query("level"))
+		level, ok := normalizeLogLevel(rawLevel)
+		if !ok {
+			response.WriteError(c, http.StatusBadRequest, response.ErrSystemLogLevelInvalid(rawLevel))
+			return
+		}
+		if strings.TrimSpace(logPath) == "" {
+			response.WriteError(c, http.StatusBadRequest, response.ErrSystemLogFileUnavailable())
+			return
+		}
+		file, err := os.Open(logPath)
+		if err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrSystemLogFileUnavailable())
+			return
+		}
+		defer file.Close()
+
+		filename := fmt.Sprintf("harns-gateway-%s.log", level)
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		c.Header("Cache-Control", "no-store")
+		c.Status(http.StatusOK)
+
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if logLineLevel(line) != level {
+				continue
+			}
+			if _, err := c.Writer.WriteString(line + "\n"); err != nil {
+				return
+			}
+		}
+		c.Writer.Flush()
+	}
+}
+
+func normalizeLogLevel(value string) (string, bool) {
+	switch strings.ToLower(value) {
+	case "error", "warn", "info":
+		return strings.ToLower(value), true
+	default:
+		return "", false
+	}
+}
+
+func logLineLevel(line string) string {
+	if match := textLevelPattern.FindStringSubmatch(line); match != nil {
+		return strings.ToLower(match[1])
+	}
+	if match := jsonLevelPattern.FindStringSubmatch(line); match != nil {
+		return strings.ToLower(match[1])
+	}
+	return ""
 }
 
 func streamLogs(logPath string) gin.HandlerFunc {

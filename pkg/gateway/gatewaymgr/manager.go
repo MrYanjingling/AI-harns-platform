@@ -89,6 +89,7 @@ func (m *Manager) GetSystemInfoMeta(ctx context.Context) *SystemInfoMeta {
 		CommitID:      version.CommitID(),
 		HardwareID:    info.HardwareID,
 		Architecture:  info.Architecture,
+		CPUModel:      info.CPUModel,
 		OSVersion:     info.OSVersion,
 		KernelVersion: info.KernelVersion,
 	}
