@@ -270,7 +270,8 @@ func (s *Store) List(ctx context.Context, q apis.PageQuery, keyword, driverType,
 	queryArgs := append(append([]interface{}{}, args...), q.Limit(), q.Offset())
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, name, version, driver_type, driver_model, collect_status, enable,
-			collector_cycle_ms, protocol_config, created_time, updated_time
+			collector_cycle_ms, protocol_config, created_time, updated_time,
+			(SELECT COUNT(1) FROM collection_variables v WHERE v.collection_id = collections.id) AS variable_count
 		 FROM collections WHERE `+where+` ORDER BY created_time DESC, id ASC LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
 		return nil, 0, err
@@ -454,6 +455,7 @@ func (s *Store) Get(ctx context.Context, id string) (*CollectionRecord, error) {
 		}
 		record.Variables = append(record.Variables, variable)
 	}
+	record.VariableCount = int64(len(record.Variables))
 	return &record, rows.Err()
 }
 
@@ -468,6 +470,7 @@ func scanCollection(scanner rowScanner) (*CollectionRecord, error) {
 	if err := scanner.Scan(
 		&record.ID, &record.Name, &record.Version, &record.DriverType, &record.DriverModel,
 		&record.CollectStatus, &enable, &record.CollectorCycleMs, &protocolConfig, &createdTime, &updatedTime,
+		&record.VariableCount,
 	); err != nil {
 		return nil, err
 	}

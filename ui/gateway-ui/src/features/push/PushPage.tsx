@@ -228,7 +228,7 @@ export function PushPage() {
 function ConnectorsTab() {
   const { t } = useI18n()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [keyword, setKeyword] = useState('')
   const connectors = usePushConnectors({ page, pageSize, keyword: keyword || undefined })
   const action = usePushConnectorAction()
@@ -630,7 +630,7 @@ function ConnectorsTab() {
 function GroupsTab() {
   const { t } = useI18n()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [keyword, setKeyword] = useState('')
   const groups = usePushGroups({ page, pageSize, keyword: keyword || undefined })
   const connectors = usePushConnectors({ page: 1, pageSize: 100 })

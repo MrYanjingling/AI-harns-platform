@@ -46,7 +46,7 @@ const OPERATION_LABEL: Record<string, MessageKey> = Object.fromEntries(
 export function AuditLogsPage() {
   const { t } = useI18n()
   const [filters, setFilters] = useState<Record<FilterKey, string>>(EMPTY_FILTERS)
-  const [query, setQuery] = useState<AuditQuery>({ page: 1, pageSize: 20 })
+  const [query, setQuery] = useState<AuditQuery>({ page: 1, pageSize: 10 })
   const [detail, setDetail] = useState<AuditLogInfo | null>(null)
 
   const logs = useAuditLogs(query)

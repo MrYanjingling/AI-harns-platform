@@ -17,6 +17,7 @@ type CollectionVo struct {
 	CollectStatus    string    `json:"collectStatus"`
 	Enable           bool      `json:"enable"`
 	CollectorCycleMs uint64    `json:"collectorCycleMs"`
+	VariableCount    int64     `json:"variableCount"`
 	ModTime          time.Time `json:"modTime"`
 }
 

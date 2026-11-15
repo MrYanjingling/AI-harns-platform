@@ -55,8 +55,12 @@ const modbusTcpSchema = `{
       "regex": "^(ABCD|BADC|CDAB|DCBA)$",
       "sort": 3,
       "type": "select",
-      "required": true,
       "options": [
+        {
+          "value": "CDAB",
+          "labelZh": "CDAB",
+          "labelEn": "CDAB"
+        },
         {
           "value": "ABCD",
           "labelZh": "ABCD",
@@ -66,11 +70,6 @@ const modbusTcpSchema = `{
           "value": "BADC",
           "labelZh": "BADC",
           "labelEn": "BADC"
-        },
-        {
-          "value": "CDAB",
-          "labelZh": "CDAB",
-          "labelEn": "CDAB"
         },
         {
           "value": "DCBA",
@@ -85,7 +84,11 @@ const modbusTcpSchema = `{
       "labelEn": "Position Address",
       "regex": "^(0|1)$",
       "sort": 4,
-      "type": "input"
+      "type": "select",
+      "options": [
+        {"value":"0","labelZh":"0","labelEn":"0"},
+        {"value":"1","labelZh":"1","labelEn":"1"}
+      ]
     },
     {
       "name": "tcpCount",
@@ -197,11 +200,10 @@ const modbusRtuSchema = `{
       "regex": "^(ABCD|BADC|CDAB|DCBA)$",
       "sort": 6,
       "type": "select",
-      "required": true,
       "options": [
+        {"value":"CDAB","labelZh":"CDAB","labelEn":"CDAB"},
         {"value":"ABCD","labelZh":"ABCD","labelEn":"ABCD"},
         {"value":"BADC","labelZh":"BADC","labelEn":"BADC"},
-        {"value":"CDAB","labelZh":"CDAB","labelEn":"CDAB"},
         {"value":"DCBA","labelZh":"DCBA","labelEn":"DCBA"}
       ]
     },
@@ -211,7 +213,11 @@ const modbusRtuSchema = `{
       "labelEn": "Position Address",
       "regex": "^(0|1)$",
       "sort": 7,
-      "type": "input"
+      "type": "select",
+      "options": [
+        {"value":"0","labelZh":"0","labelEn":"0"},
+        {"value":"1","labelZh":"1","labelEn":"1"}
+      ]
     }
   ],
   "variableAddress": {
@@ -260,11 +266,10 @@ const modbusRtuOverTcpSchema = `{
       "regex": "^(ABCD|BADC|CDAB|DCBA)$",
       "sort": 3,
       "type": "select",
-      "required": true,
       "options": [
+        {"value":"CDAB","labelZh":"CDAB","labelEn":"CDAB"},
         {"value":"ABCD","labelZh":"ABCD","labelEn":"ABCD"},
         {"value":"BADC","labelZh":"BADC","labelEn":"BADC"},
-        {"value":"CDAB","labelZh":"CDAB","labelEn":"CDAB"},
         {"value":"DCBA","labelZh":"DCBA","labelEn":"DCBA"}
       ]
     },
@@ -274,7 +279,11 @@ const modbusRtuOverTcpSchema = `{
       "labelEn": "Position Address",
       "regex": "^(0|1)$",
       "sort": 4,
-      "type": "input"
+      "type": "select",
+      "options": [
+        {"value":"0","labelZh":"0","labelEn":"0"},
+        {"value":"1","labelZh":"1","labelEn":"1"}
+      ]
     },
     {
       "name": "tcpCount",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, CircleHelp, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -13,10 +13,11 @@ import {
   Input,
   PageHeader,
   PageLoading,
-  Select,
+  SearchSelect,
   Skeleton,
   showErrorToast,
   useI18n,
+  type SearchSelectOption,
 } from '@harns/core'
 import {
   useCollection,
@@ -25,19 +26,15 @@ import {
   useDriverSchema,
   useUpdateCollection,
 } from '@/api/hooks'
-import type { DriverSchema } from '@/api/types'
 import { ProtocolFields } from '@/components/ProtocolFields'
 import { ProtocolLabel } from '@/components/ProtocolLabel'
 import {
-  createEmptyVariable,
   createFormValues,
   detailToForm,
   validateCollectionForm,
   type CollectionFormValues,
-  type VariableFormValues,
 } from '@/lib/collection-form'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
-import { VariablesEditor } from './VariablesEditor'
 
 interface CollectionFormPageProps {
   mode: 'create' | 'edit'
@@ -94,6 +91,20 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
     }))
   }, [drivers.data])
 
+  const selectedType = form?.driverType ?? ''
+  const driverTypeOptions = useMemo<SearchSelectOption[]>(
+    () => driverTypes.map((item) => ({ value: item.type, label: driverTypeLabel(item.type) })),
+    [driverTypes],
+  )
+  const driverModelOptions = useMemo<SearchSelectOption[]>(
+    () =>
+      (driverTypes.find((item) => item.type === selectedType)?.models ?? []).map((model) => ({
+        value: model,
+        label: driverModelLabel(model),
+      })),
+    [driverTypes, selectedType],
+  )
+
   const update = (patch: Partial<CollectionFormValues>) => {
     setForm((current) => (current ? { ...current, ...patch } : current))
   }
@@ -106,16 +117,6 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
     )
   }
 
-  const updateVariable = (index: number, patch: Partial<VariableFormValues>) => {
-    setForm((current) => {
-      if (!current) return current
-      const variables = current.variables.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      )
-      return { ...current, variables }
-    })
-  }
-
   const changeModel = (model: string) => {
     setSelectedModel(model)
     setForm(null)
@@ -124,7 +125,7 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
 
   const submit = async () => {
     if (!form || !schema.data) return
-    const result = validateCollectionForm(form, schema.data.schema, t, isCreate)
+    const result = validateCollectionForm(form, schema.data.schema, t, false)
     setErrors(result.errors)
     if (!result.payload) return
     try {
@@ -152,41 +153,38 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
   }
 
   const submitting = createCollection.isPending || updateCollection.isPending
-  const selectedType = form?.driverType ?? ''
   const driverSchema = schema.data?.schema
 
   return (
     <div className="space-y-3">
-      <PageHeader
-        title={
-          isCreate ? t('gateway.form.createTitle') : t('gateway.form.editTitle', {
-            name: detail.data?.name ?? '',
-          })
-        }
-        description={t('gateway.form.description')}
-        backTo={isCreate ? '/collections' : `/collections/${id}`}
-        backLabel={t('gateway.form.back')}
-        actions={
-          <>
-            <Link
-              to={isCreate ? '/collections' : `/collections/${id}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded border border-border-strong bg-surface px-3 text-sm text-fg transition-colors hover:bg-surface-2"
-            >
-              <ArrowLeft className="size-3.5" />
-              {t('common.action.cancel')}
-            </Link>
-            <Button
-              variant="primary"
-              loading={submitting}
-              disabled={!form || !schema.data}
-              onClick={() => void submit()}
-              icon={<Save className="size-3.5" />}
-            >
-              {isCreate ? t('gateway.form.submitCreate') : t('gateway.form.submitUpdate')}
-            </Button>
-          </>
-        }
-      />
+      {isCreate ? null : (
+        <PageHeader
+          title={t('gateway.form.editTitle', { name: detail.data?.name ?? '' })}
+          description={t('gateway.form.description')}
+          backTo={`/collections/${id}`}
+          backLabel={t('gateway.form.back')}
+          actions={
+            <>
+              <Link
+                to={`/collections/${id}`}
+                className="inline-flex h-8 items-center gap-1.5 rounded border border-border-strong bg-surface px-3 text-sm text-fg transition-colors hover:bg-surface-2"
+              >
+                <ArrowLeft className="size-3.5" />
+                {t('common.action.cancel')}
+              </Link>
+              <Button
+                variant="primary"
+                loading={submitting}
+                disabled={!form || !schema.data}
+                onClick={() => void submit()}
+                icon={<Save className="size-3.5" />}
+              >
+                {t('gateway.form.submitUpdate')}
+              </Button>
+            </>
+          }
+        />
+      )}
 
       {schema.isError ? (
         <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
@@ -203,52 +201,12 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
             <CardHeader>
               <CardTitle>{t('gateway.form.section.basic')}</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {isCreate ? (
-                <>
-                  <Field label={t('gateway.form.field.driverType')} htmlFor="driver-type">
-                    <Select
-                      id="driver-type"
-                      value={selectedType}
-                      onChange={(event) => {
-                        const type = event.target.value
-                        const first = driverTypes.find((item) => item.type === type)
-                        if (first) changeModel(first.models[0])
-                      }}
-                    >
-                      {driverTypes.map((item) => (
-                        <option key={item.type} value={item.type}>
-                          {driverTypeLabel(item.type)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label={t('gateway.form.field.driverModel')} htmlFor="driver-model">
-                    <Select
-                      id="driver-model"
-                      value={form.driverModel}
-                      onChange={(event) => changeModel(event.target.value)}
-                    >
-                      {(driverTypes.find((item) => item.type === selectedType)?.models ?? []).map(
-                        (model) => (
-                          <option key={model} value={model}>
-                            {driverModelLabel(model)}
-                          </option>
-                        ),
-                      )}
-                    </Select>
-                  </Field>
-                </>
-              ) : (
-                <Field label={t('gateway.form.field.protocol')}>
-                  <div className="flex h-8 items-center">
-                    <ProtocolLabel type={form.driverType} model={form.driverModel} />
-                  </div>
-                </Field>
-              )}
+            <CardContent className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
               <Field
                 label={t('gateway.form.field.name')}
                 htmlFor="collection-name"
+                labelClassName="text-sm"
+                inline
                 required
                 error={errors.name}
               >
@@ -258,22 +216,90 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
                   onChange={(event) => update({ name: event.target.value })}
                   placeholder={t('gateway.form.namePlaceholder')}
                   autoComplete="off"
+                  className="w-full max-w-[200px]"
                 />
               </Field>
               <Field
                 label={t('gateway.form.field.cycle')}
                 htmlFor="collection-cycle"
+                labelClassName="text-sm"
+                inline
                 required
                 error={errors.collectorCycleMs}
-                hint={t('gateway.form.field.cycleHint')}
+                labelAccessory={
+                  <span className="group relative inline-flex">
+                    <CircleHelp
+                      aria-hidden="true"
+                      className="size-3 cursor-help self-start text-faint transition-colors group-hover:text-fg"
+                    />
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute top-full right-0 z-20 mt-1.5 hidden w-max max-w-56 rounded border border-border bg-surface px-2 py-1.5 text-[11px] leading-relaxed text-fg shadow-lg group-hover:block"
+                    >
+                      {t('gateway.form.field.cycleHint')}
+                    </span>
+                  </span>
+                }
               >
                 <Input
                   id="collection-cycle"
                   value={form.collectorCycleMs}
                   inputMode="numeric"
+                  className="w-full max-w-[200px]"
                   onChange={(event) => update({ collectorCycleMs: event.target.value })}
                 />
               </Field>
+              {isCreate ? (
+                <>
+                  <Field
+                    label={t('gateway.form.field.driverType')}
+                    htmlFor="driver-type"
+                    labelClassName="text-sm"
+                        inline
+                  >
+                    <SearchSelect
+                      id="driver-type"
+                      value={selectedType}
+                      options={driverTypeOptions}
+                      onChange={(type) => {
+                        const first = driverTypes.find((item) => item.type === type)
+                        if (first) changeModel(first.models[0])
+                      }}
+                      ariaLabel={t('gateway.form.field.driverType')}
+                      emptyText={t('common.state.empty')}
+                      className="w-full max-w-[200px]"
+                      panelClassName="w-[200px]"
+                    />
+                  </Field>
+                  <Field
+                    label={t('gateway.form.field.driverModel')}
+                    htmlFor="driver-model"
+                    labelClassName="text-sm"
+                        inline
+                  >
+                    <SearchSelect
+                      id="driver-model"
+                      value={form.driverModel}
+                      options={driverModelOptions}
+                      onChange={changeModel}
+                      ariaLabel={t('gateway.form.field.driverModel')}
+                      emptyText={t('common.state.empty')}
+                      className="w-full max-w-[200px]"
+                      panelClassName="w-[200px]"
+                    />
+                  </Field>
+                </>
+              ) : (
+                <Field
+                  label={t('gateway.form.field.protocol')}
+                  labelClassName="text-sm"
+                    inline
+                >
+                  <div className="flex h-8 items-center">
+                    <ProtocolLabel type={form.driverType} model={form.driverModel} />
+                  </div>
+                </Field>
+              )}
             </CardContent>
           </Card>
 
@@ -294,22 +320,7 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
             </CardContent>
           </Card>
 
-          {isCreate ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('gateway.form.section.variables')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VariablesForm
-                  form={form}
-                  errors={errors}
-                  schema={driverSchema}
-                  updateVariable={updateVariable}
-                  update={(variables) => update({ variables })}
-                />
-              </CardContent>
-            </Card>
-          ) : (
+          {isCreate ? null : (
             <Card>
               <CardContent className="py-3">
                 <p className="text-xs text-muted">{t('gateway.form.variablesHint')}</p>
@@ -318,31 +329,22 @@ export function CollectionFormPage({ mode }: CollectionFormPageProps) {
           )}
         </>
       )}
-    </div>
-  )
-}
 
-function VariablesForm({
-  form,
-  schema,
-  errors,
-  update,
-  updateVariable,
-}: {
-  form: CollectionFormValues
-  schema: DriverSchema
-  errors: Record<string, string>
-  update: (variables: VariableFormValues[]) => void
-  updateVariable: (index: number, patch: Partial<VariableFormValues>) => void
-}) {
-  return (
-    <VariablesEditor
-      schema={schema}
-      variables={form.variables}
-      errors={errors}
-      onAdd={() => update([...form.variables, createEmptyVariable(schema)])}
-      onRemove={(index) => update(form.variables.filter((_, itemIndex) => itemIndex !== index))}
-      onChange={updateVariable}
-    />
+      {isCreate ? (
+        <div className="flex items-center justify-end gap-2 pb-1">
+          <Button variant="outline" onClick={() => navigate('/collections')}>
+            {t('common.action.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            loading={submitting}
+            disabled={!form || !schema.data}
+            onClick={() => void submit()}
+          >
+            {t('gateway.form.next')}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Field, Input, Select, useI18n } from '@harns/core'
+import { Field, Input, SearchSelect, type SearchSelectOption, useI18n } from '@harns/core'
 import type { DriverSchema } from '@/api/types'
 import { sortedFields } from '@/lib/collection-form'
 import { localized } from '@/lib/labels'
@@ -15,7 +15,7 @@ export function ProtocolFields({ schema, values, errors, onChange }: ProtocolFie
   const { locale, t } = useI18n()
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
       {sortedFields(schema).map((field) => {
         const label = localized(field.labelZh, field.labelEn, locale)
         const error = errors[`protocol.${field.name}`]
@@ -24,33 +24,39 @@ export function ProtocolFields({ schema, values, errors, onChange }: ProtocolFie
             key={field.name}
             label={label}
             htmlFor={`protocol-${field.name}`}
+            labelClassName="text-sm"
+            labelWidthClassName="w-[70px]"
+            inline
             required={field.required}
             error={error}
           >
-            {field.type === 'select' ? (
-              <Select
-                id={`protocol-${field.name}`}
-                value={values[field.name] ?? ''}
-                onChange={(event) => onChange(field.name, event.target.value)}
-                aria-invalid={Boolean(error)}
-              >
-                <option value="">{t('gateway.form.selectPlaceholder')}</option>
-                {(field.options ?? []).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {localized(option.labelZh, option.labelEn, locale)}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <Input
-                id={`protocol-${field.name}`}
-                value={values[field.name] ?? ''}
-                placeholder={field.name === 'location' ? t('gateway.form.locationPlaceholder') : ''}
-                aria-invalid={Boolean(error)}
-                autoComplete="off"
-                onChange={(event) => onChange(field.name, event.target.value)}
-              />
-            )}
+            <div className="w-full max-w-[200px]">
+              {field.type === 'select' ? (
+                <SearchSelect
+                  id={`protocol-${field.name}`}
+                  value={values[field.name] ?? ''}
+                  options={(field.options ?? []).map<SearchSelectOption>((option) => ({
+                    value: option.value,
+                    label: localized(option.labelZh, option.labelEn, locale),
+                  }))}
+                  onChange={(next) => onChange(field.name, next)}
+                  ariaLabel={label}
+                  emptyText={t('common.state.empty')}
+                  searchable={false}
+                  className="w-full"
+                  panelClassName="w-full"
+                />
+              ) : (
+                <Input
+                  id={`protocol-${field.name}`}
+                  value={values[field.name] ?? ''}
+                  placeholder={field.name === 'location' ? t('gateway.form.locationPlaceholder') : ''}
+                  aria-invalid={Boolean(error)}
+                  autoComplete="off"
+                  onChange={(event) => onChange(field.name, event.target.value)}
+                />
+              )}
+            </div>
           </Field>
         )
       })}

@@ -44,21 +44,75 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
 export interface FieldProps {
   label?: ReactNode
   htmlFor?: string
+  labelClassName?: string
+  labelWidthClassName?: string
+  labelAccessory?: ReactNode
   hint?: ReactNode
   error?: string
   required?: boolean
+  inline?: boolean
   className?: string
   children: ReactNode
 }
 
-export function Field({ label, htmlFor, hint, error, required, className, children }: FieldProps) {
+export function Field({
+  label,
+  htmlFor,
+  labelClassName,
+  labelWidthClassName,
+  labelAccessory,
+  hint,
+  error,
+  required,
+  inline,
+  className,
+  children,
+}: FieldProps) {
+  if (inline) {
+    return (
+      <div
+        className={cn(
+          'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1 gap-y-1',
+          className,
+        )}
+      >
+        {label ? (
+          <div className={cn('flex items-center gap-0.5 whitespace-nowrap', labelWidthClassName)}>
+            <Label htmlFor={htmlFor} className={labelClassName}>
+              {label}
+              {required ? (
+                <span className="ml-0.5 align-super text-[10px] leading-none text-danger">
+                  *
+                </span>
+              ) : null}
+            </Label>
+            {labelAccessory}
+          </div>
+        ) : (
+          <span />
+        )}
+        <div className="min-w-0">{children}</div>
+        {error ? (
+          <p className="col-start-2 text-xs text-danger">{error}</p>
+        ) : hint ? (
+          <p className="col-start-2 text-xs text-faint">{hint}</p>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className={cn('space-y-1.5', className)}>
       {label ? (
-        <Label htmlFor={htmlFor}>
-          {label}
-          {required ? <span className="ml-0.5 text-danger">*</span> : null}
-        </Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor={htmlFor} className={labelClassName}>
+            {label}
+            {required ? (
+              <span className="ml-0.5 align-super text-[10px] leading-none text-danger">*</span>
+            ) : null}
+          </Label>
+          {labelAccessory}
+        </div>
       ) : null}
       {children}
       {error ? (

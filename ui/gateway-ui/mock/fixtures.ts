@@ -80,10 +80,9 @@ const MEMORY_LAYOUT = {
   regex: '^(ABCD|CDAB|BADC|DCBA)$',
   sort: 6,
   type: 'select' as const,
-  required: true,
   options: [
-    { value: 'ABCD', labelZh: 'ABCD', labelEn: 'ABCD' },
     { value: 'CDAB', labelZh: 'CDAB', labelEn: 'CDAB' },
+    { value: 'ABCD', labelZh: 'ABCD', labelEn: 'ABCD' },
     { value: 'BADC', labelZh: 'BADC', labelEn: 'BADC' },
     { value: 'DCBA', labelZh: 'DCBA', labelEn: 'DCBA' },
   ],
@@ -207,11 +206,15 @@ const TCP_COUNT_FIELD = {
 
 const POSITION_FIELD = {
   name: 'positionAddress',
-  labelZh: '起始地址偏移',
-  labelEn: 'Position offset',
-  regex: '^\\d+$',
+  labelZh: '起始地址',
+  labelEn: 'Position address',
+  regex: '^(0|1)$',
   sort: 8,
-  type: 'input' as const,
+  type: 'select' as const,
+  options: [
+    { value: '0', labelZh: '0', labelEn: '0' },
+    { value: '1', labelZh: '1', labelEn: '1' },
+  ],
 }
 
 const S7_TYPES: DriverSchema['variableDataTypes'] = [
@@ -393,7 +396,18 @@ const MODBUS_TCP_SCHEMA: DriverSchema = {
 }
 
 const MODBUS_RTU_SCHEMA: DriverSchema = {
-  fields: [LOCATION_FIELD, ...SERIAL_FIELDS, SLAVE_FIELD, MEMORY_LAYOUT, POSITION_FIELD],
+  fields: [
+    {
+      ...LOCATION_FIELD,
+      labelZh: '串口设备',
+      labelEn: 'Serial port',
+      regex: '^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$',
+    },
+    ...SERIAL_FIELDS,
+    SLAVE_FIELD,
+    MEMORY_LAYOUT,
+    POSITION_FIELD,
+  ],
   variableAddress: MODBUS_ADDRESS,
   variableDataTypes: MODBUS_TYPES,
 }
@@ -405,6 +419,7 @@ const MODBUS_RTU_TCP_SCHEMA: DriverSchema = {
     ...SERIAL_FIELDS,
     SLAVE_FIELD,
     MEMORY_LAYOUT,
+    { ...POSITION_FIELD, sort: 7 },
     { ...TCP_COUNT_FIELD, sort: 8 },
   ],
   variableAddress: MODBUS_ADDRESS,
@@ -463,6 +478,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'collecting',
     enable: true,
     collectorCycleMs: 5000,
+    variableCount: 3,
     modTime: iso(2),
     protocolConfig: {
       location: '192.168.1.10',
@@ -482,6 +498,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'collecting',
     enable: true,
     collectorCycleMs: 10000,
+    variableCount: 3,
     modTime: iso(4),
     protocolConfig: {
       location: '/dev/ttyS0',
@@ -503,6 +520,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'collecting',
     enable: true,
     collectorCycleMs: 3000,
+    variableCount: 3,
     modTime: iso(1),
     protocolConfig: {
       location: '192.168.1.20',
@@ -521,6 +539,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'collectingError',
     enable: true,
     collectorCycleMs: 2000,
+    variableCount: 3,
     modTime: iso(6),
     protocolConfig: {
       location: '192.168.1.30',
@@ -542,6 +561,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'unconnected',
     enable: true,
     collectorCycleMs: 5000,
+    variableCount: 1,
     modTime: iso(18),
     protocolConfig: {
       location: '192.168.1.21',
@@ -558,6 +578,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'stopped',
     enable: false,
     collectorCycleMs: 15000,
+    variableCount: 2,
     modTime: iso(45),
     protocolConfig: {
       location: '192.168.1.40',
@@ -577,6 +598,7 @@ export const collections: CollectionDetail[] = [
     collectStatus: 'emptyVariable',
     enable: true,
     collectorCycleMs: 1000,
+    variableCount: 0,
     modTime: iso(12),
     protocolConfig: {
       location: '192.168.1.31',

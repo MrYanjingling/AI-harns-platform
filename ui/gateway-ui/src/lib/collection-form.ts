@@ -38,7 +38,6 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     dataBits: '8',
     parity: 'noParity',
     stopBits: '1',
-    memoryLayout: 'ABCD',
     tcpCount: '1',
     rack: '0',
     slot: '1',
@@ -49,6 +48,7 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     port: model === 'opcUa' ? '4840' : '102',
   }
   if (defaults[field.name] !== undefined) return defaults[field.name]
+  if (field.name === 'location' && model === 'modbusRtu') return '/dev/dev'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''
   return ''
 }

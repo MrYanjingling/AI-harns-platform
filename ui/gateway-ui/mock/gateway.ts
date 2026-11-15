@@ -383,10 +383,6 @@ export async function handleGateway(
       const parsed = rawVariables
         .map(validateVariable)
         .filter((item): item is CollectionVariableInput => Boolean(item))
-      if (parsed.length === 0) {
-        badRequest(res, 'at least one variable is required')
-        return true
-      }
       if (new Set(parsed.map((item) => item.name)).size !== parsed.length) {
         badRequest(res, 'duplicate variable name')
         return true
@@ -400,6 +396,7 @@ export async function handleGateway(
         collectStatus: 'stopped',
         enable: true,
         collectorCycleMs: cycle,
+        variableCount: parsed.length,
         modTime: nowIso(),
         protocolConfig: isObject(body.protocolConfig) ? body.protocolConfig : {},
       }

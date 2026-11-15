@@ -32,6 +32,7 @@ export interface Collection {
   collectStatus: CollectStatus | string
   enable: boolean
   collectorCycleMs: number
+  variableCount: number
   modTime: string
 }
 

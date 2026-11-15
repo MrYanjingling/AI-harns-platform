@@ -1,39 +1,20 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Eye,
-  Pencil,
-  Play,
-  Plus,
-  RefreshCw,
-  RotateCw,
-  Search,
-  Square,
-  Trash2,
-} from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
   Card,
   ConfirmDialog,
-  EmptyState,
   ErrorState,
   Input,
-  PageHeader,
   Pagination,
-  Select,
-  StatCard,
+  SearchSelect,
   Switch,
-  Table,
   TableSkeleton,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
   showErrorToast,
-  formatRelative,
   useI18n,
+  type SearchSelectOption,
 } from '@harns/core'
 import {
   useCollections,
@@ -43,36 +24,41 @@ import {
   useSetCollectionEnable,
 } from '@/api/hooks'
 import type { Collection } from '@/api/types'
+import { GatewayTBody, GatewayTD, GatewayTH, GatewayTHead, GatewayTR, GatewayTable } from '@/components/GatewayTable'
 import { CollectStatusBadge } from '@/components/StatusBadge'
-import { ProtocolLabel } from '@/components/ProtocolLabel'
-import {
-  COLLECT_STATUS,
-  driverTypeLabel,
-  formatCycle,
-  isAbnormalStatus,
-} from '@/lib/constants'
+import { driverModelLabel, driverTypeLabel, formatCycle } from '@/lib/constants'
+import { CollectionActionsMenu } from './CollectionActionsMenu'
 
 type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; collection: Collection }
 
-const STATUS_OPTIONS = Object.keys(COLLECT_STATUS) as Array<keyof typeof COLLECT_STATUS>
+interface CollectionFilters {
+  keyword: string
+  driverType: string
+  driverModel: string
+}
+
+const emptyFilters: CollectionFilters = {
+  keyword: '',
+  driverType: 'all',
+  driverModel: 'all',
+}
 
 export function CollectionPage() {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [driverType, setDriverType] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [pageSize, setPageSize] = useState(10)
+  const [filters, setFilters] = useState<CollectionFilters>(emptyFilters)
+  const [applied, setApplied] = useState<CollectionFilters>(emptyFilters)
   const [pending, setPending] = useState<PendingAction | null>(null)
 
   const collections = useCollections({
     page,
     pageSize,
-    keyword: keyword || undefined,
-    driverType: driverType === 'all' ? undefined : driverType,
+    keyword: applied.keyword || undefined,
+    driverType: applied.driverType === 'all' ? undefined : applied.driverType,
+    driverModel: applied.driverModel === 'all' ? undefined : applied.driverModel,
   })
-  const summary = useCollections({ page: 1, pageSize: 100 })
   const drivers = useDriverList()
   const deleteCollection = useDeleteCollection()
   const runtimeAction = useCollectionRuntimeAction()
@@ -81,29 +67,42 @@ export function CollectionPage() {
   const list = collections.data?.list ?? []
   const total = collections.data?.total ?? 0
 
-  const driverTypes = useMemo(() => {
-    const types = new Set((drivers.data ?? []).map((driver) => driver.driverType))
-    return [...types]
-  }, [drivers.data])
+  const driverTypes = useMemo(
+    () => [...new Set((drivers.data ?? []).map((driver) => driver.driverType))],
+    [drivers.data],
+  )
+  const driverModels = useMemo(() => {
+    const source = drivers.data ?? []
+    const filtered = filters.driverType === 'all'
+      ? source
+      : source.filter((driver) => driver.driverType === filters.driverType)
+    return [...new Set(filtered.map((driver) => driver.model))]
+  }, [drivers.data, filters.driverType])
 
-  const stats = useMemo(() => {
-    const items = summary.data?.list ?? []
-    return {
-      total: summary.data?.total ?? items.length,
-      collecting: items.filter((item) => item.collectStatus === 'collecting').length,
-      abnormal: items.filter((item) => isAbnormalStatus(item.collectStatus)).length,
-      stopped: items.filter((item) => item.collectStatus === 'stopped').length,
-    }
-  }, [summary.data])
+  const driverTypeOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: 'all', label: t('gateway.collection.filter.allDriverTypes') },
+      ...driverTypes.map((type) => ({ value: type, label: driverTypeLabel(type) || type })),
+    ],
+    [driverTypes, t],
+  )
+  const driverModelOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: 'all', label: t('gateway.collection.filter.allDriverModels') },
+      ...driverModels.map((model) => ({ value: model, label: driverModelLabel(model) || model })),
+    ],
+    [driverModels, t],
+  )
 
-  const filtered = useMemo(() => {
-    if (statusFilter === 'all') return list
-    return list.filter((item) => item.collectStatus === statusFilter)
-  }, [list, statusFilter])
-
-  const submitSearch = () => {
+  const applyFilters = () => {
+    setApplied({ ...filters, keyword: filters.keyword.trim() })
     setPage(1)
-    setKeyword(keywordInput.trim())
+  }
+
+  const resetFilters = () => {
+    setFilters(emptyFilters)
+    setApplied(emptyFilters)
+    setPage(1)
   }
 
   const confirm = async () => {
@@ -141,242 +140,150 @@ export function CollectionPage() {
     }
   }
 
-  const loading = collections.isLoading
-  const error = collections.error
-
   return (
-    <div className="space-y-3">
-      <PageHeader
-        title={t('gateway.collection.title')}
-        description={t('gateway.collection.description')}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              loading={collections.isFetching}
-              onClick={() => void collections.refetch()}
-              icon={<RefreshCw className="size-3.5" />}
-            >
-              {t('common.action.refresh')}
-            </Button>
-            <Link
-              to="/collections/new"
-              className="inline-flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
-            >
-              <Plus className="size-3.5" />
-              {t('gateway.collection.create')}
-            </Link>
-          </>
-        }
-      />
-
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t('gateway.collection.stat.total')} value={stats.total} />
-        <StatCard label={t('gateway.collection.stat.collecting')} value={stats.collecting} />
-        <StatCard label={t('gateway.collection.stat.abnormal')} value={stats.abnormal} />
-        <StatCard label={t('gateway.collection.stat.stopped')} value={stats.stopped} />
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative w-[200px]">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
+          <Input
+            value={filters.keyword}
+            placeholder={t('gateway.collection.searchPlaceholder')}
+            className="h-9 pl-9 text-sm"
+            onChange={(event) => setFilters((current) => ({ ...current, keyword: event.target.value }))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') applyFilters()
+            }}
+          />
+        </div>
+        <SearchSelect
+          value={filters.driverType}
+          options={driverTypeOptions}
+          onChange={(driverType) =>
+            setFilters((current) => ({ ...current, driverType, driverModel: 'all' }))
+          }
+          ariaLabel={t('gateway.collection.filter.driverType')}
+          emptyText={t('common.state.empty')}
+          placeholderValue="all"
+          className="w-[140px]"
+          panelClassName="w-[140px]"
+        />
+        <SearchSelect
+          value={filters.driverModel}
+          options={driverModelOptions}
+          onChange={(driverModel) =>
+            setFilters((current) => ({ ...current, driverModel }))
+          }
+          ariaLabel={t('gateway.collection.filter.driverModel')}
+          emptyText={t('common.state.empty')}
+          placeholderValue="all"
+          className="w-[140px]"
+          panelClassName="w-[140px]"
+        />
+        <Button variant="primary" className="h-9" onClick={applyFilters}>
+          {t('common.action.search')}
+        </Button>
+        <Button variant="ghost" className="h-9" onClick={resetFilters}>
+          {t('common.action.reset')}
+        </Button>
+        <Link
+          to="/collections/new"
+          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
+        >
+          <Plus className="size-3.5" />
+          {t('gateway.collection.create')}
+        </Link>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
-          <div className="relative min-w-52 flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-faint" />
-            <Input
-              value={keywordInput}
-              onChange={(event) => setKeywordInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') submitSearch()
-              }}
-              placeholder={t('gateway.collection.searchPlaceholder')}
-              aria-label={t('common.action.search')}
-              className="pl-8"
-            />
-          </div>
-          <Select
-            value={driverType}
-            onChange={(event) => {
-              setDriverType(event.target.value)
-              setPage(1)
-            }}
-            aria-label={t('gateway.collection.filter.driverType')}
-            className="w-40"
-          >
-            <option value="all">{t('gateway.collection.filter.allDriverTypes')}</option>
-            {driverTypes.map((type) => (
-              <option key={type} value={type}>
-                {driverTypeLabel(type)}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            aria-label={t('gateway.collection.filter.status')}
-            className="w-36"
-          >
-            <option value="all">{t('gateway.collection.filter.allStatuses')}</option>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {t(COLLECT_STATUS[status].labelKey)}
-              </option>
-            ))}
-          </Select>
-          <Button variant="outline" onClick={submitSearch} icon={<Search className="size-3.5" />}>
-            {t('common.action.search')}
-          </Button>
-        </div>
-
-        {loading ? (
-          <TableSkeleton rows={6} cols={7} />
-        ) : error ? (
-          <div className="p-3">
-            <ErrorState error={error} onRetry={() => void collections.refetch()} />
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title={
-              keyword || driverType !== 'all' || statusFilter !== 'all'
-                ? t('gateway.collection.empty.filteredTitle')
-                : t('gateway.collection.empty.title')
-            }
-            description={
-              keyword || driverType !== 'all' || statusFilter !== 'all'
-                ? t('gateway.collection.empty.filteredDescription')
-                : t('gateway.collection.empty.description')
-            }
-          />
-        ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>{t('gateway.collection.columns.name')}</TH>
-                <TH>{t('gateway.collection.columns.protocol')}</TH>
-                <TH>{t('gateway.collection.columns.status')}</TH>
-                <TH>{t('gateway.collection.columns.cycle')}</TH>
-                <TH>{t('gateway.collection.columns.enable')}</TH>
-                <TH>{t('gateway.collection.columns.modTime')}</TH>
-                <TH className="text-right">{t('common.field.actions')}</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {filtered.map((collection) => {
-                const disableToggle =
-                  setEnable.isPending ||
-                  (collection.enable && collection.collectStatus !== 'stopped')
-                return (
-                  <TR key={collection.id}>
-                    <TD>
-                      <div className="flex items-center gap-2">
-                        <div className="min-w-0">
-                          <Link
-                            to={`/collections/${collection.id}`}
-                            className="block truncate text-[13px] font-medium text-fg transition-colors hover:text-primary"
-                          >
-                            {collection.name}
-                          </Link>
-                          <p className="truncate font-mono text-[10px] text-faint">
-                            {collection.id}
-                          </p>
-                        </div>
-                      </div>
-                    </TD>
-                    <TD>
-                      <ProtocolLabel type={collection.driverType} model={collection.driverModel} />
-                    </TD>
-                    <TD>
-                      <CollectStatusBadge status={collection.collectStatus} />
-                    </TD>
-                    <TD className="whitespace-nowrap text-xs text-muted tabular">
-                      {formatCycle(collection.collectorCycleMs)}
-                    </TD>
-                    <TD>
-                      <Switch
-                        checked={collection.enable}
-                        disabled={disableToggle}
-                        label={t('gateway.collection.columns.enable')}
-                        onChange={(enable) => void toggleEnable(collection, enable)}
-                      />
-                    </TD>
-                    <TD className="whitespace-nowrap text-xs text-muted">
-                      {formatRelative(collection.modTime)}
-                    </TD>
-                    <TD>
-                      <div className="flex items-center justify-end gap-0.5">
+      <Card className="flex h-[calc(100dvh-212px)] min-h-[420px] flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-auto">
+          {collections.isLoading ? (
+            <TableSkeleton rows={6} cols={8} />
+          ) : collections.isError ? (
+            <div className="p-5">
+              <ErrorState
+                error={collections.error}
+                onRetry={() => void collections.refetch()}
+                compact
+              />
+            </div>
+          ) : list.length === 0 ? null : (
+            <GatewayTable>
+              <GatewayTHead>
+                <tr>
+                  <GatewayTH className="w-16 text-center">{t('common.field.order')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.name')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.status')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.model')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.cycle')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.enable')}</GatewayTH>
+                  <GatewayTH>{t('gateway.collection.columns.variableCount')}</GatewayTH>
+                  <GatewayTH className="text-right">{t('common.field.actions')}</GatewayTH>
+                </tr>
+              </GatewayTHead>
+              <GatewayTBody>
+                {list.map((collection, index) => {
+                  const disableToggle =
+                    setEnable.isPending ||
+                    (collection.enable && collection.collectStatus !== 'stopped')
+                  return (
+                    <GatewayTR key={collection.id}>
+                      <GatewayTD className="text-center text-muted">
+                        {(page - 1) * pageSize + index + 1}
+                      </GatewayTD>
+                      <GatewayTD>
                         <Link
                           to={`/collections/${collection.id}`}
-                          className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                          title={t('gateway.collection.action.detail')}
-                          aria-label={t('gateway.collection.action.detail')}
+                          className="text-fg transition-colors hover:text-primary"
                         >
-                          <Eye className="size-3.5" />
+                          {collection.name}
                         </Link>
-                        <Link
-                          to={`/collections/${collection.id}/edit`}
-                          className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                          title={t('common.action.edit')}
-                          aria-label={t('common.action.edit')}
-                        >
-                          <Pencil className="size-3.5" />
-                        </Link>
-                        {collection.collectStatus === 'collecting' ? (
-                          <button
-                            type="button"
-                            onClick={() => setPending({ kind: 'stop', collection })}
-                            className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                            title={t('common.action.stop')}
-                            aria-label={t('common.action.stop')}
-                          >
-                            <Square className="size-3.5" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setPending({ kind: 'start', collection })}
-                            className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                            title={t('common.action.start')}
-                            aria-label={t('common.action.start')}
-                          >
-                            <Play className="size-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setPending({ kind: 'restart', collection })}
-                          className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                          title={t('common.action.restart')}
-                          aria-label={t('common.action.restart')}
-                        >
-                          <RotateCw className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPending({ kind: 'delete', collection })}
-                          className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                          title={t('common.action.delete')}
-                          aria-label={t('common.action.delete')}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </TD>
-                  </TR>
-                )
-              })}
-            </TBody>
-          </Table>
-        )}
-
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={total}
-          onPageChange={setPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size)
-            setPage(1)
-          }}
-          disabled={loading}
-        />
+                      </GatewayTD>
+                      <GatewayTD>
+                        <CollectStatusBadge status={collection.collectStatus} />
+                      </GatewayTD>
+                      <GatewayTD>{driverModelLabel(collection.driverModel) || '—'}</GatewayTD>
+                      <GatewayTD className="whitespace-nowrap text-muted">
+                        {formatCycle(collection.collectorCycleMs)}
+                      </GatewayTD>
+                      <GatewayTD>
+                        <Switch
+                          checked={collection.enable}
+                          disabled={disableToggle}
+                          label={t('gateway.collection.columns.enable')}
+                          onChange={(enable) => void toggleEnable(collection, enable)}
+                        />
+                      </GatewayTD>
+                      <GatewayTD>{collection.variableCount}</GatewayTD>
+                      <GatewayTD className="text-right">
+                        <div className="flex justify-end">
+                          <CollectionActionsMenu
+                            collection={collection}
+                            onView={() => navigate(`/collections/${collection.id}`)}
+                            onEdit={() => navigate(`/collections/${collection.id}/edit`)}
+                            onAction={(kind) => setPending({ kind, collection })}
+                          />
+                        </div>
+                      </GatewayTD>
+                    </GatewayTR>
+                  )
+                })}
+              </GatewayTBody>
+            </GatewayTable>
+          )}
+        </div>
+        <div className="shrink-0">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={collections.isFetching || collections.isLoading}
+          />
+        </div>
       </Card>
 
       <ConfirmDialog
@@ -396,9 +303,7 @@ export function CollectionPage() {
         }
         description={
           pending?.kind === 'delete'
-            ? t('gateway.collection.confirm.deleteDescription', {
-                name: pending.collection.name,
-              })
+            ? t('gateway.collection.confirm.deleteDescription', { name: pending.collection.name })
             : pending?.kind === 'start'
               ? t('gateway.collection.confirm.startDescription')
               : pending?.kind === 'stop'

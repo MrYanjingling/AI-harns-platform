@@ -87,7 +87,13 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
       }
     >
       <form id="gateway-user-form" className="space-y-3" onSubmit={submit}>
-        <Field label={t('gateway.users.form.username')} htmlFor="gateway-user-name" error={errors.username} required>
+        <Field
+          label={t('gateway.users.form.username')}
+          htmlFor="gateway-user-name"
+          labelClassName="text-sm"
+          error={errors.username}
+          required
+        >
           <Input
             id="gateway-user-name"
             value={username}
@@ -99,7 +105,9 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
         {!user ? (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5">
-              <Label htmlFor="gateway-user-password">{t('gateway.users.form.password')}</Label>
+              <Label htmlFor="gateway-user-password" className="text-sm">
+                {t('gateway.users.form.password')}
+              </Label>
               <span className="group relative inline-flex" title={t('gateway.users.form.passwordHint')}>
                 <CircleHelp
                   className="size-3.5 text-faint"
@@ -125,7 +133,12 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
             {errors.password ? <p className="text-xs text-danger">{errors.password}</p> : null}
           </div>
         ) : null}
-        <Field label={t('gateway.users.form.remark')} htmlFor="gateway-user-remark" error={errors.remark}>
+        <Field
+          label={t('gateway.users.form.remark')}
+          htmlFor="gateway-user-remark"
+          labelClassName="text-sm"
+          error={errors.remark}
+        >
           <Textarea
             id="gateway-user-remark"
             value={remark}

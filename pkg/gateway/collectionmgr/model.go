@@ -17,6 +17,7 @@ type CollectionRecord struct {
 	CollectStatus    string
 	Enable           bool
 	CollectorCycleMs uint64
+	VariableCount    int64
 	ProtocolConfig   json.RawMessage
 	Variables        []*collection.Variable
 	CreatedTime      time.Time

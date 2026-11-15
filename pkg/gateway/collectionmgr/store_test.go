@@ -72,6 +72,11 @@ func TestCreateModbusTcpCollection(t *testing.T) {
 	assert.Equal(t, "127.0.0.1:502", record.ProtocolConfigValue().Location)
 	assert.Len(t, record.Variables, 1)
 	assert.Equal(t, "temperature", record.Variables[0].Name)
+
+	page, err := service.List(context.Background(), v1.CollectionQuery{PageQuery: apis.PageQuery{Page: 1, PageSize: 10}})
+	require.NoError(t, err)
+	require.Len(t, page.List, 1)
+	assert.Equal(t, int64(1), page.List[0].VariableCount)
 }
 
 func TestCreateCollectionValidation(t *testing.T) {

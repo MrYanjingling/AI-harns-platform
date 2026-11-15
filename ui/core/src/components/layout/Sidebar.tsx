@@ -10,6 +10,14 @@ function groupKey(section: NavSection, group: NavGroup, index: number) {
   return `${section.key}-${group.labelKey ?? 'flat'}-${index}`
 }
 
+function collapsedGroups(section: NavSection | undefined): Record<string, boolean> {
+  const next: Record<string, boolean> = {}
+  section?.groups.forEach((group, index) => {
+    if (group.labelKey) next[groupKey(section, group, index)] = true
+  })
+  return next
+}
+
 export function Sidebar({
   sections,
   sectionKey,
@@ -24,7 +32,13 @@ export function Sidebar({
   const { t } = useI18n()
   const { pathname } = useLocation()
   const section = sections.find((item) => item.key === sectionKey) ?? sections[0]
-  const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>({})
+  const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>(() =>
+    collapsedGroups(section),
+  )
+
+  useEffect(() => {
+    setGroupCollapsed(collapsedGroups(section))
+  }, [sectionKey])
 
   const groupKeys = section?.groups.map((group, index) =>
     group.labelKey ? groupKey(section, group, index) : undefined,
@@ -41,27 +55,6 @@ export function Sidebar({
   const toggle = (key: string) => {
     setGroupCollapsed((current) => ({ ...current, [key]: !current[key] }))
   }
-
-  useEffect(() => {
-    if (!section) return
-    const activeKeys = section.groups.flatMap((group, index) =>
-      group.items.some((item) => navItemMatches(pathname, item.to, item.end))
-        ? [groupKey(section, group, index)]
-        : [],
-    )
-    if (activeKeys.length === 0) return
-    setGroupCollapsed((current) => {
-      let changed = false
-      const next = { ...current }
-      for (const key of activeKeys) {
-        if (next[key]) {
-          next[key] = false
-          changed = true
-        }
-      }
-      return changed ? next : current
-    })
-  }, [pathname, section])
 
   if (!section) return null
 

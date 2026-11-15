@@ -664,6 +664,7 @@ func toCollectionVo(record *CollectionRecord) *v1.CollectionVo {
 		CollectStatus:    record.CollectStatus,
 		Enable:           record.Enable,
 		CollectorCycleMs: record.CollectorCycleMs,
+		VariableCount:    record.VariableCount,
 		ModTime:          record.UpdatedTime,
 	}
 }
