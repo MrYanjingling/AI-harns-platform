@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Search } from 'lucide-react'
 import { useI18n } from '../../i18n'
 import { cn } from '../../lib/cn'
@@ -38,8 +39,10 @@ export function SearchSelect({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
+  const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0, width: 0 })
 
   const selected = options.find((option) => option.value === value)
   const filtered = useMemo(() => {
@@ -54,7 +57,25 @@ export function SearchSelect({
     setQuery('')
   }
 
+  const placePanel = () => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const width = Math.max(rect.width, 1)
+    const padding = 8
+    const left = Math.min(
+      Math.max(padding, rect.left),
+      Math.max(padding, window.innerWidth - width - padding),
+    )
+    const estimatedHeight = Math.min(224, Math.max(40, options.length * 32 + 8))
+    const top =
+      rect.bottom + 4 + estimatedHeight > window.innerHeight
+        ? Math.max(padding, rect.top - estimatedHeight - 4)
+        : rect.bottom + 4
+    setPanelPosition({ top, left, width })
+  }
+
   const openSelect = () => {
+    placePanel()
     setOpen(true)
     if (searchable) {
       window.requestAnimationFrame(() => {
@@ -73,10 +94,20 @@ export function SearchSelect({
     if (!open) return
     setActiveIndex(Math.max(0, options.findIndex((option) => option.value === value)))
     const handlePointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) close()
+      const target = event.target as Node
+      if (!containerRef.current?.contains(target) && !panelRef.current?.contains(target)) {
+        close()
+      }
     }
+    const handleViewportChange = () => close()
     document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('scroll', handleViewportChange, true)
+    window.addEventListener('resize', handleViewportChange)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('scroll', handleViewportChange, true)
+      window.removeEventListener('resize', handleViewportChange)
+    }
   }, [open, options, value])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -176,46 +207,56 @@ export function SearchSelect({
         )}
       </div>
 
-      {open ? (
-        <div
-          className={cn(
-            'absolute top-full left-0 z-50 mt-1 rounded border border-border bg-surface p-1 text-fg shadow-[0_3px_6px_-4px_rgba(0,0,0,0.12),0_6px_16px_0_rgba(0,0,0,0.08),0_9px_28px_8px_rgba(0,0,0,0.05)]',
-            panelClassName ?? 'w-44',
-          )}
-        >
-          <div role="listbox" className="max-h-56 overflow-auto py-1">
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-faint">
-                {emptyText ?? t('common.state.empty')}
-              </p>
-            ) : (
-              filtered.map((option, index) => {
-                const isSelected = option.value === value
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => select(option.value)}
-                    className={cn(
-                      'flex min-h-8 w-full items-center rounded px-3 py-1.5 text-left text-sm transition-colors',
-                      isSelected
-                        ? 'bg-primary-soft font-medium text-primary'
-                        : index === activeIndex
-                          ? 'bg-surface-2 text-fg'
-                          : 'text-fg',
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                position: 'fixed',
+                top: panelPosition.top,
+                left: panelPosition.left,
+                width: panelPosition.width,
+              }}
+              className={cn(
+                'z-[120] rounded border border-border bg-surface p-1 text-fg shadow-[0_3px_6px_-4px_rgba(0,0,0,0.12),0_6px_16px_0_rgba(0,0,0,0.08),0_9px_28px_8px_rgba(0,0,0,0.05)]',
+                panelClassName,
+              )}
+            >
+              <div role="listbox" className="max-h-56 overflow-auto py-1">
+                {filtered.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-faint">
+                    {emptyText ?? t('common.state.empty')}
+                  </p>
+                ) : (
+                  filtered.map((option, index) => {
+                    const isSelected = option.value === value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => select(option.value)}
+                        className={cn(
+                          'flex min-h-8 w-full items-center rounded px-3 py-1.5 text-left text-sm transition-colors',
+                          isSelected
+                            ? 'bg-primary-soft font-medium text-primary'
+                            : index === activeIndex
+                              ? 'bg-surface-2 text-fg'
+                              : 'text-fg',
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

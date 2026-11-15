@@ -110,12 +110,18 @@ function validateVariable(input: unknown): CollectionVariableInput | undefined {
   const name = typeof input.name === 'string' ? input.name.trim() : ''
   const dataType = typeof input.dataType === 'string' ? input.dataType.trim() : ''
   const address = typeof input.address === 'string' ? input.address.trim() : ''
-  if (!name || !dataType || !address) return undefined
+  const expression = typeof input.expression === 'string' ? input.expression.trim() : ''
+  const isCalculated = Boolean(input.isCalculated)
+  if (!name || !dataType) return undefined
+  if (isCalculated ? !expression : !address) return undefined
   return {
     ...(input as unknown as CollectionVariableInput),
     name,
     dataType,
-    address,
+    address: isCalculated ? '' : address,
+    accessMode: isCalculated ? 'r' : (input.accessMode as CollectionVariableInput['accessMode']),
+    isCalculated,
+    expression: isCalculated ? expression : undefined,
   }
 }
 

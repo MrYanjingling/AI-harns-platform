@@ -28,6 +28,7 @@ import {
   GatewayTR,
   GatewayTable,
 } from '@/components/GatewayTable'
+import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
 import { UserActionsMenu } from './UserActionsMenu'
 import { UserFormDialog } from './UserFormDialog'
 
@@ -47,6 +48,13 @@ export function UsersPage() {
   const deleteMutation = useDeleteUser()
   const list = users.data?.list ?? []
   const total = users.data?.total ?? 0
+  const { widths, totalWidth, resize } = useColumnResize({
+    order: 80,
+    user: 280,
+    remark: 460,
+    updatedAt: 260,
+    actions: 120,
+  })
 
   const applySearch = () => {
     setKeyword(keywordInput.trim())
@@ -154,14 +162,49 @@ export function UsersPage() {
               }
             />
           ) : (
-            <GatewayTable>
+            <GatewayTable
+              style={{
+                tableLayout: 'fixed',
+                width: `max(100%, ${totalWidth}px)`,
+              }}
+            >
+              <colgroup>
+                <col style={{ width: widths.order }} />
+                <col style={{ width: widths.user }} />
+                <col style={{ width: widths.remark }} />
+                <col style={{ width: widths.updatedAt }} />
+                <col style={{ width: widths.actions }} />
+              </colgroup>
               <GatewayTHead>
                 <tr>
-                  <GatewayTH className="w-16 text-center">{t('common.field.order')}</GatewayTH>
-                  <GatewayTH>{t('gateway.users.table.user')}</GatewayTH>
-                  <GatewayTH>{t('common.field.remark')}</GatewayTH>
-                  <GatewayTH>{t('common.field.updatedAt')}</GatewayTH>
-                  <GatewayTH className="text-right">{t('common.field.actions')}</GatewayTH>
+                  <GatewayTH className="text-center">
+                    {t('common.field.order')}
+                    <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.users.table.user')}
+                    <ColumnResizeHandle column="user" width={widths.user} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('common.field.remark')}
+                    <ColumnResizeHandle column="remark" width={widths.remark} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('common.field.updatedAt')}
+                    <ColumnResizeHandle
+                      column="updatedAt"
+                      width={widths.updatedAt}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                  <GatewayTH className="text-right">
+                    {t('common.field.actions')}
+                    <ColumnResizeHandle
+                      column="actions"
+                      width={widths.actions}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
                 </tr>
               </GatewayTHead>
               <GatewayTBody>

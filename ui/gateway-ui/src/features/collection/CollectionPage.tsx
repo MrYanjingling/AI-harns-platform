@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -27,7 +27,9 @@ import type { Collection } from '@/api/types'
 import { GatewayTBody, GatewayTD, GatewayTH, GatewayTHead, GatewayTR, GatewayTable } from '@/components/GatewayTable'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import { driverModelLabel, driverTypeLabel, formatCycle } from '@/lib/constants'
+import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
 import { CollectionActionsMenu } from './CollectionActionsMenu'
+import { CollectionCreateDialog } from './CollectionCreateDialog'
 
 type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; collection: Collection }
 
@@ -46,6 +48,8 @@ const emptyFilters: CollectionFilters = {
 export function CollectionPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [createOpen, setCreateOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [filters, setFilters] = useState<CollectionFilters>(emptyFilters)
@@ -66,6 +70,29 @@ export function CollectionPage() {
 
   const list = collections.data?.list ?? []
   const total = collections.data?.total ?? 0
+  const { widths, totalWidth, resize } = useColumnResize({
+    order: 80,
+    name: 260,
+    status: 140,
+    model: 220,
+    cycle: 140,
+    enable: 120,
+    variableCount: 140,
+    actions: 100,
+  })
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') setCreateOpen(true)
+  }, [searchParams])
+
+  const closeCreate = () => {
+    setCreateOpen(false)
+    if (searchParams.has('create')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('create')
+      setSearchParams(next, { replace: true })
+    }
+  }
 
   const driverTypes = useMemo(
     () => [...new Set((drivers.data ?? []).map((driver) => driver.driverType))],
@@ -185,13 +212,14 @@ export function CollectionPage() {
         <Button variant="ghost" className="h-9" onClick={resetFilters}>
           {t('common.action.reset')}
         </Button>
-        <Link
-          to="/collections/new"
-          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
+        <Button
+          variant="primary"
+          className="ml-auto h-9"
+          icon={<Plus className="size-3.5" />}
+          onClick={() => setCreateOpen(true)}
         >
-          <Plus className="size-3.5" />
           {t('gateway.collection.create')}
-        </Link>
+        </Button>
       </div>
 
       <Card className="flex h-[calc(100dvh-212px)] min-h-[420px] flex-col overflow-hidden">
@@ -207,17 +235,64 @@ export function CollectionPage() {
               />
             </div>
           ) : list.length === 0 ? null : (
-            <GatewayTable>
+            <GatewayTable
+              style={{
+                tableLayout: 'fixed',
+                width: `max(100%, ${totalWidth}px)`,
+              }}
+            >
+              <colgroup>
+                <col style={{ width: widths.order }} />
+                <col style={{ width: widths.name }} />
+                <col style={{ width: widths.status }} />
+                <col style={{ width: widths.model }} />
+                <col style={{ width: widths.cycle }} />
+                <col style={{ width: widths.enable }} />
+                <col style={{ width: widths.variableCount }} />
+                <col style={{ width: widths.actions }} />
+              </colgroup>
               <GatewayTHead>
                 <tr>
-                  <GatewayTH className="w-16 text-center">{t('common.field.order')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.name')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.status')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.model')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.cycle')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.enable')}</GatewayTH>
-                  <GatewayTH>{t('gateway.collection.columns.variableCount')}</GatewayTH>
-                  <GatewayTH className="text-right">{t('common.field.actions')}</GatewayTH>
+                  <GatewayTH className="text-center">
+                    {t('common.field.order')}
+                    <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.name')}
+                    <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.status')}
+                    <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.model')}
+                    <ColumnResizeHandle column="model" width={widths.model} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.cycle')}
+                    <ColumnResizeHandle column="cycle" width={widths.cycle} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.enable')}
+                    <ColumnResizeHandle column="enable" width={widths.enable} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.variableCount')}
+                    <ColumnResizeHandle
+                      column="variableCount"
+                      width={widths.variableCount}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                  <GatewayTH className="text-right">
+                    {t('common.field.actions')}
+                    <ColumnResizeHandle
+                      column="actions"
+                      width={widths.actions}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
                 </tr>
               </GatewayTHead>
               <GatewayTBody>
@@ -285,6 +360,8 @@ export function CollectionPage() {
           />
         </div>
       </Card>
+
+      <CollectionCreateDialog open={createOpen} onClose={closeCreate} />
 
       <ConfirmDialog
         open={Boolean(pending)}

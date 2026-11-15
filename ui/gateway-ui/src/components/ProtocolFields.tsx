@@ -8,14 +8,27 @@ interface ProtocolFieldsProps {
   values: Record<string, string>
   errors: Record<string, string>
   onChange: (name: string, value: string) => void
+  columns?: 2 | 3
 }
 
 /** 由驱动 Schema 生成的协议连接字段;字段顺序、类型与校验规则全部来自后端。 */
-export function ProtocolFields({ schema, values, errors, onChange }: ProtocolFieldsProps) {
+export function ProtocolFields({
+  schema,
+  values,
+  errors,
+  onChange,
+  columns = 3,
+}: ProtocolFieldsProps) {
   const { locale, t } = useI18n()
 
   return (
-    <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      className={
+        columns === 2
+          ? 'grid gap-x-8 gap-y-4 sm:grid-cols-2'
+          : 'grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3'
+      }
+    >
       {sortedFields(schema).map((field) => {
         const label = localized(field.labelZh, field.labelEn, locale)
         const error = errors[`protocol.${field.name}`]

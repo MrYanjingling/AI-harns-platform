@@ -34,7 +34,7 @@ export const gatewayRoutes: RouteObject[] = [
       },
       {
         path: 'collections/new',
-        element: <CollectionFormPage mode="create" />,
+        element: <Navigate to="/collections?create=1" replace />,
         handle: { titleKey: 'gateway.title.collectionNew' },
       },
       {

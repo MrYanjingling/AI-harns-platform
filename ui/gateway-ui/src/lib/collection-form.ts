@@ -17,6 +17,10 @@ export interface VariableFormValues {
   bits: string
   rate: string
   accessMode: AccessMode
+  isCalculated?: boolean
+  expression?: string
+  precision?: string
+  offset?: string
 }
 
 export interface CollectionFormValues {
@@ -69,7 +73,34 @@ export function createEmptyVariable(schema: DriverSchema | undefined): VariableF
     bits: '',
     rate: '',
     accessMode: 'r',
+    isCalculated: false,
+    expression: '',
+    precision: '',
+    offset: '',
   }
+}
+
+export function createEmptyCalculatedVariable(
+  schema: DriverSchema | undefined,
+): VariableFormValues {
+  return {
+    ...createEmptyVariable(schema),
+    address: '',
+    accessMode: 'r',
+    isCalculated: true,
+  }
+}
+
+export function isBlankVariable(variable: VariableFormValues): boolean {
+  return (
+    !variable.name.trim() &&
+    !variable.address.trim() &&
+    !(variable.bits ?? '').trim() &&
+    !(variable.expression ?? '').trim() &&
+    !(variable.precision ?? '').trim() &&
+    !(variable.rate ?? '').trim() &&
+    !(variable.offset ?? '').trim()
+  )
 }
 
 export function createFormValues(
@@ -139,17 +170,28 @@ function variableInputsFromForm(
 export function toVariableInputs(
   variables: VariableFormValues[],
 ): CollectionVariableInput[] {
-  return variables.map((variable) => {
+  return variables.filter((variable) => !isBlankVariable(variable)).map((variable) => {
+    const calculated = Boolean(variable.isCalculated)
     const input: CollectionVariableInput = {
       name: variable.name.trim(),
       dataType: variable.dataType.trim(),
-      address: variable.address.trim(),
-      accessMode: variable.accessMode,
+      address: calculated ? '' : variable.address.trim(),
+      accessMode: calculated ? 'r' : variable.accessMode,
     }
-    const bits = variable.bits.trim() === '' ? undefined : Number(variable.bits)
-    if (bits !== undefined && Number.isFinite(bits)) input.bits = bits
-    const rate = variable.rate.trim() === '' ? undefined : Number(variable.rate)
+    if (calculated) {
+      input.isCalculated = true
+      input.expression = (variable.expression ?? '').trim()
+    } else {
+      const bits = (variable.bits ?? '').trim() === '' ? undefined : Number(variable.bits)
+      if (bits !== undefined && Number.isFinite(bits)) input.bits = bits
+    }
+    const rate = (variable.rate ?? '').trim() === '' ? undefined : Number(variable.rate)
     if (rate !== undefined && Number.isFinite(rate)) input.rate = rate
+    const offset = (variable.offset ?? '').trim() === '' ? undefined : Number(variable.offset)
+    if (offset !== undefined && Number.isFinite(offset)) input.offset = offset
+    const precision =
+      (variable.precision ?? '').trim() === '' ? undefined : Number(variable.precision)
+    if (precision !== undefined && Number.isFinite(precision)) input.precision = precision
     return input
   })
 }
@@ -258,23 +300,41 @@ export function validateVariableRows(
       setError(`${path}.dataType`, t('gateway.form.validation.variableTypeRequired'))
     }
 
-    const address = variable.address.trim()
-    if (!address) {
-      setError(`${path}.address`, t('gateway.form.validation.variableAddressRequired'))
-    } else if (type?.addressRegex && !safeRegExp(type.addressRegex)?.test(address)) {
-      setError(`${path}.address`, t('gateway.form.validation.variableAddressInvalid'))
-    }
-
-    if (variable.bits.trim() !== '') {
-      const bits = Number(variable.bits)
-      if (!POSITIVE_INT.test(variable.bits) || bits < 0 || bits > 16) {
-        setError(`${path}.bits`, t('gateway.form.validation.variableBitsInvalid'))
+    if (variable.isCalculated) {
+      if (!(variable.expression ?? '').trim()) {
+        setError(`${path}.expression`, t('gateway.form.validation.variableExpressionRequired'))
+      }
+    } else {
+      const address = variable.address.trim()
+      if (!address) {
+        setError(`${path}.address`, t('gateway.form.validation.variableAddressRequired'))
+      } else if (type?.addressRegex && !safeRegExp(type.addressRegex)?.test(address)) {
+        setError(`${path}.address`, t('gateway.form.validation.variableAddressInvalid'))
+      }
+      if ((variable.bits ?? '').trim() !== '') {
+        const bits = Number(variable.bits)
+        if (!POSITIVE_INT.test(variable.bits ?? '') || bits < 0 || bits > 16) {
+          setError(`${path}.bits`, t('gateway.form.validation.variableBitsInvalid'))
+        }
       }
     }
-    if (variable.rate.trim() !== '') {
+
+    if ((variable.rate ?? '').trim() !== '') {
       const rate = Number(variable.rate)
       if (!Number.isFinite(rate) || rate <= 0) {
         setError(`${path}.rate`, t('gateway.form.validation.variableRateInvalid'))
+      }
+    }
+    if ((variable.precision ?? '').trim() !== '') {
+      const precision = Number(variable.precision)
+      if (!POSITIVE_INT.test(variable.precision ?? '') || precision < 0) {
+        setError(`${path}.precision`, t('gateway.form.validation.variablePrecisionInvalid'))
+      }
+    }
+    if ((variable.offset ?? '').trim() !== '') {
+      const offset = Number(variable.offset)
+      if (!Number.isFinite(offset)) {
+        setError(`${path}.offset`, t('gateway.form.validation.variableOffsetInvalid'))
       }
     }
   })

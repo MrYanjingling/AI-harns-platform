@@ -375,7 +375,7 @@ export function OverviewPage() {
                 className="py-6"
                 action={
                   <Link
-                    to="/collections/new"
+                    to="/collections?create=1"
                     className="inline-flex h-8 items-center rounded bg-primary px-3 text-sm font-medium text-primary-fg"
                   >
                     {t('gateway.collection.create')}

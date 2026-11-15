@@ -163,6 +163,5 @@ export function toProtocolValue(name: string, raw: string): string | number | un
 /** 采集周期以毫秒存储,界面按秒展示(支持小数)。 */
 export function formatCycle(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '—'
-  const seconds = ms / 1000
-  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`
+  return `${ms}ms`
 }
