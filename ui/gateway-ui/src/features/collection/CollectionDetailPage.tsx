@@ -55,6 +55,7 @@ import type { DriverSchema } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import { ProtocolLabel } from '@/components/ProtocolLabel'
 import { VariablesEditor } from './VariablesEditor'
+import { CollectionEditDialog } from './CollectionEditDialog'
 import {
   createEmptyVariable,
   sortedFields,
@@ -97,6 +98,7 @@ export function CollectionDetailPage() {
   const deliver = useDeliverCollectionAction()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [controlOpen, setControlOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -241,13 +243,13 @@ export function CollectionDetailPage() {
         backLabel={t('gateway.detail.back')}
         actions={
           <>
-            <Link
-              to={`/collections/${collection.id}/edit`}
-              className="inline-flex h-8 items-center gap-1.5 rounded border border-border-strong bg-surface px-3 text-sm text-fg transition-colors hover:bg-surface-2"
+            <Button
+              variant="outline"
+              onClick={() => setEditOpen(true)}
+              icon={<Pencil className="size-3.5" />}
             >
-              <Pencil className="size-3.5" />
-              {t('common.action.edit')}
-            </Link>
+              {t('gateway.collection.action.update')}
+            </Button>
             {writableVariables.length > 0 ? (
               <Button
                 variant="outline"
@@ -549,6 +551,11 @@ export function CollectionDetailPage() {
           </div>
         )}
       </Dialog>
+
+      <CollectionEditDialog
+        collectionId={editOpen ? collection.id : null}
+        onClose={() => setEditOpen(false)}
+      />
 
       <ConfirmDialog
         open={deleteOpen}

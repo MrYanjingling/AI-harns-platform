@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -30,6 +30,8 @@ import { driverModelLabel, driverTypeLabel, formatCycle } from '@/lib/constants'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
 import { CollectionActionsMenu } from './CollectionActionsMenu'
 import { CollectionCreateDialog } from './CollectionCreateDialog'
+import { CollectionEditDialog } from './CollectionEditDialog'
+import { CollectionVariablesDialog } from './CollectionVariablesDialog'
 
 type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; collection: Collection }
 
@@ -47,9 +49,10 @@ const emptyFilters: CollectionFilters = {
 
 export function CollectionPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [variablesCollection, setVariablesCollection] = useState<Collection | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [filters, setFilters] = useState<CollectionFilters>(emptyFilters)
@@ -72,13 +75,14 @@ export function CollectionPage() {
   const total = collections.data?.total ?? 0
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
-    name: 260,
-    status: 140,
-    model: 220,
-    cycle: 140,
-    enable: 120,
-    variableCount: 140,
-    actions: 100,
+    name: 220,
+    status: 120,
+    driverType: 120,
+    model: 180,
+    cycle: 120,
+    enable: 100,
+    variableCount: 120,
+    actions: 180,
   })
 
   useEffect(() => {
@@ -168,8 +172,8 @@ export function CollectionPage() {
   }
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
         <div className="relative w-[200px]">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
           <Input
@@ -222,10 +226,10 @@ export function CollectionPage() {
         </Button>
       </div>
 
-      <Card className="flex h-[calc(100dvh-212px)] min-h-[420px] flex-col overflow-hidden">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
           {collections.isLoading ? (
-            <TableSkeleton rows={6} cols={8} />
+            <TableSkeleton rows={6} cols={9} />
           ) : collections.isError ? (
             <div className="p-5">
               <ErrorState
@@ -245,6 +249,7 @@ export function CollectionPage() {
                 <col style={{ width: widths.order }} />
                 <col style={{ width: widths.name }} />
                 <col style={{ width: widths.status }} />
+                <col style={{ width: widths.driverType }} />
                 <col style={{ width: widths.model }} />
                 <col style={{ width: widths.cycle }} />
                 <col style={{ width: widths.enable }} />
@@ -253,7 +258,7 @@ export function CollectionPage() {
               </colgroup>
               <GatewayTHead>
                 <tr>
-                  <GatewayTH className="text-center">
+                  <GatewayTH style={{ textAlign: 'center' }}>
                     {t('common.field.order')}
                     <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
                   </GatewayTH>
@@ -264,6 +269,14 @@ export function CollectionPage() {
                   <GatewayTH>
                     {t('gateway.collection.columns.status')}
                     <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.collection.columns.driverType')}
+                    <ColumnResizeHandle
+                      column="driverType"
+                      width={widths.driverType}
+                      onResize={resize}
+                    />
                   </GatewayTH>
                   <GatewayTH>
                     {t('gateway.collection.columns.model')}
@@ -285,7 +298,7 @@ export function CollectionPage() {
                       onResize={resize}
                     />
                   </GatewayTH>
-                  <GatewayTH className="text-right">
+                  <GatewayTH style={{ textAlign: 'left' }}>
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
@@ -302,7 +315,7 @@ export function CollectionPage() {
                     (collection.enable && collection.collectStatus !== 'stopped')
                   return (
                     <GatewayTR key={collection.id}>
-                      <GatewayTD className="text-center text-muted">
+                      <GatewayTD className="text-muted" style={{ textAlign: 'center' }}>
                         {(page - 1) * pageSize + index + 1}
                       </GatewayTD>
                       <GatewayTD>
@@ -314,8 +327,13 @@ export function CollectionPage() {
                         </Link>
                       </GatewayTD>
                       <GatewayTD>
-                        <CollectStatusBadge status={collection.collectStatus} />
+                        <CollectStatusBadge
+                          status={collection.collectStatus}
+                          error={collection.lastError}
+                          className="border-[1.5px] px-2 py-1"
+                        />
                       </GatewayTD>
+                      <GatewayTD>{driverTypeLabel(collection.driverType) || '—'}</GatewayTD>
                       <GatewayTD>{driverModelLabel(collection.driverModel) || '—'}</GatewayTD>
                       <GatewayTD className="whitespace-nowrap text-muted">
                         {formatCycle(collection.collectorCycleMs)}
@@ -328,13 +346,38 @@ export function CollectionPage() {
                           onChange={(enable) => void toggleEnable(collection, enable)}
                         />
                       </GatewayTD>
-                      <GatewayTD>{collection.variableCount}</GatewayTD>
-                      <GatewayTD className="text-right">
-                        <div className="flex justify-end">
+                      <GatewayTD
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setVariablesCollection(collection)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setVariablesCollection(collection)
+                          }
+                        }}
+                        className="cursor-pointer text-sm text-primary transition-colors hover:text-primary-hover"
+                      >
+                        {collection.variableCount}
+                      </GatewayTD>
+                      <GatewayTD>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(collection.id)}
+                            className="inline-flex h-7 items-center rounded text-sm text-primary transition-colors hover:text-primary-hover"
+                          >
+                            {t('gateway.collection.action.update')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPending({ kind: 'delete', collection })}
+                            className="inline-flex h-7 items-center rounded text-sm text-danger transition-colors hover:opacity-80"
+                          >
+                            {t('common.action.delete')}
+                          </button>
                           <CollectionActionsMenu
                             collection={collection}
-                            onView={() => navigate(`/collections/${collection.id}`)}
-                            onEdit={() => navigate(`/collections/${collection.id}/edit`)}
                             onAction={(kind) => setPending({ kind, collection })}
                           />
                         </div>
@@ -362,6 +405,11 @@ export function CollectionPage() {
       </Card>
 
       <CollectionCreateDialog open={createOpen} onClose={closeCreate} />
+      <CollectionEditDialog collectionId={editingId} onClose={() => setEditingId(null)} />
+      <CollectionVariablesDialog
+        collection={variablesCollection}
+        onClose={() => setVariablesCollection(null)}
+      />
 
       <ConfirmDialog
         open={Boolean(pending)}

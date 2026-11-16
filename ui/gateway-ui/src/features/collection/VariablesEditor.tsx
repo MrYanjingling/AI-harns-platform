@@ -26,6 +26,13 @@ interface VariablesEditorProps {
   onAdd: () => void
   onRemove: (index: number) => void
   onChange: (index: number, patch: Partial<VariableFormValues>) => void
+  selectable?: boolean
+  selected?: Set<number>
+  allSelected?: boolean
+  onToggleSelect?: (index: number) => void
+  onToggleAll?: () => void
+  showValue?: boolean
+  lockedNames?: Set<string>
 }
 
 /** 变量定义编辑器;数据类型与地址规则来自驱动 Schema。 */
@@ -36,6 +43,13 @@ export function VariablesEditor({
   onAdd,
   onRemove,
   onChange,
+  selectable = false,
+  selected,
+  allSelected = false,
+  onToggleSelect,
+  onToggleAll,
+  showValue = false,
+  lockedNames,
 }: VariablesEditorProps) {
   const { t, locale } = useI18n()
   const types = variableTypes(schema)
@@ -52,6 +66,7 @@ export function VariablesEditor({
     [types, locale],
   )
   const { widths, totalWidth, resize } = useColumnResize({
+    ...(selectable ? { select: 40 } : {}),
     name: 160,
     dataType: 120,
     address: 158,
@@ -60,6 +75,7 @@ export function VariablesEditor({
     rate: 80,
     offset: 80,
     accessMode: 96,
+    ...(showValue ? { value: 120 } : {}),
     actions: 80,
   })
   const address = schema.variableAddress
@@ -70,8 +86,9 @@ export function VariablesEditor({
   return (
     <div className="space-y-2">
       <div className="rounded border border-border">
-        <Table style={{ tableLayout: 'fixed', width: totalWidth }}>
+        <Table style={{ tableLayout: 'fixed', width: `max(100%, ${totalWidth}px)` }}>
           <colgroup>
+            {selectable ? <col style={{ width: widths.select }} /> : null}
             <col style={{ width: widths.name }} />
             <col style={{ width: widths.dataType }} />
             <col style={{ width: widths.address }} />
@@ -80,10 +97,21 @@ export function VariablesEditor({
             <col style={{ width: widths.rate }} />
             <col style={{ width: widths.offset }} />
             <col style={{ width: widths.accessMode }} />
+            {showValue ? <col style={{ width: widths.value }} /> : null}
             <col style={{ width: widths.actions }} />
           </colgroup>
           <THead className="text-sm font-medium text-fg">
             <TR>
+              {selectable ? (
+                <TH className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    aria-label={t('common.action.selectAll')}
+                    onChange={() => onToggleAll?.()}
+                  />
+                </TH>
+              ) : null}
               <TH className="relative">
                 {t('gateway.variable.name')}
                 <span className="ml-0.5 align-super text-[10px] leading-none text-danger">*</span>
@@ -122,8 +150,26 @@ export function VariablesEditor({
                   onResize={resize}
                 />
               </TH>
+              {showValue ? (
+                <TH className="relative">
+                  {t('gateway.variable.value')}
+                  <ColumnResizeHandle column="value" width={widths.value} onResize={resize} />
+                </TH>
+              ) : null}
               <TH className="relative">
-                {t('common.field.actions')}
+                {variables.length === 0 ? (
+                  <button
+                    type="button"
+                    title={t('gateway.variable.addCollection')}
+                    aria-label={t('gateway.variable.addCollection')}
+                    onClick={onAdd}
+                    className="inline-flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                ) : (
+                  t('common.field.actions')
+                )}
                 <ColumnResizeHandle column="actions" width={widths.actions} onResize={resize} />
               </TH>
             </TR>
@@ -132,16 +178,29 @@ export function VariablesEditor({
             {variables.map((variable, index) => {
               return (
                 <TR key={index}>
+                  {selectable ? (
+                    <TD className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={selected?.has(index) ?? false}
+                        aria-label={t('common.action.select')}
+                        onChange={() => onToggleSelect?.(index)}
+                      />
+                    </TD>
+                  ) : null}
                   <TD>
                     <Input
                       value={variable.name}
+                      readOnly={lockedNames?.has(variable.name)}
                       aria-label={t('gateway.variable.name')}
                       aria-invalid={Boolean(errors[`variables.${index}.name`])}
                       placeholder={t('gateway.variable.namePlaceholder')}
                       className={
                         errors[`variables.${index}.name`]
                           ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                          : undefined
+                          : lockedNames?.has(variable.name)
+                            ? 'bg-surface-2 text-muted'
+                            : undefined
                       }
                       onChange={(event) => onChange(index, { name: event.target.value })}
                     />
@@ -233,6 +292,11 @@ export function VariablesEditor({
                       panelClassName="w-full"
                     />
                   </TD>
+                  {showValue ? (
+                    <TD className="truncate font-mono text-xs text-muted">
+                      {variable.value ?? ''}
+                    </TD>
+                  ) : null}
                   <TD className="text-right">
                     <div className="flex items-center justify-end gap-0.5">
                       <button
@@ -249,8 +313,7 @@ export function VariablesEditor({
                         title={t('gateway.variable.remove')}
                         aria-label={t('gateway.variable.remove')}
                         onClick={() => onRemove(index)}
-                        disabled={variables.length <= 1}
-                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:pointer-events-none disabled:opacity-40"
+                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                       >
                         <Trash2 className="size-3.5" />
                       </button>

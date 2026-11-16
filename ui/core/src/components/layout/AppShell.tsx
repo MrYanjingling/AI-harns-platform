@@ -36,6 +36,8 @@ export interface AppShellProps {
   sidebarCollapsible?: boolean
   /** 侧边栏底部右侧内容。 */
   sidebarFooter?: ReactNode
+  /** 主内容区底部内容,预留给版权等信息。 */
+  contentFooter?: ReactNode
   /** 是否允许拖动侧边栏调整宽度。 */
   sidebarResizable?: boolean
 }
@@ -61,6 +63,7 @@ export function AppShell({
   sidebarCollapsedWidth = 56,
   sidebarCollapsible = false,
   sidebarFooter,
+  contentFooter,
   sidebarResizable = false,
 }: AppShellProps) {
   const { t } = useI18n()
@@ -273,6 +276,11 @@ export function AppShell({
           <div className="min-h-0 flex-1 overflow-auto">
             <Outlet />
           </div>
+          {contentFooter !== undefined ? (
+            <div className="flex h-5 shrink-0 items-center justify-center bg-surface-3 px-4 text-[10px] text-faint sm:px-6">
+              {contentFooter}
+            </div>
+          ) : null}
         </main>
       </div>
 

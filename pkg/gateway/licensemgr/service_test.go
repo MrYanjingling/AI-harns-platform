@@ -70,6 +70,26 @@ func TestServiceLoadWithoutLicense(t *testing.T) {
 	assert.Equal(t, StatusUnauthorized, svc.GetStatus().Status)
 }
 
+func TestServiceLoadWithoutLicenseUsesTrial(t *testing.T) {
+	svc, _, db := newTestService(t, publicKeyFile(t))
+	initTime := time.Now().UTC().Add(-time.Hour)
+	_, err := db.Exec(`CREATE TABLE gateway (id TEXT PRIMARY KEY, init_time TEXT NOT NULL)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO gateway (id, init_time) VALUES (?, ?)`,
+		"gateway-1", initTime.Format(time.RFC3339Nano))
+	require.NoError(t, err)
+
+	require.NoError(t, svc.Load(context.Background()))
+	status := svc.GetStatus()
+	assert.Equal(t, StatusUnauthorized, status.Status)
+	require.NotNil(t, status.License)
+	assert.Equal(t, DefaultTrialMaxVariable, status.License.MaxVariable)
+	assert.Equal(t,
+		initTime.Add(DefaultTrialDuration).UTC().Format(time.RFC3339),
+		status.License.SoftwareRunDeadline,
+	)
+}
+
 func TestServiceImportRejectsMismatchedGateway(t *testing.T) {
 	svc, _, _ := newTestService(t, publicKeyFile(t))
 	claims := validClaims(100)

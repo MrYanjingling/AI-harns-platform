@@ -24,6 +24,13 @@ interface CalculatedVariablesEditorProps {
   onAdd: () => void
   onRemove: (index: number) => void
   onChange: (index: number, patch: Partial<VariableFormValues>) => void
+  selectable?: boolean
+  selected?: Set<number>
+  allSelected?: boolean
+  onToggleSelect?: (index: number) => void
+  onToggleAll?: () => void
+  showValue?: boolean
+  lockedNames?: Set<string>
 }
 
 export function CalculatedVariablesEditor({
@@ -33,6 +40,13 @@ export function CalculatedVariablesEditor({
   onAdd,
   onRemove,
   onChange,
+  selectable = false,
+  selected,
+  allSelected = false,
+  onToggleSelect,
+  onToggleAll,
+  showValue = false,
+  lockedNames,
 }: CalculatedVariablesEditorProps) {
   const { t, locale } = useI18n()
   const types = variableTypes(schema)
@@ -45,26 +59,40 @@ export function CalculatedVariablesEditor({
     [types, locale],
   )
   const { widths, totalWidth, resize } = useColumnResize({
+    ...(selectable ? { select: 40 } : {}),
     name: 160,
     dataType: 120,
     expression: 494,
     precision: 80,
+    ...(showValue ? { value: 120 } : {}),
     actions: 80,
   })
 
   return (
     <div className="space-y-2">
       <div className="rounded border border-border">
-        <Table style={{ tableLayout: 'fixed', width: totalWidth }}>
+        <Table style={{ tableLayout: 'fixed', width: `max(100%, ${totalWidth}px)` }}>
           <colgroup>
+            {selectable ? <col style={{ width: widths.select }} /> : null}
             <col style={{ width: widths.name }} />
             <col style={{ width: widths.dataType }} />
             <col style={{ width: widths.expression }} />
             <col style={{ width: widths.precision }} />
+            {showValue ? <col style={{ width: widths.value }} /> : null}
             <col style={{ width: widths.actions }} />
           </colgroup>
           <THead className="text-sm font-medium text-fg">
             <TR>
+              {selectable ? (
+                <TH className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    aria-label={t('common.action.selectAll')}
+                    onChange={() => onToggleAll?.()}
+                  />
+                </TH>
+              ) : null}
               <TH className="relative">
                 {t('gateway.variable.name')}
                 <span className="ml-0.5 align-super text-[10px] leading-none text-danger">*</span>
@@ -87,8 +115,26 @@ export function CalculatedVariablesEditor({
                 {t('gateway.variable.precision')}
                 <ColumnResizeHandle column="precision" width={widths.precision} onResize={resize} />
               </TH>
+              {showValue ? (
+                <TH className="relative">
+                  {t('gateway.variable.value')}
+                  <ColumnResizeHandle column="value" width={widths.value} onResize={resize} />
+                </TH>
+              ) : null}
               <TH className="relative">
-                {t('common.field.actions')}
+                {variables.length === 0 ? (
+                  <button
+                    type="button"
+                    title={t('gateway.variable.addCalculated')}
+                    aria-label={t('gateway.variable.addCalculated')}
+                    onClick={onAdd}
+                    className="inline-flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                ) : (
+                  t('common.field.actions')
+                )}
                 <ColumnResizeHandle column="actions" width={widths.actions} onResize={resize} />
               </TH>
             </TR>
@@ -97,16 +143,29 @@ export function CalculatedVariablesEditor({
             {variables.map((variable, index) => {
               return (
                 <TR key={index}>
+                  {selectable ? (
+                    <TD className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={selected?.has(index) ?? false}
+                        aria-label={t('common.action.select')}
+                        onChange={() => onToggleSelect?.(index)}
+                      />
+                    </TD>
+                  ) : null}
                   <TD>
                     <Input
                       value={variable.name}
+                      readOnly={lockedNames?.has(variable.name)}
                       aria-label={t('gateway.variable.name')}
                       aria-invalid={Boolean(errors[`variables.${index}.name`])}
                       placeholder={t('gateway.variable.namePlaceholder')}
                       className={
                         errors[`variables.${index}.name`]
                           ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                          : undefined
+                          : lockedNames?.has(variable.name)
+                            ? 'bg-surface-2 text-muted'
+                            : undefined
                       }
                       onChange={(event) => onChange(index, { name: event.target.value })}
                     />
@@ -155,6 +214,11 @@ export function CalculatedVariablesEditor({
                       onChange={(event) => onChange(index, { precision: event.target.value })}
                     />
                   </TD>
+                  {showValue ? (
+                    <TD className="truncate font-mono text-xs text-muted">
+                      {variable.value ?? ''}
+                    </TD>
+                  ) : null}
                   <TD className="text-right">
                     <div className="flex items-center justify-end gap-0.5">
                       <button
@@ -171,8 +235,7 @@ export function CalculatedVariablesEditor({
                         title={t('gateway.variable.remove')}
                         aria-label={t('gateway.variable.remove')}
                         onClick={() => onRemove(index)}
-                        disabled={variables.length <= 1}
-                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:pointer-events-none disabled:opacity-40"
+                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                       >
                         <Trash2 className="size-3.5" />
                       </button>

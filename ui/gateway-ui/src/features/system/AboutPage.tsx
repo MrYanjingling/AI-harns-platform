@@ -172,31 +172,35 @@ export function AboutPage() {
                     </span>
                   }
                 />
-                {authorized ? (
+                {licenseInfo ? (
                   <>
                     <DescriptionRow
                       label={t('gateway.about.license.maxVariable')}
-                      value={licenseInfo?.maxVariable}
+                      value={licenseInfo.maxVariable}
                     />
-                    <DescriptionRow
-                      label={t('gateway.about.license.contact')}
-                      value={licenseInfo?.contact}
-                    />
-                    <DescriptionRow
-                      label={t('gateway.about.license.contactEmail')}
-                      value={licenseInfo?.contactEmail}
-                    />
-                    <DescriptionRow
-                      label={t('gateway.about.license.company')}
-                      value={licenseInfo?.company}
-                    />
-                    <DescriptionRow
-                      label={t('gateway.about.license.expiresAt')}
-                      value={formatDateTime(licenseInfo?.licenseExpiresAt)}
-                    />
+                    {authorized ? (
+                      <>
+                        <DescriptionRow
+                          label={t('gateway.about.license.contact')}
+                          value={licenseInfo.contact}
+                        />
+                        <DescriptionRow
+                          label={t('gateway.about.license.contactEmail')}
+                          value={licenseInfo.contactEmail}
+                        />
+                        <DescriptionRow
+                          label={t('gateway.about.license.company')}
+                          value={licenseInfo.company}
+                        />
+                        <DescriptionRow
+                          label={t('gateway.about.license.expiresAt')}
+                          value={formatDateTime(licenseInfo.licenseExpiresAt)}
+                        />
+                      </>
+                    ) : null}
                     <DescriptionRow
                       label={t('gateway.about.license.softwareRunDeadline')}
-                      value={formatDateTime(licenseInfo?.softwareRunDeadline)}
+                      value={formatDateTime(licenseInfo.softwareRunDeadline)}
                     />
                   </>
                 ) : null}

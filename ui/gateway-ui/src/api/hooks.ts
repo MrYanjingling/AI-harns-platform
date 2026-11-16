@@ -39,6 +39,7 @@ import {
   stopCollection,
   stopPushConnector,
   updateCollection,
+  updateCollectionVariables,
   updateDriver,
   updatePushConnector,
   updatePushGroup,
@@ -105,6 +106,24 @@ export function useCollectionVariables(id: string | undefined, params: PageParam
   })
 }
 
+export function useAllCollectionVariables(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.gateway.variables(id ?? '', { all: true }),
+    queryFn: async () => {
+      const pageSize = 100
+      const first = await listCollectionVariables(id as string, { page: 1, pageSize })
+      const all = [...first.list]
+      const pages = Math.ceil(first.total / pageSize)
+      for (let page = 2; page <= pages; page += 1) {
+        const next = await listCollectionVariables(id as string, { page, pageSize })
+        all.push(...next.list)
+      }
+      return all
+    },
+    enabled: Boolean(id),
+  })
+}
+
 function invalidateCollection(queryClient: QueryClient, id?: string): void {
   void queryClient.invalidateQueries({ queryKey: ['gateway', 'collections'] })
   if (id) void queryClient.invalidateQueries({ queryKey: queryKeys.gateway.collection(id) })
@@ -156,6 +175,9 @@ export function useDeleteCollection() {
     onSuccess: (_data, vars) => {
       appendOperationLog({ action: 'delete', result: 'success', target: vars.name })
       invalidateCollection(queryClient, vars.id)
+      void queryClient.invalidateQueries({
+        queryKey: ['gateway', 'collections', vars.id, 'variables'],
+      })
     },
     onError: (error, vars) => {
       appendOperationLog({
@@ -237,6 +259,9 @@ export function useAddCollectionVariables() {
         target: `${vars.name} · ${vars.variables.length} variables`,
       })
       invalidateCollection(queryClient, vars.id)
+      void queryClient.invalidateQueries({
+        queryKey: ['gateway', 'collections', vars.id, 'variables'],
+      })
     },
     onError: (error, vars) => {
       appendOperationLog({
@@ -244,6 +269,23 @@ export function useAddCollectionVariables() {
         result: 'failure',
         target: vars.name,
         message: errorMessage(error),
+      })
+    },
+  })
+}
+
+export function useUpdateCollectionVariables() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: {
+      id: string
+      name: string
+      variables: CollectionVariableInput[]
+    }) => updateCollectionVariables(vars.id, vars.variables),
+    onSuccess: (_data, vars) => {
+      invalidateCollection(queryClient, vars.id)
+      void queryClient.invalidateQueries({
+        queryKey: ['gateway', 'collections', vars.id, 'variables'],
       })
     },
   })
@@ -261,6 +303,9 @@ export function useDeleteCollectionVariables() {
         target: `${vars.name} · ${vars.names.join(', ')}`,
       })
       invalidateCollection(queryClient, vars.id)
+      void queryClient.invalidateQueries({
+        queryKey: ['gateway', 'collections', vars.id, 'variables'],
+      })
     },
     onError: (error, vars) => {
       appendOperationLog({

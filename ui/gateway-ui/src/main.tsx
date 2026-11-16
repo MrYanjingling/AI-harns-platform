@@ -54,6 +54,7 @@ const router = createBrowserRouter([
         sidebarCollapsible
         sidebarResizable
         sidebarFooter={<GatewaySidebarVersion />}
+        contentFooter={<span>© {new Date().getFullYear()} AI-harns</span>}
       />
     ),
     children: [{ index: true, element: <Navigate to="/overview" replace /> }, ...gatewayRoutes],

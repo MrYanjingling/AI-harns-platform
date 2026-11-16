@@ -18,6 +18,7 @@ interface SearchSelectProps {
   emptyText?: string
   placeholderValue?: string
   searchable?: boolean
+  disabled?: boolean
   className?: string
   panelClassName?: string
 }
@@ -31,6 +32,7 @@ export function SearchSelect({
   emptyText,
   placeholderValue,
   searchable = true,
+  disabled = false,
   className,
   panelClassName,
 }: SearchSelectProps) {
@@ -75,6 +77,7 @@ export function SearchSelect({
   }
 
   const openSelect = () => {
+    if (disabled) return
     placePanel()
     setOpen(true)
     if (searchable) {
@@ -111,6 +114,7 @@ export function SearchSelect({
   }, [open, options, value])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return
     if (event.key === 'Escape') {
       event.preventDefault()
       close()
@@ -139,13 +143,19 @@ export function SearchSelect({
   }
 
   return (
-    <div ref={containerRef} className="relative" onKeyDown={handleKeyDown}>
+    <div
+      ref={containerRef}
+      className="relative"
+      aria-disabled={disabled}
+      onKeyDown={handleKeyDown}
+    >
       <div
         className={cn(
           'flex h-9 items-center rounded border bg-surface text-sm transition-colors',
           open
             ? 'border-primary ring-2 ring-primary/15'
             : 'border-border-strong hover:border-faint',
+          disabled && 'cursor-not-allowed opacity-60 hover:border-border-strong',
           className,
         )}
       >
@@ -168,6 +178,7 @@ export function SearchSelect({
               }}
               placeholder={selected?.label ?? ariaLabel}
               aria-label={ariaLabel}
+              disabled={disabled}
               aria-haspopup="listbox"
               aria-expanded={open}
               className={cn(
@@ -178,6 +189,7 @@ export function SearchSelect({
             <button
               type="button"
               aria-label={t('common.action.search')}
+              disabled={disabled}
               onClick={openSelect}
               className="flex h-full items-center px-2 text-faint transition-colors hover:text-fg"
             >
@@ -191,6 +203,7 @@ export function SearchSelect({
             aria-label={ariaLabel}
             aria-haspopup="listbox"
             aria-expanded={open}
+            disabled={disabled}
             onClick={() => (open ? close() : openSelect())}
             className="flex h-full min-w-0 flex-1 items-center gap-1 bg-transparent pr-2 pl-2 text-left text-sm outline-none"
           >

@@ -198,12 +198,16 @@ func (s *Service) List(ctx context.Context, q v1.CollectionQuery) (*apis.PageRes
 	}
 	list := make([]*v1.CollectionVo, 0, len(records))
 	for _, record := range records {
+		vo := toCollectionVo(record)
 		if s.runtime != nil {
 			if status, ok := s.runtime.Status(record.ID); ok {
-				record.CollectStatus = status
+				vo.CollectStatus = status
+			}
+			if lastError, ok := s.runtime.LastError(record.ID); ok {
+				vo.LastError = lastError
 			}
 		}
-		list = append(list, toCollectionVo(record))
+		list = append(list, vo)
 	}
 	return apis.NewPageResp(list, total, q.PageQuery), nil
 }
@@ -509,6 +513,53 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 	return &v1.AddVariablesVo{Added: int(added), Variables: variables}, nil
 }
 
+// UpdateVariables updates existing variables in one request; names are immutable.
+func (s *Service) UpdateVariables(ctx context.Context, collectionID string, variables []*collection.Variable) ([]*v1.VariableVo, error) {
+	defer logging.Trace("collectionmgr.UpdateVariables", "collectionId", collectionID, "count", len(variables))()
+
+	record, err := s.getCollection(ctx, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(variables) == 0 {
+		return []*v1.VariableVo{}, nil
+	}
+	for _, variable := range variables {
+		if variable == nil {
+			return nil, validation.New([]validation.FieldIssue{{Field: "variables", MsgID: "validate.collection_field_invalid", Args: []interface{}{"variables"}}})
+		}
+	}
+	if err := collection.NormalizeVariables(variables); err != nil {
+		return nil, err
+	}
+	rawSchema, err := s.store.DriverSchema(ctx, record.DriverType, record.DriverModel)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	schema, err := drivermgr.ParseSchema(rawSchema)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	if err := schema.ValidateVariables(variables); err != nil {
+		return nil, err
+	}
+	if err := s.store.UpdateVariables(ctx, collectionID, variables); err != nil {
+		if errors.Is(err, ErrVariableNotFound) {
+			return nil, validation.New([]validation.FieldIssue{{
+				Field: "variables",
+				MsgID: "validate.collection_field_invalid",
+				Args:  []interface{}{"variables"},
+			}})
+		}
+		return nil, response.ErrInternal(err)
+	}
+	result := make([]*v1.VariableVo, 0, len(variables))
+	for _, variable := range variables {
+		result = append(result, toVariableVo(variable))
+	}
+	return result, nil
+}
+
 // DeleteVariables deletes variables by name from one collection.
 func (s *Service) DeleteVariables(ctx context.Context, collectionID string, names []string) (int64, error) {
 	defer logging.Trace("collectionmgr.DeleteVariables", "collectionId", collectionID, "count", len(names))()
@@ -676,6 +727,11 @@ func (s *Service) collectionDetail(ctx context.Context, record *CollectionRecord
 		}
 	}
 	vo := toCollectionVo(record)
+	if s.runtime != nil {
+		if lastError, ok := s.runtime.LastError(record.ID); ok {
+			vo.LastError = lastError
+		}
+	}
 	config := record.ProtocolConfig
 	if handler, ok := s.registry.resolve(record.DriverType, record.DriverModel); ok {
 		if redactor, ok := handler.(collection.ConfigRedactor); ok {

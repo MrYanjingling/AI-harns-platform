@@ -128,6 +128,16 @@ export function addCollectionVariables(
   })
 }
 
+export function updateCollectionVariables(
+  id: string,
+  variables: CollectionVariableInput[],
+): Promise<CollectionVariable[]> {
+  return gatewayData<CollectionVariable[]>(`/collections/${id}/variables`, {
+    method: 'PUT',
+    body: variables,
+  })
+}
+
 export function deleteCollectionVariables(
   id: string,
   names: string[],

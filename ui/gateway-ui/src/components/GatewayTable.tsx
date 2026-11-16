@@ -17,7 +17,7 @@ const headCellClass =
   "relative border-0 border-b border-border px-4 py-4 text-sm font-medium text-fg after:absolute after:top-1/2 after:right-0 after:h-[1.6em] after:w-px after:-translate-y-1/2 after:bg-border after:content-[''] last:after:hidden"
 
 const bodyCellClass =
-  'border-0 border-b border-border px-4 py-4 align-middle text-xs leading-5 text-fg'
+  'border-0 border-b border-border px-4 py-4 align-middle text-sm leading-5 text-fg'
 
 export function GatewayTable({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return <Table className={cn('text-xs', className)} {...props} />

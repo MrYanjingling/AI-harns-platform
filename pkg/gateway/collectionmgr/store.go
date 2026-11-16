@@ -15,6 +15,7 @@ import (
 var (
 	ErrCollectionNotFound = errors.New("collection not found")
 	ErrVariableConflict   = errors.New("variable conflict")
+	ErrVariableNotFound   = errors.New("variable not found")
 )
 
 // Store persists collections and their variables in SQLite.
@@ -391,6 +392,46 @@ func (s *Store) AddVariables(ctx context.Context, collectionID string, variables
 		return 0, err
 	}
 	return int64(len(variables)), nil
+}
+
+// UpdateVariables updates existing variables without changing their names.
+func (s *Store) UpdateVariables(ctx context.Context, collectionID string, variables []*collection.Variable) error {
+	if len(variables) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`UPDATE collection_variables
+		 SET variable_type = ?, data_type = ?, address = ?, bits = ?, access_mode = ?,
+		     is_calculated = ?, expression = ?, value_offset = ?, rate = ?, precision = ?
+		 WHERE collection_id = ? AND name = ?`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, variable := range variables {
+		res, err := stmt.ExecContext(ctx,
+			variable.Type, variable.DataType, variable.Address, variable.Bits, string(variable.AccessMode),
+			boolInt(variable.IsCalculated), variable.Expression, variable.Offset, variable.Rate,
+			variable.Precision, collectionID, variable.Name)
+		if err != nil {
+			return mapCollectionWriteError(err)
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return ErrVariableNotFound
+		}
+	}
+	return tx.Commit()
 }
 
 // DeleteVariables deletes variables by name from one collection.

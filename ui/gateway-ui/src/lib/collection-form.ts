@@ -21,6 +21,8 @@ export interface VariableFormValues {
   expression?: string
   precision?: string
   offset?: string
+  value?: string
+  isNew?: boolean
 }
 
 export interface CollectionFormValues {

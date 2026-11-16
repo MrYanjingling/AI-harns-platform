@@ -17,6 +17,11 @@ const (
 	StatusUnauthorized = "unauthorized"
 	// StatusAuthorized means a valid license is loaded.
 	StatusAuthorized = "authorized"
+
+	// DefaultTrialMaxVariable is the variable quota when no license is installed.
+	DefaultTrialMaxVariable = 100
+	// DefaultTrialDuration is the software run window from gateway initialization.
+	DefaultTrialDuration = 30 * 24 * time.Hour
 )
 
 var (

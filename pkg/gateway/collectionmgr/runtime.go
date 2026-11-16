@@ -344,6 +344,15 @@ func (m *RuntimeManager) Status(id string) (string, bool) {
 	return runtime.Collector.GetCollectStatus(), true
 }
 
+// LastError returns the latest runtime error for one collection.
+func (m *RuntimeManager) LastError(id string) (string, bool) {
+	runtime, ok := m.Get(id)
+	if !ok {
+		return "", false
+	}
+	return runtime.LastError(), true
+}
+
 // Close stops all collectors and the retry loop.
 func (m *RuntimeManager) Close(ctx context.Context) error {
 	if m == nil {

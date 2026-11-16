@@ -22,8 +22,9 @@ type Service struct {
 	identity      IdentityProvider
 	publicKeyFile string
 
-	mu     sync.RWMutex
-	claims *Claims
+	mu        sync.RWMutex
+	claims    *Claims
+	trialInfo *Info
 }
 
 // NewService creates a license service.
@@ -43,6 +44,7 @@ func (s *Service) Load(ctx context.Context) error {
 	}
 	data, err := s.store.Get(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
+		s.loadTrialInfo(ctx)
 		return nil
 	}
 	if err != nil {
@@ -94,14 +96,30 @@ func (s *Service) GetStatus() *Status {
 	}
 	s.mu.RLock()
 	claims := s.claims
+	trialInfo := s.trialInfo
 	s.mu.RUnlock()
 	if claims == nil || ValidateForImport(claims, time.Now().UTC()) != nil {
-		return &Status{Status: StatusUnauthorized}
+		return &Status{Status: StatusUnauthorized, License: trialInfo}
 	}
 	return &Status{
 		Status:  StatusAuthorized,
 		License: claimsToInfo(claims),
 	}
+}
+
+func (s *Service) loadTrialInfo(ctx context.Context) {
+	initTime, err := s.store.GatewayInitTime(ctx)
+	if err != nil {
+		logging.Warnf("Failed to load gateway init time for trial license: %v", err)
+		return
+	}
+	info := &Info{
+		MaxVariable:         DefaultTrialMaxVariable,
+		SoftwareRunDeadline: initTime.Add(DefaultTrialDuration).UTC().Format(time.RFC3339),
+	}
+	s.mu.Lock()
+	s.trialInfo = info
+	s.mu.Unlock()
 }
 
 func (s *Service) parseAndMatch(data string) (*Claims, error) {

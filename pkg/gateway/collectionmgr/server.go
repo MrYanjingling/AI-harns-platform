@@ -26,6 +26,7 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.PUT("/:id", update(svc))
 	g.DELETE("/:id", deleteCollection(svc))
 	g.POST("/:id/variables", addVariables(svc))
+	g.PUT("/:id/variables", updateVariables(svc))
 	g.DELETE("/:id/variables", deleteVariables(svc))
 	g.GET("/:id/variables", listVariables(svc))
 	g.PUT("/:id/action", deliverAction(svc))
@@ -115,6 +116,22 @@ func addVariables(svc *Service) gin.HandlerFunc {
 			return
 		}
 		result, err := svc.AddVariables(c.Request.Context(), c.Param("id"), variables)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, result)
+	}
+}
+
+func updateVariables(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var variables []*collection.Variable
+		if err := c.ShouldBindJSON(&variables); err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrMalformedJSON)
+			return
+		}
+		result, err := svc.UpdateVariables(c.Request.Context(), c.Param("id"), variables)
 		if err != nil {
 			writeErr(c, err)
 			return

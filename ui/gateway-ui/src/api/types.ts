@@ -33,6 +33,7 @@ export interface Collection {
   enable: boolean
   collectorCycleMs: number
   variableCount: number
+  lastError?: string
   modTime: string
 }
 

@@ -18,6 +18,7 @@ type CollectionVo struct {
 	Enable           bool      `json:"enable"`
 	CollectorCycleMs uint64    `json:"collectorCycleMs"`
 	VariableCount    int64     `json:"variableCount"`
+	LastError        string    `json:"lastError,omitempty"`
 	ModTime          time.Time `json:"modTime"`
 }
 

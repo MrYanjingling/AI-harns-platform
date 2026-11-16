@@ -3,7 +3,6 @@ import { NotFoundPage } from '@harns/core'
 import { GatewayPagePad } from '@/components/layout/GatewayPagePad'
 import { CollectionPage } from '@/features/collection/CollectionPage'
 import { CollectionDetailPage } from '@/features/collection/CollectionDetailPage'
-import { CollectionFormPage } from '@/features/collection/CollectionFormPage'
 import { DriversPage } from '@/features/drivers/DriversPage'
 import { LogsPage } from '@/features/logs/LogsPage'
 import { OverviewBreadcrumbAction } from '@/features/overview/OverviewBreadcrumbAction'
@@ -41,11 +40,6 @@ export const gatewayRoutes: RouteObject[] = [
         path: 'collections/:id',
         element: <CollectionDetailPage />,
         handle: { titleKey: 'gateway.title.collectionDetail' },
-      },
-      {
-        path: 'collections/:id/edit',
-        element: <CollectionFormPage mode="edit" />,
-        handle: { titleKey: 'gateway.title.collectionEdit' },
       },
       {
         path: 'push',

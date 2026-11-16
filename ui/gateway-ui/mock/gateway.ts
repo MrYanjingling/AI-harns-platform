@@ -439,6 +439,30 @@ export async function handleGateway(
         send(res, 200, ok(paginate(list, page, pageSize)))
         return true
       }
+      if (method === 'PUT') {
+        const body = await readJson(req)
+        const inputs = Array.isArray(body) ? body : []
+        const parsed = inputs
+          .map(validateVariable)
+          .filter((item): item is CollectionVariableInput => Boolean(item))
+        if (parsed.length === 0 || parsed.length !== inputs.length) {
+          badRequest(res, 'invalid variables payload')
+          return true
+        }
+        const existing = variablesOf(id)
+        for (const input of parsed) {
+          const index = existing.findIndex((item) => item.name === input.name)
+          if (index === -1) {
+            notFound(res, 'variable not found')
+            return true
+          }
+          existing[index] = { ...input, value: existing[index].value }
+        }
+        collection.version = nextVersion(collection.version)
+        collection.modTime = nowIso()
+        send(res, 200, ok(parsed))
+        return true
+      }
       if (method === 'POST') {
         const body = await readJson(req)
         const inputs = Array.isArray(body) ? body : []
@@ -482,7 +506,7 @@ export async function handleGateway(
         send(res, 200, ok({ deleted }))
         return true
       }
-      res.setHeader('Allow', 'GET, POST, DELETE')
+      res.setHeader('Allow', 'GET, POST, PUT, DELETE')
       fail(res, 405, 10005, 'method not allowed')
       return true
     }
