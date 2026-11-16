@@ -84,7 +84,7 @@ export function LogsPage() {
           if (!box) return
           stickToBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < 24
         }}
-        className="h-[400px] w-[920px] max-w-full overflow-auto rounded border-[1.5px] border-border-strong/75 bg-surface p-3 font-mono text-xs leading-5 shadow-[0_1px_3px_rgba(28,47,76,0.06)]"
+        className="h-[400px] w-full overflow-auto rounded border-[1.5px] border-border-strong/75 bg-surface p-3 font-mono text-xs leading-5 shadow-[0_1px_3px_rgba(28,47,76,0.06)]"
       >
         {error ? <p className="text-danger">{t('gateway.logs.streamError')}</p> : null}
         {filtered.length === 0 && !error ? (

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { CircleHelp } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { CircleHelp, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -28,6 +28,7 @@ import {
   createEmptyCalculatedVariable,
   createEmptyVariable,
   createFormValues,
+  isBlankVariable,
   toVariableInputs,
   validateCollectionForm,
   validateVariableRows,
@@ -35,6 +36,10 @@ import {
   type VariableFormValues,
 } from '@/lib/collection-form'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
+import {
+  exportCollectionVariablesTemplate,
+  importCollectionVariablesFile,
+} from './collection-variables-excel'
 import { CalculatedVariablesEditor } from './CalculatedVariablesEditor'
 import { CreateStepHeader } from './CreateStepHeader'
 import { VariablesEditor } from './VariablesEditor'
@@ -62,7 +67,7 @@ function addCrossListDuplicateErrors(
 }
 
 export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialogProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const drivers = useDriverList()
   const createCollection = useCreateCollection()
   const [step, setStep] = useState<1 | 2>(1)
@@ -75,6 +80,9 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
   const [variableErrors, setVariableErrors] = useState<Record<string, string>>({})
   const [calculatedErrors, setCalculatedErrors] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<VariableTab>('collection')
+  const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -87,6 +95,8 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     setVariableErrors({})
     setCalculatedErrors({})
     setTab('collection')
+    setImporting(false)
+    setExporting(false)
   }, [open])
 
   useEffect(() => {
@@ -158,19 +168,63 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     return Boolean(result.payload)
   }
 
-  const validateVariables = (): boolean => {
+  const validateVariables = (
+    nextVariables: VariableFormValues[] = variables,
+    nextCalculated: VariableFormValues[] = calculated,
+  ): boolean => {
     if (!driverSchema) return false
-    const nextVariableErrors = validateVariableRows(variables, driverSchema, t)
-    const nextCalculatedErrors = validateVariableRows(calculated, driverSchema, t)
+    const nextVariableErrors = validateVariableRows(nextVariables, driverSchema, t)
+    const nextCalculatedErrors = validateVariableRows(nextCalculated, driverSchema, t)
     const duplicate = t('gateway.form.validation.variableNameDuplicate')
-    addCrossListDuplicateErrors(variables, calculated, nextCalculatedErrors, duplicate)
-    addCrossListDuplicateErrors(calculated, variables, nextVariableErrors, duplicate)
+    addCrossListDuplicateErrors(nextVariables, nextCalculated, nextCalculatedErrors, duplicate)
+    addCrossListDuplicateErrors(nextCalculated, nextVariables, nextVariableErrors, duplicate)
     setVariableErrors(nextVariableErrors)
     setCalculatedErrors(nextCalculatedErrors)
     return (
       Object.keys(nextVariableErrors).length === 0 &&
       Object.keys(nextCalculatedErrors).length === 0
     )
+  }
+
+  const exportTemplate = async () => {
+    if (!driverSchema) return
+    setExporting(true)
+    try {
+      await exportCollectionVariablesTemplate({ schema: driverSchema, locale, t })
+    } catch (error) {
+      showErrorToast(error)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const importVariables = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file || !driverSchema) return
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      showErrorToast(new Error(t('gateway.variable.importInvalidFile')))
+      return
+    }
+    setImporting(true)
+    try {
+      const rows = await importCollectionVariablesFile({ file, schema: driverSchema, locale, t })
+      const nextVariables = [
+        ...variables.filter((variable) => !isBlankVariable(variable)),
+        ...rows,
+      ]
+      setVariables(nextVariables)
+      setTab('collection')
+      if (validateVariables(nextVariables, calculated)) {
+        toast.success(t('gateway.variable.imported', { count: rows.length }))
+      } else {
+        toast.error(t('gateway.variable.importWithErrors', { count: rows.length }))
+      }
+    } catch (error) {
+      showErrorToast(error)
+    } finally {
+      setImporting(false)
+    }
   }
 
   const next = () => {
@@ -372,20 +426,53 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
         </>
       ) : (
         <>
-          <Tabs<VariableTab>
-            items={[
-              {
-                value: 'collection',
-                label: `${t('gateway.form.tab.collectionVariables')} (${variables.length})`,
-              },
-              {
-                value: 'calculated',
-                label: `${t('gateway.form.tab.calculatedVariables')} (${calculated.length})`,
-              },
-            ]}
-            value={tab}
-            onChange={changeTab}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Tabs<VariableTab>
+              items={[
+                {
+                  value: 'collection',
+                  label: `${t('gateway.form.tab.collectionVariables')} (${variables.length})`,
+                },
+                {
+                  value: 'calculated',
+                  label: `${t('gateway.form.tab.calculatedVariables')} (${calculated.length})`,
+                },
+              ]}
+              value={tab}
+              onChange={changeTab}
+            />
+            {tab === 'collection' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={(event) => void importVariables(event)}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={importing}
+                  disabled={exporting}
+                  icon={<Upload className="size-3.5" />}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {t('gateway.variable.import')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={exporting}
+                  disabled={importing}
+                  icon={<Download className="size-3.5" />}
+                  onClick={() => void exportTemplate()}
+                >
+                  {t('gateway.variable.exportTemplate')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
 
           {tab === 'collection' ? (
             <VariablesEditor
