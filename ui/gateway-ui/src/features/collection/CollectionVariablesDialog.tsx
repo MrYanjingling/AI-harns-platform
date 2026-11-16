@@ -24,6 +24,11 @@ import {
 import type { Collection } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import {
+  canRestartCollection,
+  canStartCollection,
+  canStopCollection,
+} from '@/lib/collection-actions'
+import {
   createEmptyCalculatedVariable,
   createEmptyVariable,
   toVariableInputs,
@@ -108,6 +113,9 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
 
   const currentCollection = detailQuery.data ?? collection
   const collectStatus = currentCollection?.collectStatus ?? ''
+  const canStop = currentCollection ? canStopCollection(currentCollection) : false
+  const canStart = currentCollection ? canStartCollection(currentCollection) : false
+  const canRestart = currentCollection ? canRestartCollection(currentCollection) : false
   const hideValues =
     collectStatus === 'collectingError' ||
     collectStatus === 'unconnected' ||
@@ -417,29 +425,29 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
               status={currentCollection.collectStatus}
               error={currentCollection.lastError}
             />
-            {collectStatus === 'stopped' ? (
+            {canStop ? (
               <Button
                 variant="outline"
                 size="sm"
-                loading={runtimeAction.isPending}
-                icon={<Play className="size-3.5" />}
-                onClick={() => void runRuntimeAction('start')}
-              >
-                {t('common.action.start')}
-              </Button>
-            ) : ['collecting', 'collectingError', 'unconnected', 'emptyVariable', 'error'].includes(
-                collectStatus,
-              ) ? (
-              <Button
-                variant="outline"
-                size="sm"
+                disabled={!canRestart}
                 loading={runtimeAction.isPending}
                 icon={<RotateCw className="size-3.5" />}
                 onClick={() => void runRuntimeAction('restart')}
               >
                 {t('common.action.restart')}
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!canStart}
+                loading={runtimeAction.isPending}
+                icon={<Play className="size-3.5" />}
+                onClick={() => void runRuntimeAction('start')}
+              >
+                {t('common.action.start')}
+              </Button>
+            )}
           </span>
         ) : (
           t('gateway.variable.manageTitleFallback')

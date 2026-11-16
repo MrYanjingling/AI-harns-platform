@@ -44,6 +44,7 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     dataBits: '8',
     parity: 'noParity',
     stopBits: '1',
+    positionAddress: '0',
     tcpCount: '1',
     rack: '0',
     slot: '1',
@@ -147,15 +148,9 @@ export function detailToForm(
   }
 }
 
-function protocolConfigFromForm(
-  values: CollectionFormValues,
-  schema: DriverSchema | undefined,
-): Record<string, unknown> {
+function protocolConfigFromForm(values: CollectionFormValues): Record<string, unknown> {
   const config: Record<string, unknown> = {}
-  const names = new Set(sortedFields(schema).map((field) => field.name))
-  // 保留 schema 之外的自定义字段(自定义驱动)。
   for (const [key, raw] of Object.entries(values.protocol)) {
-    if (!names.has(key)) continue
     if (raw.trim() === REDACTED_VALUE) continue
     const parsed = toProtocolValue(key, raw)
     if (parsed !== undefined) config[key] = parsed
@@ -267,7 +262,7 @@ export function validateCollectionForm(
     driverModel: values.driverModel,
     name,
     collectorCycleMs: Number(values.collectorCycleMs),
-    protocolConfig: protocolConfigFromForm(values, schema),
+    protocolConfig: protocolConfigFromForm(values),
   }
   if (includeVariables) payload.variables = variableInputsFromForm(values)
   return { errors: {}, payload }

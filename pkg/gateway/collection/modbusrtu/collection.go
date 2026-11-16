@@ -17,7 +17,7 @@ type ProtocolConfig struct {
 	Parity          string `json:"parity"`
 	StopBits        string `json:"stopBits"`
 	MemoryLayout    string `json:"memoryLayout"`
-	PositionAddress uint   `json:"positionAddress,omitempty"`
+	PositionAddress uint   `json:"positionAddress"`
 }
 
 func (c *ProtocolConfig) Normalize() {
@@ -57,7 +57,7 @@ type ModbusRtuCollection struct {
 	Parity          string `json:"parity"`
 	StopBits        string `json:"stopBits"`
 	MemoryLayout    string `json:"memoryLayout"`
-	PositionAddress uint   `json:"positionAddress,omitempty"`
+	PositionAddress uint   `json:"positionAddress"`
 
 	runtime     *collectorRuntime
 	frameTracer collection.FrameTracer

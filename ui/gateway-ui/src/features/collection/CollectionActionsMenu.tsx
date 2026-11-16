@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom'
 import { MoreVertical, Play, RotateCw, Square } from 'lucide-react'
 import { cn, useI18n } from '@harns/core'
 import type { Collection } from '@/api/types'
+import {
+  canRestartCollection,
+  canStartCollection,
+  canStopCollection,
+} from '@/lib/collection-actions'
 
 export type CollectionOperation = 'start' | 'stop' | 'restart'
 
@@ -76,7 +81,9 @@ export function CollectionActionsMenu({
     onAction(action)
   }
 
-  const collecting = collection.collectStatus === 'collecting'
+  const canStart = canStartCollection(collection)
+  const canStop = canStopCollection(collection)
+  const canRestart = canRestartCollection(collection)
 
   return (
     <>
@@ -107,11 +114,11 @@ export function CollectionActionsMenu({
               <button
                 type="button"
                 role="menuitem"
-                disabled={collecting}
+                disabled={!canStart}
                 onClick={() => run('start')}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg',
-                  collecting && 'pointer-events-none opacity-40',
+                  !canStart && 'pointer-events-none opacity-40',
                 )}
               >
                 <Play className="size-3.5" />
@@ -120,11 +127,11 @@ export function CollectionActionsMenu({
               <button
                 type="button"
                 role="menuitem"
-                disabled={!collecting}
+                disabled={!canStop}
                 onClick={() => run('stop')}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg',
-                  !collecting && 'pointer-events-none opacity-40',
+                  !canStop && 'pointer-events-none opacity-40',
                 )}
               >
                 <Square className="size-3.5" />
@@ -133,8 +140,12 @@ export function CollectionActionsMenu({
               <button
                 type="button"
                 role="menuitem"
+                disabled={!canRestart}
                 onClick={() => run('restart')}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg',
+                  !canRestart && 'pointer-events-none opacity-40',
+                )}
               >
                 <RotateCw className="size-3.5" />
                 {t('common.action.restart')}

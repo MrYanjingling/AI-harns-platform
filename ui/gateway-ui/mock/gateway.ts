@@ -4,6 +4,7 @@ import type {
   CollectionVariable,
   CollectionVariableInput,
   Driver,
+  FrameEvent,
   GatewayUser,
   MQTTConfig,
   PushConnector,
@@ -99,6 +100,82 @@ function findConnector(id: string): PushConnector | undefined {
 
 function findGroup(id: string): PushGroup | undefined {
   return pushGroups.find((item) => item.id === id)
+}
+
+interface MockFrameStream {
+  traceId: number
+  requests: Set<ServerResponse>
+  responses: Set<ServerResponse>
+  timer?: ReturnType<typeof setInterval>
+}
+
+const frameStreams = new Map<string, MockFrameStream>()
+
+function frameStreamOf(id: string): MockFrameStream {
+  const existing = frameStreams.get(id)
+  if (existing) return existing
+  const stream: MockFrameStream = {
+    traceId: 0,
+    requests: new Set(),
+    responses: new Set(),
+  }
+  frameStreams.set(id, stream)
+  return stream
+}
+
+function hexBytes(bytes: number[]): string {
+  return bytes.map((byte) => byte.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+}
+
+function writeFrame(res: ServerResponse, event: 'request' | 'response', frame: FrameEvent): boolean {
+  try {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(frame)}\n\n`)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function startMockFrameTimer(id: string): void {
+  const stream = frameStreamOf(id)
+  if (stream.timer) return
+  stream.timer = setInterval(() => {
+    stream.traceId += 1
+    const traceId = stream.traceId
+    const operation = traceId % 4 === 0 ? 'write' : 'read'
+    const time = nowIso()
+    const failed = traceId % 9 === 0
+    const requestBytes = [0x01, 0x03, 0x00, traceId % 256, 0x00, 0x02, 0xc4, 0x0b]
+    const responseBytes = [0x01, 0x03, 0x04, 0x41, 0x48 + (traceId % 16), 0x00, 0x00, 0x8f, 0x3c]
+    const request: FrameEvent = {
+      traceId,
+      time,
+      operation,
+      hex: hexBytes(requestBytes),
+      length: requestBytes.length,
+    }
+    const response: FrameEvent = {
+      traceId,
+      time,
+      operation,
+      hex: failed ? '' : hexBytes(responseBytes),
+      length: failed ? 0 : responseBytes.length,
+      durationMs: 6 + (traceId % 12),
+      error: failed ? 'mock response timeout' : undefined,
+    }
+
+    for (const res of [...stream.requests]) {
+      if (!writeFrame(res, 'request', request)) stream.requests.delete(res)
+    }
+    for (const res of [...stream.responses]) {
+      if (!writeFrame(res, 'response', response)) stream.responses.delete(res)
+    }
+
+    if (stream.requests.size === 0 && stream.responses.size === 0) {
+      if (stream.timer) clearInterval(stream.timer)
+      frameStreams.delete(id)
+    }
+  }, 1200)
 }
 
 function variablesOf(id: string): CollectionVariable[] {
@@ -419,6 +496,45 @@ export async function handleGateway(
     return true
   }
 
+  const frameStreamMatch = pathname.match(
+    /^\/collections\/([^/]+)\/frames\/(requests|responses)\/stream$/,
+  )
+  if (frameStreamMatch && method === 'GET') {
+    const [, id, kind] = frameStreamMatch
+    const collection = findCollection(id)
+    if (!collection) {
+      notFound(res, 'collection not found')
+      return true
+    }
+    if (!['collecting', 'collectingError'].includes(collection.collectStatus)) {
+      badRequest(res, 'collection is not collecting')
+      return true
+    }
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders?.()
+    res.write('event: ready\ndata: {}\n\n')
+
+    const stream = frameStreamOf(id)
+    const target = kind === 'requests' ? stream.requests : stream.responses
+    target.add(res)
+    startMockFrameTimer(id)
+
+    res.on('close', () => {
+      target.delete(res)
+      if (stream.requests.size === 0 && stream.responses.size === 0 && stream.timer) {
+        clearInterval(stream.timer)
+        stream.timer = undefined
+        frameStreams.delete(id)
+      }
+    })
+    return true
+  }
+
   const collectionAction = pathname.match(
     /^\/collections\/([^/]+)\/(start|stop|restart|enable|variables|action)$/,
   )
@@ -519,7 +635,7 @@ export async function handleGateway(
       }
       const body = await readObject(req)
       const enable = Boolean(body?.enable)
-      if (!enable && collection.collectStatus === 'collecting') {
+      if (!enable && collection.collectStatus !== 'stopped') {
         badRequest(res, 'stop the collection before disabling it')
         return true
       }
@@ -537,7 +653,7 @@ export async function handleGateway(
         fail(res, 405, 10005, 'method not allowed')
         return true
       }
-      if (collection.collectStatus !== 'collecting') {
+      if (!collection.enable || collection.collectStatus !== 'collecting') {
         badRequest(res, 'collection is not collecting')
         return true
       }
@@ -562,6 +678,10 @@ export async function handleGateway(
     if (method !== 'POST') {
       res.setHeader('Allow', 'POST')
       fail(res, 405, 10005, 'method not allowed')
+      return true
+    }
+    if (action !== 'stop' && !collection.enable) {
+      badRequest(res, 'collection is disabled')
       return true
     }
     if (action === 'stop') {

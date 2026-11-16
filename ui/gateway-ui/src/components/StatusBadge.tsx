@@ -4,6 +4,8 @@ import { Badge, cn, useI18n } from '@harns/core'
 import type { CollectStatus } from '@/api/types'
 import { collectStatusMeta, connectorStatusMeta } from '@/lib/constants'
 
+const TOOLTIP_WIDTH = 224
+
 export function CollectStatusBadge({
   status,
   error,
@@ -18,7 +20,29 @@ export function CollectStatusBadge({
   const badgeRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0, above: false })
-  const tooltip = error || t(meta.descriptionKey)
+  const lastError = error?.trim()
+  const tooltip = (() => {
+    switch (status) {
+      case 'collecting':
+        return t('gateway.status.tooltip.collecting')
+      case 'emptyVariable':
+        return t('gateway.status.tooltip.emptyVariable')
+      case 'stopped':
+        return t('gateway.status.tooltip.stopped')
+      case 'collectingError':
+      case 'unconnected':
+      case 'error':
+        return lastError || t(meta.descriptionKey)
+      default:
+        return lastError || t(meta.descriptionKey)
+    }
+  })()
+  const tooltipTone =
+    meta.tone === 'danger'
+      ? 'border-danger/30'
+      : meta.tone === 'warning'
+        ? 'border-warning/30'
+        : 'border-border'
 
   useEffect(() => {
     if (!open) return
@@ -34,7 +58,7 @@ export function CollectStatusBadge({
   const show = () => {
     const rect = badgeRef.current?.getBoundingClientRect()
     if (!rect) return
-    const width = Math.min(320, window.innerWidth - 16)
+    const width = Math.min(TOOLTIP_WIDTH, window.innerWidth - 16)
     const left = Math.min(
       Math.max(8, rect.left),
       Math.max(8, window.innerWidth - width - 8),
@@ -71,12 +95,13 @@ export function CollectStatusBadge({
                 position: 'fixed',
                 top: position.top,
                 left: position.left,
-                width: 'min(320px, calc(100vw - 2rem))',
+                width: 'max-content',
+                maxWidth: `min(${TOOLTIP_WIDTH}px, calc(100vw - 2rem))`,
                 transform: position.above ? 'translateY(-100%)' : undefined,
               }}
               className={cn(
                 'z-[300] rounded border bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg shadow-xl',
-                error ? 'border-danger/30' : 'border-border',
+                tooltipTone,
               )}
             >
               {tooltip}

@@ -26,6 +26,7 @@ import {
 import type { Collection } from '@/api/types'
 import { GatewayTBody, GatewayTD, GatewayTH, GatewayTHead, GatewayTR, GatewayTable } from '@/components/GatewayTable'
 import { CollectStatusBadge } from '@/components/StatusBadge'
+import { canToggleCollectionEnable } from '@/lib/collection-actions'
 import { driverModelLabel, driverTypeLabel, formatCycle } from '@/lib/constants'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
 import { CollectionActionsMenu } from './CollectionActionsMenu'
@@ -311,8 +312,7 @@ export function CollectionPage() {
               <GatewayTBody>
                 {list.map((collection, index) => {
                   const disableToggle =
-                    setEnable.isPending ||
-                    (collection.enable && collection.collectStatus !== 'stopped')
+                    setEnable.isPending || !canToggleCollectionEnable(collection)
                   return (
                     <GatewayTR key={collection.id}>
                       <GatewayTD className="text-muted" style={{ textAlign: 'center' }}>

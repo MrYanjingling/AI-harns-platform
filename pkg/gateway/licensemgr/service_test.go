@@ -67,7 +67,11 @@ func TestServiceImportQueryAndLoad(t *testing.T) {
 func TestServiceLoadWithoutLicense(t *testing.T) {
 	svc, _, _ := newTestService(t, publicKeyFile(t))
 	require.NoError(t, svc.Load(context.Background()))
-	assert.Equal(t, StatusUnauthorized, svc.GetStatus().Status)
+	status := svc.GetStatus()
+	assert.Equal(t, StatusUnauthorized, status.Status)
+	require.NotNil(t, status.License)
+	assert.Equal(t, DefaultTrialMaxVariable, status.License.MaxVariable)
+	assert.NotEmpty(t, status.License.SoftwareRunDeadline)
 }
 
 func TestServiceLoadWithoutLicenseUsesTrial(t *testing.T) {
@@ -127,5 +131,9 @@ func TestServiceStatusBecomesUnauthorizedAfterExpiry(t *testing.T) {
 	svc, _, _ := newTestService(t, publicKeyFile(t))
 	svc.claims = validClaims(100)
 	svc.claims.ExpiresAt = jwt.NewNumericDate(time.Now().UTC().Add(-time.Minute))
-	assert.Equal(t, StatusUnauthorized, svc.GetStatus().Status)
+	status := svc.GetStatus()
+	assert.Equal(t, StatusUnauthorized, status.Status)
+	require.NotNil(t, status.License)
+	assert.Equal(t, DefaultTrialMaxVariable, status.License.MaxVariable)
+	assert.NotEmpty(t, status.License.SoftwareRunDeadline)
 }

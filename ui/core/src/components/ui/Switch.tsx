@@ -22,8 +22,10 @@ export function Switch({
       className={cn(
         'relative inline-flex h-5.5 w-10 shrink-0 items-center rounded-full border transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        checked ? 'border-primary bg-primary' : 'border-border-strong bg-surface-3',
+        'disabled:cursor-not-allowed',
+        checked
+          ? 'border-primary bg-primary'
+          : 'border-border-strong bg-surface-3 disabled:opacity-50',
       )}
     >
       <span

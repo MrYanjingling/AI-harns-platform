@@ -400,7 +400,10 @@ export function OverviewPage() {
                         · {formatRelative(collection.modTime)}
                       </p>
                     </div>
-                    <CollectStatusBadge status={collection.collectStatus} />
+                    <CollectStatusBadge
+                      status={collection.collectStatus}
+                      error={collection.lastError}
+                    />
                   </Link>
                 ))}
               </div>
@@ -547,7 +550,7 @@ function AttentionRow({ collection }: { collection: Collection }) {
           <ProtocolLabel type={collection.driverType} model={collection.driverModel} />
         </p>
       </div>
-      <CollectStatusBadge status={collection.collectStatus} />
+      <CollectStatusBadge status={collection.collectStatus} error={collection.lastError} />
     </Link>
   )
 }

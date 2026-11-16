@@ -83,6 +83,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const preservedNameRef = useRef('')
 
   useEffect(() => {
     if (!open) return
@@ -97,6 +98,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     setTab('collection')
     setImporting(false)
     setExporting(false)
+    preservedNameRef.current = ''
   }, [open])
 
   useEffect(() => {
@@ -106,9 +108,13 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
 
   useEffect(() => {
     if (!open || !selectedModel || !schema.data || form) return
-    setForm(
-      createFormValues(schema.data.driverType, schema.data.driverModel, schema.data.schema),
+    const next = createFormValues(
+      schema.data.driverType,
+      schema.data.driverModel,
+      schema.data.schema,
     )
+    next.name = preservedNameRef.current
+    setForm(next)
   }, [open, selectedModel, schema.data, form])
 
   const driverTypes = useMemo(() => {
@@ -154,6 +160,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
   }
 
   const changeModel = (model: string) => {
+    preservedNameRef.current = form?.name ?? preservedNameRef.current
     setSelectedModel(model)
     setForm(null)
     setErrors({})

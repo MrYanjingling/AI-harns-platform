@@ -42,9 +42,9 @@ func (s *Service) Load(ctx context.Context) error {
 	if s == nil || s.store == nil {
 		return fmt.Errorf("license service store is nil")
 	}
+	s.loadTrialInfo(ctx)
 	data, err := s.store.Get(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		s.loadTrialInfo(ctx)
 		return nil
 	}
 	if err != nil {
@@ -96,10 +96,9 @@ func (s *Service) GetStatus() *Status {
 	}
 	s.mu.RLock()
 	claims := s.claims
-	trialInfo := s.trialInfo
 	s.mu.RUnlock()
 	if claims == nil || ValidateForImport(claims, time.Now().UTC()) != nil {
-		return &Status{Status: StatusUnauthorized, License: trialInfo}
+		return &Status{Status: StatusUnauthorized, License: s.ensureTrialInfo()}
 	}
 	return &Status{
 		Status:  StatusAuthorized,
@@ -107,11 +106,26 @@ func (s *Service) GetStatus() *Status {
 	}
 }
 
+// ensureTrialInfo returns the trial quota and deadline, loading it on demand so
+// unauthorized responses always carry the default quota and run deadline.
+func (s *Service) ensureTrialInfo() *Info {
+	s.mu.RLock()
+	info := s.trialInfo
+	s.mu.RUnlock()
+	if info != nil {
+		return info
+	}
+	s.loadTrialInfo(context.Background())
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.trialInfo
+}
+
 func (s *Service) loadTrialInfo(ctx context.Context) {
 	initTime, err := s.store.GatewayInitTime(ctx)
 	if err != nil {
 		logging.Warnf("Failed to load gateway init time for trial license: %v", err)
-		return
+		initTime = time.Now().UTC()
 	}
 	info := &Info{
 		MaxVariable:         DefaultTrialMaxVariable,

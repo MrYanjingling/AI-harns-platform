@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/modbus"
 	"harns-platform/pkg/gateway/validation"
 )
 
@@ -52,6 +53,16 @@ func (r *CreateReq) Validate() error {
 		if errors.As(err, &validationErr) {
 			issues = append(issues, validationErr.Issues...)
 		}
+	}
+	for index, err := range modbus.ValidateVariablePositions(r.Variables, r.ProtocolConfig.PositionAddress) {
+		if err == nil {
+			continue
+		}
+		issues = append(issues, validation.FieldIssue{
+			Field: fmt.Sprintf("variables[%d].address", index),
+			MsgID: "validate.variable_address_invalid",
+			Args:  []interface{}{r.Variables[index].Address},
+		})
 	}
 	if len(issues) == 0 {
 		return nil

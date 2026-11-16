@@ -9,7 +9,7 @@ type protocolConfig struct {
 	Parity          string `json:"parity"`
 	StopBits        string `json:"stopBits"`
 	MemoryLayout    string `json:"memoryLayout"`
-	PositionAddress uint   `json:"positionAddress,omitempty"`
+	PositionAddress uint   `json:"positionAddress"`
 }
 
 func (c *ModbusRtuCollection) ConfigJSON() ([]byte, error) {

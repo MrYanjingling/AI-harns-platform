@@ -197,6 +197,19 @@ func ParseAddress(value string, positionAddress uint) (uint8, uint8, uint16, err
 	return uint8(slaveValue), function, uint16(rawAddress - uint64(positionAddress)), nil
 }
 
+func ValidateVariablePositions(variables []*collection.Variable, positionAddress uint) []error {
+	issues := make([]error, len(variables))
+	for index, variable := range variables {
+		if variable == nil || variable.IsCalculated || strings.TrimSpace(variable.Address) == "" {
+			continue
+		}
+		if _, _, _, err := ParseAddress(variable.Address, positionAddress); err != nil {
+			issues[index] = err
+		}
+	}
+	return issues
+}
+
 func DataTypeWords(dataType string) (uint16, error) {
 	switch strings.ToLower(strings.TrimSpace(dataType)) {
 	case "bool", "int16", "uint16":

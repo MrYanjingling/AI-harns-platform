@@ -215,9 +215,7 @@ export function CalculatedVariablesEditor({
                     />
                   </TD>
                   {showValue ? (
-                    <TD className="truncate font-mono text-xs text-muted">
-                      {variable.value ?? ''}
-                    </TD>
+                    <TD className="truncate">{variable.value ?? ''}</TD>
                   ) : null}
                   <TD className="text-right">
                     <div className="flex items-center justify-end gap-0.5">

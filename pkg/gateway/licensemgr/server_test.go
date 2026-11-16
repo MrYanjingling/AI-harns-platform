@@ -55,6 +55,9 @@ func TestServerQueryUnauthorizedAndImport(t *testing.T) {
 	var result response.Result
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
 	assert.Equal(t, StatusUnauthorized, result.Data.(map[string]interface{})["status"])
+	license := result.Data.(map[string]interface{})["license"].(map[string]interface{})
+	assert.Equal(t, float64(DefaultTrialMaxVariable), license["maxVariable"])
+	assert.NotEmpty(t, license["softwareRunDeadline"])
 
 	data := signedLicense(t, validClaims(100))
 	rec = licenseRequest(t, engine, http.MethodPost, "/api/v1/license/import", data, true)
@@ -62,7 +65,7 @@ func TestServerQueryUnauthorizedAndImport(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
 	imported := result.Data.(map[string]interface{})
 	assert.Equal(t, StatusAuthorized, imported["status"])
-	license := imported["license"].(map[string]interface{})
+	license = imported["license"].(map[string]interface{})
 	assert.Equal(t, float64(100), license["maxVariable"])
 }
 

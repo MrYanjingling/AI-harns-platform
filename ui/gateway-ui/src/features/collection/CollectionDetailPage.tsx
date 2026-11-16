@@ -63,6 +63,12 @@ import {
   validateVariableRows,
   type VariableFormValues,
 } from '@/lib/collection-form'
+import {
+  canRestartCollection,
+  canStartCollection,
+  canStopCollection,
+  canToggleCollectionEnable,
+} from '@/lib/collection-actions'
 import { formatCycle } from '@/lib/constants'
 import { localized } from '@/lib/labels'
 
@@ -107,6 +113,9 @@ export function CollectionDetailPage() {
   const [controlValues, setControlValues] = useState<Record<string, string>>({})
 
   const collection = detail.data
+  const canStart = collection ? canStartCollection(collection) : false
+  const canStop = collection ? canStopCollection(collection) : false
+  const canRestart = collection ? canRestartCollection(collection) : false
   const schemaData = schema.data?.schema
   const writableVariables = useMemo(
     () => (variables.data?.list ?? []).filter((item) => item.accessMode !== 'r' && !item.isCalculated),
@@ -260,7 +269,7 @@ export function CollectionDetailPage() {
                 {t('gateway.detail.control.button')}
               </Button>
             ) : null}
-            {collection.collectStatus === 'collecting' ? (
+            {canStop ? (
               <Button
                 variant="outline"
                 onClick={() => void runAction('stop')}
@@ -271,6 +280,7 @@ export function CollectionDetailPage() {
             ) : (
               <Button
                 variant="outline"
+                disabled={!canStart}
                 onClick={() => void runAction('start')}
                 icon={<Play className="size-3.5" />}
               >
@@ -279,6 +289,7 @@ export function CollectionDetailPage() {
             )}
             <Button
               variant="outline"
+              disabled={!canRestart}
               onClick={() => void runAction('restart')}
               icon={<RotateCw className="size-3.5" />}
             >
@@ -301,7 +312,7 @@ export function CollectionDetailPage() {
             <CardTitle>{t('gateway.detail.section.identity')}</CardTitle>
             <CardDescription>{t('gateway.detail.identityHint')}</CardDescription>
           </div>
-          <CollectStatusBadge status={collection.collectStatus} />
+          <CollectStatusBadge status={collection.collectStatus} error={collection.lastError} />
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoItem label={t('gateway.collection.columns.protocol')}>
@@ -326,7 +337,7 @@ export function CollectionDetailPage() {
             <div className="flex items-center gap-2">
               <Switch
                 checked={collection.enable}
-                disabled={setEnable.isPending || (collection.enable && collection.collectStatus !== 'stopped')}
+                disabled={setEnable.isPending || !canToggleCollectionEnable(collection)}
                 label={t('gateway.collection.columns.enable')}
                 onChange={(enable) => void toggleEnable(enable)}
               />

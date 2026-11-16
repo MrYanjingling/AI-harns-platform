@@ -8,6 +8,7 @@ import { LogsPage } from '@/features/logs/LogsPage'
 import { OverviewBreadcrumbAction } from '@/features/overview/OverviewBreadcrumbAction'
 import { OverviewPage } from '@/features/overview/OverviewPage'
 import { MonitoringPointsPage } from '@/features/monitoring/MonitoringPointsPage'
+import { FrameAnalysisPage } from '@/features/monitoring/FrameAnalysisPage'
 import { PushPage } from '@/features/push/PushPage'
 import { AboutPage } from '@/features/system/AboutPage'
 import { UsersPage } from '@/features/system/UsersPage'
@@ -60,6 +61,11 @@ export const gatewayRoutes: RouteObject[] = [
         path: 'monitoring/points',
         element: <MonitoringPointsPage />,
         handle: { titleKey: 'gateway.title.monitorPoints' },
+      },
+      {
+        path: 'monitoring/points/analysis',
+        element: <FrameAnalysisPage />,
+        handle: { titleKey: 'gateway.title.frameAnalysis' },
       },
       {
         path: 'system/users',

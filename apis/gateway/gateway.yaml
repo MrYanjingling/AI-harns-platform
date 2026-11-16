@@ -180,7 +180,11 @@ components:
           enum: [unauthorized, authorized]
           description: Current authorization status.
         license:
-          $ref: '#/components/schemas/LicenseInfo'
+          allOf:
+            - $ref: '#/components/schemas/LicenseInfo'
+          description: >-
+            License data. When status is unauthorized this returns the trial
+            quota (maxVariable 100) and the software run deadline.
     LicenseInfo:
       type: object
       properties:

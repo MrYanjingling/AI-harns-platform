@@ -6,7 +6,7 @@ type protocolConfig struct {
 	Location        string `json:"location"`
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
-	PositionAddress uint   `json:"positionAddress,omitempty"`
+	PositionAddress uint   `json:"positionAddress"`
 	TCPCount        int    `json:"tcpCount"`
 }
 
