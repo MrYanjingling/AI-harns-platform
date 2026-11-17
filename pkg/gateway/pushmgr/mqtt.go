@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -40,20 +41,37 @@ func (c *MQTTConfig) Validate() error {
 	if strings.TrimSpace(c.BrokerURL) == "" {
 		return fmt.Errorf("brokerUrl is required")
 	}
-	if strings.TrimSpace(c.DataTopic) == "" {
-		return fmt.Errorf("dataTopic is required")
-	}
 	if c.QoS > 2 {
 		return fmt.Errorf("qos must be 0, 1 or 2")
 	}
 	return nil
 }
 
+var _ Connector = (*MQTTConnector)(nil)
+var _ ConnectorErrorHandler = (*MQTTConnector)(nil)
+
 type MQTTConnector struct {
-	id      string
-	config  MQTTConfig
-	client  mqtt.Client
-	handler CommandHandler
+	id         string
+	config     MQTTConfig
+	client     mqtt.Client
+	mu         sync.RWMutex
+	errHandler func(error)
+	subs       map[string]struct{}
+}
+
+func (c *MQTTConnector) SetErrorHandler(handler func(error)) {
+	c.mu.Lock()
+	c.errHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *MQTTConnector) notifyError(err error) {
+	c.mu.RLock()
+	handler := c.errHandler
+	c.mu.RUnlock()
+	if handler != nil && err != nil {
+		handler(err)
+	}
 }
 
 func NewMQTTConnector(id string, raw json.RawMessage) (*MQTTConnector, error) {
@@ -65,7 +83,7 @@ func NewMQTTConnector(id string, raw json.RawMessage) (*MQTTConnector, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	return &MQTTConnector{id: id, config: config}, nil
+	return &MQTTConnector{id: id, config: config, subs: make(map[string]struct{})}, nil
 }
 
 func (c *MQTTConnector) Type() string { return ConnectorTypeMQTT }
@@ -79,6 +97,9 @@ func (c *MQTTConnector) Connect(ctx context.Context) error {
 	opts.SetKeepAlive(time.Duration(c.config.KeepAlive) * time.Second)
 	opts.SetAutoReconnect(true)
 	opts.SetConnectTimeout(mqttConnectTimeout)
+	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
+		c.notifyError(fmt.Errorf("mqtt connection lost: %w", err))
+	})
 	c.client = mqtt.NewClient(opts)
 	token := c.client.Connect()
 	if !token.WaitTimeout(mqttConnectTimeout) {
@@ -91,48 +112,91 @@ func (c *MQTTConnector) Connect(ctx context.Context) error {
 }
 
 func (c *MQTTConnector) Close(ctx context.Context) error {
+	c.mu.Lock()
+	c.subs = make(map[string]struct{})
+	c.mu.Unlock()
 	if c.client != nil && c.client.IsConnected() {
 		c.client.Disconnect(250)
 	}
 	return nil
 }
 
-func (c *MQTTConnector) Publish(ctx context.Context, payload []byte) error {
+func (c *MQTTConnector) Publish(ctx context.Context, message Message) error {
 	if c.client == nil || !c.client.IsConnected() {
 		return fmt.Errorf("mqtt connector is not connected")
 	}
-	token := c.client.Publish(c.config.DataTopic, c.config.QoS, c.config.Retain, payload)
+	if strings.TrimSpace(message.Topic) == "" {
+		return fmt.Errorf("mqtt topic is required")
+	}
+	token := c.client.Publish(message.Topic, c.config.QoS, c.config.Retain, message.Payload)
 	if !token.WaitTimeout(mqttConnectTimeout) {
 		return fmt.Errorf("mqtt publish timeout")
 	}
 	return token.Error()
 }
 
-func (c *MQTTConnector) SubscribeCommands(ctx context.Context, handler CommandHandler) error {
-	if strings.TrimSpace(c.config.CommandTopic) == "" {
+func (c *MQTTConnector) Subscribe(ctx context.Context, topic string, handler CommandHandler) error {
+	topic = strings.TrimSpace(topic)
+	if topic == "" {
 		return nil
 	}
 	if c.client == nil || !c.client.IsConnected() {
 		return fmt.Errorf("mqtt connector is not connected")
 	}
-	c.handler = handler
-	token := c.client.Subscribe(c.config.CommandTopic, c.config.QoS, func(_ mqtt.Client, message mqtt.Message) {
-		if c.handler == nil {
-			return
+	token := c.client.Subscribe(topic, c.config.QoS, func(_ mqtt.Client, message mqtt.Message) {
+		if handler != nil {
+			go handler(context.Background(), append([]byte(nil), message.Payload()...))
 		}
-		go c.handler(context.Background(), append([]byte(nil), message.Payload()...))
 	})
 	if !token.WaitTimeout(mqttConnectTimeout) {
 		return fmt.Errorf("mqtt subscribe timeout")
 	}
-	return token.Error()
+	if err := token.Error(); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.subs[topic] = struct{}{}
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *MQTTConnector) Unsubscribe(ctx context.Context, topic string) error {
+	topic = strings.TrimSpace(topic)
+	if topic == "" {
+		return nil
+	}
+	if c.client == nil || !c.client.IsConnected() {
+		return nil
+	}
+	token := c.client.Unsubscribe(topic)
+	if !token.WaitTimeout(mqttConnectTimeout) {
+		return fmt.Errorf("mqtt unsubscribe timeout")
+	}
+	if err := token.Error(); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	delete(c.subs, topic)
+	c.mu.Unlock()
+	return nil
 }
 
 type MQTTFactory struct{}
 
+var _ ConnectorFactory = (*MQTTFactory)(nil)
+
 func NewMQTTFactory() *MQTTFactory { return &MQTTFactory{} }
 
 func (f *MQTTFactory) Type() string { return ConnectorTypeMQTT }
+
+func (f *MQTTFactory) Validate(raw json.RawMessage) error {
+	var config MQTTConfig
+	if len(raw) == 0 || json.Unmarshal(raw, &config) != nil {
+		return fmt.Errorf("invalid mqtt pushConfig")
+	}
+	config.Normalize("")
+	return config.Validate()
+}
 
 func (f *MQTTFactory) New(id string, config json.RawMessage) (Connector, error) {
 	return NewMQTTConnector(id, config)

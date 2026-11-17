@@ -86,10 +86,18 @@ export const CONNECTOR_STATUS: Record<ConnectorStatus, StatusMeta> = {
     tone: 'neutral',
     dotClassName: 'bg-zinc-400',
   },
+  error: {
+    labelKey: 'gateway.push.status.error',
+    descriptionKey: 'gateway.push.status.errorHint',
+    tone: 'danger',
+    dotClassName: 'bg-rose-500',
+  },
 }
 
 export function connectorStatusMeta(status: string | undefined): StatusMeta {
-  if (status === 'running' || status === 'stopped') return CONNECTOR_STATUS[status]
+  if (status === 'running' || status === 'stopped' || status === 'error') {
+    return CONNECTOR_STATUS[status]
+  }
   return UNKNOWN_COLLECT_STATUS
 }
 

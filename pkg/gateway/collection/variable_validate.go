@@ -21,9 +21,6 @@ func NormalizeVariables(variables []*Variable) error {
 		variable.DataType = strings.TrimSpace(variable.DataType)
 		variable.Address = strings.TrimSpace(variable.Address)
 		variable.Expression = strings.TrimSpace(variable.Expression)
-		if variable.Rate == 0 {
-			variable.Rate = 1
-		}
 	}
 	return ValidateVariables(variables)
 }
@@ -75,13 +72,13 @@ func ValidateVariables(variables []*Variable) error {
 				MsgID: "validate.variable_access_mode_invalid",
 			})
 		}
-		if variable.Precision < 0 {
+		if variable.Precision != nil && *variable.Precision < 0 {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].precision", i),
 				MsgID: "validate.variable_precision_invalid",
 			})
 		}
-		if variable.Bits > 16 {
+		if variable.Bits != nil && *variable.Bits > 16 {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].bits", i),
 				MsgID: "validate.variable_bits_invalid",

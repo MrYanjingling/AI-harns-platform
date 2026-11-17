@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -20,12 +23,17 @@ var pluginNamePattern = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
 
 // Service manages driver metadata.
 type Service struct {
-	store *Store
+	store     *Store
+	pluginDir string
 }
 
 // NewService creates a driver metadata service.
-func NewService(store *Store) *Service {
-	return &Service{store: store}
+func NewService(store *Store, pluginDir ...string) *Service {
+	dir := ""
+	if len(pluginDir) > 0 {
+		dir = strings.TrimSpace(pluginDir[0])
+	}
+	return &Service{store: store, pluginDir: dir}
 }
 
 // List returns all drivers.
@@ -155,6 +163,57 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateDriverReq
 	item.PluginName = strings.TrimSpace(req.PluginName)
 	if err := s.store.Update(ctx, item); err != nil {
 		return nil, mapServiceStoreError(err, item.PluginName)
+	}
+	return toVo(item), nil
+}
+
+// UploadPlugin stores a custom driver plugin file.
+func (s *Service) UploadPlugin(ctx context.Context, id, filename string, src io.Reader) (*v1.DriverVo, error) {
+	defer logging.Trace("drivermgr.UploadPlugin", "id", id, "filename", filename)()
+
+	item, err := s.store.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, response.ErrDriverNotFound(id)
+	}
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	if item.BuiltinDriver {
+		return nil, response.ErrDriverBuiltinReadOnly()
+	}
+	if strings.ToLower(filepath.Ext(filename)) != ".so" {
+		return nil, response.ErrDriverInvalid("plugin file must end with .so")
+	}
+	if strings.TrimSpace(s.pluginDir) == "" {
+		return nil, response.ErrDriverInvalid("plugin storage is not configured")
+	}
+	if !pluginNamePattern.MatchString(item.PluginName) {
+		return nil, response.ErrDriverInvalid("pluginName is invalid")
+	}
+	if err := os.MkdirAll(s.pluginDir, 0o755); err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	target := filepath.Join(s.pluginDir, item.PluginName+".so")
+	temp, err := os.CreateTemp(s.pluginDir, ".plugin-*.tmp")
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	tempName := temp.Name()
+	cleanup := func() {
+		_ = temp.Close()
+		_ = os.Remove(tempName)
+	}
+	if _, err := io.Copy(temp, src); err != nil {
+		cleanup()
+		return nil, response.ErrInternal(err)
+	}
+	if err := temp.Close(); err != nil {
+		_ = os.Remove(tempName)
+		return nil, response.ErrInternal(err)
+	}
+	if err := os.Rename(tempName, target); err != nil {
+		_ = os.Remove(tempName)
+		return nil, response.ErrInternal(err)
 	}
 	return toVo(item), nil
 }

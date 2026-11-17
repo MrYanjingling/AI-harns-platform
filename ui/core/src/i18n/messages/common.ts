@@ -56,6 +56,7 @@ export const common = defineMessages({
     'common.field.disabled': '禁用',
 
     'common.state.loading': '加载中…',
+    'common.state.loadFailed': '加载失败',
     'common.state.empty': '暂无数据',
     'common.state.unknown': '未知',
     'common.state.unset': '未设置',
@@ -180,6 +181,7 @@ export const common = defineMessages({
     'common.field.disabled': 'Disabled',
 
     'common.state.loading': 'Loading…',
+    'common.state.loadFailed': 'Failed to load',
     'common.state.empty': 'No data',
     'common.state.unknown': 'Unknown',
     'common.state.unset': 'Not set',

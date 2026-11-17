@@ -3,21 +3,19 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
+  Boxes,
+  CalendarClock,
   Check,
-  CircleCheck,
   CircleDashed,
   Copy as CopyIcon,
   Cpu,
   HardDrive,
   KeyRound,
   MemoryStick,
-  RadioTower,
   Server,
-  TriangleAlert,
   Waypoints,
 } from 'lucide-react'
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -33,6 +31,7 @@ import {
   Skeleton,
   StatCard,
   cn,
+  formatDateTime,
   formatRelative,
   percentValue,
   toneForPercent,
@@ -44,14 +43,12 @@ import {
   useGatewayDisk,
   useGatewayMem,
   useGatewayMeta,
+  useLicense,
   usePushConnectors,
   usePushGroups,
 } from '@/api/hooks'
-import type { Collection } from '@/api/types'
-import { CollectStatusBadge } from '@/components/StatusBadge'
-import { ProtocolLabel } from '@/components/ProtocolLabel'
-import { driverTypeLabel, isAbnormalStatus } from '@/lib/constants'
-import { useOperationLogs } from '@/lib/operation-log'
+import { CollectStatusBadge, ConnectorStatusBadge } from '@/components/StatusBadge'
+import { driverModelLabel } from '@/lib/constants'
 
 const overviewCardClass = 'border-[1.5px] border-border-strong/75 shadow-[0_1px_3px_rgba(28,47,76,0.06)]'
 
@@ -64,40 +61,35 @@ export function OverviewPage() {
   const collections = useCollections({ page: 1, pageSize: 100 })
   const connectors = usePushConnectors({ page: 1, pageSize: 100 })
   const groups = usePushGroups({ page: 1, pageSize: 100 })
-  const operationLogs = useOperationLogs()
+  const license = useLicense()
   const [secretOpen, setSecretOpen] = useState(false)
 
   const list = collections.data?.list ?? []
   const connectorList = connectors.data?.list ?? []
+  const groupList = groups.data?.list ?? []
+  const connectorMap = useMemo(
+    () => new Map(connectorList.map((item) => [item.id, item.name])),
+    [connectorList],
+  )
 
   const stats = useMemo(() => {
-    const collecting = list.filter((item) => item.collectStatus === 'collecting').length
     return {
       total: collections.data?.total ?? list.length,
-      collecting,
-      abnormal: list.filter((item) => isAbnormalStatus(item.collectStatus)).length,
-      stopped: list.filter((item) => item.collectStatus === 'stopped').length,
-      runningConnectors: connectorList.filter((item) => item.status === 'running').length,
-      connectors: connectors.data?.total ?? connectorList.length,
-      groups: groups.data?.total ?? 0,
+      abnormal: list.filter((item) => item.collectStatus !== 'collecting').length,
+      groups: groups.data?.total ?? groupList.length,
+      abnormalGroups: groupList.filter(
+        (item) => item.status === 'error' || Boolean(item.lastError),
+      ).length,
+      currentVariables: list.reduce((sum, item) => sum + (item.variableCount ?? 0), 0),
     }
-  }, [list, collections.data, connectorList, connectors.data, groups.data])
+  }, [list, collections.data, groupList, groups.data])
 
-  const protocolBreakdown = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const item of list) {
-      counts.set(item.driverType, (counts.get(item.driverType) ?? 0) + 1)
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1])
-  }, [list])
-
-  const attention = useMemo(
+  const recentGroups = useMemo(
     () =>
-      list
-        .filter((item) => isAbnormalStatus(item.collectStatus))
-        .sort((a, b) => a.name.localeCompare(b.name))
+      [...groupList]
+        .sort((a, b) => new Date(b.updatedTime).getTime() - new Date(a.updatedTime).getTime())
         .slice(0, 5),
-    [list],
+    [groupList],
   )
 
   const recentCollections = useMemo(
@@ -108,11 +100,11 @@ export function OverviewPage() {
     [list],
   )
 
-  const recentOperations = operationLogs.slice(0, 6)
-
   const memData = mem.data?.mem
   const diskEntries = Object.entries(disk.data?.disk ?? {})
-  const error = collections.error ?? connectors.error
+  const licenseInfo = license.data?.license
+  const maxVariable = licenseInfo?.maxVariable
+  const error = collections.error ?? connectors.error ?? groups.error
 
   return (
     <div className="min-h-full space-y-4 bg-surface-3 p-4 sm:p-6">
@@ -171,34 +163,57 @@ export function OverviewPage() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label={t('gateway.overview.stat.collections')}
-          value={stats.total}
-          icon={<Activity />}
-          variant="summary"
-          tone="primary"
-          className={overviewCardClass}
-        />
+        <Link to="/collections" className="block">
+          <StatCard
+            label={t('gateway.overview.stat.collections')}
+            value={`${stats.total}/${stats.abnormal}`}
+            icon={<Activity />}
+            variant="summary"
+            tone="primary"
+            className={overviewCardClass}
+            footer={
+              <p className="text-[11px] text-faint">
+                {t('gateway.overview.stat.collectionsHint')}
+              </p>
+            }
+          />
+        </Link>
         <StatCard
           label={t('gateway.overview.stat.abnormal')}
-          value={stats.abnormal}
-          icon={<TriangleAlert />}
+          value={`${stats.groups}/${stats.abnormalGroups}`}
+          icon={<Waypoints />}
           variant="summary"
           tone="danger"
-          className={cn(overviewCardClass, stats.abnormal > 0 && 'border-danger/30')}
+          className={cn(overviewCardClass, stats.abnormalGroups > 0 && 'border-danger/30')}
+          footer={
+            <p className="text-[11px] text-faint">
+              {t('gateway.overview.stat.abnormalHint')}
+            </p>
+          }
         />
         <StatCard
           label={t('gateway.overview.stat.connectors')}
-          value={`${stats.runningConnectors}/${stats.connectors}`}
-          icon={<RadioTower />}
+          value={`${maxVariable ?? '—'}/${stats.currentVariables}`}
+          icon={<Boxes />}
           variant="summary"
           tone="success"
           className={overviewCardClass}
+          footer={
+            <p className="text-[11px] text-faint">
+              {t('gateway.overview.stat.variablesHint')}
+            </p>
+          }
         />
         <StatCard
           label={t('gateway.overview.stat.groups')}
-          value={stats.groups}
-          icon={<Waypoints />}
+          value={
+            <span className="text-lg">
+              {licenseInfo?.softwareRunDeadline
+                ? formatDateTime(licenseInfo.softwareRunDeadline)
+                : '—'}
+            </span>
+          }
+          icon={<CalendarClock />}
           variant="summary"
           tone="neutral"
           className={overviewCardClass}
@@ -291,7 +306,7 @@ export function OverviewPage() {
                 {diskEntries.slice(0, 3).map(([mount, info]) => {
                   const value = percentValue(info.UsedPercent)
                   return (
-                    <div key={mount}>
+                    <div key={mount} title={mount}>
                       <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px]">
                         <span className="truncate font-mono text-fg">{mount}</span>
                         <span className="shrink-0 text-muted tabular">{info.UsedPercent}</span>
@@ -313,33 +328,46 @@ export function OverviewPage() {
         <Card className={overviewCardClass}>
           <CardHeader>
             <div>
-              <CardTitle>{t('gateway.overview.attention.title')}</CardTitle>
-              <CardDescription>{t('gateway.overview.attention.description')}</CardDescription>
+              <CardTitle>{t('gateway.overview.recentGroups.title')}</CardTitle>
             </div>
             <Link
-              to="/collections"
+              to="/push/groups"
               className="inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-fg"
             >
               {t('gateway.overview.viewAll')}
               <ArrowRight className="size-3" />
             </Link>
           </CardHeader>
-          <CardContent>
-            {collections.isLoading ? (
+          <CardContent className="min-h-[324px]">
+            {groups.isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <Skeleton key={index} className="h-10 w-full" />
                 ))}
               </div>
-            ) : attention.length === 0 ? (
-              <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-xs text-emerald-700 dark:border-emerald-600/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                <CircleCheck className="size-4 shrink-0" />
-                {t('gateway.overview.attention.empty')}
-              </div>
+            ) : recentGroups.length === 0 ? (
+              <EmptyState
+                icon={<CircleDashed className="size-5" />}
+                title={t('gateway.overview.recentGroups.empty')}
+                className="py-6"
+              />
             ) : (
               <div className="space-y-1.5">
-                {attention.map((collection) => (
-                  <AttentionRow key={collection.id} collection={collection} />
+                {recentGroups.map((group) => (
+                  <Link
+                    key={group.id}
+                    to={`/push/groups?connectorId=${encodeURIComponent(group.connectorId)}&groupId=${encodeURIComponent(group.id)}`}
+                    className="flex items-center justify-between gap-2 rounded border border-border px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-surface-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-fg">{group.name}</p>
+                      <p className="mt-0.5 truncate text-[10px] text-faint">
+                        {connectorMap.get(group.connectorId) ?? group.connectorId} ·{' '}
+                        {formatRelative(group.updatedTime)}
+                      </p>
+                    </div>
+                    <ConnectorStatusBadge status={group.status} error={group.lastError} />
+                  </Link>
                 ))}
               </div>
             )}
@@ -350,7 +378,6 @@ export function OverviewPage() {
           <CardHeader>
             <div>
               <CardTitle>{t('gateway.overview.recent.title')}</CardTitle>
-              <CardDescription>{t('gateway.overview.recent.description')}</CardDescription>
             </div>
             <Link
               to="/collections"
@@ -360,7 +387,7 @@ export function OverviewPage() {
               <ArrowRight className="size-3" />
             </Link>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-h-[324px]">
             {collections.isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, index) => (
@@ -393,11 +420,8 @@ export function OverviewPage() {
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-fg">{collection.name}</p>
                       <p className="mt-0.5 truncate text-[10px] text-faint">
-                        <ProtocolLabel
-                          type={collection.driverType}
-                          model={collection.driverModel}
-                        />{' '}
-                        · {formatRelative(collection.modTime)}
+                        {driverModelLabel(collection.driverModel) || collection.driverModel} ·{' '}
+                        {formatRelative(collection.modTime)}
                       </p>
                     </div>
                     <CollectStatusBadge
@@ -411,83 +435,6 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card className={overviewCardClass}>
-          <CardHeader>
-            <div>
-              <CardTitle>{t('gateway.overview.protocol.title')}</CardTitle>
-              <CardDescription>{t('gateway.overview.protocol.description')}</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {protocolBreakdown.length === 0 ? (
-              <p className="text-xs text-faint">{t('gateway.overview.protocol.empty')}</p>
-            ) : (
-              <div className="space-y-2.5">
-                {protocolBreakdown.map(([type, count]) => {
-                  const ratio = stats.total > 0 ? (count / stats.total) * 100 : 0
-                  return (
-                    <div key={type}>
-                      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                        <span className="text-fg">{driverTypeLabel(type)}</span>
-                        <span className="text-muted tabular">
-                          {count} · {Math.round(ratio)}%
-                        </span>
-                      </div>
-                      <ProgressBar value={ratio} />
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className={overviewCardClass}>
-          <CardHeader>
-            <div>
-              <CardTitle>{t('gateway.overview.operations.title')}</CardTitle>
-              <CardDescription>{t('gateway.overview.operations.description')}</CardDescription>
-            </div>
-            <Link
-              to="/logs"
-              className="inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-fg"
-            >
-              {t('gateway.overview.viewAll')}
-              <ArrowRight className="size-3" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {recentOperations.length === 0 ? (
-              <p className="text-xs text-faint">{t('gateway.overview.operations.empty')}</p>
-            ) : (
-              <div className="space-y-1">
-                {recentOperations.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between gap-2 rounded px-1.5 py-1.5 transition-colors hover:bg-surface-2"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className={
-                          entry.result === 'failure'
-                            ? 'size-1.5 shrink-0 rounded-full bg-danger'
-                            : 'size-1.5 shrink-0 rounded-full bg-emerald-500'
-                        }
-                      />
-                      <span className="truncate text-xs text-fg">{entry.target || '—'}</span>
-                      <Badge tone="neutral">
-                        {t(`gateway.logs.operation.action.${entry.action}`)}
-                      </Badge>
-                    </div>
-                    <span className="shrink-0 text-[10px] text-faint">
-                      {formatRelative(entry.time)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <Dialog
@@ -535,22 +482,5 @@ function SecretCopyButton({ value }: { value: string }) {
       {copied ? <Check className="size-3.5 text-primary" /> : <CopyIcon className="size-3.5" />}
       {copied ? <span>{t('common.action.copied')}</span> : null}
     </button>
-  )
-}
-
-function AttentionRow({ collection }: { collection: Collection }) {
-  return (
-    <Link
-      to={`/collections/${collection.id}`}
-      className="flex items-center justify-between gap-2 rounded border border-danger/20 bg-danger/5 px-2.5 py-2 transition-colors hover:border-danger/40"
-    >
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-fg">{collection.name}</p>
-        <p className="mt-0.5 truncate text-[10px] text-muted">
-          <ProtocolLabel type={collection.driverType} model={collection.driverModel} />
-        </p>
-      </div>
-      <CollectStatusBadge status={collection.collectStatus} error={collection.lastError} />
-    </Link>
   )
 }

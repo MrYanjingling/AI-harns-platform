@@ -17,6 +17,8 @@ type UpdateConnectorReq struct {
 type CreatePushGroupReq struct {
 	Name                         string   `json:"name"`
 	ConnectorID                  string   `json:"connectorId"`
+	DataTopic                    string   `json:"dataTopic"`
+	CommandTopic                 string   `json:"commandTopic"`
 	PushIntervalMs               int64    `json:"pushIntervalMs"`
 	AllCollections               bool     `json:"allCollections"`
 	CollectionIDs                []string `json:"collectionIds"`

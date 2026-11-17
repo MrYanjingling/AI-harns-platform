@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -152,4 +155,31 @@ func TestListGroupedAndFuzzyDriverType(t *testing.T) {
 	items, err = service.List(ctx, "%")
 	require.NoError(t, err)
 	assert.Empty(t, items)
+}
+
+func TestUploadPlugin(t *testing.T) {
+	service, store := newTestService(t)
+	service.pluginDir = t.TempDir()
+	created, err := service.Create(context.Background(), &v1.CreateDriverReq{
+		DriverType: "modbus",
+		Model:      "plugin-target",
+		PluginName: "plugin-target",
+		Schema:     json.RawMessage(`{"fields":[]}`),
+	})
+	require.NoError(t, err)
+
+	updated, err := service.UploadPlugin(context.Background(), created.ID, "libdriver.so", strings.NewReader("binary"))
+	require.NoError(t, err)
+	assert.Equal(t, "plugin-target", updated.PluginName)
+	data, err := os.ReadFile(filepath.Join(service.pluginDir, "plugin-target.so"))
+	require.NoError(t, err)
+	assert.Equal(t, "binary", string(data))
+
+	_, err = service.UploadPlugin(context.Background(), created.ID, "libdriver.txt", strings.NewReader("bad"))
+	require.Error(t, err)
+
+	builtin, err := store.GetByModel(context.Background(), "modbusTcp")
+	require.NoError(t, err)
+	_, err = service.UploadPlugin(context.Background(), builtin.ID, "libdriver.so", strings.NewReader("bad"))
+	require.Error(t, err)
 }

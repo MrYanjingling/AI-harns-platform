@@ -25,8 +25,8 @@ func TestCreateReqJSONUsesProtocolConfig(t *testing.T) {
 			DataType:   "float32",
 			Address:    "1!40001",
 			AccessMode: collection.AccessModeRead,
-			Rate:       1,
-			Precision:  2,
+			Rate:       testFloat64Pointer(1),
+			Precision:  testIntPointer(2),
 		}},
 	}
 
@@ -65,7 +65,7 @@ func TestNewCollection(t *testing.T) {
 	assert.Equal(t, uint64(500), created.CollectorCycleMs)
 	assert.Equal(t, "127.0.0.1:502", created.Location)
 	require.Len(t, created.Variables, 1)
-	assert.Equal(t, float64(1), created.Variables[0].Rate)
+	assert.Equal(t, float64(1), created.Variables[0].RateValue())
 }
 
 func TestConfigJSONRoundTrip(t *testing.T) {

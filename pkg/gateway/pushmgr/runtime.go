@@ -19,6 +19,7 @@ type connectorRuntime struct {
 	connector Connector
 	mu        sync.RWMutex
 	status    string
+	lastError string
 }
 
 func (c *connectorRuntime) setStatus(status string) {
@@ -42,29 +43,149 @@ func (c *connectorRuntime) getStatus() string {
 	return c.status
 }
 
-type groupRuntime struct {
-	group  *PushGroup
-	cancel context.CancelFunc
-	done   chan struct{}
+func (c *connectorRuntime) setRunning() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.status = ConnectorStatusRunning
+	c.lastError = ""
+	c.mu.Unlock()
 }
 
-// RuntimeManager owns connector connections and group push tickers.
+func (c *connectorRuntime) setError(err error) {
+	if c == nil {
+		return
+	}
+	message := "connector failed"
+	if err != nil {
+		message = err.Error()
+	}
+	c.mu.Lock()
+	c.status = ConnectorStatusError
+	c.lastError = message
+	c.mu.Unlock()
+}
+
+func (c *connectorRuntime) setStopped() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.status = ConnectorStatusStopped
+	c.lastError = ""
+	c.mu.Unlock()
+}
+
+func (c *connectorRuntime) getLastError() string {
+	if c == nil {
+		return ""
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.lastError
+}
+
+type groupRuntime struct {
+	group        *PushGroup
+	hub          *payloadHub
+	commands     *commandHub
+	cancel       context.CancelFunc
+	done         chan struct{}
+	mu           sync.RWMutex
+	running      bool
+	lastError    string
+	lastPushTime time.Time
+}
+
+func (g *groupRuntime) isRunning() bool {
+	if g == nil {
+		return false
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.running
+}
+
+func (g *groupRuntime) setRunning() {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.running = true
+	g.lastError = ""
+	g.mu.Unlock()
+}
+
+func (g *groupRuntime) setStopped() {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.running = false
+	g.lastError = ""
+	g.mu.Unlock()
+}
+
+func (g *groupRuntime) setError(err error) {
+	if g == nil {
+		return
+	}
+	message := "push failed"
+	if err != nil {
+		message = err.Error()
+	}
+	g.mu.Lock()
+	g.lastError = message
+	g.mu.Unlock()
+}
+
+func (g *groupRuntime) setPushSuccess(at time.Time) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.lastError = ""
+	g.lastPushTime = at
+	g.mu.Unlock()
+}
+
+func (g *groupRuntime) errorMessage() string {
+	if g == nil {
+		return ""
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.lastError
+}
+
+func (g *groupRuntime) pushTime() time.Time {
+	if g == nil {
+		return time.Time{}
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.lastPushTime
+}
+
 type RuntimeManager struct {
-	mu         sync.Mutex
-	source     CollectionSource
-	gatewayID  string
-	factories  map[string]ConnectorFactory
-	connectors map[string]*connectorRuntime
-	groups     map[string]*groupRuntime
+	mu            sync.Mutex
+	source        CollectionSource
+	gatewayID     string
+	factories     map[string]ConnectorFactory
+	connectors    map[string]*connectorRuntime
+	groups        map[string]*groupRuntime
+	subscriptions map[string]map[string]struct{}
 }
 
 func NewRuntimeManager(source CollectionSource, gatewayID string, factories ...ConnectorFactory) (*RuntimeManager, error) {
 	m := &RuntimeManager{
-		source:     source,
-		gatewayID:  gatewayID,
-		factories:  make(map[string]ConnectorFactory, len(factories)),
-		connectors: make(map[string]*connectorRuntime),
-		groups:     make(map[string]*groupRuntime),
+		source:        source,
+		gatewayID:     gatewayID,
+		factories:     make(map[string]ConnectorFactory, len(factories)),
+		connectors:    make(map[string]*connectorRuntime),
+		groups:        make(map[string]*groupRuntime),
+		subscriptions: make(map[string]map[string]struct{}),
 	}
 	for _, factory := range factories {
 		if factory == nil {
@@ -80,10 +201,14 @@ func NewRuntimeManager(source CollectionSource, gatewayID string, factories ...C
 
 func (m *RuntimeManager) Start(ctx context.Context, connectors []*ConnectorRecord, groups []*PushGroup) error {
 	for _, connector := range connectors {
-		m.UpsertConnector(ctx, connector)
+		if connector.RunState == ConnectorRunStateRunning {
+			m.UpsertConnector(ctx, connector)
+		} else {
+			_ = m.ReplaceConnector(ctx, connector, false)
+		}
 	}
 	for _, group := range groups {
-		m.upsertGroup(group)
+		m.UpsertGroup(group)
 	}
 	return nil
 }
@@ -92,7 +217,6 @@ func (m *RuntimeManager) UpsertConnector(ctx context.Context, record *ConnectorR
 	_ = m.ReplaceConnector(ctx, record, true)
 }
 
-// ReplaceConnector installs a connector runtime and optionally connects it.
 func (m *RuntimeManager) ReplaceConnector(ctx context.Context, record *ConnectorRecord, connect bool) error {
 	if m == nil || record == nil {
 		return fmt.Errorf("push connector is nil")
@@ -106,6 +230,9 @@ func (m *RuntimeManager) ReplaceConnector(ctx context.Context, record *Connector
 		return &ConnectorStartError{Reason: err.Error()}
 	}
 	runtime := &connectorRuntime{record: record, connector: connector, status: ConnectorStatusStopped}
+	if handler, ok := connector.(ConnectorErrorHandler); ok {
+		handler.SetErrorHandler(runtime.setError)
+	}
 	m.mu.Lock()
 	old := m.connectors[record.ID]
 	m.connectors[record.ID] = runtime
@@ -113,13 +240,11 @@ func (m *RuntimeManager) ReplaceConnector(ctx context.Context, record *Connector
 	if old != nil {
 		_ = old.connector.Close(ctx)
 	}
+	m.clearSubscriptions(record.ID)
 	if !connect {
 		return nil
 	}
-	if err := m.connectRuntime(ctx, runtime); err != nil {
-		return err
-	}
-	return nil
+	return m.connectRuntime(ctx, runtime)
 }
 
 func (m *RuntimeManager) connectRuntime(ctx context.Context, runtime *connectorRuntime) error {
@@ -128,12 +253,12 @@ func (m *RuntimeManager) connectRuntime(ctx context.Context, runtime *connectorR
 	}
 	runtime.setStatus(ConnectorStatusStopped)
 	if err := runtime.connector.Connect(ctx); err != nil {
+		runtime.setError(err)
 		return &ConnectorStartError{Reason: err.Error()}
 	}
-	if err := runtime.connector.SubscribeCommands(ctx, m.handleCommand); err != nil {
-		return &ConnectorStartError{Reason: err.Error()}
-	}
-	runtime.setStatus(ConnectorStatusRunning)
+	runtime.setRunning()
+	m.startGroupsForConnector(runtime.record.ID)
+	m.syncSubscriptions(runtime.record.ID)
 	return nil
 }
 
@@ -167,14 +292,14 @@ func (m *RuntimeManager) StopConnector(ctx context.Context, id string) error {
 		return ErrConnectorAlreadyStopped
 	}
 	err := runtime.connector.Close(ctx)
-	runtime.setStatus(ConnectorStatusStopped)
+	runtime.setStopped()
+	m.clearSubscriptions(id)
 	if err != nil {
 		return &ConnectorStopError{Reason: err.Error()}
 	}
 	return nil
 }
 
-// ConnectorStatus returns the live connector status.
 func (m *RuntimeManager) ConnectorStatus(id string) string {
 	if m == nil {
 		return ConnectorStatusStopped
@@ -185,32 +310,14 @@ func (m *RuntimeManager) ConnectorStatus(id string) string {
 	return runtime.getStatus()
 }
 
-func stopGroup(group *groupRuntime) {
-	if group == nil {
-		return
+func (m *RuntimeManager) ConnectorLastError(id string) string {
+	if m == nil {
+		return ""
 	}
-	group.cancel()
-	<-group.done
-}
-
-func (m *RuntimeManager) RemoveConnector(ctx context.Context, id string) {
 	m.mu.Lock()
-	current := m.connectors[id]
-	delete(m.connectors, id)
-	groups := make([]*groupRuntime, 0)
-	for groupID, group := range m.groups {
-		if group.group.ConnectorID == id {
-			groups = append(groups, group)
-			delete(m.groups, groupID)
-		}
-	}
+	runtime := m.connectors[id]
 	m.mu.Unlock()
-	for _, group := range groups {
-		stopGroup(group)
-	}
-	if current != nil {
-		_ = current.connector.Close(ctx)
-	}
+	return runtime.getLastError()
 }
 
 func (m *RuntimeManager) UpsertGroup(group *PushGroup) {
@@ -228,16 +335,260 @@ func (m *RuntimeManager) upsertGroup(group *PushGroup) {
 	m.mu.Lock()
 	old := m.groups[copied.ID]
 	m.mu.Unlock()
+
+	shouldRun := copied.RunState == ConnectorRunStateRunning && (old == nil || old.isRunning())
+	hub := newPayloadHub()
+	commands := newCommandHub()
 	if old != nil {
-		stopGroup(old)
+		stopGroupRuntime(old)
+		hub = old.hub
+		commands = old.commands
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	runtime := &groupRuntime{group: copied, cancel: cancel, done: done}
+	runtime := &groupRuntime{group: copied, hub: hub, commands: commands}
 	m.mu.Lock()
 	m.groups[copied.ID] = runtime
 	m.mu.Unlock()
-	go m.loop(ctx, copied.ID, done)
+
+	connectorID := copied.ConnectorID
+	if old != nil && old.group.ConnectorID != connectorID {
+		m.syncSubscriptions(old.group.ConnectorID)
+	}
+	if shouldRun {
+		if m.connectorRunning(connectorID) {
+			_ = m.startGroupRuntime(runtime)
+		}
+	}
+	m.syncSubscriptions(connectorID)
+}
+
+func (m *RuntimeManager) startGroupsForConnector(connectorID string) {
+	m.mu.Lock()
+	runtimes := make([]*groupRuntime, 0)
+	for _, runtime := range m.groups {
+		if runtime.group.ConnectorID == connectorID &&
+			runtime.group.RunState == ConnectorRunStateRunning &&
+			!runtime.isRunning() {
+			runtimes = append(runtimes, runtime)
+		}
+	}
+	m.mu.Unlock()
+	for _, runtime := range runtimes {
+		_ = m.startGroupRuntime(runtime)
+	}
+}
+
+func (m *RuntimeManager) connectorRunning(connectorID string) bool {
+	m.mu.Lock()
+	connector := m.connectors[connectorID]
+	m.mu.Unlock()
+	return connector != nil && connector.getStatus() == ConnectorStatusRunning
+}
+
+func (m *RuntimeManager) StartGroup(id string) error {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return ErrGroupNotFound
+	}
+	if runtime.group.RunState != ConnectorRunStateRunning {
+		return ErrGroupDisabled
+	}
+	connectorID := runtime.group.ConnectorID
+	m.mu.Lock()
+	connector := m.connectors[connectorID]
+	m.mu.Unlock()
+	if connector == nil || connector.getStatus() != ConnectorStatusRunning {
+		return ErrGroupConnectorNotRunning
+	}
+	if runtime.isRunning() {
+		runtime.setRunning()
+		m.syncSubscriptions(connectorID)
+		return nil
+	}
+	return m.startGroupRuntime(runtime)
+}
+
+func (m *RuntimeManager) startGroupRuntime(runtime *groupRuntime) error {
+	if runtime == nil {
+		return ErrGroupNotFound
+	}
+	runtime.mu.Lock()
+	if runtime.running {
+		runtime.mu.Unlock()
+		return nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	runtime.cancel = cancel
+	runtime.done = done
+	runtime.running = true
+	runtime.lastError = ""
+	runtime.mu.Unlock()
+	go m.loop(ctx, runtime.group.ID, done)
+	m.syncSubscriptions(runtime.group.ConnectorID)
+	return nil
+}
+
+func (m *RuntimeManager) GroupRunning(id string) bool {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	m.mu.Unlock()
+	return runtime != nil && runtime.isRunning()
+}
+
+func (m *RuntimeManager) RestartGroup(id string) error {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return ErrGroupNotFound
+	}
+	if runtime.group.RunState != ConnectorRunStateRunning {
+		return ErrGroupAlreadyStopped
+	}
+	connectorID := runtime.group.ConnectorID
+	if !m.connectorRunning(connectorID) {
+		return ErrGroupConnectorNotRunning
+	}
+	stopGroupRuntime(runtime)
+	return m.startGroupRuntime(runtime)
+}
+
+func (m *RuntimeManager) StopGroup(id string) error {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return ErrGroupNotFound
+	}
+	if !runtime.isRunning() {
+		return ErrGroupAlreadyStopped
+	}
+	connectorID := runtime.group.ConnectorID
+	stopGroupRuntime(runtime)
+	m.syncSubscriptions(connectorID)
+	return nil
+}
+
+func (m *RuntimeManager) GroupStatus(id string) string {
+	runtime, connector := m.groupSnapshot(id)
+	if runtime == nil || connector == nil {
+		return ConnectorStatusStopped
+	}
+	if runtime.group.RunState != ConnectorRunStateRunning || !runtime.isRunning() {
+		return ConnectorStatusStopped
+	}
+	if connector.getStatus() == ConnectorStatusError {
+		return ConnectorStatusError
+	}
+	if connector.getStatus() != ConnectorStatusRunning {
+		return ConnectorStatusStopped
+	}
+	if runtime.errorMessage() != "" {
+		return ConnectorStatusError
+	}
+	return ConnectorStatusRunning
+}
+
+func (m *RuntimeManager) GroupLastError(id string) string {
+	runtime, connector := m.groupSnapshot(id)
+	if runtime == nil || runtime.group.RunState != ConnectorRunStateRunning || !runtime.isRunning() {
+		return ""
+	}
+	if runtime.errorMessage() != "" {
+		return runtime.errorMessage()
+	}
+	if connector != nil {
+		return connector.getLastError()
+	}
+	return ""
+}
+
+func (m *RuntimeManager) GroupLastPushTime(id string) time.Time {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return time.Time{}
+	}
+	return runtime.pushTime()
+}
+
+func (m *RuntimeManager) groupSnapshot(id string) (*groupRuntime, *connectorRuntime) {
+	m.mu.Lock()
+	runtime := m.groups[id]
+	var connector *connectorRuntime
+	if runtime != nil {
+		connector = m.connectors[runtime.group.ConnectorID]
+	}
+	m.mu.Unlock()
+	return runtime, connector
+}
+
+func (m *RuntimeManager) SubscribePayloads(groupID string) (<-chan PushPayloadEvent, func(), error) {
+	m.mu.Lock()
+	runtime := m.groups[groupID]
+	m.mu.Unlock()
+	if runtime == nil {
+		return nil, nil, ErrGroupNotFound
+	}
+	ch, cancel := runtime.hub.Subscribe()
+	return ch, cancel, nil
+}
+
+func (m *RuntimeManager) SubscribeCommands(groupID string) (<-chan PushCommandEvent, func(), error) {
+	m.mu.Lock()
+	runtime := m.groups[groupID]
+	m.mu.Unlock()
+	if runtime == nil {
+		return nil, nil, ErrGroupNotFound
+	}
+	ch, cancel := runtime.commands.Subscribe()
+	return ch, cancel, nil
+}
+
+func stopGroupRuntime(group *groupRuntime) {
+	if group == nil {
+		return
+	}
+	group.mu.Lock()
+	cancel := group.cancel
+	done := group.done
+	group.cancel = nil
+	group.done = nil
+	group.running = false
+	group.lastError = ""
+	group.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
+}
+
+func (m *RuntimeManager) RemoveConnector(ctx context.Context, id string) {
+	m.mu.Lock()
+	current := m.connectors[id]
+	delete(m.connectors, id)
+	groups := make([]*groupRuntime, 0)
+	for groupID, runtime := range m.groups {
+		if runtime.group.ConnectorID == id {
+			groups = append(groups, runtime)
+			delete(m.groups, groupID)
+		}
+	}
+	delete(m.subscriptions, id)
+	m.mu.Unlock()
+	for _, group := range groups {
+		stopGroupRuntime(group)
+		group.hub.Close()
+		group.commands.Close()
+	}
+	if current != nil {
+		_ = current.connector.Close(ctx)
+	}
 }
 
 func (m *RuntimeManager) RemoveGroup(id string) {
@@ -246,64 +597,200 @@ func (m *RuntimeManager) RemoveGroup(id string) {
 	delete(m.groups, id)
 	m.mu.Unlock()
 	if current != nil {
-		stopGroup(current)
+		connectorID := current.group.ConnectorID
+		stopGroupRuntime(current)
+		current.hub.Close()
+		current.commands.Close()
+		m.syncSubscriptions(connectorID)
 	}
 }
 
 func (m *RuntimeManager) loop(ctx context.Context, groupID string, done chan struct{}) {
 	defer close(done)
-	m.mu.Lock()
-	current := m.groups[groupID]
-	m.mu.Unlock()
-	if current == nil {
-		return
-	}
-	interval := time.Duration(current.group.PushIntervalMs) * time.Millisecond
-	if interval <= 0 {
-		interval = time.Duration(DefaultPushIntervalMs) * time.Millisecond
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
 	for {
+		m.mu.Lock()
+		current := m.groups[groupID]
+		m.mu.Unlock()
+		if current == nil {
+			return
+		}
+		interval := time.Duration(current.group.PushIntervalMs) * time.Millisecond
+		if interval <= 0 {
+			interval = time.Duration(DefaultPushIntervalMs) * time.Millisecond
+		}
+		timer := time.NewTimer(interval)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			m.pushGroup(ctx, groupID)
 		}
 	}
 }
 
 func (m *RuntimeManager) pushGroup(ctx context.Context, groupID string) {
-	m.mu.Lock()
-	groupRuntime := m.groups[groupID]
-	m.mu.Unlock()
-	if groupRuntime == nil {
+	runtime, connector := m.groupSnapshot(groupID)
+	if runtime == nil || connector == nil || !runtime.isRunning() {
 		return
 	}
-	group := groupRuntime.group
-	m.mu.Lock()
-	connectorRuntime := m.connectors[group.ConnectorID]
-	m.mu.Unlock()
-	if connectorRuntime == nil || connectorRuntime.connector == nil || connectorRuntime.getStatus() != ConnectorStatusRunning {
+	if connector.getStatus() != ConnectorStatusRunning {
 		return
 	}
+	group := runtime.group
 	snapshots, err := m.source.Snapshots(ctx, group.AllCollections, group.CollectionIDs)
 	if err != nil {
+		runtime.setError(err)
 		logging.ErrorS(err, "Failed to snapshot collections for push", "groupId", group.ID)
 		return
 	}
 	messages := buildPropertyMessages(snapshots, group.MaxCollectionsPerPushMessage)
+	if len(messages) == 0 {
+		return
+	}
+	lastSuccess := time.Time{}
 	for index, message := range messages {
 		data, err := json.Marshal(message)
 		if err != nil {
+			runtime.setError(err)
 			logging.ErrorS(err, "Failed to marshal push payload", "groupId", group.ID, "batch", index)
-			continue
+			return
 		}
-		if err := connectorRuntime.connector.Publish(ctx, data); err != nil {
-			logging.ErrorS(err, "Failed to publish push payload", "groupId", group.ID, "connectorId", group.ConnectorID, "batch", index)
+		started := time.Now()
+		publishErr := connector.connector.Publish(ctx, Message{
+			Topic:   group.DataTopic,
+			Key:     group.ID,
+			Payload: data,
+		})
+		event := PushPayloadEvent{
+			GroupID:       group.ID,
+			ConnectorID:   group.ConnectorID,
+			ConnectorType: connector.record.Type,
+			Topic:         group.DataTopic,
+			Key:           group.ID,
+			Time:          started.UTC(),
+			DurationMs:    time.Since(started).Milliseconds(),
+			Payload:       json.RawMessage(data),
+		}
+		if publishErr != nil {
+			event.Error = publishErr.Error()
+			runtime.hub.Publish(event)
+			runtime.setError(publishErr)
+			connector.setError(publishErr)
+			logging.ErrorS(publishErr, "Failed to publish push payload", "groupId", group.ID, "connectorId", group.ConnectorID, "batch", index)
+			return
+		}
+		runtime.hub.Publish(event)
+		lastSuccess = time.Now().UTC()
+	}
+	if !lastSuccess.IsZero() {
+		runtime.setPushSuccess(lastSuccess)
+	}
+}
+
+func (m *RuntimeManager) syncSubscriptions(connectorID string) {
+	if connectorID == "" {
+		return
+	}
+	m.mu.Lock()
+	connector := m.connectors[connectorID]
+	desired := make(map[string]struct{})
+	if connector != nil && connector.getStatus() == ConnectorStatusRunning {
+		for _, runtime := range m.groups {
+			if runtime.group.ConnectorID != connectorID || !runtime.isRunning() {
+				continue
+			}
+			topic := runtime.group.CommandTopic
+			if topic != "" {
+				desired[topic] = struct{}{}
+			}
 		}
 	}
+	current := m.subscriptions[connectorID]
+	if current == nil {
+		current = make(map[string]struct{})
+	}
+	m.mu.Unlock()
+	if connector == nil {
+		return
+	}
+	for topic := range desired {
+		if _, ok := current[topic]; ok {
+			continue
+		}
+		if err := connector.connector.Subscribe(context.Background(), topic, m.commandHandler(connectorID, topic)); err != nil {
+			connector.setError(err)
+			logging.ErrorS(err, "Failed to subscribe push command topic", "connectorId", connectorID, "topic", topic)
+			continue
+		}
+		m.mu.Lock()
+		if m.subscriptions[connectorID] == nil {
+			m.subscriptions[connectorID] = make(map[string]struct{})
+		}
+		m.subscriptions[connectorID][topic] = struct{}{}
+		m.mu.Unlock()
+	}
+	for topic := range current {
+		if _, ok := desired[topic]; ok {
+			continue
+		}
+		_ = connector.connector.Unsubscribe(context.Background(), topic)
+		m.mu.Lock()
+		delete(m.subscriptions[connectorID], topic)
+		m.mu.Unlock()
+	}
+}
+
+func (m *RuntimeManager) clearSubscriptions(connectorID string) {
+	m.mu.Lock()
+	delete(m.subscriptions, connectorID)
+	m.mu.Unlock()
+}
+
+func (m *RuntimeManager) commandHandler(connectorID, topic string) CommandHandler {
+	return func(ctx context.Context, payload []byte) {
+		m.publishCommand(connectorID, topic, payload)
+		m.handleCommand(ctx, payload)
+	}
+}
+
+func (m *RuntimeManager) publishCommand(connectorID, topic string, payload []byte) {
+	now := time.Now().UTC()
+	m.mu.Lock()
+	connectorType := ""
+	if connector := m.connectors[connectorID]; connector != nil {
+		connectorType = connector.connector.Type()
+	}
+	groups := make([]*groupRuntime, 0)
+	for _, runtime := range m.groups {
+		if runtime.group.ConnectorID == connectorID && runtime.group.CommandTopic == topic {
+			groups = append(groups, runtime)
+		}
+	}
+	m.mu.Unlock()
+
+	raw := normalizeCommandPayload(payload)
+	for _, runtime := range groups {
+		runtime.commands.Publish(PushCommandEvent{
+			GroupID:       runtime.group.ID,
+			ConnectorID:   connectorID,
+			ConnectorType: connectorType,
+			Topic:         topic,
+			Time:          now,
+			Payload:       append(json.RawMessage(nil), raw...),
+		})
+	}
+}
+
+func normalizeCommandPayload(payload []byte) json.RawMessage {
+	if json.Valid(payload) {
+		return append(json.RawMessage(nil), payload...)
+	}
+	encoded, err := json.Marshal(string(payload))
+	if err != nil {
+		return json.RawMessage(`null`)
+	}
+	return encoded
 }
 
 func (m *RuntimeManager) handleCommand(ctx context.Context, payload []byte) {
@@ -348,9 +835,12 @@ func (m *RuntimeManager) Close(ctx context.Context) {
 	}
 	m.groups = make(map[string]*groupRuntime)
 	m.connectors = make(map[string]*connectorRuntime)
+	m.subscriptions = make(map[string]map[string]struct{})
 	m.mu.Unlock()
 	for _, group := range groups {
-		stopGroup(group)
+		stopGroupRuntime(group)
+		group.hub.Close()
+		group.commands.Close()
 	}
 	for _, connector := range connectors {
 		_ = connector.connector.Close(ctx)

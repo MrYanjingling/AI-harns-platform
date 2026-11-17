@@ -510,7 +510,11 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 		}
 		return nil, response.ErrInternal(err)
 	}
-	return &v1.AddVariablesVo{Added: int(added), Variables: variables}, nil
+	result := make([]*v1.VariableVo, 0, len(variables))
+	for _, variable := range variables {
+		result = append(result, toVariableVo(variable))
+	}
+	return &v1.AddVariablesVo{Added: int(added), Variables: result}, nil
 }
 
 // UpdateVariables updates existing variables in one request; names are immutable.

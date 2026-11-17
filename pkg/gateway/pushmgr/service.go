@@ -16,13 +16,23 @@ import (
 )
 
 type Service struct {
-	store   *Store
-	source  CollectionSource
-	runtime *RuntimeManager
+	store     *Store
+	source    CollectionSource
+	runtime   *RuntimeManager
+	factories map[string]ConnectorFactory
 }
 
 func NewService(store *Store, source CollectionSource, runtime *RuntimeManager) *Service {
-	return &Service{store: store, source: source, runtime: runtime}
+	factories := map[string]ConnectorFactory{
+		ConnectorTypeMQTT:  NewMQTTFactory(),
+		ConnectorTypeKafka: NewKafkaFactory(),
+	}
+	if runtime != nil {
+		for connectorType, factory := range runtime.factories {
+			factories[connectorType] = factory
+		}
+	}
+	return &Service{store: store, source: source, runtime: runtime, factories: factories}
 }
 
 func (s *Service) StartRuntime(ctx context.Context) error {
@@ -46,9 +56,9 @@ func (s *Service) Close(ctx context.Context) {
 	}
 }
 
-func (s *Service) ListConnectors(ctx context.Context, q apis.PageQuery, keyword string) (*apis.PageResp[*v1.ConnectorVo], error) {
+func (s *Service) ListConnectors(ctx context.Context, q apis.PageQuery, keyword, connectorType string) (*apis.PageResp[*v1.ConnectorVo], error) {
 	q.Normalize()
-	items, total, err := s.store.ListConnectors(ctx, q, keyword)
+	items, total, err := s.store.ListConnectors(ctx, q, keyword, connectorType)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +81,7 @@ func (s *Service) GetConnector(ctx context.Context, id string) (*v1.ConnectorVo,
 }
 
 func (s *Service) CreateConnector(ctx context.Context, req *v1.CreateConnectorReq) (*v1.ConnectorVo, error) {
-	if err := validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
+	if err := s.validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
@@ -84,6 +94,7 @@ func (s *Service) CreateConnector(ctx context.Context, req *v1.CreateConnectorRe
 		Type:        connectorType,
 		Name:        strings.TrimSpace(req.Name),
 		PushConfig:  req.PushConfig,
+		RunState:    ConnectorRunStateRunning,
 		Version:     1,
 		CreatedTime: now,
 		UpdatedTime: now,
@@ -105,7 +116,7 @@ func (s *Service) UpdateConnector(ctx context.Context, id string, req *v1.Update
 	if err != nil {
 		return nil, err
 	}
-	if err := validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
+	if err := s.validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
 		return nil, err
 	}
 	item.Type = strings.ToLower(strings.TrimSpace(req.Type))
@@ -116,16 +127,12 @@ func (s *Service) UpdateConnector(ctx context.Context, id string, req *v1.Update
 	item.PushConfig = req.PushConfig
 	item.Version++
 	item.UpdatedTime = time.Now().UTC()
-	wasRunning := s.runtime != nil && s.runtime.ConnectorStatus(id) == ConnectorStatusRunning
 	if err := s.store.UpdateConnector(ctx, item); err != nil {
 		return nil, err
 	}
 	if s.runtime != nil {
-		if wasRunning {
-			_ = s.runtime.ReplaceConnector(ctx, item, true)
-		} else {
-			_ = s.runtime.ReplaceConnector(ctx, item, false)
-		}
+		connect := item.RunState == ConnectorRunStateRunning
+		_ = s.runtime.ReplaceConnector(ctx, item, connect)
 	}
 	return s.connectorVO(item), nil
 }
@@ -155,26 +162,37 @@ func (s *Service) StartConnector(ctx context.Context, id string) (string, error)
 	if s.runtime == nil {
 		return "", &ConnectorStartError{Reason: "push runtime is not initialized"}
 	}
+	item.RunState = ConnectorRunStateRunning
+	item.Version++
+	item.UpdatedTime = time.Now().UTC()
+	if err := s.store.UpdateConnector(ctx, item); err != nil {
+		return ConnectorStatusError, err
+	}
 	if s.runtime.ConnectorStatus(id) == ConnectorStatusRunning {
 		return ConnectorStatusRunning, ErrConnectorAlreadyRunning
 	}
 	if err := s.runtime.ReplaceConnector(ctx, item, true); err != nil {
-		return ConnectorStatusStopped, err
+		return ConnectorStatusError, err
 	}
 	return ConnectorStatusRunning, nil
 }
 
 func (s *Service) StopConnector(ctx context.Context, id string) (string, error) {
-	if _, err := s.store.GetConnector(ctx, id); errors.Is(err, sql.ErrNoRows) {
+	item, err := s.store.GetConnector(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrConnectorNotFound
-	} else if err != nil {
+	}
+	if err != nil {
 		return "", err
 	}
-	if s.runtime == nil {
-		return ConnectorStatusStopped, nil
+	item.RunState = ConnectorRunStateStopped
+	item.Version++
+	item.UpdatedTime = time.Now().UTC()
+	if err := s.store.UpdateConnector(ctx, item); err != nil {
+		return ConnectorStatusError, err
 	}
-	if s.runtime.ConnectorStatus(id) == ConnectorStatusStopped {
-		return ConnectorStatusStopped, ErrConnectorAlreadyStopped
+	if s.runtime == nil || s.runtime.ConnectorStatus(id) == ConnectorStatusStopped {
+		return ConnectorStatusStopped, nil
 	}
 	if err := s.runtime.StopConnector(ctx, id); err != nil {
 		return ConnectorStatusStopped, err
@@ -182,15 +200,35 @@ func (s *Service) StopConnector(ctx context.Context, id string) (string, error) 
 	return ConnectorStatusStopped, nil
 }
 
-func (s *Service) ListGroups(ctx context.Context, q apis.PageQuery, keyword string) (*apis.PageResp[*v1.PushGroupVo], error) {
+func (s *Service) RestartConnector(ctx context.Context, id string) (string, error) {
+	item, err := s.store.GetConnector(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrConnectorNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if item.RunState != ConnectorRunStateRunning {
+		return ConnectorStatusStopped, ErrConnectorAlreadyStopped
+	}
+	if s.runtime == nil {
+		return ConnectorStatusError, &ConnectorStartError{Reason: "push runtime is not initialized"}
+	}
+	if err := s.runtime.ReplaceConnector(ctx, item, true); err != nil {
+		return ConnectorStatusError, err
+	}
+	return ConnectorStatusRunning, nil
+}
+
+func (s *Service) ListGroups(ctx context.Context, q apis.PageQuery, keyword, connectorID string) (*apis.PageResp[*v1.PushGroupVo], error) {
 	q.Normalize()
-	items, total, err := s.store.ListGroups(ctx, q, keyword)
+	items, total, err := s.store.ListGroups(ctx, q, keyword, connectorID)
 	if err != nil {
 		return nil, err
 	}
 	list := make([]*v1.PushGroupVo, 0, len(items))
 	for _, item := range items {
-		list = append(list, groupVO(item))
+		list = append(list, s.groupVO(item))
 	}
 	return apis.NewPageResp(list, total, q), nil
 }
@@ -203,16 +241,17 @@ func (s *Service) GetGroup(ctx context.Context, id string) (*v1.PushGroupVo, err
 	if err != nil {
 		return nil, err
 	}
-	return groupVO(item), nil
+	return s.groupVO(item), nil
 }
 
 func (s *Service) CreateGroup(ctx context.Context, req *v1.CreatePushGroupReq) (*v1.PushGroupVo, error) {
-	item, err := s.buildGroup(ctx, req.Name, req.ConnectorID, req.PushIntervalMs, req.AllCollections, req.CollectionIDs, req.MaxCollectionsPerPushMessage)
+	item, err := s.buildGroup(ctx, req.Name, req.ConnectorID, req.DataTopic, req.CommandTopic, req.PushIntervalMs, req.AllCollections, req.CollectionIDs, req.MaxCollectionsPerPushMessage)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
 	item.ID = ulid.Make().String()
+	item.RunState = ConnectorRunStateRunning
 	item.Version = 1
 	item.CreatedTime = now
 	item.UpdatedTime = now
@@ -222,7 +261,7 @@ func (s *Service) CreateGroup(ctx context.Context, req *v1.CreatePushGroupReq) (
 	if s.runtime != nil {
 		s.runtime.UpsertGroup(item)
 	}
-	return groupVO(item), nil
+	return s.groupVO(item), nil
 }
 
 func (s *Service) UpdateGroup(ctx context.Context, id string, req *v1.UpdatePushGroupReq) (*v1.PushGroupVo, error) {
@@ -233,12 +272,14 @@ func (s *Service) UpdateGroup(ctx context.Context, id string, req *v1.UpdatePush
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.buildGroup(ctx, req.Name, req.ConnectorID, req.PushIntervalMs, req.AllCollections, req.CollectionIDs, req.MaxCollectionsPerPushMessage)
+	updated, err := s.buildGroup(ctx, req.Name, req.ConnectorID, req.DataTopic, req.CommandTopic, req.PushIntervalMs, req.AllCollections, req.CollectionIDs, req.MaxCollectionsPerPushMessage)
 	if err != nil {
 		return nil, err
 	}
 	current.Name = updated.Name
 	current.ConnectorID = updated.ConnectorID
+	current.DataTopic = updated.DataTopic
+	current.CommandTopic = updated.CommandTopic
 	current.PushIntervalMs = updated.PushIntervalMs
 	current.AllCollections = updated.AllCollections
 	current.CollectionIDs = updated.CollectionIDs
@@ -251,7 +292,21 @@ func (s *Service) UpdateGroup(ctx context.Context, id string, req *v1.UpdatePush
 	if s.runtime != nil {
 		s.runtime.UpsertGroup(current)
 	}
-	return groupVO(current), nil
+	return s.groupVO(current), nil
+}
+
+func (s *Service) SubscribePayloads(groupID string) (<-chan PushPayloadEvent, func(), error) {
+	if s == nil || s.runtime == nil {
+		return nil, nil, ErrGroupNotFound
+	}
+	return s.runtime.SubscribePayloads(groupID)
+}
+
+func (s *Service) SubscribeCommands(groupID string) (<-chan PushCommandEvent, func(), error) {
+	if s == nil || s.runtime == nil {
+		return nil, nil, ErrGroupNotFound
+	}
+	return s.runtime.SubscribeCommands(groupID)
 }
 
 func (s *Service) DeleteGroup(ctx context.Context, id string) error {
@@ -264,12 +319,93 @@ func (s *Service) DeleteGroup(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) buildGroup(ctx context.Context, name, connectorID string, intervalMs int64, all bool, collectionIDs []string, maxPerMessage *int) (*PushGroup, error) {
+func (s *Service) StartGroup(ctx context.Context, id string) (string, error) {
+	item, err := s.store.GetGroup(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ConnectorStatusStopped, ErrGroupNotFound
+	}
+	if err != nil {
+		return ConnectorStatusStopped, err
+	}
+	if s.runtime == nil {
+		return ConnectorStatusStopped, ErrGroupNotFound
+	}
+	if s.runtime.ConnectorStatus(item.ConnectorID) != ConnectorStatusRunning {
+		return ConnectorStatusStopped, ErrGroupConnectorNotRunning
+	}
+	item.RunState = ConnectorRunStateRunning
+	item.Version++
+	item.UpdatedTime = time.Now().UTC()
+	if err := s.store.UpdateGroup(ctx, item); err != nil {
+		return ConnectorStatusError, err
+	}
+	s.runtime.UpsertGroup(item)
+	if err := s.runtime.StartGroup(id); err != nil {
+		return ConnectorStatusError, err
+	}
+	return ConnectorStatusRunning, nil
+}
+
+func (s *Service) StopGroup(ctx context.Context, id string) (string, error) {
+	item, err := s.store.GetGroup(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ConnectorStatusStopped, ErrGroupNotFound
+	}
+	if err != nil {
+		return ConnectorStatusStopped, err
+	}
+	item.RunState = ConnectorRunStateStopped
+	item.Version++
+	item.UpdatedTime = time.Now().UTC()
+	if err := s.store.UpdateGroup(ctx, item); err != nil {
+		return ConnectorStatusError, err
+	}
+	if s.runtime == nil || !s.runtime.GroupRunning(id) {
+		if s.runtime != nil {
+			s.runtime.UpsertGroup(item)
+		}
+		return ConnectorStatusStopped, nil
+	}
+	if err := s.runtime.StopGroup(id); err != nil {
+		return ConnectorStatusStopped, err
+	}
+	return ConnectorStatusStopped, nil
+}
+
+func (s *Service) RestartGroup(id string) (string, error) {
+	item, err := s.store.GetGroup(context.Background(), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ConnectorStatusStopped, ErrGroupNotFound
+	}
+	if err != nil {
+		return ConnectorStatusStopped, err
+	}
+	if item.RunState != ConnectorRunStateRunning {
+		return ConnectorStatusStopped, ErrGroupAlreadyStopped
+	}
+	if s.runtime == nil {
+		return ConnectorStatusStopped, ErrGroupNotFound
+	}
+	if s.runtime.ConnectorStatus(item.ConnectorID) != ConnectorStatusRunning {
+		return ConnectorStatusStopped, ErrGroupConnectorNotRunning
+	}
+	if err := s.runtime.RestartGroup(id); err != nil {
+		return ConnectorStatusError, err
+	}
+	return ConnectorStatusRunning, nil
+}
+
+func (s *Service) buildGroup(ctx context.Context, name, connectorID, dataTopic, commandTopic string, intervalMs int64, all bool, collectionIDs []string, maxPerMessage *int) (*PushGroup, error) {
 	name = strings.TrimSpace(name)
 	connectorID = strings.TrimSpace(connectorID)
+	dataTopic = strings.TrimSpace(dataTopic)
+	commandTopic = strings.TrimSpace(commandTopic)
 	issues := make([]validation.FieldIssue, 0)
 	if name == "" {
 		issues = append(issues, validation.FieldIssue{Field: "name", MsgID: "validate.push_group_name_required"})
+	}
+	if dataTopic == "" {
+		issues = append(issues, validation.FieldIssue{Field: "dataTopic", MsgID: "validate.push_group_data_topic_required"})
 	}
 	if connectorID == "" {
 		issues = append(issues, validation.FieldIssue{Field: "connectorId", MsgID: "validate.push_group_connector_required"})
@@ -330,6 +466,8 @@ func (s *Service) buildGroup(ctx context.Context, name, connectorID string, inte
 	return &PushGroup{
 		Name:                         name,
 		ConnectorID:                  connectorID,
+		DataTopic:                    dataTopic,
+		CommandTopic:                 commandTopic,
 		PushIntervalMs:               intervalMs,
 		AllCollections:               all,
 		CollectionIDs:                collectionIDs,
@@ -337,7 +475,7 @@ func (s *Service) buildGroup(ctx context.Context, name, connectorID string, inte
 	}, nil
 }
 
-func validateConnectorRequest(typ, name string, raw json.RawMessage) error {
+func (s *Service) validateConnectorRequest(typ, name string, raw json.RawMessage) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
 	if typ == "" {
 		typ = ConnectorTypeMQTT
@@ -347,19 +485,11 @@ func validateConnectorRequest(typ, name string, raw json.RawMessage) error {
 	if name == "" {
 		issues = append(issues, validation.FieldIssue{Field: "name", MsgID: "validate.push_connector_name_required"})
 	}
-	switch typ {
-	case ConnectorTypeMQTT:
-		var config MQTTConfig
-		if len(raw) == 0 || json.Unmarshal(raw, &config) != nil {
-			issues = append(issues, validation.FieldIssue{Field: "pushConfig", MsgID: "validate.push_connector_config_invalid"})
-		} else {
-			config.Normalize("")
-			if err := config.Validate(); err != nil {
-				issues = append(issues, validation.FieldIssue{Field: "pushConfig", MsgID: "validate.push_connector_config_invalid", Args: []interface{}{err.Error()}})
-			}
-		}
-	default:
+	factory, ok := s.factories[typ]
+	if !ok {
 		issues = append(issues, validation.FieldIssue{Field: "type", MsgID: "validate.push_connector_type_invalid"})
+	} else if err := factory.Validate(raw); err != nil {
+		issues = append(issues, validation.FieldIssue{Field: "pushConfig", MsgID: "validate.push_connector_config_invalid", Args: []interface{}{err.Error()}})
 	}
 	if len(issues) > 0 {
 		return &validation.ValidationError{Issues: issues}
@@ -372,29 +502,50 @@ func (s *Service) connectorVO(item *ConnectorRecord) *v1.ConnectorVo {
 		return nil
 	}
 	status := ConnectorStatusStopped
+	lastError := ""
 	if s != nil && s.runtime != nil {
 		status = s.runtime.ConnectorStatus(item.ID)
+		lastError = s.runtime.ConnectorLastError(item.ID)
 	}
 	return &v1.ConnectorVo{
 		ID:          item.ID,
 		Type:        item.Type,
 		Name:        item.Name,
 		PushConfig:  item.PushConfig,
+		RunState:    item.RunState,
+		GroupCount:  item.GroupCount,
 		Status:      status,
+		LastError:   lastError,
 		Version:     item.Version,
 		CreatedTime: item.CreatedTime,
 		UpdatedTime: item.UpdatedTime,
 	}
 }
 
-func groupVO(item *PushGroup) *v1.PushGroupVo {
+func (s *Service) groupVO(item *PushGroup) *v1.PushGroupVo {
 	if item == nil {
 		return nil
+	}
+	status := ConnectorStatusStopped
+	lastError := ""
+	var lastPushTime *time.Time
+	if s != nil && s.runtime != nil {
+		status = s.runtime.GroupStatus(item.ID)
+		lastError = s.runtime.GroupLastError(item.ID)
+		if value := s.runtime.GroupLastPushTime(item.ID); !value.IsZero() {
+			lastPushTime = &value
+		}
 	}
 	return &v1.PushGroupVo{
 		ID:                           item.ID,
 		Name:                         item.Name,
 		ConnectorID:                  item.ConnectorID,
+		DataTopic:                    item.DataTopic,
+		CommandTopic:                 item.CommandTopic,
+		RunState:                     item.RunState,
+		Status:                       status,
+		LastError:                    lastError,
+		LastPushTime:                 lastPushTime,
 		PushIntervalMs:               item.PushIntervalMs,
 		AllCollections:               item.AllCollections,
 		CollectionIDs:                item.CollectionIDs,

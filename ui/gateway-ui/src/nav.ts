@@ -14,6 +14,7 @@ import {
   Settings2,
   Terminal,
   Users,
+  Boxes,
 } from 'lucide-react'
 import type { NavSection } from '@harns/core'
 
@@ -75,6 +76,13 @@ export function createGatewayNav(base = ''): NavSection[] {
               labelKey: 'gateway.nav.push.instance',
               hintKey: 'gateway.nav.pushHint',
               icon: icon(PlugZap),
+              end: true,
+            },
+            {
+              to: `${base}/push/groups`,
+              labelKey: 'gateway.nav.push.groups',
+              hintKey: 'gateway.nav.push.groupsHint',
+              icon: icon(Boxes),
             },
           ],
         },

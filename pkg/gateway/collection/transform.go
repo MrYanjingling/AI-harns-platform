@@ -14,12 +14,13 @@ func ApplyTransform(value any, variable *Variable) any {
 	if !ok {
 		return value
 	}
-	if variable.Rate != 0 && variable.Rate != 1 {
-		number *= variable.Rate
+	rate := variable.RateValue()
+	if rate != 0 && rate != 1 {
+		number *= rate
 	}
-	number += variable.Offset
-	if variable.Precision > 0 {
-		factor := math.Pow10(variable.Precision)
+	number += variable.OffsetValue()
+	if precision := variable.PrecisionValue(); precision > 0 {
+		factor := math.Pow10(precision)
 		number = math.Round(number*factor) / factor
 	}
 	switch strings.ToLower(variable.DataType) {

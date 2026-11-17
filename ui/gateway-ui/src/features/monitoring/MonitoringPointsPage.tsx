@@ -43,11 +43,12 @@ function formatValue(value: unknown): string {
 }
 
 function variableAddress(variable: CollectionVariable): string {
+  if (variable.isCalculated) return variable.expression || '—'
   return variable.address || '—'
 }
 
-function displayNumber(value: number | undefined): string {
-  return value === undefined ? '—' : String(value)
+function displayNumber(value: number | null | undefined): string {
+  return value === undefined || value === null ? '—' : String(value)
 }
 
 function accessModeLabel(mode: AccessMode, t: (key: string) => string): string {
@@ -150,8 +151,7 @@ export function MonitoringPointsPage() {
     order: 64,
     name: 180,
     dataType: 100,
-    address: 180,
-    expression: 200,
+    address: 240,
     bits: 64,
     precision: 64,
     rate: 64,
@@ -376,7 +376,7 @@ export function MonitoringPointsPage() {
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
           {collections.isLoading || variables.isLoading ? (
-            <TableSkeleton rows={6} cols={12} />
+            <TableSkeleton rows={6} cols={11} />
           ) : collections.isError ? (
             <div className="p-5">
               <ErrorState
@@ -411,7 +411,6 @@ export function MonitoringPointsPage() {
                 <col style={{ width: widths.name }} />
                 <col style={{ width: widths.dataType }} />
                 <col style={{ width: widths.address }} />
-                <col style={{ width: widths.expression }} />
                 <col style={{ width: widths.bits }} />
                 <col style={{ width: widths.precision }} />
                 <col style={{ width: widths.rate }} />
@@ -439,18 +438,10 @@ export function MonitoringPointsPage() {
                     />
                   </GatewayTH>
                   <GatewayTH>
-                    {t('gateway.variable.address')}
+                    {t('gateway.monitoring.addressExpression')}
                     <ColumnResizeHandle
                       column="address"
                       width={widths.address}
-                      onResize={resize}
-                    />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.variable.expression')}
-                    <ColumnResizeHandle
-                      column="expression"
-                      width={widths.expression}
                       onResize={resize}
                     />
                   </GatewayTH>
@@ -514,16 +505,11 @@ export function MonitoringPointsPage() {
                       <span className="font-mono text-muted">{variable.dataType}</span>
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="block truncate font-mono text-muted">
-                        {variableAddress(variable)}
-                      </span>
-                    </GatewayTD>
-                    <GatewayTD>
                       <span
                         className="block truncate font-mono text-muted"
-                        title={variable.expression || undefined}
+                        title={variableAddress(variable)}
                       >
-                        {variable.expression || '—'}
+                        {variableAddress(variable)}
                       </span>
                     </GatewayTD>
                     <GatewayTD>{displayNumber(variable.bits)}</GatewayTD>

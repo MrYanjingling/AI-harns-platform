@@ -9,7 +9,8 @@ import { OverviewBreadcrumbAction } from '@/features/overview/OverviewBreadcrumb
 import { OverviewPage } from '@/features/overview/OverviewPage'
 import { MonitoringPointsPage } from '@/features/monitoring/MonitoringPointsPage'
 import { FrameAnalysisPage } from '@/features/monitoring/FrameAnalysisPage'
-import { PushPage } from '@/features/push/PushPage'
+import { ConnectorsPage } from '@/features/push/ConnectorsPage'
+import { PushGroupsPage } from '@/features/push/PushGroupsPage'
 import { AboutPage } from '@/features/system/AboutPage'
 import { UsersPage } from '@/features/system/UsersPage'
 
@@ -44,8 +45,13 @@ export const gatewayRoutes: RouteObject[] = [
       },
       {
         path: 'push',
-        element: <PushPage />,
+        element: <ConnectorsPage />,
         handle: { titleKey: 'gateway.title.push' },
+      },
+      {
+        path: 'push/groups',
+        element: <PushGroupsPage />,
+        handle: { titleKey: 'gateway.title.pushGroups' },
       },
       {
         path: 'drivers',

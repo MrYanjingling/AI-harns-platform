@@ -48,6 +48,8 @@ interface ListQuery {
   keyword?: string
   driverType?: string
   driverModel?: string
+  type?: string
+  connectorId?: string
 }
 
 /* ---------------- 采集器 ---------------- */
@@ -196,16 +198,26 @@ export function deleteDriver(id: string): Promise<null> {
   return gatewayData<null>(`/drivers/${id}`, { method: 'DELETE' })
 }
 
+export function uploadDriverPlugin(id: string, file: File): Promise<Driver> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return gatewayData<Driver>(`/drivers/${id}/plugin`, {
+    method: 'POST',
+    formData,
+  })
+}
+
 /* ---------------- 推送 ---------------- */
 
 export function listPushConnectors(
-  query: Pick<ListQuery, 'page' | 'pageSize' | 'keyword'> = {},
+  query: Pick<ListQuery, 'page' | 'pageSize' | 'keyword' | 'type'> = {},
 ): Promise<PageResp<PushConnector>> {
   return gatewayData<PageResp<PushConnector>>(
     `/push/connectors${buildQuery({
       page: query.page,
       pageSize: query.pageSize,
       keyword: query.keyword,
+      type: query.type,
     })}`,
   )
 }
@@ -246,14 +258,21 @@ export function stopPushConnector(id: string): Promise<{ status: string }> {
   })
 }
 
+export function restartPushConnector(id: string): Promise<{ status: string }> {
+  return gatewayData<{ status: string }>(`/push/connectors/${id}/restart`, {
+    method: 'POST',
+  })
+}
+
 export function listPushGroups(
-  query: Pick<ListQuery, 'page' | 'pageSize' | 'keyword'> = {},
+  query: Pick<ListQuery, 'page' | 'pageSize' | 'keyword' | 'connectorId'> = {},
 ): Promise<PageResp<PushGroup>> {
   return gatewayData<PageResp<PushGroup>>(
     `/push/groups${buildQuery({
       page: query.page,
       pageSize: query.pageSize,
       keyword: query.keyword,
+      connectorId: query.connectorId,
     })}`,
   )
 }
@@ -271,6 +290,18 @@ export function updatePushGroup(
 
 export function deletePushGroup(id: string): Promise<{ deleted: boolean }> {
   return gatewayData<{ deleted: boolean }>(`/push/groups/${id}`, { method: 'DELETE' })
+}
+
+export function startPushGroup(id: string): Promise<{ status: string }> {
+  return gatewayData<{ status: string }>(`/push/groups/${id}/start`, { method: 'POST' })
+}
+
+export function stopPushGroup(id: string): Promise<{ status: string }> {
+  return gatewayData<{ status: string }>(`/push/groups/${id}/stop`, { method: 'POST' })
+}
+
+export function restartPushGroup(id: string): Promise<{ status: string }> {
+  return gatewayData<{ status: string }>(`/push/groups/${id}/restart`, { method: 'POST' })
 }
 
 /* ---------------- 网关资源 ---------------- */

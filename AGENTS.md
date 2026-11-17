@@ -12,9 +12,10 @@
 | `docs/timeseries.md` | InfluxDB 3 时序存储、批量写入与配置 |
 | `pkg/platform/platform.md` | `platform` 模块唯一事实来源（分层、响应、错误码、配置、日志、存储） |
 | `ui/README.md` | 前端工作区结构、组合方式与运行命令 |
-| `ui/platform-ui/AGENTS.md` | 前端约定（适用于 `ui/` 全部包） |
+| `ui/platform-ui/AGENTS.md` | 前端通用约定（适用于 `ui/` 全部包） |
+| `ui/gateway-ui/AGENTS.md` | 网关应用视觉、列表、表格、按钮与表单规范 |
 
-冲突时以更具体的那份为准：平台后端看 `pkg/platform/platform.md`，前端看 `ui/platform-ui/AGENTS.md`。
+冲突时以更具体的那份为准：平台后端看 `pkg/platform/platform.md`，前端通用规则看 `ui/platform-ui/AGENTS.md`，网关页面看 `ui/gateway-ui/AGENTS.md`。
 
 ## 1. 项目概览
 

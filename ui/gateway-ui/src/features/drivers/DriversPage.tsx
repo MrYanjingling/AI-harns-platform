@@ -1,197 +1,98 @@
 import { useMemo, useState } from 'react'
-import {
-  Braces,
-  Cpu,
-  Layers,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from 'lucide-react'
+import { Layers, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Badge,
   Button,
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   ConfirmDialog,
-  Dialog,
   EmptyState,
   ErrorState,
-  Field,
   Input,
-  PageHeader,
-  Skeleton,
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Textarea,
-  showErrorToast,
+  Pagination,
+  TableSkeleton,
   formatDateTime,
+  showErrorToast,
   useI18n,
 } from '@harns/core'
+import { useDeleteDriver, useDriverList } from '@/api/hooks'
+import type { Driver } from '@/api/types'
 import {
-  useCreateDriver,
-  useDeleteDriver,
-  useDriverGroups,
-  useDriverSchema,
-  useUpdateDriver,
-} from '@/api/hooks'
-import type { Driver, DriverPayload, DriverSchema } from '@/api/types'
+  GatewayTBody,
+  GatewayTD,
+  GatewayTH,
+  GatewayTHead,
+  GatewayTR,
+  GatewayTable,
+} from '@/components/GatewayTable'
+import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
-import { sortedFields } from '@/lib/collection-form'
-import { localized } from '@/lib/labels'
-
-interface DriverForm {
-  driverType: string
-  model: string
-  pluginName: string
-  schemaText: string
-}
-
-const EMPTY_DRIVER: DriverForm = {
-  driverType: '',
-  model: '',
-  pluginName: '',
-  schemaText: JSON.stringify(
-    {
-      fields: [
-        {
-          name: 'location',
-          labelZh: '设备地址',
-          labelEn: 'Address',
-          regex: '^.+$',
-          sort: 1,
-          type: 'input',
-          required: true,
-        },
-      ],
-      variableAddress: {
-        labelZh: '变量地址',
-        labelEn: 'Variable address',
-        placeholderZh: '例如 40001',
-        placeholderEn: 'e.g. 40001',
-      },
-      variableDataTypes: [
-        {
-          value: 'uint16',
-          labelZh: '无符号 16 位',
-          labelEn: 'Unsigned 16-bit',
-          addressRegex: '^\\d+$',
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-}
-
-function driverToForm(driver: Driver): DriverForm {
-  return {
-    driverType: driver.driverType,
-    model: driver.model,
-    pluginName: driver.pluginName,
-    schemaText: JSON.stringify(driver.schema, null, 2),
-  }
-}
-
-function parseSchema(text: string): DriverSchema | undefined {
-  try {
-    const parsed: unknown = JSON.parse(text)
-    if (!parsed || typeof parsed !== 'object') return undefined
-    const schema = parsed as DriverSchema
-    if (!Array.isArray(schema.fields)) return undefined
-    return schema
-  } catch {
-    return undefined
-  }
-}
+import { DriverFormDialog } from './DriverFormDialog'
+import { DriverPluginFileDialog } from './DriverPluginFileDialog'
+import { DriverSchemaDialog } from './DriverSchemaDialog'
 
 export function DriversPage() {
   const { t } = useI18n()
-  const groups = useDriverGroups()
-  const [keyword, setKeyword] = useState('')
-  const [schemaTarget, setSchemaTarget] = useState<Driver | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Driver | null>(null)
-  const [form, setForm] = useState<DriverForm>(EMPTY_DRIVER)
-  const [formError, setFormError] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null)
-  const create = useCreateDriver()
-  const update = useUpdateDriver()
+  const drivers = useDriverList()
   const remove = useDeleteDriver()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [keywordInput, setKeywordInput] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [schemaTarget, setSchemaTarget] = useState<Driver | null>(null)
+  const [pluginTarget, setPluginTarget] = useState<Driver | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null)
+  const { widths, totalWidth, resize } = useColumnResize({
+    driverType: 140,
+    model: 240,
+    source: 100,
+    plugin: 220,
+    createdAt: 160,
+    actions: 240,
+  })
 
-  const filteredGroups = useMemo(() => {
+  const filteredDrivers = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    const items = groups.data ?? []
-    if (!query) return items
-    return items
-      .map((group) => ({
-        ...group,
-        models: group.models.filter((driver) =>
-          [driver.model, driver.driverType, driver.pluginName]
+    const items = drivers.data ?? []
+    const matched = query
+      ? items.filter((driver) =>
+          [driver.driverType, driver.model, driver.pluginName]
             .join(' ')
             .toLowerCase()
             .includes(query),
-        ),
-      }))
-      .filter((group) => group.models.length > 0)
-  }, [groups.data, keyword])
+        )
+      : items
+    return [...matched].sort(
+      (left, right) =>
+        left.driverType.localeCompare(right.driverType) ||
+        left.model.localeCompare(right.model),
+    )
+  }, [drivers.data, keyword])
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm(EMPTY_DRIVER)
-    setFormError('')
-    setFormOpen(true)
+  const total = filteredDrivers.length
+  const pageDrivers = filteredDrivers.slice((page - 1) * pageSize, page * pageSize)
+  const driverTypeSpans = new Map<number, number>()
+  let groupStart = 0
+  for (let index = 1; index <= pageDrivers.length; index += 1) {
+    if (
+      index === pageDrivers.length ||
+      pageDrivers[index].driverType !== pageDrivers[groupStart].driverType
+    ) {
+      driverTypeSpans.set(groupStart, index - groupStart)
+      groupStart = index
+    }
   }
 
-  const openEdit = (driver: Driver) => {
-    setEditing(driver)
-    setForm(driverToForm(driver))
-    setFormError('')
-    setFormOpen(true)
+  const applySearch = () => {
+    setKeyword(keywordInput.trim())
+    setPage(1)
   }
 
-  const closeForm = () => {
-    setFormOpen(false)
-    setFormError('')
-  }
-
-  const submit = async () => {
-    if (!form.driverType.trim() || !form.model.trim()) {
-      setFormError(t('gateway.drivers.validation.identityRequired'))
-      return
-    }
-    const schema = parseSchema(form.schemaText)
-    if (!schema) {
-      setFormError(t('gateway.drivers.validation.schemaInvalid'))
-      return
-    }
-    const payload: DriverPayload = {
-      driverType: form.driverType.trim(),
-      model: form.model.trim(),
-      pluginName: form.pluginName.trim(),
-      schema,
-    }
-    try {
-      if (editing) {
-        await update.mutateAsync({ id: editing.id, payload })
-        toast.success(t('gateway.drivers.toast.updated'))
-      } else {
-        await create.mutateAsync(payload)
-        toast.success(t('gateway.drivers.toast.created'))
-      }
-      closeForm()
-    } catch (error) {
-      showErrorToast(error)
-    }
+  const resetSearch = () => {
+    setKeywordInput('')
+    setKeyword('')
+    setPage(1)
   }
 
   const confirmDelete = async () => {
@@ -208,233 +109,208 @@ export function DriversPage() {
     }
   }
 
-  const total = useMemo(
-    () => (groups.data ?? []).reduce((sum, group) => sum + group.models.length, 0),
-    [groups.data],
-  )
-
   return (
-    <div className="space-y-3">
-      <PageHeader
-        title={t('gateway.drivers.title')}
-        description={t('gateway.drivers.description')}
-        actions={
-          <>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-faint" />
-              <Input
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                placeholder={t('gateway.drivers.searchPlaceholder')}
-                aria-label={t('common.action.search')}
-                className="w-56 pl-8"
-              />
-            </div>
-            <Button
-              variant="outline"
-              loading={groups.isFetching}
-              onClick={() => void groups.refetch()}
-              icon={<RefreshCw className="size-3.5" />}
-            >
-              {t('common.action.refresh')}
-            </Button>
-            <Button variant="primary" onClick={openCreate} icon={<Plus className="size-3.5" />}>
-              {t('gateway.drivers.create')}
-            </Button>
-          </>
-        }
-      />
-
-      {groups.isLoading ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, index) => (
-            <Card key={index}>
-              <CardHeader>
-                <Skeleton className="h-5 w-32" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : groups.isError ? (
-        <ErrorState error={groups.error} onRetry={() => void groups.refetch()} />
-      ) : filteredGroups.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Layers className="size-5" />}
-            title={
-              keyword
-                ? t('gateway.drivers.empty.filteredTitle')
-                : t('gateway.drivers.empty.title')
-            }
-            description={t('gateway.drivers.empty.description')}
-            action={
-              <Button variant="primary" onClick={openCreate} icon={<Plus className="size-3.5" />}>
-                {t('gateway.drivers.create')}
-              </Button>
-            }
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+        <div className="relative w-[200px]">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
+          <Input
+            value={keywordInput}
+            placeholder={t('gateway.drivers.searchPlaceholder')}
+            className="h-9 pl-9 text-sm"
+            onChange={(event) => setKeywordInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') applySearch()
+            }}
           />
-        </Card>
-      ) : (
-        <div className="grid items-start gap-3 lg:grid-cols-2">
-          {filteredGroups.map((group) => (
-            <Card key={group.driverType}>
-              <CardHeader>
-                <div>
-                  <CardTitle className="flex items-center gap-1.5">
-                    <Cpu className="size-4 text-faint" />
-                    {driverTypeLabel(group.driverType)}
-                  </CardTitle>
-                  <CardDescription>
-                    {t('gateway.drivers.groupDescription', { count: group.models.length })}
-                  </CardDescription>
-                </div>
-                <Badge tone="neutral">{group.models.length}</Badge>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {group.models.map((driver) => (
-                  <div
-                    key={driver.id}
-                    className="rounded border border-border px-3 py-2 transition-colors hover:border-border-strong"
+        </div>
+        <Button variant="primary" className="h-9" onClick={applySearch}>
+          {t('common.action.search')}
+        </Button>
+        <Button variant="ghost" className="h-9" onClick={resetSearch}>
+          {t('common.action.reset')}
+        </Button>
+        <Button
+          variant="primary"
+          className="ml-auto h-9"
+          icon={<Plus className="size-3.5" />}
+          onClick={() => setCreateOpen(true)}
+        >
+          {t('gateway.drivers.create')}
+        </Button>
+      </div>
+
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-auto">
+          {drivers.isLoading ? (
+            <TableSkeleton rows={6} cols={6} />
+          ) : drivers.isError ? (
+            <div className="p-5">
+              <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} compact />
+            </div>
+          ) : total === 0 ? (
+            <EmptyState
+              icon={<Layers className="size-5" />}
+              title={
+                keyword
+                  ? t('gateway.drivers.empty.filteredTitle')
+                  : t('gateway.drivers.empty.title')
+              }
+              description={t('gateway.drivers.empty.description')}
+              action={
+                keyword ? (
+                  <Button variant="outline" onClick={resetSearch}>
+                    {t('common.action.reset')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={() => setCreateOpen(true)}
+                    icon={<Plus className="size-3.5" />}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-[13px] font-medium text-fg">
-                            {driverModelLabel(driver.model)}
-                          </span>
-                          {driver.builtinDriver ? (
-                            <Badge tone="info">{t('gateway.drivers.builtin')}</Badge>
-                          ) : (
-                            <Badge tone="violet">{t('gateway.drivers.custom')}</Badge>
-                          )}
-                        </div>
-                        <p className="mt-0.5 truncate font-mono text-[10px] text-faint">
-                          {driver.driverType}/{driver.model} · {driver.pluginName || '—'}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-0.5">
+                    {t('gateway.drivers.create')}
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <GatewayTable
+              style={{
+                tableLayout: 'fixed',
+                width: `max(100%, ${totalWidth}px)`,
+              }}
+            >
+              <colgroup>
+                <col style={{ width: widths.driverType }} />
+                <col style={{ width: widths.model }} />
+                <col style={{ width: widths.source }} />
+                <col style={{ width: widths.plugin }} />
+                <col style={{ width: widths.createdAt }} />
+                <col style={{ width: widths.actions }} />
+              </colgroup>
+              <GatewayTHead>
+                <tr>
+                  <GatewayTH>
+                    {t('gateway.drivers.columns.driverType')}
+                    <ColumnResizeHandle
+                      column="driverType"
+                      width={widths.driverType}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.drivers.columns.model')}
+                    <ColumnResizeHandle column="model" width={widths.model} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.drivers.columns.source')}
+                    <ColumnResizeHandle column="source" width={widths.source} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.drivers.columns.plugin')}
+                    <ColumnResizeHandle column="plugin" width={widths.plugin} onResize={resize} />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('gateway.drivers.columns.createdAt')}
+                    <ColumnResizeHandle
+                      column="createdAt"
+                      width={widths.createdAt}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                  <GatewayTH className="text-left">
+                    {t('common.field.actions')}
+                    <ColumnResizeHandle
+                      column="actions"
+                      width={widths.actions}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                </tr>
+              </GatewayTHead>
+              <GatewayTBody>
+                {pageDrivers.map((driver, index) => (
+                  <GatewayTR key={driver.id}>
+                    {driverTypeSpans.has(index) ? (
+                      <GatewayTD rowSpan={driverTypeSpans.get(index)}>
+                        <span className="block truncate text-fg">
+                          {driverTypeLabel(driver.driverType) || driver.driverType}
+                        </span>
+                      </GatewayTD>
+                    ) : null}
+                    <GatewayTD>
+                      <span className="block truncate text-fg">
+                        {driverModelLabel(driver.model) || driver.model}
+                      </span>
+                    </GatewayTD>
+                    <GatewayTD>
+                      {driver.builtinDriver ? (
+                        <Badge tone="info">{t('gateway.drivers.builtin')}</Badge>
+                      ) : (
+                        <Badge tone="violet">{t('gateway.drivers.custom')}</Badge>
+                      )}
+                    </GatewayTD>
+                    <GatewayTD>
+                      <span className="block truncate font-mono text-muted">
+                        {driver.pluginName || '—'}
+                      </span>
+                    </GatewayTD>
+                    <GatewayTD className="whitespace-nowrap text-muted">
+                      {formatDateTime(driver.createdTime)}
+                    </GatewayTD>
+                    <GatewayTD>
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setSchemaTarget(driver)}
-                          className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                          title={t('gateway.drivers.viewSchema')}
-                          aria-label={t('gateway.drivers.viewSchema')}
+                          className="text-sm text-primary transition-colors hover:text-primary-hover"
                         >
-                          <Braces className="size-3.5" />
+                          {t('gateway.drivers.viewSchema')}
                         </button>
                         {!driver.builtinDriver ? (
                           <>
                             <button
                               type="button"
-                              onClick={() => openEdit(driver)}
-                              className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                              title={t('common.action.edit')}
-                              aria-label={t('common.action.edit')}
+                              onClick={() => setPluginTarget(driver)}
+                              className="text-sm text-primary transition-colors hover:text-primary-hover"
                             >
-                              <Pencil className="size-3.5" />
+                              {t('gateway.drivers.uploadPlugin')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setDeleteTarget(driver)}
-                              className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                              title={t('common.action.delete')}
-                              aria-label={t('common.action.delete')}
+                              className="text-sm text-danger transition-colors hover:opacity-80"
                             >
-                              <Trash2 className="size-3.5" />
+                              {t('common.action.delete')}
                             </button>
                           </>
                         ) : null}
                       </div>
-                    </div>
-                    <p className="mt-1 text-[10px] text-faint">
-                      {t('gateway.drivers.createdAt')} {formatDateTime(driver.createdTime)} ·{' '}
-                      {t('gateway.drivers.fieldCount', {
-                        count: driver.schema?.fields?.length ?? 0,
-                      })}
-                    </p>
-                  </div>
+                    </GatewayTD>
+                  </GatewayTR>
                 ))}
-              </CardContent>
-            </Card>
-          ))}
+              </GatewayTBody>
+            </GatewayTable>
+          )}
         </div>
-      )}
-
-      <p className="px-0.5 text-[11px] text-faint">
-        {t('gateway.drivers.total', { count: total })}
-      </p>
-
-      <SchemaDialog driver={schemaTarget} onClose={() => setSchemaTarget(null)} />
-
-      <Dialog
-        open={formOpen}
-        onClose={closeForm}
-        title={editing ? t('gateway.drivers.editTitle') : t('gateway.drivers.createTitle')}
-        description={t('gateway.drivers.formDescription')}
-        size="xl"
-        footer={
-          <>
-            <Button variant="ghost" onClick={closeForm}>
-              {t('common.action.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              loading={create.isPending || update.isPending}
-              onClick={() => void submit()}
-            >
-              {t('common.action.save')}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label={t('gateway.drivers.field.driverType')} required>
-              <Input
-                value={form.driverType}
-                disabled={Boolean(editing)}
-                placeholder="modbus"
-                autoComplete="off"
-                onChange={(event) => setForm({ ...form, driverType: event.target.value })}
-              />
-            </Field>
-            <Field label={t('gateway.drivers.field.model')} required>
-              <Input
-                value={form.model}
-                disabled={Boolean(editing)}
-                placeholder="myModbusTcp"
-                autoComplete="off"
-                onChange={(event) => setForm({ ...form, model: event.target.value })}
-              />
-            </Field>
-            <Field label={t('gateway.drivers.field.pluginName')}>
-              <Input
-                value={form.pluginName}
-                placeholder="my-driver-plugin"
-                autoComplete="off"
-                onChange={(event) => setForm({ ...form, pluginName: event.target.value })}
-              />
-            </Field>
-          </div>
-          <Field
-            label={t('gateway.drivers.field.schema')}
-            hint={t('gateway.drivers.field.schemaHint')}
-            error={formError}
-          >
-            <Textarea
-              value={form.schemaText}
-              spellCheck={false}
-              className="min-h-72 font-mono text-xs"
-              onChange={(event) => setForm({ ...form, schemaText: event.target.value })}
-            />
-          </Field>
+        <div className="shrink-0">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={drivers.isFetching}
+          />
         </div>
-      </Dialog>
+      </Card>
 
+      <DriverFormDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <DriverPluginFileDialog driver={pluginTarget} onClose={() => setPluginTarget(null)} />
+      <DriverSchemaDialog driver={schemaTarget} onClose={() => setSchemaTarget(null)} />
       <ConfirmDialog
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
@@ -443,144 +319,10 @@ export function DriversPage() {
         danger
         title={t('gateway.drivers.deleteTitle')}
         description={t('gateway.drivers.deleteDescription', {
-          name: deleteTarget
-            ? `${deleteTarget.driverType}/${deleteTarget.model}`
-            : '',
+          name: deleteTarget ? `${deleteTarget.driverType}/${deleteTarget.model}` : '',
         })}
         confirmText={t('common.action.delete')}
       />
     </div>
-  )
-}
-
-function SchemaDialog({ driver, onClose }: { driver: Driver | null; onClose: () => void }) {
-  const { t, locale } = useI18n()
-  const schemaQuery = useDriverSchema(driver?.model)
-  const schema = schemaQuery.data?.schema ?? driver?.schema
-
-  return (
-    <Dialog
-      open={driver !== null}
-      onClose={onClose}
-      title={
-        driver
-          ? `${driverTypeLabel(driver.driverType)} · ${driverModelLabel(driver.model)}`
-          : ''
-      }
-      description={t('gateway.drivers.schemaDescription')}
-      size="xl"
-      footer={
-        <Button variant="ghost" onClick={onClose}>
-          {t('common.action.close')}
-        </Button>
-      }
-    >
-      {!schema ? (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <section>
-            <h3 className="mb-1.5 text-xs font-medium text-muted">
-              {t('gateway.drivers.schema.fields')}
-            </h3>
-            {sortedFields(schema).length === 0 ? (
-              <p className="text-xs text-faint">{t('gateway.drivers.schema.empty')}</p>
-            ) : (
-              <div className="overflow-hidden rounded border border-border">
-                <Table>
-                  <THead>
-                    <TR>
-                      <TH>{t('gateway.drivers.schema.name')}</TH>
-                      <TH>{t('gateway.drivers.schema.label')}</TH>
-                      <TH>{t('gateway.drivers.schema.type')}</TH>
-                      <TH>{t('gateway.drivers.schema.required')}</TH>
-                      <TH>{t('gateway.drivers.schema.regex')}</TH>
-                    </TR>
-                  </THead>
-                  <TBody>
-                    {sortedFields(schema).map((field) => (
-                      <TR key={field.name}>
-                        <TD className="font-mono text-[11px]">{field.name}</TD>
-                        <TD className="text-xs">
-                          {localized(field.labelZh, field.labelEn, locale)}
-                        </TD>
-                        <TD>
-                          <Badge tone={field.type === 'select' ? 'info' : 'neutral'}>
-                            {field.type}
-                          </Badge>
-                          {field.options?.length ? (
-                            <span className="ml-1 text-[10px] text-faint">
-                              {field.options.map((option) => option.value).join(' / ')}
-                            </span>
-                          ) : null}
-                        </TD>
-                        <TD className="text-xs">{field.required ? t('common.state.yes') : '—'}</TD>
-                        <TD className="max-w-56 truncate font-mono text-[10px] text-faint">
-                          {field.regex || '—'}
-                        </TD>
-                      </TR>
-                    ))}
-                  </TBody>
-                </Table>
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h3 className="mb-1.5 text-xs font-medium text-muted">
-              {t('gateway.drivers.schema.variableTypes')}
-            </h3>
-            {(schema.variableDataTypes ?? []).length === 0 ? (
-              <p className="text-xs text-faint">{t('gateway.drivers.schema.empty')}</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {(schema.variableDataTypes ?? []).map((type) => (
-                  <Badge key={type.value} tone="neutral" className="font-mono">
-                    {type.value}
-                    <span className="ml-1 font-sans font-normal text-faint">
-                      {localized(type.labelZh, type.labelEn, locale)}
-                    </span>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {schema.variableAddress ? (
-            <section>
-              <h3 className="mb-1.5 text-xs font-medium text-muted">
-                {t('gateway.drivers.schema.variableAddress')}
-              </h3>
-              <div className="rounded border border-border bg-surface-2 px-3 py-2 text-xs">
-                <p className="font-mono text-fg">
-                  {localized(
-                    schema.variableAddress.labelZh,
-                    schema.variableAddress.labelEn,
-                    locale,
-                  )}
-                </p>
-                <p className="mt-1 font-mono text-[10px] text-faint">
-                  {localized(
-                    schema.variableAddress.placeholderZh,
-                    schema.variableAddress.placeholderEn,
-                    locale,
-                  ) || '—'}
-                </p>
-                <p className="mt-1 text-[11px] text-muted">
-                  {localized(
-                    schema.variableAddress.descriptionZh,
-                    schema.variableAddress.descriptionEn,
-                    locale,
-                  )}
-                </p>
-              </div>
-            </section>
-          ) : null}
-        </div>
-      )}
-    </Dialog>
   )
 }

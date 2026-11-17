@@ -24,6 +24,14 @@ type Manager struct {
 	gatewayMeta *GatewayMeta
 	service     *Service
 	stopCh      <-chan struct{}
+	storagePath string
+}
+
+// WithStoragePath sets the directory used for database and log disk usage.
+func WithStoragePath(path string) Option {
+	return func(m *Manager) {
+		m.storagePath = strings.TrimSpace(path)
+	}
 }
 
 func NewGatewayManager(service *Service, stop <-chan struct{}, opts ...Option) *Manager {
@@ -152,47 +160,48 @@ func (m *Manager) getGatewayMem() (*MemUsageInfo, error) {
 		logging.V(2).InfoS("Failed to get gateway mem info", "err", err)
 		return nil, err
 	}
-	total := v.Total / 1024 / 1024
-	used := v.Used / 1024 / 1024
-	mui := &MemUsageInfo{
-		Total:       fmt.Sprintf("%vMB", total),
-		Used:        fmt.Sprintf("%vMB", used),
+	return &MemUsageInfo{
+		Total:       formatGB(v.Total),
+		Used:        formatGB(v.Used),
 		UsedPercent: fmt.Sprintf("%0.0f%%", v.UsedPercent),
-	}
-	return mui, nil
+	}, nil
 }
 
 func (m *Manager) getGatewayDisk() (map[string]*DiskUsageInfo, error) {
 	data := map[string]*DiskUsageInfo{}
-	osDiskUsage, err := disk.Usage(host.GetOSDisk())
-	if err != nil {
-		logging.V(2).InfoS("Failed to get gateway os disk info", "err", err)
-		return nil, err
+	osDisk := host.GetOSDisk()
+	if info, err := diskUsageInfo(osDisk); err != nil {
+		logging.V(2).InfoS("Failed to get gateway os disk info", "path", osDisk, "err", err)
+	} else {
+		data[osDisk] = info
 	}
-	total := osDiskUsage.Total / 1024 / 1024
-	used := osDiskUsage.Used / 1024 / 1024
-	odu := &DiskUsageInfo{
-		Total:       fmt.Sprintf("%vMB", total),
-		Used:        fmt.Sprintf("%vMB", used),
-		UsedPercent: fmt.Sprintf("%0.0f%%", osDiskUsage.UsedPercent),
+	if m.storagePath != "" && m.storagePath != osDisk {
+		if info, err := diskUsageInfo(m.storagePath); err != nil {
+			logging.V(2).InfoS("Failed to get gateway storage disk info", "path", m.storagePath, "err", err)
+		} else {
+			data[m.storagePath] = info
+		}
 	}
-	data[host.GetOSDisk()] = odu
-
-	dataDiskUsage, err := disk.Usage(host.GetDataDisk())
-	if err != nil {
-		logging.V(2).InfoS("Failed to get gateway data disk info", "err", err)
-		return nil, err
+	if len(data) == 0 {
+		return nil, fmt.Errorf("failed to get gateway disk info")
 	}
-	total = dataDiskUsage.Total / 1024 / 1024
-	used = dataDiskUsage.Used / 1024 / 1024
-	ddu := &DiskUsageInfo{
-		Total:       fmt.Sprintf("%vMB", total),
-		Used:        fmt.Sprintf("%vMB", used),
-		UsedPercent: fmt.Sprintf("%0.0f%%", dataDiskUsage.UsedPercent),
-	}
-	data[host.GetDataDisk()] = ddu
-
 	return data, nil
+}
+
+func diskUsageInfo(path string) (*DiskUsageInfo, error) {
+	usage, err := disk.Usage(path)
+	if err != nil {
+		return nil, err
+	}
+	return &DiskUsageInfo{
+		Total:       formatGB(usage.Total),
+		Used:        formatGB(usage.Used),
+		UsedPercent: fmt.Sprintf("%0.0f%%", usage.UsedPercent),
+	}, nil
+}
+
+func formatGB(bytes uint64) string {
+	return fmt.Sprintf("%.1fGB", float64(bytes)/(1024*1024*1024))
 }
 
 func (m *Manager) collectCpu() {

@@ -1,6 +1,6 @@
 # 前端工程约定（ui/ 工作区）
 
-适用于 `ui/core`、`ui/host`、`ui/platform-ui`、`ui/gateway-ui`。工作区结构与启动方式见 `ui/README.md`。
+适用于 `ui/core`、`ui/host`、`ui/platform-ui`、`ui/gateway-ui`。工作区结构与启动方式见 `ui/README.md`。网关页面的列表、表格和表单视觉基线另见 `ui/gateway-ui/AGENTS.md`。
 
 ## 技术栈
 

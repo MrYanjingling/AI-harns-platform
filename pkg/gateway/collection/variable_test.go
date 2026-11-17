@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +9,35 @@ import (
 
 	"harns-platform/pkg/gateway/validation"
 )
+
+func TestVariableUnmarshalOptionalValues(t *testing.T) {
+	var missing Variable
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"name":"a","dataType":"int16","address":"1!40001","accessMode":"r"
+	}`), &missing))
+	assert.Nil(t, missing.Bits)
+	assert.Nil(t, missing.Rate)
+	assert.Nil(t, missing.Offset)
+	assert.Nil(t, missing.Precision)
+	assert.Equal(t, uint8(0), missing.BitsValue())
+	assert.Equal(t, float64(1), missing.RateValue())
+	assert.Equal(t, float64(0), missing.OffsetValue())
+	assert.Equal(t, 0, missing.PrecisionValue())
+
+	var explicitZero Variable
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"name":"a","dataType":"int16","address":"1!40001","accessMode":"r",
+		"bits":0,"rate":0,"offset":0,"precision":0
+	}`), &explicitZero))
+	require.NotNil(t, explicitZero.Bits)
+	require.NotNil(t, explicitZero.Rate)
+	require.NotNil(t, explicitZero.Offset)
+	require.NotNil(t, explicitZero.Precision)
+	assert.Equal(t, uint8(0), *explicitZero.Bits)
+	assert.Equal(t, float64(0), *explicitZero.Rate)
+	assert.Equal(t, float64(0), *explicitZero.Offset)
+	assert.Equal(t, 0, *explicitZero.Precision)
+}
 
 func TestNormalizeVariables(t *testing.T) {
 	variables := []*Variable{{
@@ -22,7 +52,8 @@ func TestNormalizeVariables(t *testing.T) {
 	assert.Equal(t, "telemetry", variables[0].Type)
 	assert.Equal(t, "float32", variables[0].DataType)
 	assert.Equal(t, "1!40001", variables[0].Address)
-	assert.Equal(t, float64(1), variables[0].Rate)
+	assert.Nil(t, variables[0].Rate)
+	assert.Equal(t, float64(1), variables[0].RateValue())
 }
 
 func TestValidateVariablesRejectsDuplicatesAndInvalidFields(t *testing.T) {
@@ -82,11 +113,11 @@ func TestValidateNormalVariableRejectsExpression(t *testing.T) {
 
 func TestValidateVariableBitsRange(t *testing.T) {
 	require.NoError(t, ValidateVariables([]*Variable{{
-		Name: "flag", DataType: "bool", Address: "1!40001", Bits: 16,
+		Name: "flag", DataType: "bool", Address: "1!40001", Bits: testUint8Pointer(16),
 		AccessMode: AccessModeRead,
 	}}))
 	require.Error(t, ValidateVariables([]*Variable{{
-		Name: "flag", DataType: "bool", Address: "1!40001", Bits: 17,
+		Name: "flag", DataType: "bool", Address: "1!40001", Bits: testUint8Pointer(17),
 		AccessMode: AccessModeRead,
 	}}))
 }

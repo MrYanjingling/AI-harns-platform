@@ -28,8 +28,8 @@ func TestCollectionMetaJSON(t *testing.T) {
 			DataType:   "float32",
 			Address:    "1!40001",
 			AccessMode: AccessModeRead,
-			Rate:       1,
-			Precision:  2,
+			Rate:       testFloat64Pointer(1),
+			Precision:  testIntPointer(2),
 		}},
 	}
 

@@ -8,12 +8,12 @@ import (
 )
 
 func TestDecodeActionValueWithRateOffset(t *testing.T) {
-	variable := &Variable{DataType: "int16", Rate: 0.1, Offset: 1}
+	variable := &Variable{DataType: "int16", Rate: testFloat64Pointer(0.1), Offset: testFloat64Pointer(1)}
 	value, err := DecodeActionValue(variable, "20.5")
 	require.NoError(t, err)
 	assert.Equal(t, int16(195), value)
 
-	variable = &Variable{DataType: "float32", Rate: 0.1}
+	variable = &Variable{DataType: "float32", Rate: testFloat64Pointer(0.1)}
 	value, err = DecodeActionValue(variable, "20.5")
 	require.NoError(t, err)
 	assert.Equal(t, float32(205), value)
@@ -21,10 +21,10 @@ func TestDecodeActionValueWithRateOffset(t *testing.T) {
 
 func TestDecodeActionValueRejectsInvalidNumbers(t *testing.T) {
 	for _, value := range []string{"+1", "1e-3", "1/2", ""} {
-		_, err := DecodeActionValue(&Variable{DataType: "int16", Rate: 1}, value)
+		_, err := DecodeActionValue(&Variable{DataType: "int16", Rate: testFloat64Pointer(1)}, value)
 		require.Error(t, err, value)
 	}
-	_, err := DecodeActionValue(&Variable{DataType: "int16", Rate: 0.1}, "20.55")
+	_, err := DecodeActionValue(&Variable{DataType: "int16", Rate: testFloat64Pointer(0.1)}, "20.55")
 	require.Error(t, err)
 }
 

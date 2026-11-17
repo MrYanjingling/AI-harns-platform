@@ -36,7 +36,7 @@ func TestDecodeRegisterLayouts(t *testing.T) {
 func TestDecodeBoolBit(t *testing.T) {
 	frame := &modbus.Frame{
 		Function:  modbus.FunctionReadHoldingRegisters,
-		Variables: []*modbus.FrameVariable{{Variable: &collection.Variable{Name: "bit", DataType: "bool", Bits: 3}, Offset: 0, Words: 1}},
+		Variables: []*modbus.FrameVariable{{Variable: &collection.Variable{Name: "bit", DataType: "bool", Bits: testUint8Pointer(3)}, Offset: 0, Words: 1}},
 	}
 	values, err := modbus.DecodeFrame(frame, []byte{0x00, 0x04}, "ABCD")
 	require.NoError(t, err)
@@ -48,11 +48,11 @@ func TestDecodeBoolBit(t *testing.T) {
 }
 
 func TestApplyTransform(t *testing.T) {
-	variable := &collection.Variable{DataType: "float32", Rate: 0.1, Offset: -1, Precision: 2}
+	variable := &collection.Variable{DataType: "float32", Rate: testFloat64Pointer(0.1), Offset: testFloat64Pointer(-1), Precision: testIntPointer(2)}
 	assert.Equal(t, float32(1.5), collection.ApplyTransform(float32(25), variable))
 
-	variable.Rate = 0
-	variable.Offset = 0
+	variable.Rate = nil
+	variable.Offset = nil
 	assert.Equal(t, float32(25), collection.ApplyTransform(float32(25), variable))
 }
 

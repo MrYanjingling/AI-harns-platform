@@ -162,7 +162,7 @@ func ParsePoint(variable *collection.Variable, positionAddress uint) (*Point, er
 		words = 1
 	}
 	if function == FunctionReadHoldingRegisters || function == FunctionReadInputRegisters {
-		if strings.EqualFold(variable.DataType, "bool") && (variable.Bits < 1 || variable.Bits > 16) {
+		if strings.EqualFold(variable.DataType, "bool") && (variable.BitsValue() < 1 || variable.BitsValue() > 16) {
 			return nil, fmt.Errorf("variable %s: bool register bits must be 1..16", variable.Name)
 		}
 	}
@@ -255,7 +255,7 @@ func decodeRegister(data []byte, variable *collection.Variable, memoryLayout str
 	switch strings.ToLower(variable.DataType) {
 	case "bool":
 		v := parseUint16(data, layout)
-		return (1<<(variable.Bits-1))&v != 0, nil
+		return (1<<(variable.BitsValue()-1))&v != 0, nil
 	case "int16":
 		return int16(parseUint16(data, layout)), nil
 	case "uint16":

@@ -182,6 +182,12 @@ function variablesOf(id: string): CollectionVariable[] {
   return collectionVariables[id] ?? (collectionVariables[id] = [])
 }
 
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
 function validateVariable(input: unknown): CollectionVariableInput | undefined {
   if (!isObject(input)) return undefined
   const name = typeof input.name === 'string' ? input.name.trim() : ''
@@ -216,7 +222,7 @@ function normalizeConnectorPayload(
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (!name || !isObject(body.pushConfig)) return undefined
   const pushConfig = body.pushConfig as unknown as MQTTConfig
-  if (!pushConfig.brokerUrl || !pushConfig.dataTopic) return undefined
+  if (!pushConfig.brokerUrl) return undefined
   return {
     type: typeof body.type === 'string' && body.type ? body.type : 'mqtt',
     name,
@@ -227,8 +233,10 @@ function normalizeConnectorPayload(
 function normalizeGroupPayload(body: Record<string, unknown>): PushGroupPayload | undefined {
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   const connectorId = typeof body.connectorId === 'string' ? body.connectorId : ''
+  const dataTopic = typeof body.dataTopic === 'string' ? body.dataTopic.trim() : ''
+  const commandTopic = typeof body.commandTopic === 'string' ? body.commandTopic.trim() : ''
   const pushIntervalMs = Number(body.pushIntervalMs)
-  if (!name || !connectorId || !Number.isFinite(pushIntervalMs) || pushIntervalMs <= 0) {
+  if (!name || !connectorId || !dataTopic || !Number.isFinite(pushIntervalMs) || pushIntervalMs <= 0) {
     return undefined
   }
   const allCollections = Boolean(body.allCollections)
@@ -238,6 +246,8 @@ function normalizeGroupPayload(body: Record<string, unknown>): PushGroupPayload 
   return {
     name,
     connectorId,
+    dataTopic,
+    commandTopic,
     pushIntervalMs,
     allCollections,
     collectionIds: allCollections ? [] : collectionIds,
@@ -409,8 +419,8 @@ export async function handleGateway(
       200,
       ok({
         mem: {
-          Total: `${total}MB`,
-          Used: `${Math.round((total * percent) / 100)}MB`,
+          Total: `${(total / 1024).toFixed(1)}GB`,
+          Used: `${(((total * percent) / 100) / 1024).toFixed(1)}GB`,
           UsedPercent: `${percent.toFixed(0)}%`,
         },
       }),
@@ -424,8 +434,8 @@ export async function handleGateway(
       200,
       ok({
         disk: {
-          '/': { Total: '29072MB', Used: '11248MB', UsedPercent: '39%' },
-          '/data': { Total: '119234MB', Used: '74821MB', UsedPercent: '63%' },
+          '/': { Total: '28.4GB', Used: '11.0GB', UsedPercent: '39%' },
+          '/data': { Total: '116.4GB', Used: '73.1GB', UsedPercent: '63%' },
         },
       }),
     )
@@ -627,54 +637,6 @@ export async function handleGateway(
       return true
     }
 
-    if (action === 'enable') {
-      if (method !== 'PUT') {
-        res.setHeader('Allow', 'PUT')
-        fail(res, 405, 10005, 'method not allowed')
-        return true
-      }
-      const body = await readObject(req)
-      const enable = Boolean(body?.enable)
-      if (!enable && collection.collectStatus !== 'stopped') {
-        badRequest(res, 'stop the collection before disabling it')
-        return true
-      }
-      collection.enable = enable
-      if (!enable) collection.collectStatus = 'stopped'
-      collection.version = nextVersion(collection.version)
-      collection.modTime = nowIso()
-      send(res, 200, ok({ enable }))
-      return true
-    }
-
-    if (action === 'action') {
-      if (method !== 'PUT') {
-        res.setHeader('Allow', 'PUT')
-        fail(res, 405, 10005, 'method not allowed')
-        return true
-      }
-      if (!collection.enable || collection.collectStatus !== 'collecting') {
-        badRequest(res, 'collection is not collecting')
-        return true
-      }
-      const body = await readObject(req)
-      const actions = Array.isArray(body?.actions) ? body.actions : []
-      let accepted = 0
-      for (const item of actions) {
-        if (!isObject(item) || typeof item.name !== 'string') continue
-        const target = variablesOf(id).find((variable) => variable.name === item.name)
-        if (!target || target.accessMode === 'r') continue
-        target.value = item.value
-        accepted += 1
-      }
-      if (accepted === 0) {
-        badRequest(res, 'no writable variable matched')
-        return true
-      }
-      send(res, 200, ok({ accepted }))
-      return true
-    }
-
     if (method !== 'POST') {
       res.setHeader('Allow', 'POST')
       fail(res, 405, 10005, 'method not allowed')
@@ -823,6 +785,26 @@ export async function handleGateway(
     return true
   }
 
+  const driverPluginMatch = pathname.match(/^\/drivers\/([^/]+)\/plugin$/)
+  if (driverPluginMatch) {
+    if (method !== 'POST') {
+      res.setHeader('Allow', 'POST')
+      fail(res, 405, 10005, 'method not allowed')
+      return true
+    }
+    const driver = findDriver(driverPluginMatch[1])
+    if (!driver) {
+      notFound(res, 'driver not found')
+      return true
+    }
+    if (driver.builtinDriver) {
+      badRequest(res, 'built-in driver cannot upload plugins')
+      return true
+    }
+    send(res, 200, ok(driver))
+    return true
+  }
+
   const driverMatch = pathname.match(/^\/drivers\/([^/]+)$/)
   if (driverMatch) {
     const driver = findDriver(driverMatch[1])
@@ -865,9 +847,17 @@ export async function handleGateway(
     if (method === 'GET') {
       const { page, pageSize } = pageParams(query)
       const keyword = query.get('keyword')
-      const list = connectors.filter((item) =>
-        keywordMatch([item.name, item.id, item.pushConfig?.brokerUrl], keyword),
-      )
+      const type = query.get('type')
+      const list = connectors
+        .filter(
+          (item) =>
+            keywordMatch([item.name, item.id, item.pushConfig?.brokerUrl], keyword) &&
+            (!type || item.type === type),
+        )
+        .map((item) => ({
+          ...item,
+          groupCount: pushGroups.filter((group) => group.connectorId === item.id).length,
+        }))
       send(res, 200, ok(paginate(list, page, pageSize)))
       return true
     }
@@ -875,7 +865,7 @@ export async function handleGateway(
       const body = await readObject(req)
       const payload = body ? normalizeConnectorPayload(body) : undefined
       if (!payload) {
-        badRequest(res, 'name, pushConfig.brokerUrl and pushConfig.dataTopic are required')
+        badRequest(res, 'name and pushConfig.brokerUrl are required')
         return true
       }
       const connector: PushConnector = {
@@ -883,7 +873,8 @@ export async function handleGateway(
         type: payload.type,
         name: payload.name,
         pushConfig: payload.pushConfig,
-        status: 'stopped',
+        runState: 'running',
+        status: 'running',
         version: 1,
         createdTime: nowIso(),
         updatedTime: nowIso(),
@@ -897,7 +888,7 @@ export async function handleGateway(
     return true
   }
 
-  const connectorAction = pathname.match(/^\/push\/connectors\/([^/]+)\/(start|stop)$/)
+  const connectorAction = pathname.match(/^\/push\/connectors\/([^/]+)\/(start|stop|restart)$/)
   if (connectorAction) {
     if (method !== 'POST') {
       res.setHeader('Allow', 'POST')
@@ -909,7 +900,19 @@ export async function handleGateway(
       notFound(res, 'connector not found')
       return true
     }
-    connector.status = connectorAction[2] === 'start' ? 'running' : 'stopped'
+    const connectorActionName = connectorAction[2]
+    if (connectorActionName === 'start') {
+      connector.runState = 'running'
+      connector.status = 'running'
+    } else if (connectorActionName === 'stop') {
+      connector.runState = 'stopped'
+      connector.status = 'stopped'
+    } else if (connector.runState !== 'running') {
+      badRequest(res, 'connection is stopped')
+      return true
+    } else {
+      connector.status = 'running'
+    }
     connector.updatedTime = nowIso()
     send(res, 200, ok({ status: connector.status }))
     return true
@@ -926,12 +929,13 @@ export async function handleGateway(
       const body = await readObject(req)
       const payload = body ? normalizeConnectorPayload(body) : undefined
       if (!payload) {
-        badRequest(res, 'name, pushConfig.brokerUrl and pushConfig.dataTopic are required')
+        badRequest(res, 'name and pushConfig.brokerUrl are required')
         return true
       }
       connector.name = payload.name
       connector.type = payload.type
       connector.pushConfig = payload.pushConfig
+      connector.status = connector.runState === 'running' ? 'running' : 'stopped'
       connector.version += 1
       connector.updatedTime = nowIso()
       send(res, 200, ok(connector))
@@ -966,7 +970,12 @@ export async function handleGateway(
     if (method === 'GET') {
       const { page, pageSize } = pageParams(query)
       const keyword = query.get('keyword')
-      const list = pushGroups.filter((item) => keywordMatch([item.name, item.id], keyword))
+      const connectorId = query.get('connectorId')
+      const list = pushGroups.filter(
+        (item) =>
+          keywordMatch([item.name, item.id], keyword) &&
+          (!connectorId || item.connectorId === connectorId),
+      )
       send(res, 200, ok(paginate(list, page, pageSize)))
       return true
     }
@@ -974,7 +983,7 @@ export async function handleGateway(
       const body = await readObject(req)
       const payload = body ? normalizeGroupPayload(body) : undefined
       if (!payload) {
-        badRequest(res, 'name, connectorId and pushIntervalMs are required')
+        badRequest(res, 'name, connectorId, dataTopic and pushIntervalMs are required')
         return true
       }
       if (!findConnector(payload.connectorId)) {
@@ -989,6 +998,8 @@ export async function handleGateway(
         id: ulid(),
         ...payload,
         maxCollectionsPerPushMessage: payload.maxCollectionsPerPushMessage ?? 50,
+        runState: 'running',
+        status: findConnector(payload.connectorId)?.status === 'running' ? 'running' : 'stopped',
         version: 1,
         createdTime: nowIso(),
         updatedTime: nowIso(),
@@ -999,6 +1010,132 @@ export async function handleGateway(
     }
     res.setHeader('Allow', 'GET, POST')
     fail(res, 405, 10005, 'method not allowed')
+    return true
+  }
+
+  const groupAction = pathname.match(/^\/push\/groups\/([^/]+)\/(start|stop|restart|payloads\/stream|commands\/stream)$/)
+  if (groupAction) {
+    const [, id, action] = groupAction
+    const group = findGroup(id)
+    if (!group) {
+      notFound(res, 'push group not found')
+      return true
+    }
+    if (action === 'payloads/stream') {
+      if (method !== 'GET') {
+        res.setHeader('Allow', 'GET')
+        fail(res, 405, 10005, 'method not allowed')
+        return true
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+      res.write('event: ready\ndata: {}\n\n')
+      const selected = group.allCollections
+        ? collections
+        : collections.filter((item) => group.collectionIds.includes(item.id))
+      const timer = setInterval(() => {
+        if (group.runState !== 'running' || group.status !== 'running') return
+        const source = selected[0]
+        if (!source) return
+        const values = variablesOf(source.id).reduce<Record<string, string>>((acc, item) => {
+          acc[item.name] = formatValue(item.value)
+          return acc
+        }, {})
+        const event = {
+          groupId: group.id,
+          connectorId: group.connectorId,
+          connectorType: findConnector(group.connectorId)?.type ?? 'mqtt',
+          topic: group.dataTopic,
+          key: group.id,
+          time: nowIso(),
+          durationMs: 3,
+          payload: {
+            type: 'property',
+            payload: [{ collectionId: source.id, time: Date.now(), property: values }],
+          },
+        }
+        group.lastPushTime = event.time
+        res.write(`event: payload\ndata: ${JSON.stringify(event)}\n\n`)
+      }, Math.max(500, Math.min(5000, group.pushIntervalMs)))
+      req.on('close', () => clearInterval(timer))
+      return true
+    }
+    if (action === 'commands/stream') {
+      if (method !== 'GET') {
+        res.setHeader('Allow', 'GET')
+        fail(res, 405, 10005, 'method not allowed')
+        return true
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+      res.write('event: ready\ndata: {}\n\n')
+      const target = group.allCollections
+        ? collections[0]
+        : collections.find((item) => group.collectionIds.includes(item.id))
+      const timer = setInterval(() => {
+        if (group.runState !== 'running' || group.status !== 'running' || !group.commandTopic) return
+        const variable = target ? variablesOf(target.id)[0] : undefined
+        const event = {
+          groupId: group.id,
+          connectorId: group.connectorId,
+          connectorType: findConnector(group.connectorId)?.type ?? 'mqtt',
+          topic: group.commandTopic,
+          time: nowIso(),
+          payload: {
+            type: 'command',
+            payload: [
+              {
+                collectionId: target?.id ?? 'collection',
+                messageId: ulid(),
+                property: variable ? { [variable.name]: '1' } : {},
+              },
+            ],
+          },
+        }
+        res.write(`event: command\ndata: ${JSON.stringify(event)}\n\n`)
+      }, Math.max(2500, Math.min(8000, group.pushIntervalMs + 1500)))
+      req.on('close', () => clearInterval(timer))
+      return true
+    }
+    if (method !== 'POST') {
+      res.setHeader('Allow', 'POST')
+      fail(res, 405, 10005, 'method not allowed')
+      return true
+    }
+    const connector = findConnector(group.connectorId)
+    if (action === 'start') {
+      if (!connector || connector.status !== 'running') {
+        badRequest(res, 'connection is not running')
+        return true
+      }
+      group.runState = 'running'
+      group.status = 'running'
+      group.lastError = undefined
+      group.lastPushTime = nowIso()
+    } else if (action === 'stop') {
+      group.runState = 'stopped'
+      group.status = 'stopped'
+    } else {
+      if (group.runState !== 'running') {
+        badRequest(res, 'connection group is stopped')
+        return true
+      }
+      if (!connector || connector.status !== 'running') {
+        badRequest(res, 'connection is not running')
+        return true
+      }
+      group.status = 'running'
+      group.lastError = undefined
+    }
+    group.version += 1
+    group.updatedTime = nowIso()
+    send(res, 200, ok({ status: group.status }))
     return true
   }
 
@@ -1013,7 +1150,7 @@ export async function handleGateway(
       const body = await readObject(req)
       const payload = body ? normalizeGroupPayload(body) : undefined
       if (!payload) {
-        badRequest(res, 'name, connectorId and pushIntervalMs are required')
+        badRequest(res, 'name, connectorId, dataTopic and pushIntervalMs are required')
         return true
       }
       if (!findConnector(payload.connectorId)) {
@@ -1021,6 +1158,10 @@ export async function handleGateway(
         return true
       }
       Object.assign(group, payload)
+      group.status = group.runState === 'running' &&
+        findConnector(group.connectorId)?.status === 'running'
+        ? 'running'
+        : 'stopped'
       group.version += 1
       group.updatedTime = nowIso()
       send(res, 200, ok(group))

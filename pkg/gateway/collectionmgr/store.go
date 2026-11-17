@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -50,13 +51,13 @@ CREATE TABLE IF NOT EXISTS collection_variables (
     variable_type TEXT NOT NULL,
     data_type     TEXT NOT NULL,
     address       TEXT NOT NULL DEFAULT '',
-    bits          INTEGER NOT NULL DEFAULT 0,
+    bits          INTEGER,
     access_mode   TEXT NOT NULL,
     is_calculated INTEGER NOT NULL DEFAULT 0,
     expression    TEXT NOT NULL DEFAULT '',
-    value_offset  REAL NOT NULL DEFAULT 0,
-    rate          REAL NOT NULL DEFAULT 1,
-    precision     INTEGER NOT NULL DEFAULT 0,
+    value_offset  REAL,
+    rate          REAL,
+    precision     INTEGER,
     sort          INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (collection_id, name),
     FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
@@ -77,6 +78,9 @@ func (s *Store) Initialize(ctx context.Context) error {
 		return err
 	}
 	if err := s.ensureColumn(ctx, "collection_variables", "bits", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := s.migrateVariableColumns(ctx); err != nil {
 		return err
 	}
 	return s.ensureColumn(ctx, "collections", "enable", "INTEGER NOT NULL DEFAULT 1")
@@ -112,6 +116,125 @@ func (s *Store) ensureColumn(ctx context.Context, table, column, definition stri
 	}
 	_, err = s.db.ExecContext(ctx, `ALTER TABLE `+table+` ADD COLUMN `+column+` `+definition)
 	return err
+}
+
+// migrateVariableColumns rebuilds the variables table with nullable optional fields.
+func (s *Store) migrateVariableColumns(ctx context.Context) error {
+	info, err := s.variableColumnInfo(ctx)
+	if err != nil {
+		return err
+	}
+	needsRebuild := false
+	for _, name := range []string{"bits", "value_offset", "rate", "precision"} {
+		column, ok := info[name]
+		if !ok || column.notNull {
+			needsRebuild = true
+			break
+		}
+	}
+	if _, ok := info["bits_set"]; ok {
+		needsRebuild = true
+	}
+	if !needsRebuild {
+		return nil
+	}
+
+	bitsExpr := "NULLIF(bits, 0)"
+	rateExpr := "NULLIF(rate, 1)"
+	offsetExpr := "NULLIF(value_offset, 0)"
+	precisionExpr := "NULLIF(precision, 0)"
+	if _, ok := info["bits_set"]; ok {
+		bitsExpr = "CASE WHEN bits_set = 1 THEN bits ELSE NULL END"
+		rateExpr = "CASE WHEN rate_set = 1 THEN rate ELSE NULL END"
+		offsetExpr = "CASE WHEN offset_set = 1 THEN value_offset ELSE NULL END"
+		precisionExpr = "CASE WHEN precision_set = 1 THEN precision ELSE NULL END"
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DROP TABLE IF EXISTS collection_variables_new`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+CREATE TABLE collection_variables_new (
+    collection_id TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    variable_type TEXT NOT NULL,
+    data_type     TEXT NOT NULL,
+    address       TEXT NOT NULL DEFAULT '',
+    bits          INTEGER,
+    access_mode   TEXT NOT NULL,
+    is_calculated INTEGER NOT NULL DEFAULT 0,
+    expression    TEXT NOT NULL DEFAULT '',
+    value_offset  REAL,
+    rate          REAL,
+    precision     INTEGER,
+    sort          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (collection_id, name),
+    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+    CHECK (access_mode IN ('r', 'w', 'rw')),
+    CHECK (is_calculated IN (0, 1)),
+    CHECK (
+        (is_calculated = 0 AND address <> '' AND expression = '')
+        OR
+        (is_calculated = 1 AND address = '' AND expression <> '' AND access_mode = 'r')
+    )
+)`); err != nil {
+		return err
+	}
+	copySQL := fmt.Sprintf(`
+INSERT INTO collection_variables_new (
+    collection_id, name, variable_type, data_type, address, bits, access_mode,
+    is_calculated, expression, value_offset, rate, precision, sort
+)
+SELECT collection_id, name, variable_type, data_type, address, %s, access_mode,
+       is_calculated, expression, %s, %s, %s, sort
+FROM collection_variables`, bitsExpr, offsetExpr, rateExpr, precisionExpr)
+	if _, err := tx.ExecContext(ctx, copySQL); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DROP TABLE collection_variables`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE collection_variables_new RENAME TO collection_variables`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_collection_variables_sort ON collection_variables (collection_id, sort)`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+type variableColumn struct {
+	notNull bool
+}
+
+func (s *Store) variableColumnInfo(ctx context.Context) (map[string]variableColumn, error) {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(collection_variables)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	info := make(map[string]variableColumn)
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultV   sql.NullString
+			primary    int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultV, &primary); err != nil {
+			return nil, err
+		}
+		info[name] = variableColumn{notNull: notNull != 0}
+	}
+	return info, rows.Err()
 }
 
 // DriverExists reports whether a driver type/model pair exists.

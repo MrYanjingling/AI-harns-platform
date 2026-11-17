@@ -24,8 +24,8 @@ type CollectionVo struct {
 
 // AddVariablesVo is the batch variable add result.
 type AddVariablesVo struct {
-	Added     int                    `json:"added"`
-	Variables []*collection.Variable `json:"variables"`
+	Added     int           `json:"added"`
+	Variables []*VariableVo `json:"variables"`
 }
 
 // VariableVo is one collection variable with its runtime value.
@@ -34,13 +34,13 @@ type VariableVo struct {
 	Type         string                `json:"type"`
 	DataType     string                `json:"dataType"`
 	Address      string                `json:"address"`
-	Bits         uint8                 `json:"bits"`
+	Bits         *uint8                `json:"bits"`
 	AccessMode   collection.AccessMode `json:"accessMode"`
 	IsCalculated bool                  `json:"isCalculated"`
 	Expression   string                `json:"expression,omitempty"`
-	Offset       float64               `json:"offset"`
-	Rate         float64               `json:"rate"`
-	Precision    int                   `json:"precision"`
+	Offset       *float64              `json:"offset"`
+	Rate         *float64              `json:"rate"`
+	Precision    *int                  `json:"precision"`
 	Value        any                   `json:"value"`
 }
 

@@ -41,6 +41,7 @@ export function SearchSelect({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
@@ -60,7 +61,7 @@ export function SearchSelect({
   }
 
   const placePanel = () => {
-    const rect = containerRef.current?.getBoundingClientRect()
+    const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
     const width = Math.max(rect.width, 1)
     const padding = 8
@@ -150,6 +151,7 @@ export function SearchSelect({
       onKeyDown={handleKeyDown}
     >
       <div
+        ref={triggerRef}
         className={cn(
           'flex h-9 items-center rounded border bg-surface text-sm transition-colors',
           open

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -108,7 +109,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	gatewayService := gatewaymgr.NewService(gatewayStore)
-	gatewayMgr := gatewaymgr.NewGatewayManager(gatewayService, stopCh)
+	gatewayMgr := gatewaymgr.NewGatewayManager(
+		gatewayService,
+		stopCh,
+		gatewaymgr.WithStoragePath(resolveStorageDirectory(o.SQLite.Path, c.LogFilePath)),
+	)
 	if err := gatewayMgr.Init(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -141,7 +146,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.DB = db
-	c.DriverMgr = drivermgr.NewService(driverStore)
+	pluginDir := ""
+	if storageDir := resolveStorageDirectory(o.SQLite.Path, c.LogFilePath); storageDir != "" {
+		pluginDir = filepath.Join(storageDir, "plugins")
+	}
+	c.DriverMgr = drivermgr.NewService(driverStore, pluginDir)
 	userStore := usermgr.NewStore(db)
 	if err := userStore.Initialize(context.Background()); err != nil {
 		_ = db.Close()
@@ -204,7 +213,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	pushSource := newPushCollectionSource(runtimeManager, collectionMgr)
-	pushRuntime, err := pushmgr.NewRuntimeManager(pushSource, gatewayMeta.ID, pushmgr.NewMQTTFactory())
+	pushRuntime, err := pushmgr.NewRuntimeManager(pushSource, gatewayMeta.ID, pushmgr.NewMQTTFactory(), pushmgr.NewKafkaFactory())
 	if err != nil {
 		_ = db.Close()
 		return nil, err
@@ -219,6 +228,35 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil
+}
+
+func resolveStorageDirectory(dbPath, logFilePath string) string {
+	dbDir := absoluteDirectory(dbPath)
+	if dbDir != "" && !isRootPath(dbDir) {
+		return dbDir
+	}
+	logDir := absoluteDirectory(logFilePath)
+	if logDir != "" && !isRootPath(logDir) {
+		return logDir
+	}
+	return ""
+}
+
+func absoluteDirectory(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" || path == ":memory:" {
+		return ""
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return ""
+	}
+	return filepath.Dir(abs)
+}
+
+func isRootPath(path string) bool {
+	cleaned := filepath.Clean(path)
+	return cleaned == filepath.VolumeName(cleaned)+string(filepath.Separator)
 }
 
 func resolveAuthEnabled(configured bool) bool {

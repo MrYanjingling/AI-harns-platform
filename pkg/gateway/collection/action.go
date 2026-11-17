@@ -63,14 +63,14 @@ func DecodeActionValue(variable *Variable, text string) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("value %q is invalid", text)
 	}
-	rate, err := floatRat(variable.Rate)
+	rate, err := floatRat(variable.RateValue())
 	if err != nil {
 		return nil, err
 	}
 	if rate.Sign() == 0 {
 		rate.SetInt64(1)
 	}
-	offset, err := floatRat(variable.Offset)
+	offset, err := floatRat(variable.OffsetValue())
 	if err != nil {
 		return nil, err
 	}

@@ -8,8 +8,12 @@ import (
 
 const (
 	ConnectorTypeMQTT               = "mqtt"
+	ConnectorTypeKafka              = "kafka"
 	ConnectorStatusRunning          = "running"
 	ConnectorStatusStopped          = "stopped"
+	ConnectorStatusError            = "error"
+	ConnectorRunStateRunning        = "running"
+	ConnectorRunStateStopped        = "stopped"
 	DefaultPushIntervalMs           = 1000
 	DefaultMaxCollectionsPerMessage = 10
 	DefaultMQTTQoS                  = 1
@@ -21,6 +25,8 @@ type ConnectorRecord struct {
 	Type        string          `json:"type"`
 	Name        string          `json:"name"`
 	PushConfig  json.RawMessage `json:"pushConfig"`
+	RunState    string          `json:"runState"`
+	GroupCount  int64           `json:"groupCount"`
 	Version     int64           `json:"version"`
 	CreatedTime time.Time       `json:"createdTime"`
 	UpdatedTime time.Time       `json:"updatedTime"`
@@ -30,6 +36,9 @@ type PushGroup struct {
 	ID                           string    `json:"id"`
 	Name                         string    `json:"name"`
 	ConnectorID                  string    `json:"connectorId"`
+	DataTopic                    string    `json:"dataTopic"`
+	CommandTopic                 string    `json:"commandTopic"`
+	RunState                     string    `json:"runState"`
 	PushIntervalMs               int64     `json:"pushIntervalMs"`
 	AllCollections               bool      `json:"allCollections"`
 	CollectionIDs                []string  `json:"collectionIds"`

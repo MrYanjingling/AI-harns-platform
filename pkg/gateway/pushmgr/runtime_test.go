@@ -31,10 +31,13 @@ func (s *fakeSource) DeliverActions(_ context.Context, collectionID string, acti
 }
 
 type fakeConnector struct {
-	connected  bool
-	connectErr error
-	payloads   [][]byte
-	commands   CommandHandler
+	connected     bool
+	connectErr    error
+	publishErr    error
+	payloads      [][]byte
+	commands      CommandHandler
+	subscriptions map[string]int
+	errorHandler  func(error)
 }
 
 func (c *fakeConnector) Type() string { return ConnectorTypeMQTT }
@@ -46,18 +49,35 @@ func (c *fakeConnector) Connect(context.Context) error {
 	return nil
 }
 func (c *fakeConnector) Close(context.Context) error { return nil }
-func (c *fakeConnector) Publish(_ context.Context, payload []byte) error {
-	c.payloads = append(c.payloads, append([]byte(nil), payload...))
+func (c *fakeConnector) Publish(_ context.Context, message Message) error {
+	if c.publishErr != nil {
+		return c.publishErr
+	}
+	c.payloads = append(c.payloads, append([]byte(nil), message.Payload...))
 	return nil
 }
-func (c *fakeConnector) SubscribeCommands(_ context.Context, handler CommandHandler) error {
+func (c *fakeConnector) SetErrorHandler(handler func(error)) {
+	c.errorHandler = handler
+}
+func (c *fakeConnector) Subscribe(_ context.Context, topic string, handler CommandHandler) error {
 	c.commands = handler
+	if c.subscriptions == nil {
+		c.subscriptions = make(map[string]int)
+	}
+	c.subscriptions[topic]++
+	return nil
+}
+func (c *fakeConnector) Unsubscribe(_ context.Context, topic string) error {
+	if c.subscriptions != nil {
+		delete(c.subscriptions, topic)
+	}
 	return nil
 }
 
 type fakeFactory struct{ connector *fakeConnector }
 
-func (f *fakeFactory) Type() string { return ConnectorTypeMQTT }
+func (f *fakeFactory) Type() string                   { return ConnectorTypeMQTT }
+func (f *fakeFactory) Validate(json.RawMessage) error { return nil }
 func (f *fakeFactory) New(string, json.RawMessage) (Connector, error) {
 	return f.connector, nil
 }
@@ -156,7 +176,7 @@ func TestRuntimePushesBatchPayload(t *testing.T) {
 	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
 	require.NoError(t, err)
 	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
-	runtime.UpsertGroup(&PushGroup{ID: "group-1", ConnectorID: "conn-1", AllCollections: true, PushIntervalMs: 1000})
+	runtime.UpsertGroup(&PushGroup{ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/group", RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 1000})
 	runtime.pushGroup(context.Background(), "group-1")
 	require.Len(t, connector.payloads, 1)
 
@@ -181,7 +201,8 @@ func TestConnectorStatus(t *testing.T) {
 
 	connector.connectErr = errors.New("broker unavailable")
 	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
-	assert.Equal(t, ConnectorStatusStopped, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, ConnectorStatusError, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, "broker unavailable", runtime.ConnectorLastError("conn-1"))
 	runtime.Close(context.Background())
 }
 
@@ -212,5 +233,152 @@ func TestRuntimeConnectFailureStatus(t *testing.T) {
 	require.Error(t, err)
 	var startErr *ConnectorStartError
 	require.ErrorAs(t, err, &startErr)
-	assert.Equal(t, ConnectorStatusStopped, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, ConnectorStatusError, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, "broker unavailable", runtime.ConnectorLastError("conn-1"))
+}
+
+func TestConnectorErrorHandlerSetsErrorStatus(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	require.Equal(t, ConnectorStatusRunning, runtime.ConnectorStatus("conn-1"))
+
+	connector.errorHandler(errors.New("mqtt connection lost"))
+	assert.Equal(t, ConnectorStatusError, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, "mqtt connection lost", runtime.ConnectorLastError("conn-1"))
+	runtime.Close(context.Background())
+}
+
+func TestRuntimePublishFailureSetsErrorStatus(t *testing.T) {
+	source := &fakeSource{snapshots: []CollectionSnapshot{{
+		CollectionID: "c1",
+		Status:       collection.CollectStatusCollecting,
+		Values:       map[string]any{"a": 1},
+	}}}
+	connector := &fakeConnector{publishErr: errors.New("publish failed")}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	runtime.UpsertGroup(&PushGroup{ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/group", RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 1000})
+	runtime.pushGroup(context.Background(), "group-1")
+	assert.Equal(t, ConnectorStatusError, runtime.ConnectorStatus("conn-1"))
+	assert.Equal(t, "publish failed", runtime.ConnectorLastError("conn-1"))
+	runtime.Close(context.Background())
+}
+
+func TestGroupStartStopAndStatus(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	runtime.UpsertGroup(&PushGroup{
+		ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/group",
+		CommandTopic: "command/group", RunState: ConnectorRunStateRunning, AllCollections: true,
+		PushIntervalMs: 10000,
+	})
+	assert.Equal(t, ConnectorStatusRunning, runtime.GroupStatus("group-1"))
+	assert.Equal(t, 1, connector.subscriptions["command/group"])
+
+	require.NoError(t, runtime.StopGroup("group-1"))
+	assert.Equal(t, ConnectorStatusStopped, runtime.GroupStatus("group-1"))
+	assert.Equal(t, 0, connector.subscriptions["command/group"])
+	require.ErrorIs(t, runtime.StopGroup("group-1"), ErrGroupAlreadyStopped)
+
+	require.NoError(t, runtime.StartGroup("group-1"))
+	assert.Equal(t, ConnectorStatusRunning, runtime.GroupStatus("group-1"))
+	assert.Equal(t, 1, connector.subscriptions["command/group"])
+	runtime.Close(context.Background())
+}
+
+func TestGroupRunStateAndSharedCommandTopic(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	runtime.UpsertGroup(&PushGroup{
+		ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/1", CommandTopic: "command/shared",
+		RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 10000,
+	})
+	runtime.UpsertGroup(&PushGroup{
+		ID: "group-2", ConnectorID: "conn-1", DataTopic: "data/2", CommandTopic: "command/shared",
+		RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 10000,
+	})
+	assert.Equal(t, 1, connector.subscriptions["command/shared"])
+
+	disabled := &PushGroup{
+		ID: "group-2", ConnectorID: "conn-1", DataTopic: "data/2", CommandTopic: "command/shared",
+		RunState: ConnectorRunStateStopped, AllCollections: true, PushIntervalMs: 10000,
+	}
+	runtime.UpsertGroup(disabled)
+	assert.Equal(t, ConnectorStatusStopped, runtime.GroupStatus("group-2"))
+	assert.Equal(t, 1, connector.subscriptions["command/shared"])
+
+	runtime.RemoveGroup("group-1")
+	assert.Equal(t, 0, connector.subscriptions["command/shared"])
+	runtime.Close(context.Background())
+}
+
+func TestGroupPayloadHubReceivesSuccess(t *testing.T) {
+	source := &fakeSource{snapshots: []CollectionSnapshot{{
+		CollectionID: "c1",
+		Status:       collection.CollectStatusCollecting,
+		Values:       map[string]any{"a": 1},
+	}}}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	runtime.UpsertGroup(&PushGroup{
+		ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/group",
+		RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 10000,
+	})
+	ch, cancel, err := runtime.SubscribePayloads("group-1")
+	require.NoError(t, err)
+	defer cancel()
+	runtime.pushGroup(context.Background(), "group-1")
+	select {
+	case event := <-ch:
+		require.Equal(t, "data/group", event.Topic)
+		require.NotEmpty(t, event.Payload)
+		require.Empty(t, event.Error)
+	case <-time.After(time.Second):
+		t.Fatal("expected push payload event")
+	}
+	require.False(t, runtime.GroupLastPushTime("group-1").IsZero())
+	runtime.Close(context.Background())
+}
+
+func TestGroupCommandHubReceivesInbound(t *testing.T) {
+	source := &fakeSource{}
+	connector := &fakeConnector{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: connector})
+	require.NoError(t, err)
+	runtime.UpsertConnector(context.Background(), &ConnectorRecord{ID: "conn-1", Type: ConnectorTypeMQTT, PushConfig: json.RawMessage(`{}`)})
+	runtime.UpsertGroup(&PushGroup{
+		ID: "group-1", ConnectorID: "conn-1", DataTopic: "data/group", CommandTopic: "command/group",
+		RunState: ConnectorRunStateRunning, AllCollections: true, PushIntervalMs: 10000,
+	})
+	ch, cancel, err := runtime.SubscribeCommands("group-1")
+	require.NoError(t, err)
+	defer cancel()
+
+	connector.commands(context.Background(), []byte(`{
+		"type":"command",
+		"payload":[{"collectionId":"c1","messageId":"m1","property":{"a":"1"}}]
+	}`))
+	select {
+	case event := <-ch:
+		assert.Equal(t, "command/group", event.Topic)
+		assert.Equal(t, "group-1", event.GroupID)
+		assert.Contains(t, string(event.Payload), `"collectionId":"c1"`)
+	case <-time.After(time.Second):
+		t.Fatal("expected command event")
+	}
+	assert.Equal(t, "c1", source.collection)
+	require.Len(t, source.actions, 1)
+	runtime.Close(context.Background())
 }

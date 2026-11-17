@@ -172,7 +172,7 @@ func TestCreateCollectionPersistsBits(t *testing.T) {
 	record, err := service.Get(context.Background(), created.ID)
 	require.NoError(t, err)
 	require.Len(t, record.Variables, 1)
-	assert.Equal(t, uint8(3), record.Variables[0].Bits)
+	assert.Equal(t, uint8(3), record.Variables[0].BitsValue())
 }
 
 func TestCollectionServiceRuntimeIntegration(t *testing.T) {
@@ -250,4 +250,57 @@ func TestCollectionEnableLifecycle(t *testing.T) {
 	enabled, err = service.SetEnable(context.Background(), created.ID, true)
 	require.NoError(t, err)
 	assert.True(t, enabled.Enable)
+}
+
+func TestStoreMigratesVariablePresenceColumns(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	db.SetMaxOpenConns(1)
+	_, err = db.Exec(`PRAGMA foreign_keys = OFF`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`CREATE TABLE collection_variables (
+		collection_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		variable_type TEXT NOT NULL,
+		data_type TEXT NOT NULL,
+		address TEXT NOT NULL DEFAULT '',
+		bits INTEGER NOT NULL DEFAULT 0,
+		access_mode TEXT NOT NULL,
+		is_calculated INTEGER NOT NULL DEFAULT 0,
+		expression TEXT NOT NULL DEFAULT '',
+		value_offset REAL NOT NULL DEFAULT 0,
+		rate REAL NOT NULL DEFAULT 1,
+		precision INTEGER NOT NULL DEFAULT 0,
+		bits_set INTEGER NOT NULL DEFAULT 0,
+		rate_set INTEGER NOT NULL DEFAULT 0,
+		offset_set INTEGER NOT NULL DEFAULT 0,
+		precision_set INTEGER NOT NULL DEFAULT 0,
+		sort INTEGER NOT NULL DEFAULT 0,
+		PRIMARY KEY (collection_id, name)
+	)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO collection_variables (
+		collection_id, name, variable_type, data_type, address, bits, access_mode,
+		is_calculated, expression, value_offset, rate, precision, sort,
+		bits_set, rate_set, offset_set, precision_set
+	) VALUES ('c1', 'flag', 'telemetry', 'BOOL', '1!40001', 3, 'r', 0, '', 0, 1, 2, 0, 1, 0, 0, 1)`)
+	require.NoError(t, err)
+
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(context.Background()))
+	variables, total, err := store.ListVariables(context.Background(), "c1", apis.PageQuery{Page: 1, PageSize: 10}, "")
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, variables, 1)
+	assert.Equal(t, uint8(3), variables[0].BitsValue())
+	assert.Nil(t, variables[0].Rate)
+	assert.Nil(t, variables[0].Offset)
+	assert.Equal(t, 2, variables[0].PrecisionValue())
+
+	columns, err := store.variableColumnInfo(context.Background())
+	require.NoError(t, err)
+	_, hasBitsSet := columns["bits_set"]
+	assert.False(t, hasBitsSet)
 }

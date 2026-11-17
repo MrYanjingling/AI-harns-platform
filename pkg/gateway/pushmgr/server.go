@@ -1,9 +1,12 @@
 package pushmgr
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,7 +19,9 @@ import (
 
 type listQuery struct {
 	apis.PageQuery
-	Keyword string `form:"keyword"`
+	Keyword     string `form:"keyword"`
+	Type        string `form:"type"`
+	ConnectorID string `form:"connectorId"`
 }
 
 func InstallHandler(group *gin.RouterGroup, svc *Service) {
@@ -28,11 +33,17 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.DELETE("/connectors/:id", deleteConnector(svc))
 	g.POST("/connectors/:id/start", startConnector(svc))
 	g.POST("/connectors/:id/stop", stopConnector(svc))
+	g.POST("/connectors/:id/restart", restartConnector(svc))
 	g.POST("/groups", createGroup(svc))
 	g.GET("/groups", listGroups(svc))
 	g.GET("/groups/:id", getGroup(svc))
 	g.PUT("/groups/:id", updateGroup(svc))
 	g.DELETE("/groups/:id", deleteGroup(svc))
+	g.POST("/groups/:id/start", startGroup(svc))
+	g.POST("/groups/:id/stop", stopGroup(svc))
+	g.POST("/groups/:id/restart", restartGroup(svc))
+	g.GET("/groups/:id/payloads/stream", streamGroupPayloads(svc))
+	g.GET("/groups/:id/commands/stream", streamGroupCommands(svc))
 }
 
 func createConnector(svc *Service) gin.HandlerFunc {
@@ -58,7 +69,7 @@ func listConnectors(svc *Service) gin.HandlerFunc {
 			response.WriteError(c, http.StatusBadRequest, response.ErrRequestBody)
 			return
 		}
-		page, err := svc.ListConnectors(c.Request.Context(), req.PageQuery, req.Keyword)
+		page, err := svc.ListConnectors(c.Request.Context(), req.PageQuery, req.Keyword, req.Type)
 		if err != nil {
 			writeErr(c, err, response.ErrCodePushConnectorInvalid)
 			return
@@ -127,6 +138,17 @@ func stopConnector(svc *Service) gin.HandlerFunc {
 	}
 }
 
+func restartConnector(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.RestartConnector(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushConnectorInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
 func createGroup(svc *Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req v1.CreatePushGroupReq
@@ -150,7 +172,7 @@ func listGroups(svc *Service) gin.HandlerFunc {
 			response.WriteError(c, http.StatusBadRequest, response.ErrRequestBody)
 			return
 		}
-		page, err := svc.ListGroups(c.Request.Context(), req.PageQuery, req.Keyword)
+		page, err := svc.ListGroups(c.Request.Context(), req.PageQuery, req.Keyword, req.ConnectorID)
 		if err != nil {
 			writeErr(c, err, response.ErrCodePushGroupInvalid)
 			return
@@ -196,6 +218,133 @@ func deleteGroup(svc *Service) gin.HandlerFunc {
 	}
 }
 
+func startGroup(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.StartGroup(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushGroupInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func stopGroup(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.StopGroup(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushGroupInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func restartGroup(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status, err := svc.RestartGroup(c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushGroupInvalid)
+			return
+		}
+		response.WriteOK(c, gin.H{"status": status})
+	}
+}
+
+func streamGroupPayloads(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ch, cancel, err := svc.SubscribePayloads(c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushGroupInvalid)
+			return
+		}
+		defer cancel()
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+		if controller := http.NewResponseController(c.Writer); controller != nil {
+			_ = controller.SetWriteDeadline(time.Time{})
+		}
+		c.Status(http.StatusOK)
+		c.Writer.Flush()
+		_, _ = c.Writer.WriteString("event: ready\ndata: {}\n\n")
+		c.Writer.Flush()
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.Request.Context().Done():
+				return
+			case <-ticker.C:
+				if _, err := c.Writer.WriteString(": heartbeat\n\n"); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+				if _, err := fmt.Fprintf(c.Writer, "event: payload\ndata: %s\n\n", data); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			}
+		}
+	}
+}
+
+func streamGroupCommands(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ch, cancel, err := svc.SubscribeCommands(c.Param("id"))
+		if err != nil {
+			writeErr(c, err, response.ErrCodePushGroupInvalid)
+			return
+		}
+		defer cancel()
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+		if controller := http.NewResponseController(c.Writer); controller != nil {
+			_ = controller.SetWriteDeadline(time.Time{})
+		}
+		c.Status(http.StatusOK)
+		c.Writer.Flush()
+		_, _ = c.Writer.WriteString("event: ready\ndata: {}\n\n")
+		c.Writer.Flush()
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.Request.Context().Done():
+				return
+			case <-ticker.C:
+				if _, err := c.Writer.WriteString(": heartbeat\n\n"); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+				if _, err := fmt.Fprintf(c.Writer, "event: command\ndata: %s\n\n", data); err != nil {
+					return
+				}
+				c.Writer.Flush()
+			}
+		}
+	}
+}
+
 func writeErr(c *gin.Context, err error, validationCode response.ErrCode) {
 	var validationErr *validation.ValidationError
 	if errors.As(err, &validationErr) {
@@ -231,6 +380,9 @@ func writeErr(c *gin.Context, err error, validationCode response.ErrCode) {
 		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStartFailed(err.Error()))
 	case errors.Is(err, ErrConnectorStopFailed):
 		response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorStopFailed(err.Error()))
+	case errors.Is(err, ErrGroupAlreadyRunning), errors.Is(err, ErrGroupAlreadyStopped),
+		errors.Is(err, ErrGroupDisabled), errors.Is(err, ErrGroupConnectorNotRunning):
+		response.WriteError(c, http.StatusBadRequest, response.ErrPushGroupInvalid())
 	default:
 		response.WriteError(c, http.StatusBadRequest, response.ErrInternal(err))
 	}

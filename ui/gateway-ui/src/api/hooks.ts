@@ -33,17 +33,22 @@ import {
   listPushGroups,
   resetUserPassword,
   restartCollection,
+  restartPushConnector,
+  restartPushGroup,
   setCollectionEnable,
   startCollection,
   startPushConnector,
+  startPushGroup,
   stopCollection,
   stopPushConnector,
+  stopPushGroup,
   updateCollection,
   updateCollectionVariables,
   updateDriver,
   updatePushConnector,
   updatePushGroup,
   updateUser,
+  uploadDriverPlugin,
 } from './gateway'
 import { queryKeys } from './query-keys'
 import type {
@@ -74,6 +79,14 @@ export interface PageParams {
   page: number
   pageSize: number
   keyword?: string
+}
+
+export interface PushConnectorParams extends PageParams {
+  type?: string
+}
+
+export interface PushGroupParams extends PageParams {
+  connectorId?: string
 }
 
 /* ---------------- 采集器 ---------------- */
@@ -420,6 +433,26 @@ export function useUpdateDriver() {
   })
 }
 
+export function useUploadDriverPlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; title: string; file: File }) =>
+      uploadDriverPlugin(vars.id, vars.file),
+    onSuccess: (_driver, vars) => {
+      appendOperationLog({ action: 'update', result: 'success', target: vars.title })
+      invalidateDrivers(queryClient)
+    },
+    onError: (error, vars) => {
+      appendOperationLog({
+        action: 'update',
+        result: 'failure',
+        target: vars.title,
+        message: errorMessage(error),
+      })
+    },
+  })
+}
+
 export function useDeleteDriver() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -441,7 +474,7 @@ export function useDeleteDriver() {
 
 /* ---------------- 推送 ---------------- */
 
-export function usePushConnectors(params: PageParams) {
+export function usePushConnectors(params: PushConnectorParams) {
   return useQuery({
     queryKey: queryKeys.gateway.connectors(params),
     queryFn: () => listPushConnectors(params),
@@ -450,7 +483,7 @@ export function usePushConnectors(params: PageParams) {
   })
 }
 
-export function usePushGroups(params: PageParams) {
+export function usePushGroups(params: PushGroupParams) {
   return useQuery({
     queryKey: queryKeys.gateway.pushGroups(params),
     queryFn: () => listPushGroups(params),
@@ -525,8 +558,11 @@ export function useDeletePushConnector() {
 export function usePushConnectorAction() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (vars: { id: string; name: string; action: 'start' | 'stop' }) =>
-      vars.action === 'start' ? startPushConnector(vars.id) : stopPushConnector(vars.id),
+    mutationFn: (vars: { id: string; name: string; action: 'start' | 'stop' | 'restart' }) => {
+      if (vars.action === 'start') return startPushConnector(vars.id)
+      if (vars.action === 'stop') return stopPushConnector(vars.id)
+      return restartPushConnector(vars.id)
+    },
     onSuccess: (_data, vars) => {
       appendOperationLog({
         action: vars.action,
@@ -542,6 +578,35 @@ export function usePushConnectorAction() {
         target: `MQTT · ${vars.name}`,
         message: errorMessage(error),
       })
+      invalidatePush(queryClient)
+    },
+  })
+}
+
+export function usePushGroupAction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; name: string; action: 'start' | 'stop' | 'restart' }) => {
+      if (vars.action === 'start') return startPushGroup(vars.id)
+      if (vars.action === 'stop') return stopPushGroup(vars.id)
+      return restartPushGroup(vars.id)
+    },
+    onSuccess: (_data, vars) => {
+      appendOperationLog({
+        action: vars.action,
+        result: 'success',
+        target: vars.name,
+      })
+      window.setTimeout(() => invalidatePush(queryClient), 400)
+    },
+    onError: (error, vars) => {
+      appendOperationLog({
+        action: vars.action,
+        result: 'failure',
+        target: vars.name,
+        message: errorMessage(error),
+      })
+      invalidatePush(queryClient)
     },
   })
 }

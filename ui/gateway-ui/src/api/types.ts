@@ -56,8 +56,13 @@ export interface CollectionVariableInput {
 }
 
 /** 变量列表响应,额外携带运行时值。 */
-export interface CollectionVariable extends CollectionVariableInput {
+export interface CollectionVariable
+  extends Omit<CollectionVariableInput, 'bits' | 'rate' | 'offset' | 'precision'> {
   type?: string
+  bits?: number | null
+  rate?: number | null
+  offset?: number | null
+  precision?: number | null
   value?: unknown
 }
 
@@ -72,7 +77,7 @@ export interface CollectionPayload {
 
 export interface AddVariablesResult {
   added: number
-  variables: CollectionVariableInput[]
+  variables: CollectionVariable[]
 }
 
 export interface CollectionAction {
@@ -152,26 +157,32 @@ export interface DriverPayload {
 
 /* ---------------- 推送 ---------------- */
 
-export interface MQTTConfig {
+export interface ConnectorConfig {
   brokerUrl: string
   username?: string
   password?: string
-  dataTopic: string
-  commandTopic?: string
   clientId?: string
   qos?: number
   retain?: boolean
   keepAlive?: number
+  dataTopic?: string
+  commandTopic?: string
 }
 
-export type ConnectorStatus = 'running' | 'stopped'
+export type MQTTConfig = ConnectorConfig
+
+export type ConnectorRunState = 'running' | 'stopped'
+export type ConnectorStatus = 'running' | 'stopped' | 'error'
 
 export interface PushConnector {
   id: string
   type: string
   name: string
-  pushConfig: MQTTConfig
+  pushConfig: ConnectorConfig
+  runState: ConnectorRunState
+  groupCount?: number
   status: ConnectorStatus | string
+  lastError?: string
   version: number
   createdTime: string
   updatedTime: string
@@ -180,13 +191,19 @@ export interface PushConnector {
 export interface PushConnectorPayload {
   type: string
   name: string
-  pushConfig: MQTTConfig
+  pushConfig: ConnectorConfig
 }
 
 export interface PushGroup {
   id: string
   name: string
   connectorId: string
+  dataTopic: string
+  commandTopic: string
+  runState: ConnectorRunState
+  status: ConnectorStatus | string
+  lastError?: string
+  lastPushTime?: string
   pushIntervalMs: number
   allCollections: boolean
   collectionIds: string[]
@@ -199,6 +216,8 @@ export interface PushGroup {
 export interface PushGroupPayload {
   name: string
   connectorId: string
+  dataTopic: string
+  commandTopic: string
   pushIntervalMs: number
   allCollections: boolean
   collectionIds: string[]
@@ -327,4 +346,25 @@ export interface GatewayLogEntry {
   title: string
   message: string
   collectionId?: string
+}
+
+export interface PushPayloadEvent {
+  groupId: string
+  connectorId: string
+  connectorType: string
+  topic: string
+  key?: string
+  time: string
+  durationMs?: number
+  payload: unknown
+  error?: string
+}
+
+export interface PushCommandEvent {
+  groupId: string
+  connectorId: string
+  connectorType: string
+  topic: string
+  time: string
+  payload: unknown
 }

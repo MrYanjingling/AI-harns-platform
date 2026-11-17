@@ -20,6 +20,7 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.GET("/:id", get(svc))
 	g.PUT("/:id", update(svc))
 	g.DELETE("/:id", deleteDriver(svc))
+	g.POST("/:id/plugin", uploadPlugin(svc))
 }
 
 func list(svc *Service) gin.HandlerFunc {
@@ -98,6 +99,34 @@ func update(svc *Service) gin.HandlerFunc {
 			return
 		}
 		item, err := svc.Update(c.Request.Context(), c.Param("id"), &req)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		response.WriteOK(c, item)
+	}
+}
+
+func uploadPlugin(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		const maxPluginSize = 64 << 20
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxPluginSize)
+		file, err := c.FormFile("file")
+		if err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrDriverInvalid("plugin file is required"))
+			return
+		}
+		if file.Size > maxPluginSize {
+			response.WriteError(c, http.StatusBadRequest, response.ErrDriverInvalid("plugin file is too large"))
+			return
+		}
+		source, err := file.Open()
+		if err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrDriverInvalid("plugin file cannot be opened"))
+			return
+		}
+		defer source.Close()
+		item, err := svc.UploadPlugin(c.Request.Context(), c.Param("id"), file.Filename, source)
 		if err != nil {
 			writeErr(c, err)
 			return
