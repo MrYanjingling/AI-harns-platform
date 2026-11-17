@@ -1,48 +1,55 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
-import { Badge, cn, useI18n } from '@harns/core'
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleHelp,
+  CirclePause,
+  CircleSlash,
+  CircleX,
+} from 'lucide-react'
+import { cn, useI18n } from '@harns/core'
 import type { CollectStatus } from '@/api/types'
-import { collectStatusMeta, connectorStatusMeta } from '@/lib/constants'
+import { collectStatusMeta, connectorStatusMeta, type StatusTone } from '@/lib/constants'
 
-const TOOLTIP_WIDTH = 224
+const TOOLTIP_WIDTH = 200
 
-export function CollectStatusBadge({
+const STATUS_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  collecting: CircleCheck,
+  running: CircleCheck,
+  stopped: CirclePause,
+  emptyVariable: CircleSlash,
+  unconnected: CircleAlert,
+  collectingError: CircleX,
+  error: CircleX,
+}
+
+const TONE_CLASSES: Record<StatusTone, string> = {
+  success: 'border-success/35 bg-success/10 text-success',
+  warning: 'border-warning/35 bg-warning/10 text-warning',
+  danger: 'border-danger/35 bg-danger/10 text-danger',
+  neutral: 'border-border bg-surface-2 text-muted',
+  info: 'border-info/35 bg-info/10 text-info',
+}
+
+function StatusDisplay({
   status,
-  error,
+  label,
+  tooltip,
+  tone,
   className,
 }: {
-  status: CollectStatus | string
-  error?: string
+  status: string
+  label: string
+  tooltip: string
+  tone: StatusTone
   className?: string
 }) {
-  const { t } = useI18n()
-  const meta = collectStatusMeta(status)
-  const badgeRef = useRef<HTMLSpanElement>(null)
+  const rootRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0, above: false })
-  const lastError = error?.trim()
-  const tooltip = (() => {
-    switch (status) {
-      case 'collecting':
-        return t('gateway.status.tooltip.collecting')
-      case 'emptyVariable':
-        return t('gateway.status.tooltip.emptyVariable')
-      case 'stopped':
-        return t('gateway.status.tooltip.stopped')
-      case 'collectingError':
-      case 'unconnected':
-      case 'error':
-        return lastError || t(meta.descriptionKey)
-      default:
-        return lastError || t(meta.descriptionKey)
-    }
-  })()
-  const tooltipTone =
-    meta.tone === 'danger'
-      ? 'border-danger/30'
-      : meta.tone === 'warning'
-        ? 'border-warning/30'
-        : 'border-border'
+  const Icon = STATUS_ICONS[status] ?? CircleHelp
+  const toneClass = TONE_CLASSES[tone]
 
   useEffect(() => {
     if (!open) return
@@ -56,14 +63,16 @@ export function CollectStatusBadge({
   }, [open])
 
   const show = () => {
-    const rect = badgeRef.current?.getBoundingClientRect()
+    const rect = rootRef.current?.getBoundingClientRect()
     if (!rect) return
-    const width = Math.min(TOOLTIP_WIDTH, window.innerWidth - 16)
+    const estimatedWidth = Math.min(TOOLTIP_WIDTH, tooltip.length * 12 + 16)
+    const half = estimatedWidth / 2
+    const center = rect.left + rect.width / 2
     const left = Math.min(
-      Math.max(8, rect.left),
-      Math.max(8, window.innerWidth - width - 8),
+      Math.max(8 + half, center),
+      Math.max(8 + half, window.innerWidth - 8 - half),
     )
-    const above = rect.bottom + 88 > window.innerHeight
+    const above = rect.top > 40
     setPosition({
       top: above ? rect.top - 6 : rect.bottom + 6,
       left,
@@ -74,19 +83,23 @@ export function CollectStatusBadge({
 
   return (
     <span
-      ref={badgeRef}
-      className="inline-flex"
+      ref={rootRef}
+      className={cn(
+        'inline-flex min-w-0 items-center gap-1.5 rounded border px-2 py-0.5 text-sm font-medium whitespace-nowrap',
+        toneClass,
+        className,
+      )}
       onMouseEnter={show}
       onMouseLeave={() => setOpen(false)}
+      onFocus={(event) => {
+        if (event.currentTarget.matches(':focus-visible')) show()
+      }}
+      onBlur={() => setOpen(false)}
+      tabIndex={0}
+      aria-label={`${label}: ${tooltip}`}
     >
-      <Badge
-        tone={meta.tone}
-        dot
-        aria-label={`${t(meta.labelKey)}: ${tooltip}`}
-        className={cn('cursor-help', className)}
-      >
-        {t(meta.labelKey)}
-      </Badge>
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
       {open
         ? createPortal(
             <div
@@ -96,20 +109,67 @@ export function CollectStatusBadge({
                 top: position.top,
                 left: position.left,
                 width: 'max-content',
-                maxWidth: `min(${TOOLTIP_WIDTH}px, calc(100vw - 2rem))`,
-                transform: position.above ? 'translateY(-100%)' : undefined,
+                maxWidth: `min(${TOOLTIP_WIDTH}px, calc(100vw - 1rem))`,
+                transform: position.above
+                  ? 'translate(-50%, -100%)'
+                  : 'translate(-50%, 0)',
               }}
-              className={cn(
-                'z-[300] rounded border bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg shadow-xl',
-                tooltipTone,
-              )}
+              className="z-[300] rounded bg-header px-2 py-1 text-[11px] leading-4 text-header-fg shadow-lg"
             >
               {tooltip}
+              <span
+                className={cn(
+                  'absolute left-1/2 size-2 -translate-x-1/2 rotate-45 bg-header',
+                  position.above ? 'top-full -translate-y-1/2' : 'bottom-full translate-y-1/2',
+                )}
+              />
             </div>,
             document.body,
           )
         : null}
     </span>
+  )
+}
+
+export function CollectStatusBadge({
+  status,
+  error,
+  className,
+}: {
+  status: CollectStatus | string
+  error?: string
+  className?: string
+}) {
+  const { t } = useI18n()
+  const meta = collectStatusMeta(status)
+  const lastError = error?.trim()
+  const tooltip = (() => {
+    switch (status) {
+      case 'collecting':
+        return t('gateway.status.tooltip.collecting')
+      case 'emptyVariable':
+        return t('gateway.status.tooltip.emptyVariable')
+      case 'stopped':
+        return t('gateway.status.tooltip.stopped')
+      case 'collectingError':
+        return lastError || t('gateway.status.collectingError.description')
+      case 'unconnected':
+        return lastError || t('gateway.status.unconnected.description')
+      case 'error':
+        return lastError || t('gateway.status.error.description')
+      default:
+        return lastError || t(meta.descriptionKey)
+    }
+  })()
+
+  return (
+    <StatusDisplay
+      status={status}
+      label={t(meta.labelKey)}
+      tooltip={tooltip}
+      tone={meta.tone}
+      className={className}
+    />
   )
 }
 
@@ -124,77 +184,15 @@ export function ConnectorStatusBadge({
 }) {
   const { t } = useI18n()
   const meta = connectorStatusMeta(status)
-  const badgeRef = useRef<HTMLSpanElement>(null)
-  const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState({ top: 0, left: 0, above: false })
   const tooltip = error?.trim() || t(meta.descriptionKey)
-  const tooltipTone = meta.tone === 'danger' ? 'border-danger/30' : 'border-border'
-
-  useEffect(() => {
-    if (!open) return
-    const close = () => setOpen(false)
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
-    return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
-    }
-  }, [open])
-
-  const show = () => {
-    const rect = badgeRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const width = Math.min(TOOLTIP_WIDTH, window.innerWidth - 16)
-    const left = Math.min(
-      Math.max(8, rect.left),
-      Math.max(8, window.innerWidth - width - 8),
-    )
-    const above = rect.bottom + 88 > window.innerHeight
-    setPosition({
-      top: above ? rect.top - 6 : rect.bottom + 6,
-      left,
-      above,
-    })
-    setOpen(true)
-  }
 
   return (
-    <span
-      ref={badgeRef}
-      className="inline-flex"
-      onMouseEnter={show}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <Badge
-        tone={meta.tone}
-        dot
-        aria-label={`${t(meta.labelKey)}: ${tooltip}`}
-        className={cn('cursor-help', className)}
-      >
-        {t(meta.labelKey)}
-      </Badge>
-      {open
-        ? createPortal(
-            <div
-              role="tooltip"
-              style={{
-                position: 'fixed',
-                top: position.top,
-                left: position.left,
-                width: 'max-content',
-                maxWidth: `min(${TOOLTIP_WIDTH}px, calc(100vw - 2rem))`,
-                transform: position.above ? 'translateY(-100%)' : undefined,
-              }}
-              className={cn(
-                'z-[300] rounded border bg-surface px-2.5 py-2 text-xs leading-relaxed text-fg shadow-xl',
-                tooltipTone,
-              )}
-            >
-              {tooltip}
-            </div>,
-            document.body,
-          )
-        : null}
-    </span>
+    <StatusDisplay
+      status={status}
+      label={t(meta.labelKey)}
+      tooltip={tooltip}
+      tone={meta.tone}
+      className={className}
+    />
   )
 }

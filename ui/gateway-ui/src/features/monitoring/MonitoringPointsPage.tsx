@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Gauge, Play, RefreshCw, RotateCw, ScanSearch, Search } from 'lucide-react'
+import { Play, RefreshCw, RotateCw, ScanSearch, Search, SlidersHorizontal } from 'lucide-react'
 import {
   Badge,
   Button,
   Card,
   Dialog,
-  EmptyState,
   ErrorState,
   Input,
   Pagination,
@@ -35,6 +34,7 @@ import {
   GatewayTable,
 } from '@/components/GatewayTable'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { TableActionButton } from '@/components/TableActionButton'
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
@@ -158,7 +158,7 @@ export function MonitoringPointsPage() {
     offset: 64,
     accessMode: 90,
     value: 160,
-    actions: 90,
+    actions: 64,
   })
 
   useEffect(() => {
@@ -167,10 +167,7 @@ export function MonitoringPointsPage() {
       return
     }
     if (!collectionList.some((item) => item.id === collectionId)) {
-      // 默认优先选择支持报文分析的非 OPC UA 实例。
-      const preferred =
-        collectionList.find((item) => item.driverType !== 'opcUa') ?? collectionList[0]
-      setCollectionId(preferred.id)
+      setCollectionId(collectionList[0].id)
       setPage(1)
     }
   }, [collectionList, collectionId])
@@ -281,9 +278,6 @@ export function MonitoringPointsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
-        <label htmlFor="monitoring-collection" className="text-sm text-muted">
-          {t('gateway.monitoring.collection')}
-        </label>
         <SearchSelect
           id="monitoring-collection"
           value={collectionId}
@@ -295,7 +289,7 @@ export function MonitoringPointsPage() {
             setPage(1)
             setControlVariable(null)
           }}
-          ariaLabel={t('gateway.monitoring.collection')}
+          ariaLabel={t('gateway.monitoring.selectCollection')}
           emptyText={t('common.state.empty')}
           className="w-[240px]"
           panelClassName="w-[240px]"
@@ -320,7 +314,6 @@ export function MonitoringPointsPage() {
             <CollectStatusBadge
               status={currentCollection.collectStatus}
               error={currentCollection.lastError}
-              className="border-[1.5px] px-2 py-1"
             />
             {['stopped', 'emptyVariable'].includes(currentCollection.collectStatus) ? (
               <Button
@@ -348,16 +341,18 @@ export function MonitoringPointsPage() {
           </>
         ) : null}
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant={autoRefreshActive ? 'primary' : 'outline'}
-            className="h-9"
-            icon={<RefreshCw className="size-3.5" />}
-            onClick={openAutoRefresh}
-          >
-            {autoRefreshActive
-              ? t('gateway.monitoring.autoRefreshActive', { seconds: autoRefreshSeconds })
-              : t('gateway.monitoring.autoRefresh')}
-          </Button>
+          {collectionId ? (
+            <Button
+              variant={autoRefreshActive ? 'primary' : 'outline'}
+              className="h-9"
+              icon={<RefreshCw className="size-3.5" />}
+              onClick={openAutoRefresh}
+            >
+              {autoRefreshActive
+                ? t('gateway.monitoring.autoRefreshActive', { seconds: autoRefreshSeconds })
+                : t('gateway.monitoring.autoRefresh')}
+            </Button>
+          ) : null}
         {frameAnalysisSupported ? (
           <Button
             variant="primary"
@@ -393,13 +388,7 @@ export function MonitoringPointsPage() {
                 compact
               />
             </div>
-          ) : collectionList.length === 0 ? (
-            <EmptyState
-              icon={<Gauge className="size-5" />}
-              title={t('gateway.monitoring.emptyCollectionTitle')}
-              description={t('gateway.monitoring.emptyCollectionDescription')}
-            />
-          ) : list.length === 0 ? null : (
+          ) : collectionList.length === 0 || !collectionId || list.length === 0 ? null : (
             <GatewayTable
               style={{
                 tableLayout: 'fixed',
@@ -490,23 +479,23 @@ export function MonitoringPointsPage() {
               <GatewayTBody>
                 {list.map((variable, index) => (
                   <GatewayTR key={variable.name}>
-                    <GatewayTD className="text-center text-muted">
+                    <GatewayTD className="text-center">
                       {(page - 1) * pageSize + index + 1}
                     </GatewayTD>
                     <GatewayTD>
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate text-fg">{variable.name}</span>
+                        <span className="truncate">{variable.name}</span>
                         {variable.isCalculated ? (
                           <Badge tone="info">{t('gateway.variable.calculated')}</Badge>
                         ) : null}
                       </div>
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="font-mono text-muted">{variable.dataType}</span>
+                      <span>{variable.dataType}</span>
                     </GatewayTD>
                     <GatewayTD>
                       <span
-                        className="block truncate font-mono text-muted"
+                        className="block truncate"
                         title={variableAddress(variable)}
                       >
                         {variableAddress(variable)}
@@ -530,16 +519,14 @@ export function MonitoringPointsPage() {
                     <GatewayTD>
                       {/* 调试期间暂时放开空变量/停止/未连接状态的下控限制。 */}
                       {variable.accessMode === 'w' || variable.accessMode === 'rw' ? (
-                        <button
-                          type="button"
+                        <TableActionButton
+                          label={t('gateway.monitoring.control')}
+                          icon={<SlidersHorizontal />}
                           onClick={() => {
                             setControlValue('')
                             setControlVariable(variable)
                           }}
-                          className="text-sm text-primary transition-colors hover:text-primary-hover"
-                        >
-                          {t('gateway.monitoring.control')}
-                        </button>
+                        />
                       ) : null}
                     </GatewayTD>
                   </GatewayTR>
@@ -621,13 +608,6 @@ export function MonitoringPointsPage() {
         open={Boolean(controlVariable)}
         onClose={() => setControlVariable(null)}
         title={t('gateway.detail.control.title')}
-        description={
-          controlVariable?.name ? (
-            <span className="text-sm font-medium leading-5 text-muted">
-              {controlVariable.name}
-            </span>
-          ) : undefined
-        }
         className="w-[280px] max-w-[calc(100vw-2rem)] rounded-lg"
         headerClassName="items-center pt-3"
         footerClassName="min-h-10 items-center py-1"
@@ -651,23 +631,23 @@ export function MonitoringPointsPage() {
         <div className="space-y-3">
           <dl className="divide-y divide-border rounded border border-border bg-surface-2">
             <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 text-fg">{t('gateway.variable.dataType')}</dt>
-              <dd className="font-mono text-sm text-fg">{controlVariable?.dataType ?? '—'}</dd>
+              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.dataType')}</dt>
+              <dd className="text-sm leading-5 font-normal font-table text-table-fg">{controlVariable?.dataType ?? '—'}</dd>
             </div>
             <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 text-fg">{t('gateway.variable.address')}</dt>
-              <dd className="truncate font-mono text-sm text-fg">
+              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.address')}</dt>
+              <dd className="truncate text-sm leading-5 font-normal font-table text-table-fg">
                 {controlVariable?.address || '—'}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 text-fg">{t('gateway.variable.value')}</dt>
-              <dd className="truncate font-mono text-sm text-fg">
+              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.value')}</dt>
+              <dd className="truncate text-sm leading-5 font-normal font-table text-table-fg">
                 {formatValue(controlVariable?.value)}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="shrink-0 text-sm leading-5 text-fg">{t('gateway.monitoring.writeValue')}</dt>
+              <dt className="shrink-0 text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.monitoring.writeValue')}</dt>
               <dd className="min-w-0 flex-1">
                 {isBoolControl ? (
                   <Select

@@ -53,6 +53,7 @@ import {
 } from '@/api/hooks'
 import type { DriverSchema } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
+import { TableActionButton } from '@/components/TableActionButton'
 import { ProtocolLabel } from '@/components/ProtocolLabel'
 import { VariablesEditor } from './VariablesEditor'
 import { CollectionEditDialog } from './CollectionEditDialog'
@@ -406,13 +407,7 @@ export function CollectionDetailPage() {
             <div className="p-3">
               <ErrorState error={variables.error} onRetry={() => void variables.refetch()} />
             </div>
-          ) : variableList.length === 0 ? (
-            <EmptyState
-              title={t('gateway.detail.variables.empty')}
-              description={t('gateway.detail.variables.emptyHint')}
-              className="py-8"
-            />
-          ) : (
+          ) : variableList.length === 0 ? null : (
             <Table>
               <THead>
                 <TR>
@@ -450,15 +445,11 @@ export function CollectionDetailPage() {
                       {formatValue(variable.value)}
                     </TD>
                     <TD className="text-right">
-                      <button
-                        type="button"
+                      <TableActionButton
+                        label={t('common.action.delete')}
+                        icon={<Trash2 />}
                         onClick={() => setDeleteTarget(variable.name)}
-                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                        title={t('common.action.delete')}
-                        aria-label={t('common.action.delete')}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      />
                     </TD>
                   </TR>
                 ))}

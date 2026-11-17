@@ -33,8 +33,8 @@ const modbusTcpSchema = `{
   "fields": [
     {
       "name": "location",
-      "labelZh": "IP地址:端口",
-      "labelEn": "Host:Port",
+      "labelZh": "IP:PORT",
+      "labelEn": "IP:PORT",
       "regex": "^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$",
       "sort": 1,
       "type": "input",
@@ -244,8 +244,8 @@ const modbusRtuOverTcpSchema = `{
   "fields": [
     {
       "name": "location",
-      "labelZh": "IP地址:端口",
-      "labelEn": "Host:Port",
+      "labelZh": "IP:PORT",
+      "labelEn": "IP:PORT",
       "regex": "^[A-Za-z0-9.-]+:[0-9]{1,5}$",
       "sort": 1,
       "type": "input",

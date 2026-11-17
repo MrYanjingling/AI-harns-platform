@@ -52,7 +52,7 @@ function formatFrameTime(value: string): string {
 
 function InfoItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-start gap-[5px]">
+    <div className="flex min-w-0 items-center gap-[5px]">
       <p className="shrink-0 text-sm leading-5 font-medium text-muted">{label}</p>
       <div className="min-w-0 flex-1 text-sm leading-5 text-fg">{children}</div>
     </div>
@@ -269,7 +269,7 @@ export function FrameAnalysisPage() {
           <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
             <InfoItem label={t('gateway.frames.info.collection')}>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-semibold text-fg">{detail.name}</span>
+                <span className="truncate text-sm leading-5 text-fg">{detail.name}</span>
                 <CollectStatusBadge status={detail.collectStatus} error={detail.lastError} />
               </div>
             </InfoItem>

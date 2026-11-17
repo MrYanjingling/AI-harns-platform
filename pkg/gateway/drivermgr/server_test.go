@@ -70,4 +70,5 @@ func TestDriverRoutesReturnLocalizedFieldErrors(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `"code":20004`)
 	assert.Contains(t, rec.Body.String(), `"field":"pluginName"`)
 	assert.Contains(t, rec.Body.String(), `"message":"pluginName 只能包含字母、数字和连字符。"`)
+	assert.NotContains(t, rec.Body.String(), `%s`)
 }

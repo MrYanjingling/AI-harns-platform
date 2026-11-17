@@ -25,7 +25,7 @@ export function GaugeRing({
   className,
 }: {
   value: number
-  label: string
+  label?: string
   caption?: string
   tone?: GaugeTone
   size?: number
@@ -67,7 +67,7 @@ export function GaugeRing({
           {caption ? <span className="text-[10px] text-faint">{caption}</span> : null}
         </div>
       </div>
-      <span className="text-[11px] font-medium text-muted">{label}</span>
+      {label ? <span className="text-[11px] font-medium text-muted">{label}</span> : null}
     </div>
   )
 }

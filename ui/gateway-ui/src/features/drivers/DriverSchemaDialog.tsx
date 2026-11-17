@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import {
   Badge,
   Button,
-  CopyButton,
   Dialog,
   Skeleton,
   Table,
@@ -74,6 +73,7 @@ export function DriverSchemaDialog({
       setEditing(false)
       setError('')
       toast.success(t('gateway.drivers.toast.schemaUpdated'))
+      onClose()
     } catch (err) {
       showErrorToast(err)
     }
@@ -104,31 +104,19 @@ export function DriverSchemaDialog({
         </div>
       ) : (
         <div className="space-y-3">
-          <Tabs
-            items={[
-              { value: 'table', label: t('gateway.drivers.schema.viewTable') },
-              { value: 'json', label: t('gateway.drivers.schema.viewJson') },
-            ]}
-            value={view}
-            onChange={setView}
-          />
-          {view === 'json' ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <CopyButton
-                  value={schemaText || JSON.stringify(schema, null, 2)}
-                  className="size-8 border border-border"
-                />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Tabs
+              items={[
+                { value: 'table', label: t('gateway.drivers.schema.viewTable') },
+                { value: 'json', label: t('gateway.drivers.schema.viewJson') },
+              ]}
+              value={view}
+              onChange={setView}
+            />
+            {view === 'json' ? (
+              <div className="ml-auto flex items-center gap-2">
                 {editing ? (
                   <>
-                    <Button
-                      variant="primary"
-                      className="h-8"
-                      loading={update.isPending}
-                      onClick={() => void saveSchema()}
-                    >
-                      {t('common.action.save')}
-                    </Button>
                     <Button
                       variant="outline"
                       className="h-8"
@@ -139,6 +127,14 @@ export function DriverSchemaDialog({
                     >
                       {t('common.action.cancel')}
                     </Button>
+                    <Button
+                      variant="primary"
+                      className="h-8"
+                      loading={update.isPending}
+                      onClick={() => void saveSchema()}
+                    >
+                      {t('common.action.save')}
+                    </Button>
                   </>
                 ) : !driver?.builtinDriver ? (
                   <Button variant="outline" className="h-8" onClick={startEditing}>
@@ -146,11 +142,15 @@ export function DriverSchemaDialog({
                   </Button>
                 ) : null}
               </div>
+            ) : null}
+          </div>
+          {view === 'json' ? (
+            <div className="space-y-2">
               {editing ? (
                 <Textarea
                   value={schemaText}
                   spellCheck={false}
-                  className="min-h-[420px] font-mono text-xs"
+                  className="min-h-[420px] font-mono text-xs select-text"
                   aria-invalid={Boolean(error)}
                   onChange={(event) => {
                     setSchemaText(event.target.value)
@@ -158,7 +158,7 @@ export function DriverSchemaDialog({
                   }}
                 />
               ) : (
-                <pre className="max-h-[60dvh] overflow-auto rounded border border-border bg-surface p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-fg">
+                <pre className="max-h-[60dvh] cursor-text select-text overflow-auto rounded border border-border bg-surface p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-fg">
                   {JSON.stringify(schema, null, 2)}
                 </pre>
               )}
@@ -173,43 +173,41 @@ export function DriverSchemaDialog({
             {sortedFields(schema).length === 0 ? (
               <p className="text-sm text-faint">{t('gateway.drivers.schema.empty')}</p>
             ) : (
-              <div className="overflow-hidden rounded border border-border">
-                <Table>
-                  <THead>
-                    <TR>
-                      <TH>{t('gateway.drivers.schema.name')}</TH>
-                      <TH>{t('gateway.drivers.schema.label')}</TH>
-                      <TH>{t('gateway.drivers.schema.type')}</TH>
-                      <TH>{t('gateway.drivers.schema.required')}</TH>
-                      <TH>{t('gateway.drivers.schema.regex')}</TH>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>{t('gateway.drivers.schema.name')}</TH>
+                    <TH>{t('gateway.drivers.schema.label')}</TH>
+                    <TH>{t('gateway.drivers.schema.type')}</TH>
+                    <TH>{t('gateway.drivers.schema.required')}</TH>
+                    <TH>{t('gateway.drivers.schema.regex')}</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {sortedFields(schema).map((field) => (
+                    <TR key={field.name}>
+                      <TD className="max-w-[220px] truncate text-fg">{field.name}</TD>
+                      <TD className="truncate">
+                        {localized(field.labelZh, field.labelEn, locale)}
+                      </TD>
+                      <TD>
+                        <Badge tone={field.type === 'select' ? 'info' : 'neutral'}>
+                          {field.type}
+                        </Badge>
+                        {field.options?.length ? (
+                          <span className="ml-1 text-muted">
+                            {field.options.map((option) => option.value).join(' / ')}
+                          </span>
+                        ) : null}
+                      </TD>
+                      <TD>{field.required ? t('common.state.yes') : '—'}</TD>
+                      <TD className="max-w-56 truncate text-muted">
+                        {field.regex || '—'}
+                      </TD>
                     </TR>
-                  </THead>
-                  <TBody>
-                    {sortedFields(schema).map((field) => (
-                      <TR key={field.name}>
-                        <TD className="font-mono text-xs">{field.name}</TD>
-                        <TD className="text-sm">
-                          {localized(field.labelZh, field.labelEn, locale)}
-                        </TD>
-                        <TD>
-                          <Badge tone={field.type === 'select' ? 'info' : 'neutral'}>
-                            {field.type}
-                          </Badge>
-                          {field.options?.length ? (
-                            <span className="ml-1 text-xs text-faint">
-                              {field.options.map((option) => option.value).join(' / ')}
-                            </span>
-                          ) : null}
-                        </TD>
-                        <TD className="text-sm">{field.required ? t('common.state.yes') : '—'}</TD>
-                        <TD className="max-w-56 truncate font-mono text-xs text-faint">
-                          {field.regex || '—'}
-                        </TD>
-                      </TR>
-                    ))}
-                  </TBody>
-                </Table>
-              </div>
+                  ))}
+                </TBody>
+              </Table>
             )}
           </section>
 

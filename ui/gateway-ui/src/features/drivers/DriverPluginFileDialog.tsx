@@ -73,6 +73,7 @@ export function DriverPluginFileDialog({
           : t('gateway.drivers.uploadPluginTitle')
       }
       size="lg"
+      className="w-[400px] max-w-[calc(100vw-2rem)]"
       footer={
         <>
           <Button variant="outline" onClick={close}>

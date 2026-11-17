@@ -26,8 +26,8 @@ export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
   unconnected: {
     labelKey: 'gateway.status.unconnected.label',
     descriptionKey: 'gateway.status.unconnected.description',
-    tone: 'warning',
-    dotClassName: 'bg-amber-500',
+    tone: 'danger',
+    dotClassName: 'bg-rose-500',
   },
   emptyVariable: {
     labelKey: 'gateway.status.emptyVariable.label',
@@ -38,8 +38,8 @@ export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
   stopped: {
     labelKey: 'gateway.status.stopped.label',
     descriptionKey: 'gateway.status.stopped.description',
-    tone: 'neutral',
-    dotClassName: 'bg-zinc-400',
+    tone: 'warning',
+    dotClassName: 'bg-amber-500',
   },
   error: {
     labelKey: 'gateway.status.error.label',
@@ -83,8 +83,8 @@ export const CONNECTOR_STATUS: Record<ConnectorStatus, StatusMeta> = {
   stopped: {
     labelKey: 'gateway.push.status.stopped',
     descriptionKey: 'gateway.push.status.stoppedHint',
-    tone: 'neutral',
-    dotClassName: 'bg-zinc-400',
+    tone: 'warning',
+    dotClassName: 'bg-amber-500',
   },
   error: {
     labelKey: 'gateway.push.status.error',

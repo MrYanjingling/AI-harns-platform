@@ -2,6 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
+import {
+  CircleCheck,
+  CircleX,
+  Info,
+  LoaderCircle,
+  TriangleAlert,
+} from 'lucide-react'
 import { Toaster } from 'sonner'
 import {
   AppShell,
@@ -31,7 +38,7 @@ function GatewaySidebarVersion() {
   return (
     <span
       title={version}
-      className="block truncate font-mono text-[10px] text-faint"
+      className="block truncate font-mono text-[10px] font-semibold text-faint"
     >
       V{version}
     </span>
@@ -55,6 +62,7 @@ const router = createBrowserRouter([
         sidebarResizable
         sidebarFooter={<GatewaySidebarVersion />}
         contentFooter={<span>© {new Date().getFullYear()} AI-harns</span>}
+        headerVariant="surface"
       />
     ),
     children: [{ index: true, element: <Navigate to="/overview" replace /> }, ...gatewayRoutes],
@@ -67,23 +75,32 @@ function AppToaster() {
     <Toaster
       theme={theme}
       position="top-center"
-      closeButton
-      richColors
+      duration={3000}
+      gap={8}
+      offset={16}
+      icons={{
+        success: <CircleCheck className="size-4 text-success" />,
+        error: <CircleX className="size-4 text-danger" />,
+        info: <Info className="size-4 text-info" />,
+        warning: <TriangleAlert className="size-4 text-warning" />,
+        loading: <LoaderCircle className="size-4 animate-spin text-muted" />,
+      }}
       style={{ zIndex: 1000, width: 'min(560px, calc(100vw - 2rem))' }}
       toastOptions={{
         classNames: {
-          toast: 'justify-center',
+          toast:
+            'items-center! justify-start! gap-2! rounded-md! border! border-border! bg-surface! px-4! py-2.5! text-fg! shadow-lg!',
           content: 'flex-none!',
-          title: 'text-center',
-          description: 'text-center',
+          title: 'text-sm! leading-5! font-normal! text-fg!',
+          description: 'mt-1! text-xs! leading-5! text-muted!',
+          icon: 'm-0! shrink-0!',
         },
         style: {
           left: '50%',
           translate: '-50% 0',
           width: 'max-content',
-          minWidth: '240px',
+          minWidth: '160px',
           maxWidth: 'min(560px, calc(100vw - 2rem))',
-          fontSize: '13px',
         },
       }}
     />

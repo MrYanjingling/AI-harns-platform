@@ -75,6 +75,7 @@ export function usePushGroupCommandStream(groupId: string | undefined, enabled: 
 
   useEffect(() => {
     if (!groupId || !enabled) {
+      setEvents([])
       setConnected(false)
       setError(false)
       return

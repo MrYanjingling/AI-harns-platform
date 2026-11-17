@@ -483,10 +483,11 @@ export function usePushConnectors(params: PushConnectorParams) {
   })
 }
 
-export function usePushGroups(params: PushGroupParams) {
+export function usePushGroups(params: PushGroupParams, enabled = true) {
   return useQuery({
     queryKey: queryKeys.gateway.pushGroups(params),
     queryFn: () => listPushGroups(params),
+    enabled,
     refetchInterval: PUSH_POLL_MS,
     placeholderData: keepPreviousData,
   })

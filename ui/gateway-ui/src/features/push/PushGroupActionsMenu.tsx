@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MoreVertical, Play, Radio, RotateCw, Square } from 'lucide-react'
 import { cn, useI18n } from '@harns/core'
+import { TableActionButton } from '@/components/TableActionButton'
 import type { PushGroup } from '@/api/types'
 
 interface PushGroupActionsMenuProps {
@@ -82,9 +83,10 @@ export function PushGroupActionsMenu({
 
   return (
     <>
-      <button
+      <TableActionButton
         ref={buttonRef}
-        type="button"
+        label={t('gateway.push.action.more')}
+        icon={<MoreVertical />}
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -97,15 +99,8 @@ export function PushGroupActionsMenu({
           place()
           setOpen(true)
         }}
-        aria-label={t('gateway.push.action.more')}
-        title={t('gateway.push.action.more')}
-        className={cn(
-          'inline-flex size-7 items-center justify-center rounded text-primary transition-colors hover:bg-surface-2 hover:text-primary-hover disabled:cursor-not-allowed disabled:opacity-40',
-          open && 'bg-surface-2 text-primary',
-        )}
-      >
-        <MoreVertical className="size-4" />
-      </button>
+        className={cn(open && 'bg-surface-2')}
+      />
 
       {open
         ? createPortal(

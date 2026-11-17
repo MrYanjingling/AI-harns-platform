@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Pencil, Plus, Pointer, Search, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -31,6 +31,7 @@ import {
 } from '@/components/GatewayTable'
 import { ConnectorStatusBadge } from '@/components/StatusBadge'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { TableActionButton } from '@/components/TableActionButton'
 import { ConnectorActionsMenu, type ConnectorOperation } from './ConnectorActionsMenu'
 import { ConnectorFormDialog } from './ConnectorFormDialog'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
@@ -73,7 +74,7 @@ export function ConnectorsPage() {
     broker: 240,
     groups: 100,
     updatedAt: 180,
-    actions: 180,
+    actions: 140,
   })
 
   const typeOptions = [
@@ -186,11 +187,7 @@ export function ConnectorsPage() {
                 compact
               />
             </div>
-          ) : list.length === 0 ? (
-            <div className="flex min-h-[240px] items-center justify-center px-6 py-16 text-sm text-muted">
-              {t('common.state.empty')}
-            </div>
-          ) : (
+          ) : list.length === 0 ? null : (
             <GatewayTable
               style={{
                 tableLayout: 'fixed',
@@ -254,25 +251,24 @@ export function ConnectorsPage() {
               <GatewayTBody>
                 {list.map((connector, index) => (
                   <GatewayTR key={connector.id}>
-                    <GatewayTD className="text-center text-muted">
+                    <GatewayTD className="text-center">
                       {(page - 1) * pageSize + index + 1}
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="truncate text-fg">{connector.name}</span>
+                      <span className="truncate">{connector.name}</span>
                     </GatewayTD>
                     <GatewayTD>
                       <ConnectorStatusBadge
                         status={connector.status}
                         error={connector.lastError}
-                        className="border-[1.5px] px-2 py-1"
                       />
                     </GatewayTD>
-                    <GatewayTD className="text-muted">
+                    <GatewayTD>
                       {connector.type.toUpperCase()}
                     </GatewayTD>
                     <GatewayTD>
                       <span
-                        className="block truncate font-mono text-muted"
+                        className="block truncate"
                         title={connector.pushConfig?.brokerUrl ?? undefined}
                       >
                         {connector.pushConfig?.brokerUrl || '—'}
@@ -288,32 +284,31 @@ export function ConnectorsPage() {
                           openGroups(connector)
                         }
                       }}
-                      className="cursor-pointer text-sm text-primary transition-colors hover:bg-surface-2 hover:text-primary-hover"
+                      className="cursor-pointer transition-colors hover:bg-surface-2 hover:text-primary-hover"
                     >
-                      {connector.groupCount ?? 0}
+                      <span className="inline-flex items-center gap-1">
+                        {connector.groupCount ?? 0}
+                        <Pointer className="size-3.5 text-faint" aria-hidden="true" />
+                      </span>
                     </GatewayTD>
-                    <GatewayTD className="whitespace-nowrap text-muted">
+                    <GatewayTD className="whitespace-nowrap">
                       {formatDateTime(connector.updatedTime)}
                     </GatewayTD>
                     <GatewayTD>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
+                        <TableActionButton
+                          label={t('gateway.collection.action.update')}
+                          icon={<Pencil />}
                           onClick={() => openEdit(connector)}
-                          className="inline-flex h-7 items-center rounded text-sm text-primary transition-colors hover:text-primary-hover"
-                        >
-                          {t('gateway.collection.action.update')}
-                        </button>
-                        <button
-                          type="button"
+                        />
+                        <TableActionButton
+                          label={t('common.action.delete')}
+                          icon={<Trash2 />}
                           onClick={() => {
                             setCascade(false)
                             setPending({ kind: 'delete', connector })
                           }}
-                          className="inline-flex h-7 items-center rounded text-sm text-danger transition-colors hover:opacity-80"
-                        >
-                          {t('common.action.delete')}
-                        </button>
+                        />
                         <ConnectorActionsMenu
                           connector={connector}
                           disabled={action.isPending}

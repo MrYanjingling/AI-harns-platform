@@ -33,7 +33,7 @@ export function GatewaySettingsPopover() {
         aria-expanded={open}
         aria-label={t('gateway.settings.title')}
         title={t('gateway.settings.title')}
-        className="flex size-8 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
+        className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
       >
         <Settings className="size-4" />
       </button>

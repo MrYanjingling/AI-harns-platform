@@ -113,13 +113,18 @@ func NewFieldItem(lang string, code ErrCode, field, msgID string, args ...interf
 	}
 }
 
-// WriteFieldErrors writes field-level validation failures. The summary message
-// is derived from code, while each item keeps its own field path and message.
+// WriteFieldErrors writes field-level validation failures. The first item's
+// concrete message is used as the summary so parameterized message templates
+// are never exposed without their arguments.
 func WriteFieldErrors(c *gin.Context, status int, code ErrCode, items []ErrorItem) {
 	lang := i18n.Lang(c)
+	message := i18n.Translate(lang, messageID(code))
+	if len(items) > 0 && items[0].Message != "" {
+		message = items[0].Message
+	}
 	c.JSON(status, Result{
 		Code:    int(code),
-		Message: i18n.Translate(lang, messageID(code)),
+		Message: message,
 		Errors:  items,
 	})
 }

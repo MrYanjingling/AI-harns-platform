@@ -258,8 +258,7 @@ export function PushGroupFormDialog({
               ariaLabel={t('gateway.push.columns.connector')}
               emptyText={t('common.state.empty')}
               searchable={false}
-              className="w-full max-w-[300px]"
-              panelClassName="w-[300px]"
+              className="w-full max-w-[240px]"
             />
           </Field>
           <Field

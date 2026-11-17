@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Boxes, Plus, Search } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   Badge,
   Button,
   Card,
   ConfirmDialog,
-  EmptyState,
+  Dialog,
   ErrorState,
   Input,
   Pagination,
   SearchSelect,
+  Table,
   TableSkeleton,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
   formatDateTime,
   showErrorToast,
   cn,
@@ -20,6 +26,7 @@ import {
   type SearchSelectOption,
 } from '@harns/core'
 import {
+  useCollections,
   useDeletePushGroup,
   usePushConnectors,
   usePushGroupAction,
@@ -34,8 +41,10 @@ import {
   GatewayTR,
   GatewayTable,
 } from '@/components/GatewayTable'
-import { ConnectorStatusBadge } from '@/components/StatusBadge'
+import { CollectStatusBadge, ConnectorStatusBadge } from '@/components/StatusBadge'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
+import { TableActionButton } from '@/components/TableActionButton'
 import { PushGroupActionsMenu } from './PushGroupActionsMenu'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
 import { PushGroupPayloadDialog } from './PushGroupPayloadDialog'
@@ -44,7 +53,6 @@ type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; group: Pus
 
 export function PushGroupsPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -55,9 +63,11 @@ export function PushGroupsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<PushGroup | null>(null)
   const [payloadGroup, setPayloadGroup] = useState<PushGroup | null>(null)
+  const [scopeGroup, setScopeGroup] = useState<PushGroup | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
 
   const connectors = usePushConnectors({ page: 1, pageSize: 100 })
+  const collections = useCollections({ page: 1, pageSize: 100 })
   const remove = useDeletePushGroup()
   const action = usePushGroupAction()
 
@@ -70,32 +80,47 @@ export function PushGroupsPage() {
     () => new Map(connectorList.map((item) => [item.id, item])),
     [connectorList],
   )
+  const collectionList = collections.data?.list ?? []
+  const collectionById = useMemo(
+    () => new Map(collectionList.map((item) => [item.id, item])),
+    [collectionList],
+  )
+  const scopeCollections = useMemo(() => {
+    if (!scopeGroup) return []
+    if (scopeGroup.allCollections) return collectionList
+    return (scopeGroup.collectionIds ?? [])
+      .map((id) => collectionById.get(id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+  }, [collectionById, collectionList, scopeGroup])
   const activeConnectorId = useMemo(() => {
     if (connectorList.some((item) => item.id === selectedConnectorId)) return selectedConnectorId
     const fromQuery = searchParams.get('connectorId') ?? ''
     if (connectorList.some((item) => item.id === fromQuery)) return fromQuery
     return connectorList[0]?.id ?? ''
   }, [connectorList, searchParams, selectedConnectorId])
-  const groups = usePushGroups({
-    page,
-    pageSize,
-    keyword: keyword || undefined,
-    connectorId: activeConnectorId || undefined,
-  })
+  const groups = usePushGroups(
+    {
+      page,
+      pageSize,
+      keyword: keyword || undefined,
+      connectorId: activeConnectorId || undefined,
+    },
+    Boolean(activeConnectorId),
+  )
   const list = groups.data?.list ?? []
   const total = groups.data?.total ?? 0
   const noConnectors = !connectors.isLoading && connectorList.length === 0
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
-    name: 220,
     connector: 180,
+    name: 220,
     status: 120,
     dataTopic: 200,
+    commandTopic: 200,
     interval: 120,
     scope: 100,
-    max: 140,
     lastPush: 160,
-    actions: 180,
+    actions: 140,
   })
 
   useEffect(() => {
@@ -161,15 +186,12 @@ export function PushGroupsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
-        <label htmlFor="push-group-connector-filter" className="text-sm text-muted">
-          {t('gateway.push.columns.connector')}
-        </label>
         <SearchSelect
           id="push-group-connector-filter"
           value={activeConnectorId}
           options={connectorOptions}
           onChange={selectConnector}
-          ariaLabel={t('gateway.push.columns.connector')}
+          ariaLabel={t('gateway.push.group.selectConnector')}
           emptyText={t('common.state.empty')}
           className="w-[200px]"
           panelClassName="w-[200px]"
@@ -195,7 +217,7 @@ export function PushGroupsPage() {
         <Button
           variant="primary"
           className="ml-auto h-9"
-          disabled={noConnectors || connectors.isLoading}
+          disabled={!activeConnectorId || noConnectors || connectors.isLoading}
           icon={<Plus className="size-3.5" />}
           onClick={openCreate}
         >
@@ -215,28 +237,13 @@ export function PushGroupsPage() {
                 compact
               />
             </div>
-          ) : noConnectors ? (
-            <EmptyState
-              icon={<Boxes className="size-5" />}
-              title={t('gateway.push.group.noConnectorTitle')}
-              description={t('gateway.push.group.noConnectorDescription')}
-              action={
-                <Button variant="primary" onClick={() => navigate('/push')}>
-                  {t('gateway.push.group.goConnectors')}
-                </Button>
-              }
-            />
-          ) : groups.isLoading ? (
+          ) : noConnectors || !activeConnectorId ? null : groups.isLoading ? (
             <TableSkeleton rows={6} cols={10} />
           ) : groups.isError ? (
             <div className="p-5">
               <ErrorState error={groups.error} onRetry={() => void groups.refetch()} compact />
             </div>
-          ) : list.length === 0 ? (
-            <div className="flex h-full min-h-40 items-center justify-center text-sm text-faint">
-              {t('common.state.empty')}
-            </div>
-          ) : (
+          ) : list.length === 0 ? null : (
             <GatewayTable
               style={{
                 tableLayout: 'fixed',
@@ -245,13 +252,13 @@ export function PushGroupsPage() {
             >
               <colgroup>
                 <col style={{ width: widths.order }} />
-                <col style={{ width: widths.name }} />
                 <col style={{ width: widths.connector }} />
+                <col style={{ width: widths.name }} />
                 <col style={{ width: widths.status }} />
                 <col style={{ width: widths.dataTopic }} />
+                <col style={{ width: widths.commandTopic }} />
                 <col style={{ width: widths.interval }} />
                 <col style={{ width: widths.scope }} />
-                <col style={{ width: widths.max }} />
                 <col style={{ width: widths.lastPush }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
@@ -262,16 +269,16 @@ export function PushGroupsPage() {
                     <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
                   </GatewayTH>
                   <GatewayTH>
-                    {t('common.field.name')}
-                    <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
                     {t('gateway.push.columns.connector')}
                     <ColumnResizeHandle
                       column="connector"
                       width={widths.connector}
                       onResize={resize}
                     />
+                  </GatewayTH>
+                  <GatewayTH>
+                    {t('common.field.name')}
+                    <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
                   </GatewayTH>
                   <GatewayTH>
                     {t('common.field.status')}
@@ -286,6 +293,14 @@ export function PushGroupsPage() {
                     />
                   </GatewayTH>
                   <GatewayTH>
+                    {t('gateway.push.field.commandTopic')}
+                    <ColumnResizeHandle
+                      column="commandTopic"
+                      width={widths.commandTopic}
+                      onResize={resize}
+                    />
+                  </GatewayTH>
+                  <GatewayTH>
                     {t('gateway.push.columns.interval')}
                     <ColumnResizeHandle
                       column="interval"
@@ -296,10 +311,6 @@ export function PushGroupsPage() {
                   <GatewayTH>
                     {t('gateway.push.columns.scope')}
                     <ColumnResizeHandle column="scope" width={widths.scope} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.push.columns.maxPerMessage')}
-                    <ColumnResizeHandle column="max" width={widths.max} onResize={resize} />
                   </GatewayTH>
                   <GatewayTH>
                     {t('gateway.push.payload.lastPushTime')}
@@ -329,63 +340,74 @@ export function PushGroupsPage() {
                         focusedGroupId === group.id && 'bg-primary-soft/40 ring-1 ring-primary/25',
                       )}
                     >
-                      <GatewayTD className="text-center text-muted">
+                      <GatewayTD className="text-center">
                         {(page - 1) * pageSize + index + 1}
                       </GatewayTD>
                       <GatewayTD>
-                        <span className="truncate text-fg">{group.name}</span>
-                      </GatewayTD>
-                      <GatewayTD className="text-muted">
                         {connectorById.get(group.connectorId)?.name ?? '—'}
+                      </GatewayTD>
+                      <GatewayTD>
+                        <span className="truncate">{group.name}</span>
                       </GatewayTD>
                       <GatewayTD>
                         <ConnectorStatusBadge
                           status={group.status}
                           error={group.lastError}
-                          className="border-[1.5px] px-2 py-1"
                         />
                       </GatewayTD>
                       <GatewayTD>
-                        <span className="block truncate font-mono text-muted" title={group.dataTopic}>
+                        <span className="block truncate" title={group.dataTopic}>
                           {group.dataTopic || '—'}
                         </span>
                       </GatewayTD>
-                      <GatewayTD className="whitespace-nowrap text-muted">
-                        {group.pushIntervalMs} ms
-                      </GatewayTD>
                       <GatewayTD>
+                        <span
+                          className="block truncate"
+                          title={group.commandTopic}
+                        >
+                          {group.commandTopic || '—'}
+                        </span>
+                      </GatewayTD>
+                      <GatewayTD className="whitespace-nowrap">
+                        {group.pushIntervalMs}
+                      </GatewayTD>
+                      <GatewayTD
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setScopeGroup(group)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setScopeGroup(group)
+                          }
+                        }}
+                        className="cursor-pointer transition-colors hover:bg-surface-2"
+                      >
                         {group.allCollections ? (
-                          <Badge tone="info">{t('gateway.push.scope.all')}</Badge>
+                          <Badge tone="info" className="px-2">{t('gateway.push.scope.all')}</Badge>
                         ) : (
-                          <Badge tone="neutral">
+                          <Badge tone="neutral" className="px-2">
                             {t('gateway.push.scope.selected', {
                               count: group.collectionIds?.length ?? 0,
                             })}
                           </Badge>
                         )}
                       </GatewayTD>
-                      <GatewayTD className="text-muted">
-                        {group.maxCollectionsPerPushMessage}
-                      </GatewayTD>
-                      <GatewayTD className="whitespace-nowrap text-muted">
+                      <GatewayTD className="whitespace-nowrap">
                         {group.lastPushTime ? formatDateTime(group.lastPushTime) : '—'}
                       </GatewayTD>
                       <GatewayTD>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
+                          <TableActionButton
+                            label={t('gateway.collection.action.update')}
+                            icon={<Pencil />}
                             onClick={() => openEdit(group)}
-                            className="inline-flex h-7 items-center rounded text-sm text-primary transition-colors hover:text-primary-hover"
-                          >
-                            {t('gateway.collection.action.update')}
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <TableActionButton
+                            label={t('common.action.delete')}
+                            icon={<Trash2 />}
                             onClick={() => setPending({ kind: 'delete', group })}
-                            className="inline-flex h-7 items-center rounded text-sm text-danger transition-colors hover:opacity-80"
-                          >
-                            {t('common.action.delete')}
-                          </button>
+                          />
                           <PushGroupActionsMenu
                             group={group}
                             connectorStatus={connectorById.get(group.connectorId)?.status}
@@ -435,6 +457,70 @@ export function PushGroupsPage() {
         }
         onClose={() => setPayloadGroup(null)}
       />
+
+      <Dialog
+        open={Boolean(scopeGroup)}
+        onClose={() => setScopeGroup(null)}
+        title={t('gateway.push.group.scopeTitle')}
+        className="w-[760px] max-w-[calc(100vw-2rem)] rounded-lg"
+        footer={
+          <Button variant="outline" onClick={() => setScopeGroup(null)}>
+            {t('common.action.close')}
+          </Button>
+        }
+      >
+        {scopeCollections.length === 0 ? (
+          <p className="py-8 text-center text-sm text-faint">{t('gateway.push.scope.empty')}</p>
+        ) : (
+          <div className="max-h-[50dvh] overflow-auto">
+            <Table>
+              <THead>
+                <TR>
+                  <TH className="w-10">
+                    <input
+                      type="checkbox"
+                      aria-label={t('common.action.selectAll')}
+                      checked
+                      readOnly
+                    />
+                  </TH>
+                  <TH>{t('gateway.variable.name')}</TH>
+                  <TH>{t('gateway.collection.columns.status')}</TH>
+                  <TH>{t('gateway.collection.columns.driverType')}</TH>
+                  <TH>{t('gateway.push.group.protocolType')}</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {scopeCollections.map((collection) => (
+                  <TR key={collection.id}>
+                    <TD>
+                      <input
+                        type="checkbox"
+                        aria-label={collection.name}
+                        checked
+                        readOnly
+                      />
+                    </TD>
+                    <TD className="max-w-[220px] truncate text-fg">{collection.name}</TD>
+                    <TD>
+                      <CollectStatusBadge
+                        status={collection.collectStatus}
+                        error={collection.lastError}
+                      />
+                    </TD>
+                    <TD className="text-muted">
+                      {driverTypeLabel(collection.driverType) || '—'}
+                    </TD>
+                    <TD className="text-muted">
+                      {driverModelLabel(collection.driverModel) || '—'}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </div>
+        )}
+      </Dialog>
 
       <ConfirmDialog
         open={Boolean(pending)}

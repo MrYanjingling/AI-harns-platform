@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MoreVertical, Play, RotateCw, Square } from 'lucide-react'
 import { cn, useI18n } from '@harns/core'
+import { TableActionButton } from '@/components/TableActionButton'
 import type { Collection } from '@/api/types'
 import {
   canRestartCollection,
@@ -87,21 +88,15 @@ export function CollectionActionsMenu({
 
   return (
     <>
-      <button
+      <TableActionButton
         ref={buttonRef}
-        type="button"
+        label={t('gateway.collection.action.more')}
+        icon={<MoreVertical />}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={toggle}
-        aria-label={t('gateway.collection.action.more')}
-        title={t('gateway.collection.action.more')}
-        className={cn(
-          'inline-flex size-7 items-center justify-center rounded text-primary transition-colors hover:bg-surface-2 hover:text-primary-hover',
-          open && 'bg-surface-2 text-primary',
-        )}
-      >
-        <MoreVertical className="size-4" />
-      </button>
+        className={cn(open && 'bg-surface-2')}
+      />
 
       {open
         ? createPortal(

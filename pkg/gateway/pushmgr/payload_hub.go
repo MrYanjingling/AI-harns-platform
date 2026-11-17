@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const payloadBufferSize = 50
-
 type PushPayloadEvent struct {
 	GroupID       string          `json:"groupId"`
 	ConnectorID   string          `json:"connectorId"`
@@ -23,14 +21,12 @@ type PushPayloadEvent struct {
 type payloadHub struct {
 	mu     sync.Mutex
 	subs   map[chan PushPayloadEvent]struct{}
-	buffer []PushPayloadEvent
 	closed bool
 }
 
 func newPayloadHub() *payloadHub {
 	return &payloadHub{
-		subs:   make(map[chan PushPayloadEvent]struct{}),
-		buffer: make([]PushPayloadEvent, 0, payloadBufferSize),
+		subs: make(map[chan PushPayloadEvent]struct{}),
 	}
 }
 
@@ -42,10 +38,6 @@ func (h *payloadHub) Publish(event PushPayloadEvent) {
 	defer h.mu.Unlock()
 	if h.closed {
 		return
-	}
-	h.buffer = append(h.buffer, event)
-	if len(h.buffer) > payloadBufferSize {
-		h.buffer = append([]PushPayloadEvent(nil), h.buffer[len(h.buffer)-payloadBufferSize:]...)
 	}
 	for ch := range h.subs {
 		select {
@@ -66,12 +58,6 @@ func (h *payloadHub) Subscribe() (<-chan PushPayloadEvent, func()) {
 		h.mu.Unlock()
 		close(ch)
 		return ch, func() {}
-	}
-	for _, event := range h.buffer {
-		select {
-		case ch <- event:
-		default:
-		}
 	}
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()

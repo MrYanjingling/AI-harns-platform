@@ -85,8 +85,10 @@ export function usePushGroupPayloadStream(groupId: string | undefined, enabled: 
 
   useEffect(() => {
     if (!groupId || !enabled) {
+      setEvents([])
       setConnected(false)
       setError(false)
+      setPaused(false)
       return
     }
 

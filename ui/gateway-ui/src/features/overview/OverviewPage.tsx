@@ -6,7 +6,6 @@ import {
   Boxes,
   CalendarClock,
   Check,
-  CircleDashed,
   Copy as CopyIcon,
   Cpu,
   HardDrive,
@@ -24,7 +23,6 @@ import {
   CardTitle,
   CopyButton,
   Dialog,
-  EmptyState,
   ErrorState,
   GaugeRing,
   ProgressBar,
@@ -49,11 +47,12 @@ import {
 } from '@/api/hooks'
 import { CollectStatusBadge, ConnectorStatusBadge } from '@/components/StatusBadge'
 import { driverModelLabel } from '@/lib/constants'
+import { formatUptime } from '@/lib/uptime'
 
 const overviewCardClass = 'border-[1.5px] border-border-strong/75 shadow-[0_1px_3px_rgba(28,47,76,0.06)]'
 
 export function OverviewPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const meta = useGatewayMeta()
   const cpu = useGatewayCpu()
   const mem = useGatewayMem()
@@ -67,19 +66,17 @@ export function OverviewPage() {
   const list = collections.data?.list ?? []
   const connectorList = connectors.data?.list ?? []
   const groupList = groups.data?.list ?? []
-  const connectorMap = useMemo(
-    () => new Map(connectorList.map((item) => [item.id, item.name])),
+  const connectorTypeMap = useMemo(
+    () => new Map(connectorList.map((item) => [item.id, item.type])),
     [connectorList],
   )
 
   const stats = useMemo(() => {
     return {
       total: collections.data?.total ?? list.length,
-      abnormal: list.filter((item) => item.collectStatus !== 'collecting').length,
+      normal: list.filter((item) => item.collectStatus === 'collecting').length,
       groups: groups.data?.total ?? groupList.length,
-      abnormalGroups: groupList.filter(
-        (item) => item.status === 'error' || Boolean(item.lastError),
-      ).length,
+      normalGroups: groupList.filter((item) => item.status === 'running').length,
       currentVariables: list.reduce((sum, item) => sum + (item.variableCount ?? 0), 0),
     }
   }, [list, collections.data, groupList, groups.data])
@@ -147,12 +144,16 @@ export function OverviewPage() {
           </div>
           <div className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2 text-[11px]">
             <div>
-              <p className="text-faint">{t('gateway.overview.field.currentUptime')}</p>
-              <p className="mt-0.5 font-mono text-xs text-fg">{meta.data?.currentUptime ?? '—'}</p>
+              <CardDescription>{t('gateway.overview.field.currentUptime')}</CardDescription>
+              <p className="font-mono text-xs text-fg">
+                {formatUptime(meta.data?.currentUptime, locale)}
+              </p>
             </div>
             <div>
-              <p className="text-faint">{t('gateway.overview.field.totalUptime')}</p>
-              <p className="mt-0.5 font-mono text-xs text-fg">{meta.data?.totalUptime ?? '—'}</p>
+              <CardDescription>{t('gateway.overview.field.totalUptime')}</CardDescription>
+              <p className="font-mono text-xs text-fg">
+                {formatUptime(meta.data?.totalUptime, locale)}
+              </p>
             </div>
           </div>
         </div>
@@ -166,43 +167,31 @@ export function OverviewPage() {
         <Link to="/collections" className="block">
           <StatCard
             label={t('gateway.overview.stat.collections')}
-            value={`${stats.total}/${stats.abnormal}`}
+            value={<span className="text-lg">{`${stats.total}/${stats.normal}`}</span>}
             icon={<Activity />}
             variant="summary"
             tone="primary"
             className={overviewCardClass}
-            footer={
-              <p className="text-[11px] text-faint">
-                {t('gateway.overview.stat.collectionsHint')}
-              </p>
-            }
+            footer={<CardDescription>{t('gateway.overview.stat.collectionsHint')}</CardDescription>}
           />
         </Link>
         <StatCard
-          label={t('gateway.overview.stat.abnormal')}
-          value={`${stats.groups}/${stats.abnormalGroups}`}
+          label={t('gateway.overview.stat.pushGroups')}
+          value={<span className="text-lg">{`${stats.groups}/${stats.normalGroups}`}</span>}
           icon={<Waypoints />}
           variant="summary"
-          tone="danger"
-          className={cn(overviewCardClass, stats.abnormalGroups > 0 && 'border-danger/30')}
-          footer={
-            <p className="text-[11px] text-faint">
-              {t('gateway.overview.stat.abnormalHint')}
-            </p>
-          }
+          tone="success"
+          className={overviewCardClass}
+          footer={<CardDescription>{t('gateway.overview.stat.pushGroupsHint')}</CardDescription>}
         />
         <StatCard
           label={t('gateway.overview.stat.connectors')}
-          value={`${maxVariable ?? '—'}/${stats.currentVariables}`}
+          value={<span className="text-lg">{`${maxVariable ?? '—'}/${stats.currentVariables}`}</span>}
           icon={<Boxes />}
           variant="summary"
           tone="success"
           className={overviewCardClass}
-          footer={
-            <p className="text-[11px] text-faint">
-              {t('gateway.overview.stat.variablesHint')}
-            </p>
-          }
+          footer={<CardDescription>{t('gateway.overview.stat.variablesHint')}</CardDescription>}
         />
         <StatCard
           label={t('gateway.overview.stat.groups')}
@@ -254,7 +243,7 @@ export function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card className={overviewCardClass}>
+        <Card className={cn(overviewCardClass, 'flex flex-col')}>
           <CardHeader>
             <div>
               <CardTitle className="flex items-center gap-1.5">
@@ -264,24 +253,23 @@ export function OverviewPage() {
               <CardDescription>{t('gateway.overview.resource.memoryHint')}</CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-1 items-center gap-4">
             {mem.isError || !memData ? (
               <p className="text-xs text-danger">{t('gateway.performance.memory.unavailable')}</p>
             ) : (
-              <div className="flex items-center gap-4">
+              <>
                 <GaugeRing
                   value={percentValue(memData.UsedPercent)}
-                  label={memData.UsedPercent}
                   size={84}
                   tone={toneForPercent(percentValue(memData.UsedPercent))}
                 />
                 <div className="min-w-0 space-y-1 text-xs">
-                  <p className="text-faint">{t('gateway.overview.resource.used')}</p>
+                  <CardDescription>{t('gateway.overview.resource.used')}</CardDescription>
                   <p className="font-medium text-fg tabular">{memData.Used}</p>
-                  <p className="text-faint">{t('gateway.overview.resource.total')}</p>
+                  <CardDescription>{t('gateway.overview.resource.total')}</CardDescription>
                   <p className="font-medium text-fg tabular">{memData.Total}</p>
                 </div>
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -332,7 +320,7 @@ export function OverviewPage() {
             </div>
             <Link
               to="/push/groups"
-              className="inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-fg"
+              className="inline-flex items-center gap-1 text-[13px] leading-relaxed text-muted transition-colors hover:text-fg"
             >
               {t('gateway.overview.viewAll')}
               <ArrowRight className="size-3" />
@@ -345,13 +333,7 @@ export function OverviewPage() {
                   <Skeleton key={index} className="h-10 w-full" />
                 ))}
               </div>
-            ) : recentGroups.length === 0 ? (
-              <EmptyState
-                icon={<CircleDashed className="size-5" />}
-                title={t('gateway.overview.recentGroups.empty')}
-                className="py-6"
-              />
-            ) : (
+            ) : recentGroups.length === 0 ? null : (
               <div className="space-y-1.5">
                 {recentGroups.map((group) => (
                   <Link
@@ -359,12 +341,14 @@ export function OverviewPage() {
                     to={`/push/groups?connectorId=${encodeURIComponent(group.connectorId)}&groupId=${encodeURIComponent(group.id)}`}
                     className="flex items-center justify-between gap-2 rounded border border-border px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-surface-2"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-fg">{group.name}</p>
-                      <p className="mt-0.5 truncate text-[10px] text-faint">
-                        {connectorMap.get(group.connectorId) ?? group.connectorId} ·{' '}
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="min-w-0 truncate text-sm leading-5 font-normal font-table text-table-fg">
+                        {group.name}
+                      </span>
+                      <span className="min-w-0 truncate text-sm leading-5 font-normal font-table text-table-fg">
+                        {connectorTypeMap.get(group.connectorId)?.toUpperCase() ?? '—'} ·{' '}
                         {formatRelative(group.updatedTime)}
-                      </p>
+                      </span>
                     </div>
                     <ConnectorStatusBadge status={group.status} error={group.lastError} />
                   </Link>
@@ -381,7 +365,7 @@ export function OverviewPage() {
             </div>
             <Link
               to="/collections"
-              className="inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-fg"
+              className="inline-flex items-center gap-1 text-[13px] leading-relaxed text-muted transition-colors hover:text-fg"
             >
               {t('gateway.overview.viewAll')}
               <ArrowRight className="size-3" />
@@ -394,22 +378,7 @@ export function OverviewPage() {
                   <Skeleton key={index} className="h-10 w-full" />
                 ))}
               </div>
-            ) : recentCollections.length === 0 ? (
-              <EmptyState
-                icon={<CircleDashed className="size-5" />}
-                title={t('gateway.collection.empty.title')}
-                description={t('gateway.collection.empty.description')}
-                className="py-6"
-                action={
-                  <Link
-                    to="/collections?create=1"
-                    className="inline-flex h-8 items-center rounded bg-primary px-3 text-sm font-medium text-primary-fg"
-                  >
-                    {t('gateway.collection.create')}
-                  </Link>
-                }
-              />
-            ) : (
+            ) : recentCollections.length === 0 ? null : (
               <div className="space-y-1.5">
                 {recentCollections.map((collection) => (
                   <Link
@@ -417,12 +386,14 @@ export function OverviewPage() {
                     to={`/collections/${collection.id}`}
                     className="flex items-center justify-between gap-2 rounded border border-border px-2.5 py-2 transition-colors hover:border-border-strong hover:bg-surface-2"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-fg">{collection.name}</p>
-                      <p className="mt-0.5 truncate text-[10px] text-faint">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="min-w-0 truncate text-sm leading-5 font-normal font-table text-table-fg">
+                        {collection.name}
+                      </span>
+                      <span className="min-w-0 truncate text-sm leading-5 font-normal font-table text-table-fg">
                         {driverModelLabel(collection.driverModel) || collection.driverModel} ·{' '}
                         {formatRelative(collection.modTime)}
-                      </p>
+                      </span>
                     </div>
                     <CollectStatusBadge
                       status={collection.collectStatus}

@@ -96,7 +96,7 @@ export function SearchSelect({
 
   useEffect(() => {
     if (!open) return
-    setActiveIndex(Math.max(0, options.findIndex((option) => option.value === value)))
+    setActiveIndex(options.findIndex((option) => option.value === value))
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node
       if (!containerRef.current?.contains(target) && !panelRef.current?.contains(target)) {
@@ -134,7 +134,11 @@ export function SearchSelect({
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       setActiveIndex((index) =>
-        filtered.length ? (index - 1 + filtered.length) % filtered.length : 0,
+        filtered.length
+          ? index < 0
+            ? filtered.length - 1
+            : (index - 1 + filtered.length) % filtered.length
+          : -1,
       )
     } else if (event.key === 'Enter') {
       event.preventDefault()

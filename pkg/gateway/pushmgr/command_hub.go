@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const commandBufferSize = 50
-
 // PushCommandEvent is one command message received from a command topic.
 type PushCommandEvent struct {
 	GroupID       string          `json:"groupId"`
@@ -21,14 +19,12 @@ type PushCommandEvent struct {
 type commandHub struct {
 	mu     sync.Mutex
 	subs   map[chan PushCommandEvent]struct{}
-	buffer []PushCommandEvent
 	closed bool
 }
 
 func newCommandHub() *commandHub {
 	return &commandHub{
-		subs:   make(map[chan PushCommandEvent]struct{}),
-		buffer: make([]PushCommandEvent, 0, commandBufferSize),
+		subs: make(map[chan PushCommandEvent]struct{}),
 	}
 }
 
@@ -40,10 +36,6 @@ func (h *commandHub) Publish(event PushCommandEvent) {
 	defer h.mu.Unlock()
 	if h.closed {
 		return
-	}
-	h.buffer = append(h.buffer, event)
-	if len(h.buffer) > commandBufferSize {
-		h.buffer = append([]PushCommandEvent(nil), h.buffer[len(h.buffer)-commandBufferSize:]...)
 	}
 	for ch := range h.subs {
 		select {
@@ -64,12 +56,6 @@ func (h *commandHub) Subscribe() (<-chan PushCommandEvent, func()) {
 		h.mu.Unlock()
 		close(ch)
 		return ch, func() {}
-	}
-	for _, event := range h.buffer {
-		select {
-		case ch <- event:
-		default:
-		}
 	}
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()

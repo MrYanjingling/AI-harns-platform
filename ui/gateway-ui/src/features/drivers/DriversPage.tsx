@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Layers, Plus, Search } from 'lucide-react'
+import { FileJson, Plus, Search, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Badge,
   Button,
   Card,
   ConfirmDialog,
-  EmptyState,
   ErrorState,
   Input,
   Pagination,
@@ -26,6 +25,7 @@ import {
   GatewayTable,
 } from '@/components/GatewayTable'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { TableActionButton } from '@/components/TableActionButton'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { DriverFormDialog } from './DriverFormDialog'
 import { DriverPluginFileDialog } from './DriverPluginFileDialog'
@@ -49,7 +49,7 @@ export function DriversPage() {
     source: 100,
     plugin: 220,
     createdAt: 160,
-    actions: 240,
+    actions: 140,
   })
 
   const filteredDrivers = useMemo(() => {
@@ -72,17 +72,6 @@ export function DriversPage() {
 
   const total = filteredDrivers.length
   const pageDrivers = filteredDrivers.slice((page - 1) * pageSize, page * pageSize)
-  const driverTypeSpans = new Map<number, number>()
-  let groupStart = 0
-  for (let index = 1; index <= pageDrivers.length; index += 1) {
-    if (
-      index === pageDrivers.length ||
-      pageDrivers[index].driverType !== pageDrivers[groupStart].driverType
-    ) {
-      driverTypeSpans.set(groupStart, index - groupStart)
-      groupStart = index
-    }
-  }
 
   const applySearch = () => {
     setKeyword(keywordInput.trim())
@@ -148,32 +137,7 @@ export function DriversPage() {
             <div className="p-5">
               <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} compact />
             </div>
-          ) : total === 0 ? (
-            <EmptyState
-              icon={<Layers className="size-5" />}
-              title={
-                keyword
-                  ? t('gateway.drivers.empty.filteredTitle')
-                  : t('gateway.drivers.empty.title')
-              }
-              description={t('gateway.drivers.empty.description')}
-              action={
-                keyword ? (
-                  <Button variant="outline" onClick={resetSearch}>
-                    {t('common.action.reset')}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    onClick={() => setCreateOpen(true)}
-                    icon={<Plus className="size-3.5" />}
-                  >
-                    {t('gateway.drivers.create')}
-                  </Button>
-                )
-              }
-            />
-          ) : (
+          ) : total === 0 ? null : (
             <GatewayTable
               style={{
                 tableLayout: 'fixed',
@@ -229,60 +193,52 @@ export function DriversPage() {
                 </tr>
               </GatewayTHead>
               <GatewayTBody>
-                {pageDrivers.map((driver, index) => (
+                {pageDrivers.map((driver) => (
                   <GatewayTR key={driver.id}>
-                    {driverTypeSpans.has(index) ? (
-                      <GatewayTD rowSpan={driverTypeSpans.get(index)}>
-                        <span className="block truncate text-fg">
-                          {driverTypeLabel(driver.driverType) || driver.driverType}
-                        </span>
-                      </GatewayTD>
-                    ) : null}
                     <GatewayTD>
-                      <span className="block truncate text-fg">
+                      <span className="block truncate">
+                        {driverTypeLabel(driver.driverType) || driver.driverType}
+                      </span>
+                    </GatewayTD>
+                    <GatewayTD>
+                      <span className="block truncate">
                         {driverModelLabel(driver.model) || driver.model}
                       </span>
                     </GatewayTD>
                     <GatewayTD>
                       {driver.builtinDriver ? (
-                        <Badge tone="info">{t('gateway.drivers.builtin')}</Badge>
+                        <Badge tone="info" className="px-2.5">{t('gateway.drivers.builtin')}</Badge>
                       ) : (
-                        <Badge tone="violet">{t('gateway.drivers.custom')}</Badge>
+                        <Badge tone="violet" className="px-2.5">{t('gateway.drivers.custom')}</Badge>
                       )}
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="block truncate font-mono text-muted">
+                      <span className="block truncate">
                         {driver.pluginName || '—'}
                       </span>
                     </GatewayTD>
-                    <GatewayTD className="whitespace-nowrap text-muted">
+                    <GatewayTD className="whitespace-nowrap">
                       {formatDateTime(driver.createdTime)}
                     </GatewayTD>
                     <GatewayTD>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
+                        <TableActionButton
+                          label={t('gateway.drivers.viewSchema')}
+                          icon={<FileJson />}
                           onClick={() => setSchemaTarget(driver)}
-                          className="text-sm text-primary transition-colors hover:text-primary-hover"
-                        >
-                          {t('gateway.drivers.viewSchema')}
-                        </button>
+                        />
                         {!driver.builtinDriver ? (
                           <>
-                            <button
-                              type="button"
+                            <TableActionButton
+                              label={t('gateway.drivers.uploadPlugin')}
+                              icon={<Upload />}
                               onClick={() => setPluginTarget(driver)}
-                              className="text-sm text-primary transition-colors hover:text-primary-hover"
-                            >
-                              {t('gateway.drivers.uploadPlugin')}
-                            </button>
-                            <button
-                              type="button"
+                            />
+                            <TableActionButton
+                              label={t('common.action.delete')}
+                              icon={<Trash2 />}
                               onClick={() => setDeleteTarget(driver)}
-                              className="text-sm text-danger transition-colors hover:opacity-80"
-                            >
-                              {t('common.action.delete')}
-                            </button>
+                            />
                           </>
                         ) : null}
                       </div>

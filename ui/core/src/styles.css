@@ -8,6 +8,7 @@
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-fg: var(--fg);
+  --color-table-fg: var(--table-fg);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-border: var(--border);
@@ -27,6 +28,9 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-table: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans SC", sans-serif;
 }
 
 :root {
@@ -35,6 +39,7 @@
   --surface-2: oklch(0.984 0.003 247.858);
   --surface-3: oklch(0.968 0.007 247.896);
   --fg: oklch(0.279 0.041 260.031);
+  --table-fg: #303133;
   --muted: oklch(0.446 0.043 257.281);
   --faint: oklch(0.704 0.04 256.788);
   --border: oklch(0.929 0.013 255.508);
@@ -61,6 +66,7 @@
   --surface-2: oklch(0.281 0.024 264);
   --surface-3: oklch(0.32 0.025 264);
   --fg: oklch(0.958 0.005 258);
+  --table-fg: var(--fg);
   --muted: oklch(0.74 0.016 258);
   --faint: oklch(0.6 0.015 258);
   --border: oklch(0.335 0.024 264);

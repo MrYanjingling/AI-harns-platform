@@ -40,6 +40,8 @@ export interface AppShellProps {
   contentFooter?: ReactNode
   /** 是否允许拖动侧边栏调整宽度。 */
   sidebarResizable?: boolean
+  /** 顶栏视觉变体；surface 用于跟随内容区背景。 */
+  headerVariant?: 'brand' | 'surface'
 }
 
 function breadcrumbActionFromMatches(matches: ReadonlyArray<{ handle?: unknown }>): ReactNode {
@@ -65,6 +67,7 @@ export function AppShell({
   sidebarFooter,
   contentFooter,
   sidebarResizable = false,
+  headerVariant = 'brand',
 }: AppShellProps) {
   const { t } = useI18n()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -81,6 +84,7 @@ export function AppShell({
   const breadcrumb = breadcrumbForPath(pathname, sections)
   const breadcrumbAction = breadcrumbActionFromMatches(matches)
   const isMock = import.meta.env.VITE_USE_MOCK === 'true'
+  const surfaceHeader = headerVariant === 'surface'
   const searchEntries = buildNavEntries(sections)
 
   useEffect(() => {
@@ -129,7 +133,12 @@ export function AppShell({
       )}
     >
       <TechBackdrop />
-      <header className="relative z-30 flex h-[62px] shrink-0 items-center bg-header text-header-fg">
+      <header
+        className={cn(
+          'relative z-30 flex h-[62px] shrink-0 items-center',
+          surfaceHeader ? 'bg-surface text-fg' : 'bg-header text-header-fg',
+        )}
+      >
         {sections.length > 1 ? (
           <nav
             className="hidden h-full items-stretch pl-4 lg:flex"
@@ -143,7 +152,9 @@ export function AppShell({
                   'flex items-center gap-1.5 px-3.5 text-sm transition-colors',
                   item.key === section.key
                     ? 'bg-primary font-medium text-primary-fg'
-                    : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
+                    : surfaceHeader
+                      ? 'text-muted hover:bg-surface-2 hover:text-fg'
+                      : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
                 )}
               >
                 {item.icon ? <span className="flex size-4 items-center justify-center">{item.icon}</span> : null}
@@ -155,7 +166,14 @@ export function AppShell({
 
         <div className="ml-auto flex items-center gap-1 pr-2 sm:pr-3">
           {isMock ? (
-            <span className="mr-1 hidden rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[11px] text-amber-200 sm:inline">
+            <span
+              className={cn(
+                'mr-1 hidden rounded border px-1.5 py-0.5 text-[11px] sm:inline',
+                surfaceHeader
+                  ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-600/30 dark:bg-amber-500/10 dark:text-amber-300'
+                  : 'border-amber-400/30 bg-amber-400/10 text-amber-200',
+              )}
+            >
               {t('layout.shell.mockBadge')}
             </span>
           ) : null}
@@ -165,18 +183,34 @@ export function AppShell({
             onClick={() => setSearchOpen(true)}
             aria-label={t('layout.shell.searchMenu')}
             title={t('layout.shell.searchMenuShortcut')}
-            className="flex size-9 items-center justify-center rounded text-header-muted transition-colors hover:bg-header-hover hover:text-header-fg"
+            className={cn(
+              'flex size-9 items-center justify-center rounded transition-colors',
+              surfaceHeader
+                ? 'text-muted hover:bg-surface-2 hover:text-fg'
+                : 'text-header-muted hover:bg-header-hover hover:text-header-fg',
+            )}
           >
             <Search className="size-4" />
           </button>
-          {headerTools ?? <LanguageSwitcher />}
+          {headerTools ?? (
+            <LanguageSwitcher
+              className={
+                surfaceHeader
+                  ? 'flex h-8 items-center gap-1 rounded px-2 text-xs text-muted transition-colors hover:bg-surface-2 hover:text-fg'
+                  : undefined
+              }
+            />
+          )}
           {accountMenu}
         </div>
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1">
         <aside
-          className="relative flex shrink-0 flex-col border-r border-border bg-surface"
+          className={cn(
+            'relative flex shrink-0 flex-col border-r border-border bg-surface',
+            surfaceHeader && 'border-t',
+          )}
           style={{ width: sidebarCollapsed ? sidebarCollapsedWidth : sidebarActualWidth }}
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -248,7 +282,7 @@ export function AppShell({
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 py-4 sm:px-6">
+          <div className="flex h-[53px] shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 sm:px-6">
             <nav
               aria-label={t('layout.shell.breadcrumb')}
               className="flex min-w-0 items-center gap-2 text-sm"

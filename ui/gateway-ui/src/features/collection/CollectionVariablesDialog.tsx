@@ -408,6 +408,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
       setNormalSelected(new Set())
       setCalculatedSelected(new Set())
       toast.success(t('gateway.variable.saved'))
+      onClose()
     } catch (error) {
       showErrorToast(error)
     }

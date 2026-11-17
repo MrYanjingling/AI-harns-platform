@@ -36,7 +36,7 @@ export function StatCard({
     return (
       <Card
         className={cn(
-          'group flex min-h-[124px] flex-col justify-center rounded-lg px-5 py-4',
+          'group flex min-h-[124px] flex-col justify-start rounded-lg px-5 py-4',
           'shadow-[0_10px_30px_-24px_rgba(15,23,42,0.32)] transition-colors hover:border-border-strong',
           className,
         )}

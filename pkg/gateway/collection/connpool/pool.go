@@ -82,6 +82,7 @@ func (p *Pool) Get(ctx context.Context) (Client, error) {
 			if err != nil {
 				p.mu.Lock()
 				p.total--
+				p.wakeWaiterLocked()
 				p.mu.Unlock()
 				return nil, err
 			}
@@ -98,6 +99,9 @@ func (p *Pool) Get(ctx context.Context) (Client, error) {
 			if !ok {
 				return nil, ErrClosed
 			}
+			if client == nil {
+				continue
+			}
 			return client, nil
 		case <-ctx.Done():
 			p.mu.Lock()
@@ -105,8 +109,12 @@ func (p *Pool) Get(ctx context.Context) (Client, error) {
 			p.mu.Unlock()
 			select {
 			case client, ok := <-waiter:
-				if ok {
+				if ok && client != nil {
 					p.Put(client, false)
+				} else if ok {
+					p.mu.Lock()
+					p.wakeWaiterLocked()
+					p.mu.Unlock()
 				}
 			default:
 			}
@@ -127,6 +135,7 @@ func (p *Pool) Put(client Client, failed bool) {
 	if p.closed || failed || !client.Available() {
 		_ = client.Close()
 		p.total--
+		p.wakeWaiterLocked()
 		return
 	}
 	for id, waiter := range p.waiters {
@@ -135,6 +144,17 @@ func (p *Pool) Put(client Client, failed bool) {
 		return
 	}
 	p.idle = append(p.idle, client)
+}
+
+func (p *Pool) wakeWaiterLocked() {
+	if p.closed {
+		return
+	}
+	for id, waiter := range p.waiters {
+		delete(p.waiters, id)
+		waiter <- nil
+		return
+	}
 }
 
 // Close closes all idle clients and wakes all waiters.

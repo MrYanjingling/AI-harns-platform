@@ -161,9 +161,10 @@ deploy/         k8s 清单
 - `core` 的 `components/ui` 只放无业务原语；`components/shared` 放跨应用组件；页面代码放各子应用的 `features/`。
 - 颜色只用 `core/src/styles.css` 的语义令牌（`bg-surface`、`border-border`、`text-primary` 等），不写死调色板。
 - 表单用 react-hook-form + zod；字段改动要同步 `defaultFormValues`、`toFormValues`、`toPayload`。
-- 空态用 `EmptyState`，错误用 `ErrorState`，加载用 `Skeleton`；不要只渲染 `null`。
+- 数据区没有数据时只居中显示「空」，不显示图标、说明文案、操作按钮或其他提示信息；错误用 `ErrorState`，加载用 `Skeleton`。
+- 网关状态统一使用 `CollectStatusBadge` / `ConnectorStatusBadge` 的「彩色图标 + 文字」，颜色、图标和 tooltip 规范见 `ui/gateway-ui/AGENTS.md`。
 - `VITE_USE_MOCK=true` 时走各包 `mock/`，新接口必须补 mock 路由且响应形状与 Go 一致；host mock 只承载平台接口，网关 mock 由 `gateway-ui` 自己的 Vite 插件挂载。
-- 详见 `ui/README.md` 与 `ui/platform-ui/AGENTS.md`。
+- 详见 `ui/README.md`、`ui/platform-ui/AGENTS.md` 与 `ui/gateway-ui/AGENTS.md`。
 
 ## 7. 提交前检查
 

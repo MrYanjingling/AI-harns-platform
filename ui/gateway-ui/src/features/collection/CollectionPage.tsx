@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Pencil, Plus, Pointer, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -27,8 +27,9 @@ import type { Collection } from '@/api/types'
 import { GatewayTBody, GatewayTD, GatewayTH, GatewayTHead, GatewayTR, GatewayTable } from '@/components/GatewayTable'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import { canToggleCollectionEnable } from '@/lib/collection-actions'
-import { driverModelLabel, driverTypeLabel, formatCycle } from '@/lib/constants'
+import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { TableActionButton } from '@/components/TableActionButton'
 import { CollectionActionsMenu } from './CollectionActionsMenu'
 import { CollectionCreateDialog } from './CollectionCreateDialog'
 import { CollectionEditDialog } from './CollectionEditDialog'
@@ -77,13 +78,13 @@ export function CollectionPage() {
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
     name: 220,
-    status: 120,
+    status: 130,
     driverType: 120,
     model: 180,
     cycle: 120,
     enable: 100,
     variableCount: 120,
-    actions: 180,
+    actions: 140,
   })
 
   useEffect(() => {
@@ -315,13 +316,13 @@ export function CollectionPage() {
                     setEnable.isPending || !canToggleCollectionEnable(collection)
                   return (
                     <GatewayTR key={collection.id}>
-                      <GatewayTD className="text-muted" style={{ textAlign: 'center' }}>
+                      <GatewayTD style={{ textAlign: 'center' }}>
                         {(page - 1) * pageSize + index + 1}
                       </GatewayTD>
                       <GatewayTD>
                         <Link
                           to={`/collections/${collection.id}`}
-                          className="text-fg transition-colors hover:text-primary"
+                          className="transition-colors hover:text-primary"
                         >
                           {collection.name}
                         </Link>
@@ -330,13 +331,12 @@ export function CollectionPage() {
                         <CollectStatusBadge
                           status={collection.collectStatus}
                           error={collection.lastError}
-                          className="border-[1.5px] px-2 py-1"
                         />
                       </GatewayTD>
                       <GatewayTD>{driverTypeLabel(collection.driverType) || '—'}</GatewayTD>
                       <GatewayTD>{driverModelLabel(collection.driverModel) || '—'}</GatewayTD>
-                      <GatewayTD className="whitespace-nowrap text-muted">
-                        {formatCycle(collection.collectorCycleMs)}
+                      <GatewayTD className="whitespace-nowrap">
+                        {collection.collectorCycleMs > 0 ? collection.collectorCycleMs : '—'}
                       </GatewayTD>
                       <GatewayTD>
                         <Switch
@@ -356,26 +356,25 @@ export function CollectionPage() {
                             setVariablesCollection(collection)
                           }
                         }}
-                        className="cursor-pointer text-sm text-primary transition-colors hover:text-primary-hover"
+                        className="cursor-pointer transition-colors hover:text-primary-hover"
                       >
-                        {collection.variableCount}
+                        <span className="inline-flex items-center gap-1">
+                          {collection.variableCount}
+                          <Pointer className="size-3.5 text-faint" aria-hidden="true" />
+                        </span>
                       </GatewayTD>
                       <GatewayTD>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
+                          <TableActionButton
+                            label={t('gateway.collection.action.update')}
+                            icon={<Pencil />}
                             onClick={() => setEditingId(collection.id)}
-                            className="inline-flex h-7 items-center rounded text-sm text-primary transition-colors hover:text-primary-hover"
-                          >
-                            {t('gateway.collection.action.update')}
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <TableActionButton
+                            label={t('common.action.delete')}
+                            icon={<Trash2 />}
                             onClick={() => setPending({ kind: 'delete', collection })}
-                            className="inline-flex h-7 items-center rounded text-sm text-danger transition-colors hover:opacity-80"
-                          >
-                            {t('common.action.delete')}
-                          </button>
+                          />
                           <CollectionActionsMenu
                             collection={collection}
                             onAction={(kind) => setPending({ kind, collection })}

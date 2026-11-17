@@ -17,6 +17,7 @@ import type { VariableFormValues } from '@/lib/collection-form'
 import { variableTypes } from '@/lib/collection-form'
 import { localized } from '@/lib/labels'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { TableActionButton } from '@/components/TableActionButton'
 import { VariableErrors } from './VariableErrors'
 
 interface VariablesEditorProps {
@@ -158,15 +159,11 @@ export function VariablesEditor({
               ) : null}
               <TH className="relative">
                 {variables.length === 0 ? (
-                  <button
-                    type="button"
-                    title={t('gateway.variable.addCollection')}
-                    aria-label={t('gateway.variable.addCollection')}
+                  <TableActionButton
+                    label={t('gateway.variable.addCollection')}
+                    icon={<Plus />}
                     onClick={onAdd}
-                    className="inline-flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
+                  />
                 ) : (
                   t('common.field.actions')
                 )}
@@ -297,24 +294,16 @@ export function VariablesEditor({
                   ) : null}
                   <TD className="text-right">
                     <div className="flex items-center justify-end gap-0.5">
-                      <button
-                        type="button"
-                        title={t('gateway.variable.addCollection')}
-                        aria-label={t('gateway.variable.addCollection')}
+                      <TableActionButton
+                        label={t('gateway.variable.addCollection')}
+                        icon={<Plus />}
                         onClick={onAdd}
-                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                      >
-                        <Plus className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        title={t('gateway.variable.remove')}
-                        aria-label={t('gateway.variable.remove')}
+                      />
+                      <TableActionButton
+                        label={t('gateway.variable.remove')}
+                        icon={<Trash2 />}
                         onClick={() => onRemove(index)}
-                        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      />
                     </div>
                   </TD>
                 </TR>

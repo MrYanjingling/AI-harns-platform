@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Plus, Search, UserRound } from 'lucide-react'
+import { KeyRound, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
   Card,
   ConfirmDialog,
-  EmptyState,
   ErrorState,
   Input,
   Pagination,
@@ -29,7 +28,7 @@ import {
   GatewayTable,
 } from '@/components/GatewayTable'
 import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { UserActionsMenu } from './UserActionsMenu'
+import { TableActionButton } from '@/components/TableActionButton'
 import { UserFormDialog } from './UserFormDialog'
 
 export function UsersPage() {
@@ -53,7 +52,7 @@ export function UsersPage() {
     user: 280,
     remark: 460,
     updatedAt: 260,
-    actions: 120,
+    actions: 140,
   })
 
   const applySearch = () => {
@@ -140,28 +139,7 @@ export function UsersPage() {
             <div className="p-5">
               <ErrorState error={users.error} onRetry={users.refetch} compact />
             </div>
-          ) : list.length === 0 ? (
-            <EmptyState
-              icon={<UserRound className="size-5" />}
-              title={keyword ? t('gateway.users.emptyMatch') : t('gateway.users.emptyNone')}
-              description={
-                keyword
-                  ? t('gateway.users.emptyMatchDescription')
-                  : t('gateway.users.emptyNoneDescription')
-              }
-              action={
-                keyword ? (
-                  <Button variant="outline" onClick={resetSearch}>
-                    {t('gateway.users.clearSearch')}
-                  </Button>
-                ) : (
-                  <Button variant="primary" onClick={openCreate}>
-                    {t('gateway.users.create')}
-                  </Button>
-                )
-              }
-            />
-          ) : (
+          ) : list.length === 0 ? null : (
             <GatewayTable
               style={{
                 tableLayout: 'fixed',
@@ -197,7 +175,7 @@ export function UsersPage() {
                       onResize={resize}
                     />
                   </GatewayTH>
-                  <GatewayTH className="text-right">
+                  <GatewayTH className="text-left">
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
@@ -210,25 +188,35 @@ export function UsersPage() {
               <GatewayTBody>
                 {list.map((user, index) => (
                   <GatewayTR key={user.id}>
-                    <GatewayTD className="text-center text-muted">
+                    <GatewayTD className="text-center">
                       {(page - 1) * pageSize + index + 1}
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="text-fg">{user.username}</span>
+                      <span>{user.username}</span>
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="text-fg">{user.remark || '—'}</span>
+                      <span>{user.remark || '—'}</span>
                     </GatewayTD>
                     <GatewayTD>
-                      <span className="whitespace-nowrap text-muted">{formatDateTime(user.updatedTime)}</span>
+                      <span className="whitespace-nowrap">{formatDateTime(user.updatedTime)}</span>
                     </GatewayTD>
-                    <GatewayTD className="text-right">
-                      <div className="flex justify-end">
-                        <UserActionsMenu
-                          user={user}
-                          onEdit={() => openEdit(user)}
-                          onReset={() => setResetTarget(user)}
-                          onDelete={() => setDeleteTarget(user)}
+                    <GatewayTD>
+                      <div className="flex items-center gap-2">
+                        <TableActionButton
+                          label={t('common.action.edit')}
+                          icon={<Pencil />}
+                          onClick={() => openEdit(user)}
+                        />
+                        <TableActionButton
+                          label={t('gateway.users.resetPassword')}
+                          icon={<KeyRound />}
+                          onClick={() => setResetTarget(user)}
+                        />
+                        <TableActionButton
+                          label={t('common.action.delete')}
+                          icon={<Trash2 />}
+                          disabled={user.isAdmin}
+                          onClick={() => setDeleteTarget(user)}
                         />
                       </div>
                     </GatewayTD>
