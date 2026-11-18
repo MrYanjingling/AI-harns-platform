@@ -102,9 +102,6 @@ export function DriverPluginFileDialog({
           />
         </label>
         {error ? <p className="text-xs text-danger">{error}</p> : null}
-        {!file && !error ? (
-          <p className="text-xs text-faint">{t('gateway.drivers.pluginFileHint')}</p>
-        ) : null}
       </div>
     </Dialog>
   )

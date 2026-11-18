@@ -135,7 +135,7 @@ export function AppShell({
       <TechBackdrop />
       <header
         className={cn(
-          'relative z-30 flex h-[62px] shrink-0 items-center',
+          'relative z-30 flex h-[56px] shrink-0 items-center',
           surfaceHeader ? 'bg-surface text-fg' : 'bg-header text-header-fg',
         )}
       >

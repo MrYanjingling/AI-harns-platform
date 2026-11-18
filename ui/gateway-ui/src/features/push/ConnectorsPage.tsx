@@ -69,7 +69,7 @@ export function ConnectorsPage() {
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
     name: 220,
-    status: 120,
+    status: 130,
     type: 100,
     broker: 240,
     groups: 100,
@@ -215,7 +215,7 @@ export function ConnectorsPage() {
                     <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
                   </GatewayTH>
                   <GatewayTH>
-                    {t('common.field.status')}
+                    {t('gateway.push.columns.connectionStatus')}
                     <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
                   </GatewayTH>
                   <GatewayTH>
