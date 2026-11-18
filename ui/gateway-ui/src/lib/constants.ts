@@ -101,6 +101,7 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   modbus: 'Modbus',
   s7: 'S7',
   opcUa: 'OPC UA',
+  omron: 'Omron',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -110,6 +111,10 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   opcUa: 'OPC UA',
   s71500: 'S7-1500',
   's7-200': 'S7-200',
+  finsTcp: 'Omron FINS/TCP',
+  finsUdp: 'Omron FINS/UDP',
+  hostlinkCmode: 'Omron HostLink C-Mode',
+  omronCip: 'Omron EtherNet/IP CIP',
 }
 
 export function driverTypeLabel(type: string): string {
@@ -136,6 +141,12 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'connectionType',
   'localTsap',
   'remoteTsap',
+  'type',
+  'expires',
+  'slidingWindow',
+  'maxSize',
+  'timeoutMs',
+  'intervalMs',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

@@ -80,6 +80,7 @@ export const gateway = defineMessages({
     'gateway.monitoring.emptyDescription': '当前采集实例还没有可监控的变量。',
     'gateway.monitoring.analysis': '报文分析',
     'gateway.monitoring.analysisUnavailable': '采集状态下才可进行',
+    'gateway.monitoring.controlUnavailable': '采集状态下才可进行',
 
     /* ---------------- 报文分析 ---------------- */
     'gateway.frames.request': '请求报文',
@@ -765,6 +766,7 @@ export const gateway = defineMessages({
     'gateway.monitoring.emptyDescription': 'This collection has no variables to monitor yet.',
     'gateway.monitoring.analysis': 'Frame analysis',
     'gateway.monitoring.analysisUnavailable': 'Available only while collecting.',
+    'gateway.monitoring.controlUnavailable': 'Available only while collection is active.',
 
     /* ---------------- Frame analysis ---------------- */
     'gateway.frames.request': 'Request frames',

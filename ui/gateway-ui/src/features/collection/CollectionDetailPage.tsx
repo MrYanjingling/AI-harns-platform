@@ -32,6 +32,7 @@ import {
   Skeleton,
   Switch,
   Table,
+  Tooltip,
   TableSkeleton,
   TBody,
   TD,
@@ -119,6 +120,9 @@ export function CollectionDetailPage() {
   const canStart = collection ? canStartCollection(collection) : false
   const canStop = collection ? canStopCollection(collection) : false
   const canRestart = collection ? canRestartCollection(collection) : false
+  const canControl = collection
+    ? ['collecting', 'collectingError'].includes(collection.collectStatus)
+    : false
   const schemaData = schema.data?.schema
   const writableVariables = useMemo(
     () => (variables.data?.list ?? []).filter((item) => item.accessMode !== 'r' && !item.isCalculated),
@@ -263,14 +267,22 @@ export function CollectionDetailPage() {
               {t('gateway.collection.action.update')}
             </Button>
             {writableVariables.length > 0 ? (
-              <Button
-                variant="outline"
-                onClick={openControl}
-                disabled={collection.collectStatus !== 'collecting'}
-                icon={<SlidersHorizontal className="size-3.5" />}
+              <Tooltip
+                content={t('gateway.monitoring.controlUnavailable')}
+                disabled={canControl}
+                focusable={!canControl}
+                ariaLabel={!canControl ? t('gateway.monitoring.controlUnavailable') : undefined}
+                className="shrink-0"
               >
-                {t('gateway.detail.control.button')}
-              </Button>
+                <Button
+                  variant="outline"
+                  onClick={openControl}
+                  disabled={!canControl}
+                  icon={<SlidersHorizontal className="size-3.5" />}
+                >
+                  {t('gateway.detail.control.button')}
+                </Button>
+              </Tooltip>
             ) : null}
             {canStop ? (
               <Button

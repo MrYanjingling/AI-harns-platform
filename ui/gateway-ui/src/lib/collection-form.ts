@@ -52,10 +52,16 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     connectionType: '1',
     localTsap: '0x1000',
     remoteTsap: '0x1000',
-    port: model === 'opcUa' ? '4840' : '102',
+    type: '0',
+    expires: '500',
+    slidingWindow: '1',
+    maxSize: '64',
+    timeoutMs: '3000',
+    intervalMs: '20',
+    port: model === 'opcUa' ? '4840' : model === 'omronCip' ? '44818' : model === 'finsTcp' || model === 'finsUdp' ? '9600' : '102',
   }
   if (defaults[field.name] !== undefined) return defaults[field.name]
-  if (field.name === 'location' && model === 'modbusRtu') return '/dev/dev'
+  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode')) return '/dev/dev'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''
   return ''
 }

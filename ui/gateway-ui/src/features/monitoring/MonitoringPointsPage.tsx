@@ -146,6 +146,9 @@ export function MonitoringPointsPage() {
   const frameAnalysisReady =
     frameAnalysisSupported &&
     ['collecting', 'collectingError'].includes(currentCollection?.collectStatus ?? '')
+  const canControl = ['collecting', 'collectingError'].includes(
+    currentCollection?.collectStatus ?? '',
+  )
   const { widths, totalWidth, resize } = useColumnResize({
     order: 64,
     name: 180,
@@ -483,11 +486,14 @@ export function MonitoringPointsPage() {
                       <span className="block truncate">{formatValue(variable.value)}</span>
                     </DataTableCell>
                     <DataTableCell>
-                      {/* 调试期间暂时放开空变量/停止/未连接状态的下控限制。 */}
                       {variable.accessMode === 'w' || variable.accessMode === 'rw' ? (
                         <TableActionButton
                           label={t('gateway.monitoring.control')}
                           icon={<SlidersHorizontal />}
+                          disabled={!canControl}
+                          disabledReason={
+                            !canControl ? t('gateway.monitoring.controlUnavailable') : undefined
+                          }
                           onClick={() => {
                             setControlValue('')
                             setControlVariable(variable)
