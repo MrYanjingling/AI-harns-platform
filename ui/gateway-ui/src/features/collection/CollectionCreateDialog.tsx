@@ -413,7 +413,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
               <CardTitle>{t('gateway.form.section.protocol')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-2 min-h-4 text-xs leading-4 text-danger">{errors.form}</p>
+              <p className="app-dialog-error mb-2">{errors.form}</p>
               <ProtocolFields
                 schema={driverSchema}
                 values={form.protocol}

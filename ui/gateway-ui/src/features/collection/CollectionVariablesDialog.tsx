@@ -625,7 +625,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
             disabled={submitting}
           />
 
-          <p className="min-h-4 text-xs leading-4 text-danger">{activeErrors.variables}</p>
+          <p className="app-dialog-error">{activeErrors.variables}</p>
         </>
       )}
 

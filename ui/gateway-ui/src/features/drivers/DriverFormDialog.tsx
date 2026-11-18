@@ -159,7 +159,7 @@ export function DriverFormDialog({
             aria-invalid={Boolean(errors.schema)}
             onChange={(event) => setForm({ ...form, schemaText: event.target.value })}
           />
-          <p className="mt-1 min-h-4 text-xs leading-4 text-danger">{errors.schema}</p>
+          <p className="app-dialog-error mt-1">{errors.schema}</p>
         </CardContent>
       </Card>
     </FormDialog>

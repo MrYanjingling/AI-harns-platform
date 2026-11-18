@@ -300,7 +300,6 @@ export function PushGroupFormDialog({
             inline
             error={errors.pushIntervalMs}
             hint={t('gateway.push.group.intervalHint')}
-            hintClassName="text-[13px] leading-relaxed text-muted"
           >
             <Input
               id="push-group-interval"
@@ -441,7 +440,7 @@ export function PushGroupFormDialog({
                 }}
                 disabled={collections.isFetching}
               />
-              <p className="min-h-4 text-xs leading-4 text-danger">{errors.collectionIds}</p>
+              <p className="app-dialog-error">{errors.collectionIds}</p>
             </div>
           ) : null}
         </CardContent>

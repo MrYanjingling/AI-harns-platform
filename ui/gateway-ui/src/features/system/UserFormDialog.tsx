@@ -130,7 +130,7 @@ export function UserFormDialog({ open, user, onClose }: UserFormDialogProps) {
               onChange={(event) => setPassword(event.target.value)}
               maxLength={64}
             />
-            <p className="min-h-4 text-xs leading-4 text-danger">{errors.password}</p>
+            <p className="app-dialog-error">{errors.password}</p>
           </div>
         ) : null}
         <Field

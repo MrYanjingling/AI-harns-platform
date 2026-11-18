@@ -108,7 +108,7 @@ export function AutoRefreshButton({
               setError('')
             }}
           />
-          <p className="min-h-4 text-xs leading-4 text-danger">{error}</p>
+          <p className="app-dialog-error">{error}</p>
         </div>
       </Dialog>
     </>

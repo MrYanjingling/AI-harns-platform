@@ -506,10 +506,10 @@ export function MonitoringPointsPage() {
         open={Boolean(controlVariable)}
         onClose={() => setControlVariable(null)}
         title={t('gateway.detail.control.title')}
-        className="flex h-[281px] w-[280px] max-w-[calc(100vw-2rem)] flex-col rounded-lg"
-        headerClassName="items-center pt-3"
-        bodyClassName="min-h-0 flex-1 pt-0"
-        footerClassName="min-h-10 items-center py-1"
+        className="app-control-dialog"
+        headerClassName="app-control-dialog-header"
+        bodyClassName="app-control-dialog-body"
+        footerClassName="app-control-dialog-footer"
         footer={
           <>
             <Button variant="outline" onClick={() => setControlVariable(null)}>
@@ -520,77 +520,79 @@ export function MonitoringPointsPage() {
               loading={deliver.isPending}
               disabled={!controlValue.trim() || Boolean(controlError)}
               onClick={() => void submitControl()}
-              className="self-center"
             >
               {t('gateway.detail.control.submit')}
             </Button>
           </>
         }
       >
-        <div className="space-y-1">
+        <div className="app-control-dialog-content">
           <p
             role={controlError ? 'alert' : undefined}
-            className="block h-[18px] max-w-full overflow-hidden break-words text-[13px] leading-[18px] text-danger"
+            aria-live="polite"
+            className={
+              controlError ? 'app-dialog-error app-dialog-error--shake' : 'app-dialog-error'
+            }
           >
             {controlError}
           </p>
-          <dl className="divide-y divide-border rounded border border-border bg-surface-2">
-            <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.dataType')}</dt>
-              <dd className="text-sm leading-5 font-normal font-table text-table-fg">{controlVariable?.dataType ?? '—'}</dd>
+          <dl className="app-control-dialog-summary">
+            <div className="app-control-dialog-row">
+              <dt className="app-control-dialog-label">{t('gateway.variable.dataType')}</dt>
+              <dd className="app-control-dialog-value">{controlVariable?.dataType ?? '—'}</dd>
             </div>
-            <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.address')}</dt>
-              <dd className="truncate text-sm leading-5 font-normal font-table text-table-fg">
+            <div className="app-control-dialog-row">
+              <dt className="app-control-dialog-label">{t('gateway.variable.address')}</dt>
+              <dd className="app-control-dialog-value app-control-dialog-value--truncate">
                 {controlVariable?.address || '—'}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.value')}</dt>
-              <dd className="truncate text-sm leading-5 font-normal font-table text-table-fg">
+            <div className="app-control-dialog-row">
+              <dt className="app-control-dialog-label">{t('gateway.variable.value')}</dt>
+              <dd className="app-control-dialog-value app-control-dialog-value--truncate">
                 {formatValue(controlVariable?.value)}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-4 px-3 py-2">
-              <dt className="shrink-0 text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.monitoring.writeValue')}</dt>
-              <dd className="min-w-0 flex-1">
-                <div className="ml-auto w-[100px]">
-                {isBoolControl ? (
-                  <Select
-                    id="monitoring-control-value"
-                    value={controlValue}
-                    autoFocus
-                    aria-invalid={Boolean(controlError)}
-                    className={
-                      controlError
-                        ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                        : undefined
-                    }
-                    onChange={(event) => setControlValue(event.target.value)}
-                  >
-                    <option value="" disabled>
-                      {t('gateway.form.selectPlaceholder')}
-                    </option>
-                    <option value="0">0</option>
-                    <option value="1">1</option>
-                  </Select>
-                ) : (
-                  <Input
-                    id="monitoring-control-value"
-                    value={controlValue}
-                    autoFocus
-                    inputMode={isIntegerControl ? 'numeric' : 'decimal'}
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-invalid={Boolean(controlError)}
-                    className={
-                      controlError
-                        ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                        : undefined
-                    }
-                    onChange={(event) => setControlValue(event.target.value)}
-                  />
-                )}
+            <div className="app-control-dialog-row">
+              <dt className="app-control-dialog-label">{t('gateway.monitoring.writeValue')}</dt>
+              <dd className="app-control-dialog-value-field">
+                <div className="app-control-dialog-field">
+                  {isBoolControl ? (
+                    <Select
+                      id="monitoring-control-value"
+                      value={controlValue}
+                      autoFocus
+                      aria-invalid={Boolean(controlError)}
+                      className={
+                        controlError
+                          ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
+                          : undefined
+                      }
+                      onChange={(event) => setControlValue(event.target.value)}
+                    >
+                      <option value="" disabled>
+                        {t('gateway.form.selectPlaceholder')}
+                      </option>
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="monitoring-control-value"
+                      value={controlValue}
+                      autoFocus
+                      inputMode={isIntegerControl ? 'numeric' : 'decimal'}
+                      autoComplete="off"
+                      spellCheck={false}
+                      aria-invalid={Boolean(controlError)}
+                      className={
+                        controlError
+                          ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
+                          : undefined
+                      }
+                      onChange={(event) => setControlValue(event.target.value)}
+                    />
+                  )}
                 </div>
               </dd>
             </div>

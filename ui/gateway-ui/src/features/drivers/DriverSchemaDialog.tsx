@@ -159,7 +159,7 @@ export function DriverSchemaDialog({
                   {JSON.stringify(schema, null, 2)}
                 </pre>
               )}
-              <p className="min-h-4 text-xs leading-4 text-danger">{error}</p>
+              <p className="app-dialog-error">{error}</p>
             </div>
           ) : (
         <div className="space-y-4">
