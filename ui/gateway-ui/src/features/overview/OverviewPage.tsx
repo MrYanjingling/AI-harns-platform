@@ -206,6 +206,7 @@ export function OverviewPage() {
           variant="summary"
           tone="neutral"
           className={overviewCardClass}
+          footer={<CardDescription>{t('gateway.overview.stat.groupsHint')}</CardDescription>}
         />
       </div>
 
