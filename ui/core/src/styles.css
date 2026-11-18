@@ -98,6 +98,14 @@
   --dialog-body-max-height: calc(100dvh - 190px);
   --dialog-description-size: 13px;
   --dialog-radius: 8px;
+  --dialog-error-font-size: 13px;
+  --dialog-error-line-height: 18px;
+  --dialog-error-height: 18px;
+  --dialog-error-gap: 4px;
+  --dialog-control-width: 280px;
+  --dialog-control-height: 281px;
+  --dialog-control-field-width: 100px;
+  --dialog-shake-duration: 320ms;
   --select-height: 36px;
   --select-panel-max-height: 224px;
 
@@ -484,6 +492,132 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--muted);
   font-size: var(--dialog-description-size);
   line-height: 1.625;
+}
+
+.app-dialog-error {
+  display: block;
+  width: 100%;
+  min-height: var(--dialog-error-height);
+  overflow-wrap: anywhere;
+  color: var(--danger);
+  font-size: var(--dialog-error-font-size);
+  line-height: var(--dialog-error-line-height);
+}
+
+.app-dialog-error--shake {
+  animation: app-dialog-error-shake var(--dialog-shake-duration) ease-in-out;
+}
+
+@keyframes app-dialog-error-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-dialog-error--shake {
+    animation: none;
+  }
+}
+
+.app-control-dialog {
+  display: flex;
+  width: var(--dialog-control-width);
+  height: var(--dialog-control-height);
+  max-width: calc(100vw - 2rem);
+  flex-direction: column;
+  border-radius: var(--dialog-radius);
+}
+
+.app-control-dialog-header {
+  align-items: center;
+  padding-top: 12px;
+}
+
+.app-control-dialog-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding-top: 0;
+}
+
+.app-control-dialog-footer {
+  min-height: 40px;
+  align-items: center;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.app-control-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dialog-error-gap);
+}
+
+.app-control-dialog-summary {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.app-control-dialog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+}
+
+.app-control-dialog-row + .app-control-dialog-row {
+  border-top: 1px solid var(--border);
+}
+
+.app-control-dialog-label {
+  flex-shrink: 0;
+  color: var(--table-fg);
+  font-family: var(--font-table);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.app-control-dialog-value {
+  min-width: 0;
+  color: var(--table-fg);
+  font-family: var(--font-table);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.app-control-dialog-value--truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-control-dialog-value-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-control-dialog-field {
+  width: var(--dialog-control-field-width);
+  margin-left: auto;
 }
 
 @media (max-width: 1023px) {
