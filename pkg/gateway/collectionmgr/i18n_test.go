@@ -1,6 +1,7 @@
 package collectionmgr
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/i18n"
 )
 
@@ -32,12 +34,15 @@ func TestCollectionValidationReturnsMultipleLocalizedErrors(t *testing.T) {
 	engine.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"code":20007`)
-	assert.Contains(t, rec.Body.String(), `"field":"name"`)
-	assert.Contains(t, rec.Body.String(), `"field":"variables[0].name"`)
-	assert.Contains(t, rec.Body.String(), `"field":"variables[0].accessMode"`)
-	assert.Contains(t, rec.Body.String(), `"message":"采集器参数无效。"`)
-	assert.Contains(t, rec.Body.String(), `"message":"name 不能为空。"`)
+	var result response.Result
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+	require.Len(t, result.Errors, 3)
+	assert.Equal(t, int(response.ErrCodeCollectionInvalid), result.Code)
+	assert.Contains(t, result.Message, "name 不能为空。")
+	assert.Equal(t, result.Errors[0].Message, result.Message)
+	assert.Equal(t, "name", result.Errors[0].Field)
+	assert.Equal(t, "variables[0].name", result.Errors[1].Field)
+	assert.Equal(t, "variables[0].accessMode", result.Errors[2].Field)
 }
 
 func TestCollectionNotFoundIsLocalized(t *testing.T) {

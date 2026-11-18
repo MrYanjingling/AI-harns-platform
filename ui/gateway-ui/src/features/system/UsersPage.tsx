@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { KeyRound, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
-  Card,
   ConfirmDialog,
   ErrorState,
-  Input,
+  ListTableCard,
+  SearchInput,
   Pagination,
   TableSkeleton,
   formatDateTime,
   showErrorToast,
   useI18n,
 } from '@harns/core'
+import { TableActions } from '@harns/core'
 import {
   useDeleteUser,
   useResetUserPassword,
@@ -20,15 +21,15 @@ import {
 } from '@/api/hooks'
 import type { GatewayUser } from '@/api/types'
 import {
-  GatewayTBody,
-  GatewayTD,
-  GatewayTH,
-  GatewayTHead,
-  GatewayTR,
-  GatewayTable,
-} from '@/components/GatewayTable'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+  DataTableBody,
+  DataTableCell,
+  DataTableHeadCell,
+  DataTableHead,
+  DataTableRow,
+  DataTable,
+} from '@harns/core'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
+import { TableActionButton } from '@harns/core'
 import { UserFormDialog } from './UserFormDialog'
 
 export function UsersPage() {
@@ -100,20 +101,18 @@ export function UsersPage() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="app-page-toolbar">
         <div className="flex w-[260px]">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-            <Input
-              value={keywordInput}
-              placeholder={t('gateway.users.searchPlaceholder')}
-              className="h-9 rounded-r-none pl-9 text-sm"
-              onChange={(event) => setKeywordInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') applySearch()
-              }}
-            />
-          </div>
+          <SearchInput
+            wrapperClassName="min-w-0 flex-1"
+            inputClassName="rounded-r-none"
+            value={keywordInput}
+            placeholder={t('gateway.users.searchPlaceholder')}
+            onChange={(event) => setKeywordInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') applySearch()
+            }}
+          />
           <Button variant="primary" className="h-9 rounded-l-none px-4" onClick={applySearch}>
             {t('common.action.search')}
           </Button>
@@ -131,8 +130,21 @@ export function UsersPage() {
         </Button>
       </div>
 
-      <Card className="flex h-[calc(100dvh-212px)] min-h-[420px] flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
+      <ListTableCard className="h-[calc(100dvh-212px)] min-h-[420px]"
+        pagination={
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={users.isFetching || users.isLoading}
+          />
+        }
+      >
           {users.isLoading ? (
             <TableSkeleton rows={6} cols={5} />
           ) : users.isError ? (
@@ -140,7 +152,7 @@ export function UsersPage() {
               <ErrorState error={users.error} onRetry={users.refetch} compact />
             </div>
           ) : list.length === 0 ? null : (
-            <GatewayTable
+            <DataTable
               style={{
                 tableLayout: 'fixed',
                 width: `max(100%, ${totalWidth}px)`,
@@ -153,55 +165,55 @@ export function UsersPage() {
                 <col style={{ width: widths.updatedAt }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
-              <GatewayTHead>
+              <DataTableHead>
                 <tr>
-                  <GatewayTH className="text-center">
+                  <DataTableHeadCell className="text-center">
                     {t('common.field.order')}
                     <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.users.table.user')}
                     <ColumnResizeHandle column="user" width={widths.user} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('common.field.remark')}
                     <ColumnResizeHandle column="remark" width={widths.remark} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('common.field.updatedAt')}
                     <ColumnResizeHandle
                       column="updatedAt"
                       width={widths.updatedAt}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH className="text-left">
+                  </DataTableHeadCell>
+                  <DataTableHeadCell className="text-left">
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
                       width={widths.actions}
                       onResize={resize}
                     />
-                  </GatewayTH>
+                  </DataTableHeadCell>
                 </tr>
-              </GatewayTHead>
-              <GatewayTBody>
+              </DataTableHead>
+              <DataTableBody>
                 {list.map((user, index) => (
-                  <GatewayTR key={user.id}>
-                    <GatewayTD className="text-center">
+                  <DataTableRow key={user.id}>
+                    <DataTableCell className="text-center">
                       {(page - 1) * pageSize + index + 1}
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span>{user.username}</span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span>{user.remark || '—'}</span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span className="whitespace-nowrap">{formatDateTime(user.updatedTime)}</span>
-                    </GatewayTD>
-                    <GatewayTD>
-                      <div className="flex items-center gap-2">
+                    </DataTableCell>
+                    <DataTableCell>
+                      <TableActions>
                         <TableActionButton
                           label={t('common.action.edit')}
                           icon={<Pencil />}
@@ -218,28 +230,14 @@ export function UsersPage() {
                           disabled={user.isAdmin}
                           onClick={() => setDeleteTarget(user)}
                         />
-                      </div>
-                    </GatewayTD>
-                  </GatewayTR>
+                      </TableActions>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-              </GatewayTBody>
-            </GatewayTable>
+              </DataTableBody>
+            </DataTable>
           )}
-        </div>
-        <div className="shrink-0">
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
-            disabled={users.isFetching || users.isLoading}
-          />
-        </div>
-      </Card>
+      </ListTableCard>
 
       <UserFormDialog open={formOpen} user={editing} onClose={() => setFormOpen(false)} />
 

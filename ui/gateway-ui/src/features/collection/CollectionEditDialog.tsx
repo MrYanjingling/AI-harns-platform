@@ -7,7 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
+  FormDialog,
   ErrorState,
   Field,
   Input,
@@ -83,13 +83,10 @@ export function CollectionEditDialog({ collectionId, onClose }: CollectionEditDi
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={Boolean(collectionId)}
       onClose={onClose}
       title={t('gateway.collection.updateTitle')}
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -193,7 +190,6 @@ export function CollectionEditDialog({ collectionId, onClose }: CollectionEditDi
                   searchable={false}
                   disabled
                   className="w-full max-w-[200px]"
-                  panelClassName="w-[200px]"
                 />
               </Field>
               <Field
@@ -218,7 +214,6 @@ export function CollectionEditDialog({ collectionId, onClose }: CollectionEditDi
                   searchable={false}
                   disabled
                   className="w-full max-w-[200px]"
-                  panelClassName="w-[200px]"
                 />
               </Field>
             </CardContent>
@@ -229,9 +224,7 @@ export function CollectionEditDialog({ collectionId, onClose }: CollectionEditDi
               <CardTitle>{t('gateway.form.section.protocol')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {errors.form ? (
-                <p className="mb-2 text-xs text-danger">{errors.form}</p>
-              ) : null}
+              <p className="mb-2 min-h-4 text-xs leading-4 text-danger">{errors.form}</p>
               <ProtocolFields
                 schema={driverSchema}
                 values={form.protocol}
@@ -243,6 +236,6 @@ export function CollectionEditDialog({ collectionId, onClose }: CollectionEditDi
           </Card>
         </>
       )}
-    </Dialog>
+    </FormDialog>
   )
 }

@@ -1,31 +1,32 @@
 import { useMemo, useState } from 'react'
-import { FileJson, Plus, Search, Trash2, Upload } from 'lucide-react'
+import { FileJson, Plus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Badge,
   Button,
-  Card,
   ConfirmDialog,
+  EnumBadge,
   ErrorState,
-  Input,
+  ListTableCard,
+  SearchInput,
   Pagination,
   TableSkeleton,
   formatDateTime,
   showErrorToast,
   useI18n,
 } from '@harns/core'
+import { TableActions } from '@harns/core'
 import { useDeleteDriver, useDriverList } from '@/api/hooks'
 import type { Driver } from '@/api/types'
 import {
-  GatewayTBody,
-  GatewayTD,
-  GatewayTH,
-  GatewayTHead,
-  GatewayTR,
-  GatewayTable,
-} from '@/components/GatewayTable'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+  DataTableBody,
+  DataTableCell,
+  DataTableHeadCell,
+  DataTableHead,
+  DataTableRow,
+  DataTable,
+} from '@harns/core'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
+import { TableActionButton } from '@harns/core'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { DriverFormDialog } from './DriverFormDialog'
 import { DriverPluginFileDialog } from './DriverPluginFileDialog'
@@ -100,19 +101,16 @@ export function DriversPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
-        <div className="relative w-[200px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={keywordInput}
-            placeholder={t('gateway.drivers.searchPlaceholder')}
-            className="h-9 pl-9 text-sm"
-            onChange={(event) => setKeywordInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') applySearch()
-            }}
-          />
-        </div>
+      <div className="app-page-toolbar">
+        <SearchInput
+          wrapperClassName="w-[200px]"
+          value={keywordInput}
+          placeholder={t('gateway.drivers.searchPlaceholder')}
+          onChange={(event) => setKeywordInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') applySearch()
+          }}
+        />
         <Button variant="primary" className="h-9" onClick={applySearch}>
           {t('common.action.search')}
         </Button>
@@ -129,8 +127,21 @@ export function DriversPage() {
         </Button>
       </div>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
+      <ListTableCard
+        pagination={
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={drivers.isFetching}
+          />
+        }
+      >
           {drivers.isLoading ? (
             <TableSkeleton rows={6} cols={6} />
           ) : drivers.isError ? (
@@ -138,7 +149,7 @@ export function DriversPage() {
               <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} compact />
             </div>
           ) : total === 0 ? null : (
-            <GatewayTable
+            <DataTable
               style={{
                 tableLayout: 'fixed',
                 width: `max(100%, ${totalWidth}px)`,
@@ -152,76 +163,76 @@ export function DriversPage() {
                 <col style={{ width: widths.createdAt }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
-              <GatewayTHead>
+              <DataTableHead>
                 <tr>
-                  <GatewayTH>
+                  <DataTableHeadCell>
                     {t('gateway.drivers.columns.driverType')}
                     <ColumnResizeHandle
                       column="driverType"
                       width={widths.driverType}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.drivers.columns.model')}
                     <ColumnResizeHandle column="model" width={widths.model} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.drivers.columns.source')}
                     <ColumnResizeHandle column="source" width={widths.source} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.drivers.columns.plugin')}
                     <ColumnResizeHandle column="plugin" width={widths.plugin} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.drivers.columns.createdAt')}
                     <ColumnResizeHandle
                       column="createdAt"
                       width={widths.createdAt}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH className="text-left">
+                  </DataTableHeadCell>
+                  <DataTableHeadCell className="text-left">
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
                       width={widths.actions}
                       onResize={resize}
                     />
-                  </GatewayTH>
+                  </DataTableHeadCell>
                 </tr>
-              </GatewayTHead>
-              <GatewayTBody>
+              </DataTableHead>
+              <DataTableBody>
                 {pageDrivers.map((driver) => (
-                  <GatewayTR key={driver.id}>
-                    <GatewayTD>
+                  <DataTableRow key={driver.id}>
+                    <DataTableCell>
                       <span className="block truncate">
                         {driverTypeLabel(driver.driverType) || driver.driverType}
                       </span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span className="block truncate">
                         {driverModelLabel(driver.model) || driver.model}
                       </span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       {driver.builtinDriver ? (
-                        <Badge tone="info" className="px-2.5">{t('gateway.drivers.builtin')}</Badge>
+                        <EnumBadge tone="info">{t('gateway.drivers.builtin')}</EnumBadge>
                       ) : (
-                        <Badge tone="violet" className="px-2.5">{t('gateway.drivers.custom')}</Badge>
+                        <EnumBadge tone="violet">{t('gateway.drivers.custom')}</EnumBadge>
                       )}
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span className="block truncate">
                         {driver.pluginName || '—'}
                       </span>
-                    </GatewayTD>
-                    <GatewayTD className="whitespace-nowrap">
+                    </DataTableCell>
+                    <DataTableCell className="whitespace-nowrap">
                       {formatDateTime(driver.createdTime)}
-                    </GatewayTD>
-                    <GatewayTD>
-                      <div className="flex items-center gap-2">
+                    </DataTableCell>
+                    <DataTableCell>
+                      <TableActions>
                         <TableActionButton
                           label={t('gateway.drivers.viewSchema')}
                           icon={<FileJson />}
@@ -241,28 +252,14 @@ export function DriversPage() {
                             />
                           </>
                         ) : null}
-                      </div>
-                    </GatewayTD>
-                  </GatewayTR>
+                      </TableActions>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-              </GatewayTBody>
-            </GatewayTable>
+              </DataTableBody>
+            </DataTable>
           )}
-        </div>
-        <div className="shrink-0">
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
-            disabled={drivers.isFetching}
-          />
-        </div>
-      </Card>
+      </ListTableCard>
 
       <DriverFormDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       <DriverPluginFileDialog driver={pluginTarget} onClose={() => setPluginTarget(null)} />

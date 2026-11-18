@@ -1,6 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router-dom'
-import { NotFoundPage } from '@harns/core'
-import { GatewayPagePad } from '@/components/layout/GatewayPagePad'
+import { NotFoundPage, PagePad } from '@harns/core'
 import { CollectionPage } from '@/features/collection/CollectionPage'
 import { CollectionDetailPage } from '@/features/collection/CollectionDetailPage'
 import { DriversPage } from '@/features/drivers/DriversPage'
@@ -26,7 +25,7 @@ export const gatewayRoutes: RouteObject[] = [
     },
   },
   {
-    element: <GatewayPagePad />,
+    element: <PagePad variant="workspace" />,
     children: [
       {
         path: 'collections',

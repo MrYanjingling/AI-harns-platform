@@ -56,6 +56,51 @@
   --header-fg: oklch(0.984 0.003 247.858);
   --header-muted: oklch(0.90 0.03 255);
   --header-hover: #252d4a;
+
+  --layout-header-height: 56px;
+  --layout-breadcrumb-height: 53px;
+  --layout-footer-height: 20px;
+  --nav-item-height: 45px;
+  --nav-font-size: 14px;
+  --nav-icon-size: 16px;
+  --nav-gap: 10px;
+  --nav-indent: 44px;
+  --nav-radius: 4px;
+  --motion-fast: 150ms;
+  --motion-menu: 240ms;
+  --table-head-font-size: 14px;
+  --table-data-font-size: 14px;
+  --enum-badge-font-size: 13px;
+  --enum-badge-line-height: 18px;
+  --enum-badge-padding-x: 8px;
+  --enum-badge-padding-y: 2px;
+  --status-badge-font-size: 13px;
+  --status-badge-line-height: 18px;
+  --status-badge-padding-x: 4px;
+  --status-badge-padding-y: 2px;
+  --status-badge-gap: 4px;
+  --status-badge-icon-size: 13px;
+  --status-badge-radius: 4px;
+  --auto-refresh-height: 36px;
+  --tooltip-font-size: 11px;
+  --tooltip-line-height: 16px;
+  --tooltip-padding-x: 8px;
+  --tooltip-padding-y: 4px;
+  --tooltip-arrow-size: 8px;
+  --tooltip-radius: 4px;
+  --tooltip-z-index: 400;
+  --table-row-height: 45px;
+  --table-cell-padding-x: 16px;
+  --table-action-size: 28px;
+  --table-actions-gap: 8px;
+  --dialog-form-width: 970px;
+  --dialog-wide-width: 1180px;
+  --dialog-body-max-height: calc(100dvh - 190px);
+  --dialog-description-size: 13px;
+  --dialog-radius: 8px;
+  --select-height: 36px;
+  --select-panel-max-height: 224px;
+
   color-scheme: light;
 }
 
@@ -114,8 +159,8 @@ body {
 }
 
 ::selection {
-  background: var(--primary-soft);
-  color: var(--fg);
+  background: var(--primary);
+  color: var(--primary-fg);
 }
 
 /* 细滚动条 */
@@ -199,6 +244,253 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+.enum-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--enum-badge-padding-y) var(--enum-badge-padding-x);
+  border-width: 1px;
+  border-radius: 4px;
+  font-family: var(--font-table);
+  font-size: var(--enum-badge-font-size);
+  line-height: var(--enum-badge-line-height);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-auto-refresh-button {
+  height: var(--auto-refresh-height);
+}
+
+.app-auto-refresh-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.status-badge {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--status-badge-gap);
+  padding: var(--status-badge-padding-y) var(--status-badge-padding-x);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--status-badge-radius);
+  font-family: var(--font-table);
+  font-size: var(--status-badge-font-size);
+  line-height: var(--status-badge-line-height);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge-icon {
+  display: flex;
+  width: var(--status-badge-icon-size);
+  height: var(--status-badge-icon-size);
+  flex-shrink: 0;
+}
+
+.status-badge-icon svg {
+  width: var(--status-badge-icon-size);
+  height: var(--status-badge-icon-size);
+}
+
+.status-badge-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-badge-success {
+  border-color: color-mix(in oklab, var(--success) 35%, transparent);
+  background-color: color-mix(in oklab, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.status-badge-warning {
+  border-color: color-mix(in oklab, var(--warning) 35%, transparent);
+  background-color: color-mix(in oklab, var(--warning) 10%, transparent);
+  color: var(--warning);
+}
+
+.status-badge-danger {
+  border-color: color-mix(in oklab, var(--danger) 35%, transparent);
+  background-color: color-mix(in oklab, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.status-badge-neutral {
+  border-color: var(--border);
+  background-color: var(--surface-2);
+  color: var(--muted);
+}
+
+.status-badge-info {
+  border-color: color-mix(in oklab, var(--info) 35%, transparent);
+  background-color: color-mix(in oklab, var(--info) 10%, transparent);
+  color: var(--info);
+}
+
+.app-tooltip {
+  position: fixed;
+  z-index: var(--tooltip-z-index);
+  width: max-content;
+  pointer-events: none;
+  border-radius: var(--tooltip-radius);
+  background: var(--header);
+  padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
+  color: var(--header-fg);
+  font-size: var(--tooltip-font-size);
+  line-height: var(--tooltip-line-height);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.app-tooltip-arrow {
+  position: absolute;
+  left: 50%;
+  width: var(--tooltip-arrow-size);
+  height: var(--tooltip-arrow-size);
+  background: var(--header);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.app-tooltip-arrow--above {
+  top: 100%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.app-tooltip-arrow--below {
+  bottom: 100%;
+  transform: translate(-50%, 50%) rotate(45deg);
+}
+
+/* ---------------------------------------------------------------------------
+   应用级通用布局:尺寸由 :root 令牌控制,子应用只组合语义类。
+--------------------------------------------------------------------------- */
+.app-header {
+  height: var(--layout-header-height);
+}
+
+.app-breadcrumb-bar {
+  height: var(--layout-breadcrumb-height);
+}
+
+.app-content-footer {
+  height: var(--layout-footer-height);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.app-page-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.app-page-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.app-nav-item {
+  display: flex;
+  height: var(--nav-item-height);
+  align-items: center;
+  border-radius: var(--nav-radius);
+  font-size: var(--nav-font-size);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.app-nav-item--icon-only {
+  justify-content: center;
+  padding: 0;
+}
+
+.app-nav-leaf {
+  gap: var(--nav-gap);
+  padding: 0 12px;
+  color: var(--muted);
+}
+
+.app-nav-leaf--nested {
+  gap: var(--nav-gap);
+  padding-right: 12px;
+  padding-left: var(--nav-indent);
+}
+
+.app-nav-leaf--active {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+
+.app-nav-leaf.app-nav-item--icon-only {
+  gap: 0;
+  justify-content: center;
+  padding: 0;
+}
+
+.app-nav-leaf:not(.app-nav-leaf--active):hover,
+.app-nav-group:not(.app-nav-group--active):hover {
+  background: color-mix(in oklab, var(--primary) 5%, transparent);
+  color: var(--primary);
+}
+
+.app-nav-group {
+  gap: var(--nav-gap);
+  padding: 0 12px;
+  color: var(--muted);
+}
+
+.app-nav-group--active {
+  color: var(--primary);
+}
+
+.app-nav-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--motion-fast) ease;
+}
+
+.app-nav-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+.app-table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--table-actions-gap);
+}
+
+.app-dialog-body-scroll {
+  max-height: var(--dialog-body-max-height);
+  overflow-y: auto;
+}
+
+.app-dialog-description {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--dialog-description-size);
+  line-height: 1.625;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --dialog-form-width: calc(100vw - 2rem);
+    --dialog-wide-width: calc(100vw - 2rem);
+  }
 }
 
 /* ---------------------------------------------------------------------------

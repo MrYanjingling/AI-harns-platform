@@ -135,7 +135,7 @@ export function AppShell({
       <TechBackdrop />
       <header
         className={cn(
-          'relative z-30 flex h-[56px] shrink-0 items-center',
+          'app-header relative z-30 flex shrink-0 items-center',
           surfaceHeader ? 'bg-surface text-fg' : 'bg-header text-header-fg',
         )}
       >
@@ -149,7 +149,7 @@ export function AppShell({
                 key={item.key}
                 to={item.entry}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 text-sm transition-colors',
+                  'flex items-center gap-1.5 px-3.5 text-[length:var(--nav-font-size)] transition-colors',
                   item.key === section.key
                     ? 'bg-primary font-medium text-primary-fg'
                     : surfaceHeader
@@ -282,7 +282,7 @@ export function AppShell({
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex h-[53px] shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 sm:px-6">
+          <div className="app-breadcrumb-bar flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 sm:px-6">
             <nav
               aria-label={t('layout.shell.breadcrumb')}
               className="flex min-w-0 items-center gap-2 text-sm"
@@ -311,7 +311,7 @@ export function AppShell({
             <Outlet />
           </div>
           {contentFooter !== undefined ? (
-            <div className="flex h-5 shrink-0 items-center justify-center bg-surface-3 px-4 text-[10px] text-faint sm:px-6">
+            <div className="app-content-footer flex shrink-0 items-center justify-center bg-surface-3 px-4 sm:px-6">
               {contentFooter}
             </div>
           ) : null}

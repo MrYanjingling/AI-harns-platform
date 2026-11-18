@@ -101,7 +101,7 @@ export function DriverPluginFileDialog({
             onChange={selectFile}
           />
         </label>
-        {error ? <p className="text-xs text-danger">{error}</p> : null}
+        <p className="min-h-4 text-xs leading-4 text-danger">{error}</p>
       </div>
     </Dialog>
   )

@@ -3,7 +3,7 @@ import { Pause, Play, Trash2 } from 'lucide-react'
 import {
   Button,
   CopyButton,
-  Dialog,
+  FormDialog,
   cn,
   formatDateTime,
   useI18n,
@@ -55,13 +55,11 @@ export function PushGroupPayloadDialog({
   }, [events, open])
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onClose={onClose}
       title={t('gateway.push.payload.title')}
-      size="xl"
-      className="max-w-[1100px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
+      className="max-w-[1100px]"
       footer={
         <Button variant="outline" onClick={onClose}>
           {t('common.action.close')}
@@ -212,6 +210,6 @@ export function PushGroupPayloadDialog({
           </div>
         </div>
       ) : null}
-    </Dialog>
+    </FormDialog>
   )
 }

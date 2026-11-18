@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Moon, Settings, Sun } from 'lucide-react'
-import { LOCALES, useI18n, useTheme } from '@harns/core'
+import { LOCALES, useI18n } from '../../i18n'
+import { useTheme } from '../../providers/ThemeProvider'
 
-export function GatewaySettingsPopover() {
+export function PreferencesPopover() {
   const { t, locale, setLocale } = useI18n()
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
@@ -31,8 +32,8 @@ export function GatewaySettingsPopover() {
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={t('gateway.settings.title')}
-        title={t('gateway.settings.title')}
+        aria-label={t('layout.shell.settings')}
+        title={t('layout.shell.settings')}
         className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-fg"
       >
         <Settings className="size-4" />
@@ -41,15 +42,15 @@ export function GatewaySettingsPopover() {
       {open ? (
         <div
           role="dialog"
-          aria-label={t('gateway.settings.title')}
+          aria-label={t('layout.shell.settings')}
           className="animate-pop absolute top-full right-0 z-[60] mt-2 w-56 origin-top-right rounded border border-border bg-surface p-3 text-fg shadow-xl"
         >
-          <p className="mb-2 text-xs font-medium text-faint">{t('gateway.settings.theme')}</p>
+          <p className="mb-2 text-xs font-medium text-faint">{t('common.theme.appearance')}</p>
           <div className="grid grid-cols-2 gap-1">
             <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-fg hover:bg-surface-2">
               <input
                 type="radio"
-                name="gateway-theme"
+                name="app-theme"
                 checked={theme === 'light'}
                 onChange={() => setTheme('light')}
                 className="size-4 accent-primary"
@@ -60,7 +61,7 @@ export function GatewaySettingsPopover() {
             <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-fg hover:bg-surface-2">
               <input
                 type="radio"
-                name="gateway-theme"
+                name="app-theme"
                 checked={theme === 'dark'}
                 onChange={() => setTheme('dark')}
                 className="size-4 accent-primary"
@@ -72,7 +73,7 @@ export function GatewaySettingsPopover() {
 
           <div className="my-3 border-t border-border" />
 
-          <p className="mb-2 text-xs font-medium text-faint">{t('gateway.settings.language')}</p>
+          <p className="mb-2 text-xs font-medium text-faint">{t('common.language.label')}</p>
           <div className="grid grid-cols-2 gap-1">
             {LOCALES.map((item) => (
               <label
@@ -81,7 +82,7 @@ export function GatewaySettingsPopover() {
               >
                 <input
                   type="radio"
-                  name="gateway-language"
+                  name="app-language"
                   checked={locale === item.value}
                   onChange={() => setLocale(item.value)}
                   className="size-4 accent-primary"

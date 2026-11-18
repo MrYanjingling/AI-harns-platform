@@ -6,7 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
+  FormDialog,
   Field,
   Input,
   Pagination,
@@ -196,13 +196,10 @@ export function PushGroupFormDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onClose={onClose}
       title={group ? t('gateway.push.group.editTitle') : t('gateway.push.group.createTitle')}
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -302,15 +299,19 @@ export function PushGroupFormDialog({
             labelWidthClassName="w-[96px]"
             inline
             error={errors.pushIntervalMs}
-            hint={t('gateway.push.group.intervalHint')}
           >
-            <Input
-              id="push-group-interval"
-              value={form.pushIntervalMs}
-              className="w-full max-w-[240px]"
-              inputMode="numeric"
-              onChange={(event) => setForm({ ...form, pushIntervalMs: event.target.value })}
-            />
+            <div className="space-y-1">
+              <Input
+                id="push-group-interval"
+                value={form.pushIntervalMs}
+                className="w-full max-w-[240px]"
+                inputMode="numeric"
+                onChange={(event) => setForm({ ...form, pushIntervalMs: event.target.value })}
+              />
+              <p className="text-[13px] leading-relaxed text-muted">
+                {t('gateway.push.group.intervalHint')}
+              </p>
+            </div>
           </Field>
           <Field
             label={t('gateway.push.columns.maxPerMessage')}
@@ -396,7 +397,7 @@ export function PushGroupFormDialog({
                             aria-label={t('common.action.selectAll')}
                           />
                         </TH>
-                        <TH>{t('gateway.variable.name')}</TH>
+                        <TH>{t('gateway.push.group.collectionName')}</TH>
                         <TH>{t('gateway.collection.columns.status')}</TH>
                         <TH>{t('gateway.collection.columns.driverType')}</TH>
                         <TH>{t('gateway.push.group.protocolType')}</TH>
@@ -443,13 +444,11 @@ export function PushGroupFormDialog({
                 }}
                 disabled={collections.isFetching}
               />
-              {errors.collectionIds ? (
-                <p className="text-xs text-danger">{errors.collectionIds}</p>
-              ) : null}
+              <p className="min-h-4 text-xs leading-4 text-danger">{errors.collectionIds}</p>
             </div>
           ) : null}
         </CardContent>
       </Card>
-    </Dialog>
+    </FormDialog>
   )
 }

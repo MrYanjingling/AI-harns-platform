@@ -16,8 +16,8 @@ import { ACCESS_MODES } from '@/lib/constants'
 import type { VariableFormValues } from '@/lib/collection-form'
 import { variableTypes } from '@/lib/collection-form'
 import { localized } from '@/lib/labels'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
+import { TableActionButton } from '@harns/core'
 import { VariableErrors } from './VariableErrors'
 
 interface VariablesEditorProps {
@@ -212,7 +212,6 @@ export function VariablesEditor({
                         emptyText={t('common.state.empty')}
                         searchable={false}
                         className="w-full"
-                        panelClassName="w-full"
                       />
                     ) : (
                       <Input
@@ -286,7 +285,6 @@ export function VariablesEditor({
                       emptyText={t('common.state.empty')}
                       searchable={false}
                       className="w-full"
-                      panelClassName="w-full"
                     />
                   </TD>
                   {showValue ? (

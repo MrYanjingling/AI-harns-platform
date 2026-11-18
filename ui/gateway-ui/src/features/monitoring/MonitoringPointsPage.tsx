@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Play, RefreshCw, RotateCw, ScanSearch, Search, SlidersHorizontal } from 'lucide-react'
+import { Play, RotateCw, ScanSearch, SlidersHorizontal } from 'lucide-react'
 import {
+  AutoRefreshButton,
   Badge,
   Button,
-  Card,
   Dialog,
+  EnumBadge,
   ErrorState,
   Input,
+  ListTableCard,
+  SearchInput,
   Pagination,
   SearchSelect,
   Select,
   TableSkeleton,
+  Tooltip,
   showErrorToast,
   useI18n,
   type SearchSelectOption,
@@ -26,15 +30,15 @@ import {
 import type { AccessMode, CollectionVariable } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import {
-  GatewayTBody,
-  GatewayTD,
-  GatewayTH,
-  GatewayTHead,
-  GatewayTR,
-  GatewayTable,
-} from '@/components/GatewayTable'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+  DataTableBody,
+  DataTableCell,
+  DataTableHeadCell,
+  DataTableHead,
+  DataTableRow,
+  DataTable,
+} from '@harns/core'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
+import { TableActionButton } from '@harns/core'
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
@@ -127,11 +131,6 @@ export function MonitoringPointsPage() {
   const [pageSize, setPageSize] = useState(10)
   const [controlVariable, setControlVariable] = useState<CollectionVariable | null>(null)
   const [controlValue, setControlValue] = useState('')
-  const [autoRefreshOpen, setAutoRefreshOpen] = useState(false)
-  const [autoRefreshInput, setAutoRefreshInput] = useState('10')
-  const [autoRefreshSeconds, setAutoRefreshSeconds] = useState(10)
-  const [autoRefreshActive, setAutoRefreshActive] = useState(false)
-  const [autoRefreshError, setAutoRefreshError] = useState('')
   const runtimeAction = useCollectionRuntimeAction()
   const deliver = useDeliverCollectionAction()
   const variables = useCollectionVariables(collectionId || undefined, {
@@ -180,15 +179,6 @@ export function MonitoringPointsPage() {
     return () => window.clearTimeout(timer)
   }, [keywordInput])
 
-  useEffect(() => {
-    if (!autoRefreshActive) return
-    const timer = window.setInterval(() => {
-      void variables.refetch()
-      void collections.refetch()
-    }, autoRefreshSeconds * 1000)
-    return () => window.clearInterval(timer)
-  }, [autoRefreshActive, autoRefreshSeconds, variables.refetch, collections.refetch])
-
   const collectionOptions = useMemo<SearchSelectOption[]>(
     () => collectionList.map((item) => ({ value: item.id, label: item.name })),
     [collectionList],
@@ -207,36 +197,6 @@ export function MonitoringPointsPage() {
     if (!currentCollection || !frameAnalysisReady) return
     const params = new URLSearchParams({ collectionId: currentCollection.id })
     window.open(`/monitoring/points/analysis?${params.toString()}`, '_blank', 'noopener,noreferrer')
-  }
-
-  const openAutoRefresh = () => {
-    setAutoRefreshInput(String(autoRefreshSeconds))
-    setAutoRefreshError('')
-    setAutoRefreshOpen(true)
-  }
-
-  const closeAutoRefresh = () => {
-    setAutoRefreshOpen(false)
-    setAutoRefreshError('')
-  }
-
-  const stopAutoRefresh = () => {
-    setAutoRefreshActive(false)
-    closeAutoRefresh()
-  }
-
-  const confirmAutoRefresh = () => {
-    const seconds = Number(autoRefreshInput.trim())
-    if (!Number.isInteger(seconds) || seconds < 1 || seconds > 3600) {
-      setAutoRefreshError(t('gateway.monitoring.autoRefreshInvalid'))
-      return
-    }
-    setAutoRefreshSeconds(seconds)
-    setAutoRefreshActive(true)
-    setAutoRefreshOpen(false)
-    setAutoRefreshError('')
-    void variables.refetch()
-    void collections.refetch()
   }
 
   const runRuntimeAction = async (action: 'start' | 'restart') => {
@@ -277,7 +237,7 @@ export function MonitoringPointsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+      <div className="app-page-toolbar">
         <SearchSelect
           id="monitoring-collection"
           value={collectionId}
@@ -292,23 +252,19 @@ export function MonitoringPointsPage() {
           ariaLabel={t('gateway.monitoring.selectCollection')}
           emptyText={t('common.state.empty')}
           className="w-[240px]"
-          panelClassName="w-[240px]"
         />
-        <div className="relative w-[220px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={keywordInput}
-            placeholder={t('gateway.monitoring.searchPlaceholder')}
-            className="h-9 pl-9 text-sm"
-            onChange={(event) => setKeywordInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                setKeyword(keywordInput.trim())
-                setPage(1)
-              }
-            }}
-          />
-        </div>
+        <SearchInput
+          wrapperClassName="w-[220px]"
+          value={keywordInput}
+          placeholder={t('gateway.monitoring.searchPlaceholder')}
+          onChange={(event) => setKeywordInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              setKeyword(keywordInput.trim())
+              setPage(1)
+            }
+          }}
+        />
         {currentCollection ? (
           <>
             <CollectStatusBadge
@@ -342,34 +298,47 @@ export function MonitoringPointsPage() {
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           {collectionId ? (
-            <Button
-              variant={autoRefreshActive ? 'primary' : 'outline'}
-              className="h-9"
-              icon={<RefreshCw className="size-3.5" />}
-              onClick={openAutoRefresh}
-            >
-              {autoRefreshActive
-                ? t('gateway.monitoring.autoRefreshActive', { seconds: autoRefreshSeconds })
-                : t('gateway.monitoring.autoRefresh')}
-            </Button>
+            <AutoRefreshButton
+              onRefresh={async () => { await Promise.all([variables.refetch(), collections.refetch()]) }}
+            />
           ) : null}
         {frameAnalysisSupported ? (
-          <Button
-            variant="primary"
-            className="ml-auto h-9"
-            disabled={!frameAnalysisReady}
-            title={frameAnalysisReady ? undefined : t('gateway.monitoring.analysisUnavailable')}
-            icon={<ScanSearch className="size-3.5" />}
-            onClick={openFrameAnalysis}
+          <Tooltip
+            content={t('gateway.monitoring.analysisUnavailable')}
+            disabled={frameAnalysisReady}
+            focusable={!frameAnalysisReady}
+            ariaLabel={!frameAnalysisReady ? t('gateway.monitoring.analysisUnavailable') : undefined}
+            className="shrink-0"
           >
-            {t('gateway.monitoring.analysis')}
-          </Button>
+            <Button
+              variant="primary"
+              className="h-9"
+              disabled={!frameAnalysisReady}
+              icon={<ScanSearch className="size-3.5" />}
+              onClick={openFrameAnalysis}
+            >
+              {t('gateway.monitoring.analysis')}
+            </Button>
+          </Tooltip>
         ) : null}
         </div>
       </div>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
+      <ListTableCard
+        pagination={
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={variables.isFetching || variables.isLoading}
+          />
+        }
+      >
           {collections.isLoading || variables.isLoading ? (
             <TableSkeleton rows={6} cols={11} />
           ) : collections.isError ? (
@@ -389,7 +358,7 @@ export function MonitoringPointsPage() {
               />
             </div>
           ) : collectionList.length === 0 || !collectionId || list.length === 0 ? null : (
-            <GatewayTable
+            <DataTable
               style={{
                 tableLayout: 'fixed',
                 width: `max(100%, ${totalWidth}px)`,
@@ -408,115 +377,112 @@ export function MonitoringPointsPage() {
                 <col style={{ width: widths.value }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
-              <GatewayTHead>
+              <DataTableHead>
                 <tr>
-                  <GatewayTH className="text-center">
+                  <DataTableHeadCell className="text-center">
                     {t('common.field.order')}
                     <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.name')}
                     <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.dataType')}
                     <ColumnResizeHandle
                       column="dataType"
                       width={widths.dataType}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.monitoring.addressExpression')}
                     <ColumnResizeHandle
                       column="address"
                       width={widths.address}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.bits')}
                     <ColumnResizeHandle column="bits" width={widths.bits} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.precision')}
                     <ColumnResizeHandle
                       column="precision"
                       width={widths.precision}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.rate')}
                     <ColumnResizeHandle column="rate" width={widths.rate} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.offset')}
                     <ColumnResizeHandle column="offset" width={widths.offset} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.accessMode')}
                     <ColumnResizeHandle
                       column="accessMode"
                       width={widths.accessMode}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.variable.value')}
                     <ColumnResizeHandle column="value" width={widths.value} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
                       width={widths.actions}
                       onResize={resize}
                     />
-                  </GatewayTH>
+                  </DataTableHeadCell>
                 </tr>
-              </GatewayTHead>
-              <GatewayTBody>
+              </DataTableHead>
+              <DataTableBody>
                 {list.map((variable, index) => (
-                  <GatewayTR key={variable.name}>
-                    <GatewayTD className="text-center">
+                  <DataTableRow key={variable.name}>
+                    <DataTableCell className="text-center">
                       {(page - 1) * pageSize + index + 1}
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <div className="flex items-center gap-1.5">
                         <span className="truncate">{variable.name}</span>
                         {variable.isCalculated ? (
                           <Badge tone="info">{t('gateway.variable.calculated')}</Badge>
                         ) : null}
                       </div>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span>{variable.dataType}</span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span
                         className="block truncate"
                         title={variableAddress(variable)}
                       >
                         {variableAddress(variable)}
                       </span>
-                    </GatewayTD>
-                    <GatewayTD>{displayNumber(variable.bits)}</GatewayTD>
-                    <GatewayTD>{displayNumber(variable.precision)}</GatewayTD>
-                    <GatewayTD>{displayNumber(variable.rate)}</GatewayTD>
-                    <GatewayTD>{displayNumber(variable.offset)}</GatewayTD>
-                    <GatewayTD>
-                      <Badge
-                        tone={variable.accessMode === 'r' ? 'neutral' : 'primary'}
-                        className="border-[1.5px] px-2 py-1"
-                      >
+                    </DataTableCell>
+                    <DataTableCell>{displayNumber(variable.bits)}</DataTableCell>
+                    <DataTableCell>{displayNumber(variable.precision)}</DataTableCell>
+                    <DataTableCell>{displayNumber(variable.rate)}</DataTableCell>
+                    <DataTableCell>{displayNumber(variable.offset)}</DataTableCell>
+                    <DataTableCell>
+                      <EnumBadge tone={variable.accessMode === 'r' ? 'neutral' : 'primary'}>
                         {accessModeLabel(variable.accessMode, t)}
-                      </Badge>
-                    </GatewayTD>
-                    <GatewayTD>
+                      </EnumBadge>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span className="block truncate">{formatValue(variable.value)}</span>
-                    </GatewayTD>
-                    <GatewayTD>
+                    </DataTableCell>
+                    <DataTableCell>
                       {/* 调试期间暂时放开空变量/停止/未连接状态的下控限制。 */}
                       {variable.accessMode === 'w' || variable.accessMode === 'rw' ? (
                         <TableActionButton
@@ -528,88 +494,21 @@ export function MonitoringPointsPage() {
                           }}
                         />
                       ) : null}
-                    </GatewayTD>
-                  </GatewayTR>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-              </GatewayTBody>
-            </GatewayTable>
+              </DataTableBody>
+            </DataTable>
           )}
-        </div>
-        <div className="shrink-0">
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
-            disabled={variables.isFetching || variables.isLoading}
-          />
-        </div>
-      </Card>
-
-      <Dialog
-        open={autoRefreshOpen}
-        onClose={closeAutoRefresh}
-        title={t('gateway.monitoring.autoRefreshTitle')}
-        description={t('gateway.monitoring.autoRefreshDescription')}
-        className="w-[320px] max-w-[calc(100vw-2rem)] rounded-lg"
-        footer={
-          <>
-            {autoRefreshActive ? (
-              <Button variant="outline" onClick={stopAutoRefresh}>
-                {t('gateway.monitoring.autoRefreshStop')}
-              </Button>
-            ) : null}
-            <Button variant="outline" onClick={closeAutoRefresh}>
-              {t('common.action.cancel')}
-            </Button>
-            <Button variant="primary" onClick={confirmAutoRefresh}>
-              {t('common.action.confirm')}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <label
-            htmlFor="monitoring-auto-refresh-seconds"
-            className="block text-sm text-fg"
-          >
-            {t('gateway.monitoring.autoRefreshSeconds')}
-          </label>
-          <Input
-            id="monitoring-auto-refresh-seconds"
-            type="number"
-            min={1}
-            max={3600}
-            step={1}
-            autoFocus
-            value={autoRefreshInput}
-            aria-invalid={Boolean(autoRefreshError)}
-            className={
-              autoRefreshError
-                ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                : undefined
-            }
-            onChange={(event) => {
-              setAutoRefreshInput(event.target.value)
-              setAutoRefreshError('')
-            }}
-          />
-          {autoRefreshError ? (
-            <p className="text-xs text-danger">{autoRefreshError}</p>
-          ) : null}
-        </div>
-      </Dialog>
+      </ListTableCard>
 
       <Dialog
         open={Boolean(controlVariable)}
         onClose={() => setControlVariable(null)}
         title={t('gateway.detail.control.title')}
-        className="w-[280px] max-w-[calc(100vw-2rem)] rounded-lg"
+        className="flex h-[281px] w-[280px] max-w-[calc(100vw-2rem)] flex-col rounded-lg"
         headerClassName="items-center pt-3"
+        bodyClassName="min-h-0 flex-1 pt-0"
         footerClassName="min-h-10 items-center py-1"
         footer={
           <>
@@ -628,7 +527,13 @@ export function MonitoringPointsPage() {
           </>
         }
       >
-        <div className="space-y-3">
+        <div className="space-y-1">
+          <p
+            role={controlError ? 'alert' : undefined}
+            className="block h-[18px] max-w-full overflow-hidden break-words text-[13px] leading-[18px] text-danger"
+          >
+            {controlError}
+          </p>
           <dl className="divide-y divide-border rounded border border-border bg-surface-2">
             <div className="flex items-center justify-between gap-4 px-3 py-2">
               <dt className="text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.variable.dataType')}</dt>
@@ -649,6 +554,7 @@ export function MonitoringPointsPage() {
             <div className="flex items-center justify-between gap-4 px-3 py-2">
               <dt className="shrink-0 text-sm leading-5 font-normal font-table text-table-fg">{t('gateway.monitoring.writeValue')}</dt>
               <dd className="min-w-0 flex-1">
+                <div className="ml-auto w-[100px]">
                 {isBoolControl ? (
                   <Select
                     id="monitoring-control-value"
@@ -674,7 +580,6 @@ export function MonitoringPointsPage() {
                     value={controlValue}
                     autoFocus
                     inputMode={isIntegerControl ? 'numeric' : 'decimal'}
-                    placeholder={t('gateway.detail.control.valuePlaceholder')}
                     autoComplete="off"
                     spellCheck={false}
                     aria-invalid={Boolean(controlError)}
@@ -686,9 +591,7 @@ export function MonitoringPointsPage() {
                     onChange={(event) => setControlValue(event.target.value)}
                   />
                 )}
-                {controlError ? (
-                  <p className="mt-1 text-xs text-danger">{controlError}</p>
-                ) : null}
+                </div>
               </dd>
             </div>
           </dl>

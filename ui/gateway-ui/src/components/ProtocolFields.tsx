@@ -57,7 +57,6 @@ export function ProtocolFields({
                   emptyText={t('common.state.empty')}
                   searchable={false}
                   className="w-full"
-                  panelClassName="w-full"
                 />
               ) : (
                 <Input

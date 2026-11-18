@@ -14,8 +14,8 @@ import {
 import type { DriverSchema } from '@/api/types'
 import { variableTypes, type VariableFormValues } from '@/lib/collection-form'
 import { localized } from '@/lib/labels'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
+import { TableActionButton } from '@harns/core'
 import { VariableErrors } from './VariableErrors'
 
 interface CalculatedVariablesEditorProps {
@@ -177,7 +177,6 @@ export function CalculatedVariablesEditor({
                         emptyText={t('common.state.empty')}
                         searchable={false}
                         className="w-full"
-                        panelClassName="w-full"
                       />
                     ) : (
                       <Input

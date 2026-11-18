@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import {
   Button,
   ConfirmDialog,
-  Dialog,
+  FormDialog,
   ErrorState,
   Pagination,
   Skeleton,
@@ -415,7 +415,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={Boolean(collection)}
       onClose={onClose}
       title={
@@ -454,9 +454,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
           t('gateway.variable.manageTitleFallback')
         )
       }
-      size="xl"
-      className="max-w-[1180px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
+      width="wide"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -627,9 +625,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
             disabled={submitting}
           />
 
-          {activeErrors.variables ? (
-            <p className="text-xs text-danger">{activeErrors.variables}</p>
-          ) : null}
+          <p className="min-h-4 text-xs leading-4 text-danger">{activeErrors.variables}</p>
         </>
       )}
 
@@ -658,6 +654,6 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
         })}
         confirmText={t('common.action.delete')}
       />
-    </Dialog>
+    </FormDialog>
   )
 }

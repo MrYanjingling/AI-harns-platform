@@ -7,11 +7,9 @@ export function NavIcon({ children }: { children: ReactNode }) {
 
 export function navLeafClass(active: boolean, nested: boolean, iconOnly = false): string {
   return cn(
-    'flex h-[45px] items-center rounded-sm text-[14px] transition-all duration-150',
-    iconOnly ? 'justify-center px-0' : 'gap-[10px]',
-    !iconOnly && (nested ? 'pr-3 pl-11' : 'px-3'),
-    active
-      ? 'bg-primary/10 text-primary'
-      : 'text-muted hover:bg-primary/5 hover:text-primary',
+    'app-nav-item app-nav-leaf',
+    iconOnly && 'app-nav-item--icon-only',
+    !iconOnly && nested && 'app-nav-leaf--nested',
+    active && 'app-nav-leaf--active',
   )
 }

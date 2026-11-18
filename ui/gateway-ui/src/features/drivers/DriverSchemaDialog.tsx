@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import {
   Badge,
   Button,
-  Dialog,
+  FormDialog,
   Skeleton,
   Table,
   Tabs,
@@ -80,7 +80,7 @@ export function DriverSchemaDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={driver !== null}
       onClose={onClose}
       title={
@@ -88,9 +88,6 @@ export function DriverSchemaDialog({
           ? `${driverTypeLabel(driver.driverType)} · ${driverModelLabel(driver.model)}`
           : ''
       }
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={
         <Button variant="outline" onClick={onClose}>
           {t('common.action.close')}
@@ -162,7 +159,7 @@ export function DriverSchemaDialog({
                   {JSON.stringify(schema, null, 2)}
                 </pre>
               )}
-              {error ? <p className="text-xs text-danger">{error}</p> : null}
+              <p className="min-h-4 text-xs leading-4 text-danger">{error}</p>
             </div>
           ) : (
         <div className="space-y-4">
@@ -265,6 +262,6 @@ export function DriverSchemaDialog({
           )}
         </div>
       )}
-    </Dialog>
+    </FormDialog>
   )
 }

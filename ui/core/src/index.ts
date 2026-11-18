@@ -60,6 +60,7 @@ export {
 export { ThemeProvider, useTheme } from './providers/ThemeProvider'
 
 export { Badge, type BadgeProps } from './components/ui/Badge'
+export { EnumBadge, type EnumBadgeProps } from './components/ui/EnumBadge'
 export { Button, type ButtonProps } from './components/ui/Button'
 export {
   Card,
@@ -72,20 +73,38 @@ export {
 export { ConfirmDialog, type ConfirmDialogProps } from './components/ui/ConfirmDialog'
 export { CopyButton } from './components/ui/CopyButton'
 export { Dialog, type DialogProps } from './components/ui/Dialog'
+export { FormDialog, type FormDialogProps } from './components/ui/FormDialog'
 export { EmptyState } from './components/ui/EmptyState'
 export { Field, Input, Label, Select, Textarea, type FieldProps } from './components/ui/Field'
 export { SearchSelect, type SearchSelectOption } from './components/ui/SearchSelect'
+export { SearchInput, type SearchInputProps } from './components/ui/SearchInput'
+export { StatusBadge, type StatusTone } from './components/ui/StatusBadge'
+export { Tooltip } from './components/ui/Tooltip'
+export { ActionMenu, type ActionMenuItem } from './components/ui/ActionMenu'
 export { ProgressBar } from './components/ui/ProgressBar'
 export { Skeleton, TableSkeleton } from './components/ui/Skeleton'
 export { PageLoading, Spinner } from './components/ui/Spinner'
 export { Switch } from './components/ui/Switch'
 export { Table, TBody, TD, TH, THead, TR } from './components/ui/Table'
+export {
+  DataTable,
+  DataTableHead,
+  DataTableHeadCell,
+  DataTableBody,
+  DataTableRow,
+  DataTableCell,
+  TableActions,
+} from './components/table/DataTable'
+export { TableActionButton, type TableActionButtonProps } from './components/table/TableActionButton'
+export { ColumnResizeHandle, useColumnResize, type ColumnWidths } from './components/table/useColumnResize'
 export { Tabs, type TabItem } from './components/ui/Tabs'
 
 export { GaugeRing, toneForPercent, type GaugeTone } from './components/charts/GaugeRing'
 export { ErrorState } from './components/shared/ErrorState'
 export { PageHeader } from './components/shared/PageHeader'
 export { Pagination } from './components/shared/Pagination'
+export { ListTableCard } from './components/shared/ListTableCard'
+export { AutoRefreshButton } from './components/shared/AutoRefreshButton'
 export { StatCard } from './components/shared/StatCard'
 export { NotFoundPage } from './components/shared/NotFoundPage'
 
@@ -93,6 +112,7 @@ export { AccountMenu, type AccountMenuProps } from './components/layout/AccountM
 export { AppShell, type AppShellProps } from './components/layout/AppShell'
 export { LanguageSwitcher } from './components/layout/LanguageSwitcher'
 export { PagePad } from './components/layout/PagePad'
+export { PreferencesPopover } from './components/layout/PreferencesPopover'
 export { TechBackdrop } from './components/layout/TechBackdrop'
 export {
   buildNavEntries,

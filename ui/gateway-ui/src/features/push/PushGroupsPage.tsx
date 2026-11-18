@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-  Badge,
   Button,
-  Card,
   ConfirmDialog,
   Dialog,
+  EnumBadge,
   ErrorState,
-  Input,
+  ListTableCard,
+  SearchInput,
   Pagination,
   SearchSelect,
   Table,
@@ -25,6 +25,7 @@ import {
   useI18n,
   type SearchSelectOption,
 } from '@harns/core'
+import { TableActions } from '@harns/core'
 import {
   useCollections,
   useDeletePushGroup,
@@ -34,17 +35,17 @@ import {
 } from '@/api/hooks'
 import type { PushGroup } from '@/api/types'
 import {
-  GatewayTBody,
-  GatewayTD,
-  GatewayTH,
-  GatewayTHead,
-  GatewayTR,
-  GatewayTable,
-} from '@/components/GatewayTable'
+  DataTableBody,
+  DataTableCell,
+  DataTableHeadCell,
+  DataTableHead,
+  DataTableRow,
+  DataTable,
+} from '@harns/core'
 import { CollectStatusBadge, ConnectorStatusBadge } from '@/components/StatusBadge'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
-import { TableActionButton } from '@/components/TableActionButton'
+import { TableActionButton } from '@harns/core'
 import { PushGroupActionsMenu } from './PushGroupActionsMenu'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
 import { PushGroupPayloadDialog } from './PushGroupPayloadDialog'
@@ -185,7 +186,7 @@ export function PushGroupsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+      <div className="app-page-toolbar">
         <SearchSelect
           id="push-group-connector-filter"
           value={activeConnectorId}
@@ -194,20 +195,16 @@ export function PushGroupsPage() {
           ariaLabel={t('gateway.push.group.selectConnector')}
           emptyText={t('common.state.empty')}
           className="w-[200px]"
-          panelClassName="w-[200px]"
         />
-        <div className="relative w-[200px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={keywordInput}
-            placeholder={t('gateway.push.group.searchPlaceholder')}
-            className="h-9 pl-9 text-sm"
-            onChange={(event) => setKeywordInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') applySearch()
-            }}
-          />
-        </div>
+        <SearchInput
+          wrapperClassName="w-[200px]"
+          value={keywordInput}
+          placeholder={t('gateway.push.group.searchPlaceholder')}
+          onChange={(event) => setKeywordInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') applySearch()
+          }}
+        />
         <Button variant="primary" className="h-9" onClick={applySearch}>
           {t('common.action.search')}
         </Button>
@@ -225,8 +222,21 @@ export function PushGroupsPage() {
         </Button>
       </div>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
+      <ListTableCard
+        pagination={
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
+            disabled={groups.isFetching || groups.isLoading}
+          />
+        }
+      >
           {connectors.isLoading ? (
             <TableSkeleton rows={6} cols={10} />
           ) : connectors.isError ? (
@@ -244,7 +254,7 @@ export function PushGroupsPage() {
               <ErrorState error={groups.error} onRetry={() => void groups.refetch()} compact />
             </div>
           ) : list.length === 0 ? null : (
-            <GatewayTable
+            <DataTable
               style={{
                 tableLayout: 'fixed',
                 width: `max(100%, ${totalWidth}px)`,
@@ -262,116 +272,116 @@ export function PushGroupsPage() {
                 <col style={{ width: widths.lastPush }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
-              <GatewayTHead>
+              <DataTableHead>
                 <tr>
-                  <GatewayTH className="text-center">
+                  <DataTableHeadCell className="text-center">
                     {t('common.field.order')}
                     <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.columns.connector')}
                     <ColumnResizeHandle
                       column="connector"
                       width={widths.connector}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('common.field.name')}
                     <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('common.field.status')}
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
+                    {t('gateway.push.columns.pushStatus')}
                     <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.field.dataTopic')}
                     <ColumnResizeHandle
                       column="dataTopic"
                       width={widths.dataTopic}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.field.commandTopic')}
                     <ColumnResizeHandle
                       column="commandTopic"
                       width={widths.commandTopic}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.columns.interval')}
                     <ColumnResizeHandle
                       column="interval"
                       width={widths.interval}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.columns.scope')}
                     <ColumnResizeHandle column="scope" width={widths.scope} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
                     {t('gateway.push.payload.lastPushTime')}
                     <ColumnResizeHandle
                       column="lastPush"
                       width={widths.lastPush}
                       onResize={resize}
                     />
-                  </GatewayTH>
-                  <GatewayTH className="text-left">
+                  </DataTableHeadCell>
+                  <DataTableHeadCell className="text-left">
                     {t('common.field.actions')}
                     <ColumnResizeHandle
                       column="actions"
                       width={widths.actions}
                       onResize={resize}
                     />
-                  </GatewayTH>
+                  </DataTableHeadCell>
                 </tr>
-              </GatewayTHead>
-              <GatewayTBody>
+              </DataTableHead>
+              <DataTableBody>
                 {list.map((group, index) => {
                   return (
-                    <GatewayTR
+                    <DataTableRow
                       key={group.id}
                       data-group-id={group.id}
                       className={cn(
                         focusedGroupId === group.id && 'bg-primary-soft/40 ring-1 ring-primary/25',
                       )}
                     >
-                      <GatewayTD className="text-center">
+                      <DataTableCell className="text-center">
                         {(page - 1) * pageSize + index + 1}
-                      </GatewayTD>
-                      <GatewayTD>
+                      </DataTableCell>
+                      <DataTableCell>
                         {connectorById.get(group.connectorId)?.name ?? '—'}
-                      </GatewayTD>
-                      <GatewayTD>
+                      </DataTableCell>
+                      <DataTableCell>
                         <span className="truncate">{group.name}</span>
-                      </GatewayTD>
-                      <GatewayTD>
+                      </DataTableCell>
+                      <DataTableCell>
                         <ConnectorStatusBadge
                           status={group.status}
                           error={group.lastError}
                         />
-                      </GatewayTD>
-                      <GatewayTD>
+                      </DataTableCell>
+                      <DataTableCell>
                         <span className="block truncate" title={group.dataTopic}>
                           {group.dataTopic || '—'}
                         </span>
-                      </GatewayTD>
-                      <GatewayTD>
+                      </DataTableCell>
+                      <DataTableCell>
                         <span
                           className="block truncate"
                           title={group.commandTopic}
                         >
                           {group.commandTopic || '—'}
                         </span>
-                      </GatewayTD>
-                      <GatewayTD className="whitespace-nowrap">
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
                         {group.pushIntervalMs}
-                      </GatewayTD>
-                      <GatewayTD
+                      </DataTableCell>
+                      <DataTableCell
                         role="button"
                         tabIndex={0}
                         onClick={() => setScopeGroup(group)}
@@ -384,20 +394,20 @@ export function PushGroupsPage() {
                         className="cursor-pointer transition-colors hover:bg-surface-2"
                       >
                         {group.allCollections ? (
-                          <Badge tone="info" className="px-2">{t('gateway.push.scope.all')}</Badge>
+                          <EnumBadge tone="info">{t('gateway.push.scope.all')}</EnumBadge>
                         ) : (
-                          <Badge tone="neutral" className="px-2">
+                          <EnumBadge tone="neutral">
                             {t('gateway.push.scope.selected', {
                               count: group.collectionIds?.length ?? 0,
                             })}
-                          </Badge>
+                          </EnumBadge>
                         )}
-                      </GatewayTD>
-                      <GatewayTD className="whitespace-nowrap">
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
                         {group.lastPushTime ? formatDateTime(group.lastPushTime) : '—'}
-                      </GatewayTD>
-                      <GatewayTD>
-                        <div className="flex items-center gap-2">
+                      </DataTableCell>
+                      <DataTableCell>
+                        <TableActions>
                           <TableActionButton
                             label={t('gateway.collection.action.update')}
                             icon={<Pencil />}
@@ -417,29 +427,15 @@ export function PushGroupsPage() {
                             onRestart={() => setPending({ kind: 'restart', group })}
                             onViewPayloads={() => setPayloadGroup(group)}
                           />
-                        </div>
-                      </GatewayTD>
-                    </GatewayTR>
+                        </TableActions>
+                      </DataTableCell>
+                    </DataTableRow>
                   )
                 })}
-              </GatewayTBody>
-            </GatewayTable>
+              </DataTableBody>
+            </DataTable>
           )}
-        </div>
-        <div className="shrink-0">
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
-            disabled={groups.isFetching || groups.isLoading}
-          />
-        </div>
-      </Card>
+      </ListTableCard>
 
       <PushGroupFormDialog
         open={formOpen}
@@ -484,7 +480,7 @@ export function PushGroupsPage() {
                       readOnly
                     />
                   </TH>
-                  <TH>{t('gateway.variable.name')}</TH>
+                  <TH>{t('gateway.push.group.collectionName')}</TH>
                   <TH>{t('gateway.collection.columns.status')}</TH>
                   <TH>{t('gateway.collection.columns.driverType')}</TH>
                   <TH>{t('gateway.push.group.protocolType')}</TH>

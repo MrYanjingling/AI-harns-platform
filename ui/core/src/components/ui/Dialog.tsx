@@ -147,7 +147,7 @@ export function Dialog({
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-1 text-[13px] leading-relaxed text-muted">{description}</p>
+              <p className="app-dialog-description">{description}</p>
             ) : null}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('components.dialog.close')}>

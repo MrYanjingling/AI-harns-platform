@@ -7,7 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
+  FormDialog,
   ErrorState,
   Field,
   Input,
@@ -297,13 +297,10 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     )
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onClose={onClose}
       title={t('gateway.form.createTitle')}
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={footer}
     >
       <CreateStepHeader current={step} />
@@ -389,7 +386,6 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
                   ariaLabel={t('gateway.form.field.driverType')}
                   emptyText={t('common.state.empty')}
                   className="w-full max-w-[200px]"
-                  panelClassName="w-[200px]"
                 />
               </Field>
               <Field
@@ -407,7 +403,6 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
                   ariaLabel={t('gateway.form.field.driverModel')}
                   emptyText={t('common.state.empty')}
                   className="w-full max-w-[200px]"
-                  panelClassName="w-[200px]"
                 />
               </Field>
             </CardContent>
@@ -418,9 +413,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
               <CardTitle>{t('gateway.form.section.protocol')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {errors.form ? (
-                <p className="mb-2 text-xs text-danger">{errors.form}</p>
-              ) : null}
+              <p className="mb-2 min-h-4 text-xs leading-4 text-danger">{errors.form}</p>
               <ProtocolFields
                 schema={driverSchema}
                 values={form.protocol}
@@ -520,6 +513,6 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
           )}
         </>
       )}
-    </Dialog>
+    </FormDialog>
   )
 }

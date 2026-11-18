@@ -157,7 +157,7 @@ export function SearchSelect({
       <div
         ref={triggerRef}
         className={cn(
-          'flex h-9 items-center rounded border bg-surface text-sm transition-colors',
+          'flex h-[var(--select-height)] items-center rounded border bg-surface text-sm transition-colors',
           open
             ? 'border-primary ring-2 ring-primary/15'
             : 'border-border-strong hover:border-faint',
@@ -241,7 +241,7 @@ export function SearchSelect({
                 panelClassName,
               )}
             >
-              <div role="listbox" className="max-h-56 overflow-auto py-1">
+              <div role="listbox" className="max-h-[var(--select-panel-max-height)] overflow-auto py-1">
                 {filtered.length === 0 ? (
                   <p className="px-3 py-2 text-xs text-faint">
                     {emptyText ?? t('common.state.empty')}

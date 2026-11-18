@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Pencil, Plus, Pointer, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Pointer, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
-  Card,
   ConfirmDialog,
   ErrorState,
-  Input,
+  ListTableCard,
   Pagination,
+  SearchInput,
+  TableActions,
   SearchSelect,
   Switch,
   TableSkeleton,
@@ -24,12 +25,19 @@ import {
   useSetCollectionEnable,
 } from '@/api/hooks'
 import type { Collection } from '@/api/types'
-import { GatewayTBody, GatewayTD, GatewayTH, GatewayTHead, GatewayTR, GatewayTable } from '@/components/GatewayTable'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeadCell,
+  DataTableRow,
+  TableActionButton,
+} from '@harns/core'
 import { CollectStatusBadge } from '@/components/StatusBadge'
 import { canToggleCollectionEnable } from '@/lib/collection-actions'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
-import { ColumnResizeHandle, useColumnResize } from '@/components/useColumnResize'
-import { TableActionButton } from '@/components/TableActionButton'
+import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { CollectionActionsMenu } from './CollectionActionsMenu'
 import { CollectionCreateDialog } from './CollectionCreateDialog'
 import { CollectionEditDialog } from './CollectionEditDialog'
@@ -175,19 +183,16 @@ export function CollectionPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
-        <div className="relative w-[200px]">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={filters.keyword}
-            placeholder={t('gateway.collection.searchPlaceholder')}
-            className="h-9 pl-9 text-sm"
-            onChange={(event) => setFilters((current) => ({ ...current, keyword: event.target.value }))}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') applyFilters()
-            }}
-          />
-        </div>
+      <div className="app-page-toolbar">
+        <SearchInput
+          wrapperClassName="w-[200px]"
+          value={filters.keyword}
+          placeholder={t('gateway.collection.searchPlaceholder')}
+          onChange={(event) => setFilters((current) => ({ ...current, keyword: event.target.value }))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') applyFilters()
+          }}
+        />
         <SearchSelect
           value={filters.driverType}
           options={driverTypeOptions}
@@ -198,7 +203,6 @@ export function CollectionPage() {
           emptyText={t('common.state.empty')}
           placeholderValue="all"
           className="w-[140px]"
-          panelClassName="w-[140px]"
         />
         <SearchSelect
           value={filters.driverModel}
@@ -210,7 +214,6 @@ export function CollectionPage() {
           emptyText={t('common.state.empty')}
           placeholderValue="all"
           className="w-[140px]"
-          panelClassName="w-[140px]"
         />
         <Button variant="primary" className="h-9" onClick={applyFilters}>
           {t('common.action.search')}
@@ -228,167 +231,8 @@ export function CollectionPage() {
         </Button>
       </div>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
-          {collections.isLoading ? (
-            <TableSkeleton rows={6} cols={9} />
-          ) : collections.isError ? (
-            <div className="p-5">
-              <ErrorState
-                error={collections.error}
-                onRetry={() => void collections.refetch()}
-                compact
-              />
-            </div>
-          ) : list.length === 0 ? null : (
-            <GatewayTable
-              style={{
-                tableLayout: 'fixed',
-                width: `max(100%, ${totalWidth}px)`,
-              }}
-            >
-              <colgroup>
-                <col style={{ width: widths.order }} />
-                <col style={{ width: widths.name }} />
-                <col style={{ width: widths.status }} />
-                <col style={{ width: widths.driverType }} />
-                <col style={{ width: widths.model }} />
-                <col style={{ width: widths.cycle }} />
-                <col style={{ width: widths.enable }} />
-                <col style={{ width: widths.variableCount }} />
-                <col style={{ width: widths.actions }} />
-              </colgroup>
-              <GatewayTHead>
-                <tr>
-                  <GatewayTH style={{ textAlign: 'center' }}>
-                    {t('common.field.order')}
-                    <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.name')}
-                    <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.status')}
-                    <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.driverType')}
-                    <ColumnResizeHandle
-                      column="driverType"
-                      width={widths.driverType}
-                      onResize={resize}
-                    />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.model')}
-                    <ColumnResizeHandle column="model" width={widths.model} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.cycle')}
-                    <ColumnResizeHandle column="cycle" width={widths.cycle} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.enable')}
-                    <ColumnResizeHandle column="enable" width={widths.enable} onResize={resize} />
-                  </GatewayTH>
-                  <GatewayTH>
-                    {t('gateway.collection.columns.variableCount')}
-                    <ColumnResizeHandle
-                      column="variableCount"
-                      width={widths.variableCount}
-                      onResize={resize}
-                    />
-                  </GatewayTH>
-                  <GatewayTH style={{ textAlign: 'left' }}>
-                    {t('common.field.actions')}
-                    <ColumnResizeHandle
-                      column="actions"
-                      width={widths.actions}
-                      onResize={resize}
-                    />
-                  </GatewayTH>
-                </tr>
-              </GatewayTHead>
-              <GatewayTBody>
-                {list.map((collection, index) => {
-                  const disableToggle =
-                    setEnable.isPending || !canToggleCollectionEnable(collection)
-                  return (
-                    <GatewayTR key={collection.id}>
-                      <GatewayTD style={{ textAlign: 'center' }}>
-                        {(page - 1) * pageSize + index + 1}
-                      </GatewayTD>
-                      <GatewayTD>
-                        <Link
-                          to={`/collections/${collection.id}`}
-                          className="transition-colors hover:text-primary"
-                        >
-                          {collection.name}
-                        </Link>
-                      </GatewayTD>
-                      <GatewayTD>
-                        <CollectStatusBadge
-                          status={collection.collectStatus}
-                          error={collection.lastError}
-                        />
-                      </GatewayTD>
-                      <GatewayTD>{driverTypeLabel(collection.driverType) || '—'}</GatewayTD>
-                      <GatewayTD>{driverModelLabel(collection.driverModel) || '—'}</GatewayTD>
-                      <GatewayTD className="whitespace-nowrap">
-                        {collection.collectorCycleMs > 0 ? collection.collectorCycleMs : '—'}
-                      </GatewayTD>
-                      <GatewayTD>
-                        <Switch
-                          checked={collection.enable}
-                          disabled={disableToggle}
-                          label={t('gateway.collection.columns.enable')}
-                          onChange={(enable) => void toggleEnable(collection, enable)}
-                        />
-                      </GatewayTD>
-                      <GatewayTD
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setVariablesCollection(collection)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault()
-                            setVariablesCollection(collection)
-                          }
-                        }}
-                        className="cursor-pointer transition-colors hover:text-primary-hover"
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          {collection.variableCount}
-                          <Pointer className="size-3.5 text-faint" aria-hidden="true" />
-                        </span>
-                      </GatewayTD>
-                      <GatewayTD>
-                        <div className="flex items-center gap-2">
-                          <TableActionButton
-                            label={t('gateway.collection.action.update')}
-                            icon={<Pencil />}
-                            onClick={() => setEditingId(collection.id)}
-                          />
-                          <TableActionButton
-                            label={t('common.action.delete')}
-                            icon={<Trash2 />}
-                            onClick={() => setPending({ kind: 'delete', collection })}
-                          />
-                          <CollectionActionsMenu
-                            collection={collection}
-                            onAction={(kind) => setPending({ kind, collection })}
-                          />
-                        </div>
-                      </GatewayTD>
-                    </GatewayTR>
-                  )
-                })}
-              </GatewayTBody>
-            </GatewayTable>
-          )}
-        </div>
-        <div className="shrink-0">
+      <ListTableCard
+        pagination={
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -400,8 +244,166 @@ export function CollectionPage() {
             }}
             disabled={collections.isFetching || collections.isLoading}
           />
-        </div>
-      </Card>
+        }
+      >
+        {collections.isLoading ? (
+          <TableSkeleton rows={6} cols={9} />
+        ) : collections.isError ? (
+          <div className="p-5">
+            <ErrorState
+              error={collections.error}
+              onRetry={() => void collections.refetch()}
+              compact
+            />
+          </div>
+        ) : list.length === 0 ? null : (
+          <DataTable
+            style={{
+              tableLayout: 'fixed',
+              width: `max(100%, ${totalWidth}px)`,
+            }}
+          >
+            <colgroup>
+              <col style={{ width: widths.order }} />
+              <col style={{ width: widths.name }} />
+              <col style={{ width: widths.status }} />
+              <col style={{ width: widths.driverType }} />
+              <col style={{ width: widths.model }} />
+              <col style={{ width: widths.cycle }} />
+              <col style={{ width: widths.enable }} />
+              <col style={{ width: widths.variableCount }} />
+              <col style={{ width: widths.actions }} />
+            </colgroup>
+            <DataTableHead>
+              <tr>
+                <DataTableHeadCell style={{ textAlign: 'center' }}>
+                  {t('common.field.order')}
+                  <ColumnResizeHandle column="order" width={widths.order} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.name')}
+                  <ColumnResizeHandle column="name" width={widths.name} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.status')}
+                  <ColumnResizeHandle column="status" width={widths.status} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.driverType')}
+                  <ColumnResizeHandle
+                    column="driverType"
+                    width={widths.driverType}
+                    onResize={resize}
+                  />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.model')}
+                  <ColumnResizeHandle column="model" width={widths.model} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.cycle')}
+                  <ColumnResizeHandle column="cycle" width={widths.cycle} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.enable')}
+                  <ColumnResizeHandle column="enable" width={widths.enable} onResize={resize} />
+                </DataTableHeadCell>
+                <DataTableHeadCell>
+                  {t('gateway.collection.columns.variableCount')}
+                  <ColumnResizeHandle
+                    column="variableCount"
+                    width={widths.variableCount}
+                    onResize={resize}
+                  />
+                </DataTableHeadCell>
+                <DataTableHeadCell style={{ textAlign: 'left' }}>
+                  {t('common.field.actions')}
+                  <ColumnResizeHandle
+                    column="actions"
+                    width={widths.actions}
+                    onResize={resize}
+                  />
+                </DataTableHeadCell>
+              </tr>
+            </DataTableHead>
+            <DataTableBody>
+              {list.map((collection, index) => {
+                const disableToggle =
+                  setEnable.isPending || !canToggleCollectionEnable(collection)
+                return (
+                  <DataTableRow key={collection.id}>
+                    <DataTableCell style={{ textAlign: 'center' }}>
+                      {(page - 1) * pageSize + index + 1}
+                    </DataTableCell>
+                    <DataTableCell>
+                      <Link
+                        to={`/collections/${collection.id}`}
+                        className="transition-colors hover:text-primary"
+                      >
+                        {collection.name}
+                      </Link>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <CollectStatusBadge
+                        status={collection.collectStatus}
+                        error={collection.lastError}
+                      />
+                    </DataTableCell>
+                    <DataTableCell>{driverTypeLabel(collection.driverType) || '—'}</DataTableCell>
+                    <DataTableCell>{driverModelLabel(collection.driverModel) || '—'}</DataTableCell>
+                    <DataTableCell className="whitespace-nowrap">
+                      {collection.collectorCycleMs > 0 ? collection.collectorCycleMs : '—'}
+                    </DataTableCell>
+                    <DataTableCell>
+                      <Switch
+                        checked={collection.enable}
+                        disabled={disableToggle}
+                        label={t('gateway.collection.columns.enable')}
+                        onChange={(enable) => void toggleEnable(collection, enable)}
+                      />
+                    </DataTableCell>
+                    <DataTableCell
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setVariablesCollection(collection)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setVariablesCollection(collection)
+                        }
+                      }}
+                      className="cursor-pointer transition-colors hover:text-primary-hover"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {collection.variableCount}
+                        <Pointer className="size-3.5 text-faint" aria-hidden="true" />
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <TableActions>
+                        <TableActionButton
+                          label={t('gateway.collection.action.update')}
+                          icon={<Pencil />}
+                          onClick={() => setEditingId(collection.id)}
+                        />
+                        <TableActionButton
+                          label={t('common.action.delete')}
+                          icon={<Trash2 />}
+                          onClick={() => setPending({ kind: 'delete', collection })}
+                        />
+                        <CollectionActionsMenu
+                          collection={collection}
+                          onAction={(kind) => setPending({ kind, collection })}
+                        />
+                      </TableActions>
+                    </DataTableCell>
+                  </DataTableRow>
+                )
+              })}
+            </DataTableBody>
+          </DataTable>
+        )}
+      </ListTableCard>
 
       <CollectionCreateDialog open={createOpen} onClose={closeCreate} />
       <CollectionEditDialog collectionId={editingId} onClose={() => setEditingId(null)} />

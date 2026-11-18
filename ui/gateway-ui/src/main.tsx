@@ -17,12 +17,12 @@ import {
   mergeMessages,
   queryClient,
   registerMessages,
+  PreferencesPopover,
   ThemeProvider,
   useTheme,
 } from '@harns/core'
 import { useSystemInfo } from '@/api/hooks'
 import { GatewayAccountMenu } from '@/components/layout/GatewayAccountMenu'
-import { GatewaySettingsPopover } from '@/components/layout/GatewaySettingsPopover'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
 import { gatewayRoutes } from '@/routes'
@@ -54,7 +54,7 @@ const router = createBrowserRouter([
         appName="AI-harns-gateway"
         documentTitle="HarnsGateway"
         homeTo="/overview"
-        headerTools={<GatewaySettingsPopover />}
+        headerTools={<PreferencesPopover />}
         accountMenu={<GatewayAccountMenu />}
         sidebarWidth={172}
         sidebarCollapsedWidth={56}

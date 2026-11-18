@@ -120,9 +120,10 @@ ui/
 
 - Tailwind v4 CSS-first：`core/src/styles.css` 中 `@theme inline` 把语义变量映射为工具类；各包 `src/index.css` 只做 `@import` 与 `@source`。
 - 深色模式通过 `<html class="dark">`；`ThemeProvider` 持久化到 `localStorage['harns-theme']`，首屏脚本在 `index.html` 内联，避免闪烁。
+- 文字选中样式统一由 `core/src/styles.css` 的 `::selection` 控制：背景使用 `var(--primary)`，文字使用 `var(--primary-fg)`；子应用不得覆盖。
 - 重复出现的类名组合用 `cn()` 合并或抽成常量，不在 JSX 中堆叠大段重复样式。
 - `CopyButton` 等复制控件在 flex 行内必须保持单行：使用 `shrink-0` 与 `whitespace-nowrap`，不能被相邻长文本挤压换行；长文本本身用 `truncate`。
-- Gateway 列表表格统一使用 `ui/gateway-ui/src/components/GatewayTable.tsx` 的 `GatewayTable` / `GatewayTHead` / `GatewayTH` / `GatewayTBody` / `GatewayTR` / `GatewayTD`，不要在各页面重复定义表头、数据行和分隔线样式。
+- Gateway 列表表格统一使用 core `DataTable` / `DataTableHead` / `DataTableHeadCell` / `DataTableBody` / `DataTableRow` / `DataTableCell`，不要在各页面重复定义表头、数据行和分隔线样式。
 
 ## 国际化
 

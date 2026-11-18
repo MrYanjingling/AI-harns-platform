@@ -1,13 +1,12 @@
-import type { MessageKey } from '@harns/core'
+import type { MessageKey, StatusTone } from '@harns/core'
 import type { AccessMode, CollectStatus, ConnectorStatus } from '@/api/types'
 
-export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
+export type { StatusTone }
 
 export interface StatusMeta {
   labelKey: MessageKey
   descriptionKey: MessageKey
   tone: StatusTone
-  dotClassName: string
 }
 
 export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
@@ -15,37 +14,31 @@ export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
     labelKey: 'gateway.status.collecting.label',
     descriptionKey: 'gateway.status.collecting.description',
     tone: 'success',
-    dotClassName: 'bg-emerald-500',
   },
   collectingError: {
     labelKey: 'gateway.status.collectingError.label',
     descriptionKey: 'gateway.status.collectingError.description',
     tone: 'danger',
-    dotClassName: 'bg-rose-500',
   },
   unconnected: {
     labelKey: 'gateway.status.unconnected.label',
     descriptionKey: 'gateway.status.unconnected.description',
     tone: 'danger',
-    dotClassName: 'bg-rose-500',
   },
   emptyVariable: {
     labelKey: 'gateway.status.emptyVariable.label',
     descriptionKey: 'gateway.status.emptyVariable.description',
     tone: 'warning',
-    dotClassName: 'bg-amber-500',
   },
   stopped: {
     labelKey: 'gateway.status.stopped.label',
     descriptionKey: 'gateway.status.stopped.description',
     tone: 'warning',
-    dotClassName: 'bg-amber-500',
   },
   error: {
     labelKey: 'gateway.status.error.label',
     descriptionKey: 'gateway.status.error.description',
     tone: 'danger',
-    dotClassName: 'bg-rose-500',
   },
 }
 
@@ -53,7 +46,6 @@ export const UNKNOWN_COLLECT_STATUS: StatusMeta = {
   labelKey: 'common.state.unknown',
   descriptionKey: 'common.state.unknown',
   tone: 'neutral',
-  dotClassName: 'bg-zinc-400',
 }
 
 export function collectStatusMeta(status: string | undefined): StatusMeta {
@@ -78,19 +70,16 @@ export const CONNECTOR_STATUS: Record<ConnectorStatus, StatusMeta> = {
     labelKey: 'gateway.push.status.running',
     descriptionKey: 'gateway.push.status.runningHint',
     tone: 'success',
-    dotClassName: 'bg-emerald-500',
   },
   stopped: {
     labelKey: 'gateway.push.status.stopped',
     descriptionKey: 'gateway.push.status.stoppedHint',
     tone: 'warning',
-    dotClassName: 'bg-amber-500',
   },
   error: {
     labelKey: 'gateway.push.status.error',
     descriptionKey: 'gateway.push.status.errorHint',
     tone: 'danger',
-    dotClassName: 'bg-rose-500',
   },
 }
 

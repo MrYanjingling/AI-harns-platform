@@ -174,6 +174,7 @@ func TestRuntimeManagerStopCollectionKeepsRuntime(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
 
+	factory.collectors[0].meta.SetVariableValue("temperature", float64(26.5))
 	hubBefore, ok := manager.Trace("c1")
 	require.True(t, ok)
 	require.NoError(t, manager.StopCollection(context.Background(), "c1", "manual"))
@@ -181,6 +182,10 @@ func TestRuntimeManagerStopCollectionKeepsRuntime(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, collection.CollectStatusStopped, runtime.Collector.GetCollectStatus())
 	assert.Equal(t, 1, factory.collectors[0].stops)
+	values := manager.SnapshotVariableValues("c1", []string{"temperature"})
+	value, ok := values["temperature"]
+	assert.True(t, ok)
+	assert.Nil(t, value)
 	hubAfter, ok := manager.Trace("c1")
 	require.True(t, ok)
 	assert.Same(t, hubBefore, hubAfter)

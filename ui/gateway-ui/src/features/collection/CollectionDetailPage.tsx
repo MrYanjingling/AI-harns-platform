@@ -22,8 +22,10 @@ import {
   CopyButton,
   Dialog,
   EmptyState,
+  EnumBadge,
   ErrorState,
   Field,
+  FormDialog,
   Input,
   PageHeader,
   PageLoading,
@@ -53,7 +55,7 @@ import {
 } from '@/api/hooks'
 import type { DriverSchema } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
-import { TableActionButton } from '@/components/TableActionButton'
+import { TableActionButton } from '@harns/core'
 import { ProtocolLabel } from '@/components/ProtocolLabel'
 import { VariablesEditor } from './VariablesEditor'
 import { CollectionEditDialog } from './CollectionEditDialog'
@@ -437,9 +439,9 @@ export function CollectionDetailPage() {
                     <TD className="tabular text-xs">{variable.bits ?? '—'}</TD>
                     <TD className="tabular text-xs">{variable.rate ?? '—'}</TD>
                     <TD>
-                      <Badge tone={variable.accessMode === 'r' ? 'neutral' : 'primary'}>
+                      <EnumBadge tone={variable.accessMode === 'r' ? 'neutral' : 'primary'}>
                         {variable.accessMode}
-                      </Badge>
+                      </EnumBadge>
                     </TD>
                     <TD className="max-w-40 truncate font-mono text-[11px] text-fg">
                       {formatValue(variable.value)}
@@ -459,12 +461,11 @@ export function CollectionDetailPage() {
         </CardContent>
       </Card>
 
-      <Dialog
+      <FormDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
         title={t('gateway.detail.variables.addTitle')}
         description={t('gateway.detail.variables.addDescription')}
-        size="xl"
         footer={
           <>
             <Button variant="ghost" onClick={() => setAddOpen(false)}>
@@ -498,7 +499,7 @@ export function CollectionDetailPage() {
             }
           />
         ) : null}
-      </Dialog>
+      </FormDialog>
 
       <Dialog
         open={controlOpen}

@@ -99,3 +99,29 @@ func TestCollectionMetaSnapshotVariableValues(t *testing.T) {
 	assert.Nil(t, meta.SnapshotVariableValues(nil))
 	assert.Nil(t, (*CollectionMeta)(nil).SnapshotVariableValues([]string{"temperature"}))
 }
+
+func TestCollectionMetaClearsValuesWhenStopped(t *testing.T) {
+	meta := &CollectionMeta{Variables: []*Variable{
+		{Name: "temperature"},
+		{Name: "power", IsCalculated: true, Expression: "temperature * 2"},
+	}}
+	meta.IndexCollection()
+	meta.SetVariableValue("temperature", float64(26.5))
+	meta.SetVariableValue("power", float64(53))
+
+	meta.SetCollectStatus(CollectStatusUnconnected)
+	value, ok := meta.GetVariableValue("temperature")
+	require.True(t, ok)
+	assert.Equal(t, float64(26.5), value)
+	value, ok = meta.GetVariableValue("power")
+	require.True(t, ok)
+	assert.Equal(t, float64(53), value)
+
+	meta.SetCollectStatus(CollectStatusStopped)
+	value, ok = meta.GetVariableValue("temperature")
+	require.True(t, ok)
+	assert.Nil(t, value)
+	value, ok = meta.GetVariableValue("power")
+	require.True(t, ok)
+	assert.Nil(t, value)
+}

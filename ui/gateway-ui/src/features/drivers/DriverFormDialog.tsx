@@ -6,7 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
+  FormDialog,
   Field,
   Input,
   Textarea,
@@ -72,13 +72,10 @@ export function DriverFormDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onClose={onClose}
       title={t('gateway.drivers.createTitle')}
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -162,9 +159,9 @@ export function DriverFormDialog({
             aria-invalid={Boolean(errors.schema)}
             onChange={(event) => setForm({ ...form, schemaText: event.target.value })}
           />
-          {errors.schema ? <p className="mt-1 text-xs text-danger">{errors.schema}</p> : null}
+          <p className="mt-1 min-h-4 text-xs leading-4 text-danger">{errors.schema}</p>
         </CardContent>
       </Card>
-    </Dialog>
+    </FormDialog>
   )
 }

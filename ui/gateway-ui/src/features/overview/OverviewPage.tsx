@@ -298,7 +298,7 @@ export function OverviewPage() {
                   return (
                     <div key={mount} title={mount}>
                       <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px]">
-                        <span className="truncate font-mono text-fg">{mount}</span>
+                        <span className="truncate text-muted">{mount}</span>
                         <span className="shrink-0 text-muted tabular">{info.UsedPercent}</span>
                       </div>
                       <ProgressBar

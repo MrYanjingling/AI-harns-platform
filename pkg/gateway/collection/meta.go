@@ -76,6 +76,19 @@ func (m *CollectionMeta) SetCollectStatus(status string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.CollectStatus = status
+	if status == CollectStatusStopped {
+		m.clearVariableValuesLocked()
+	}
+}
+
+// clearVariableValuesLocked drops runtime values for normal and calculated variables.
+// Caller must hold m.mu.
+func (m *CollectionMeta) clearVariableValuesLocked() {
+	for _, variable := range m.Variables {
+		if variable != nil {
+			variable.Value = nil
+		}
+	}
 }
 
 func (m *CollectionMeta) SetErrorReporter(reporter func(error)) {

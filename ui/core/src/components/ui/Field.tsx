@@ -48,6 +48,7 @@ export interface FieldProps {
   labelWidthClassName?: string
   labelAccessory?: ReactNode
   hint?: ReactNode
+  hintClassName?: string
   error?: string
   required?: boolean
   inline?: boolean
@@ -62,6 +63,7 @@ export function Field({
   labelWidthClassName,
   labelAccessory,
   hint,
+  hintClassName,
   error,
   required,
   inline,
@@ -95,7 +97,7 @@ export function Field({
         {error ? (
           <p className="col-start-2 text-xs text-danger">{error}</p>
         ) : hint ? (
-          <p className="col-start-2 text-xs text-faint">{hint}</p>
+          <p className={cn('col-start-2 text-xs text-faint', hintClassName)}>{hint}</p>
         ) : null}
       </div>
     )

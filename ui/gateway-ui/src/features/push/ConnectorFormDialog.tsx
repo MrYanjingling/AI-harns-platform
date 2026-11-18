@@ -6,7 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
+  FormDialog,
   Field,
   Input,
   SearchSelect,
@@ -126,7 +126,7 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
       onClose={onClose}
       title={
@@ -134,9 +134,6 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
           ? t('gateway.push.connector.editTitle')
           : t('gateway.push.connector.createTitle')
       }
-      size="xl"
-      className="max-w-[970px] rounded-lg"
-      bodyClassName="max-h-[calc(100dvh-190px)] space-y-3 overflow-y-auto p-4"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -194,7 +191,6 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
               emptyText={t('common.state.empty')}
               searchable
               className="w-[240px]"
-              panelClassName="w-[240px]"
             />
           </Field>
         </CardContent>
@@ -217,7 +213,7 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
             <Input
               id="push-connector-broker"
               value={form.brokerUrl}
-              className="w-full max-w-[260px]"
+              className="w-full max-w-[240px]"
               placeholder={form.type === 'kafka' ? 'localhost:9092' : 'tcp://broker:1883'}
               autoComplete="off"
               onChange={(event) => setForm({ ...form, brokerUrl: event.target.value })}
@@ -291,7 +287,6 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
               emptyText={t('common.state.empty')}
               searchable={false}
               className="w-[240px]"
-              panelClassName="w-[240px]"
             />
           </Field>
           <Field
@@ -314,6 +309,6 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
           ) : null}
         </CardContent>
       </Card>
-    </Dialog>
+    </FormDialog>
   )
 }

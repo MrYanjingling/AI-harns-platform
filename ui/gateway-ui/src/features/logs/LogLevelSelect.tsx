@@ -22,7 +22,6 @@ export function LogLevelSelect({ value, onChange }: LogLevelSelectProps) {
       ariaLabel={t('gateway.logs.filter.level')}
       emptyText={t('gateway.logs.filter.empty')}
       className="w-[140px]"
-      panelClassName="w-[140px]"
     />
   )
 }

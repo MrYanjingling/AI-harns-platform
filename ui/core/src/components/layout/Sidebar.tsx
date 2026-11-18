@@ -94,19 +94,14 @@ export function Sidebar({
                 onClick={() => toggle(key)}
                 aria-expanded={open}
                 className={cn(
-                  'flex h-[45px] w-full items-center gap-[10px] rounded-sm px-3 text-[14px] transition-colors',
-                  active
-                    ? 'text-primary'
-                    : 'text-muted hover:bg-primary/5 hover:text-primary',
+                  'app-nav-item app-nav-group w-full text-left',
+                  active && 'app-nav-group--active',
                 )}
               >
                 {group.icon ? <NavIcon>{group.icon}</NavIcon> : null}
                 <span className="min-w-0 flex-1 truncate text-left">{t(group.labelKey)}</span>
                 <ChevronDown
-                  className={cn(
-                    'size-3.5 transition-transform duration-150',
-                    open ? 'rotate-0' : '-rotate-90',
-                  )}
+                  className={cn('app-nav-chevron', !open && 'app-nav-chevron--collapsed')}
                 />
               </button>
             )}
