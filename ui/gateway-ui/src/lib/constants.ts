@@ -111,8 +111,7 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   opcUa: 'OPC UA',
   s71500: 'S7-1500',
   's7-200': 'S7-200',
-  finsTcp: 'Omron FINS/TCP',
-  finsUdp: 'Omron FINS/UDP',
+  fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
 }
@@ -147,6 +146,7 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'maxSize',
   'timeoutMs',
   'intervalMs',
+  'maxReadWords',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

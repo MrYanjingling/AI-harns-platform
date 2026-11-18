@@ -15,9 +15,12 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/fins"
+	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr/v1"
@@ -361,6 +364,42 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		}
 		item := &s7.S7Collection{}
 		item.SetDriverModel(record.DriverModel)
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == fins.DriverType && record.DriverModel == fins.ModelFins:
+		var req fins.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &fins.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == hostlinkcmode.DriverType && record.DriverModel == hostlinkcmode.DriverModel:
+		var req hostlinkcmode.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &hostlinkcmode.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == omroncip.DriverType && record.DriverModel == omroncip.DriverModel:
+		var req omroncip.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &omroncip.Collection{}
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}

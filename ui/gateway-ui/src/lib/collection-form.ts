@@ -58,7 +58,9 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     maxSize: '64',
     timeoutMs: '3000',
     intervalMs: '20',
-    port: model === 'opcUa' ? '4840' : model === 'omronCip' ? '44818' : model === 'finsTcp' || model === 'finsUdp' ? '9600' : '102',
+    transport: 'tcp',
+    maxReadWords: '30',
+    port: model === 'opcUa' ? '4840' : model === 'omronCip' ? '44818' : model === 'fins' ? '9600' : '102',
   }
   if (defaults[field.name] !== undefined) return defaults[field.name]
   if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode')) return '/dev/dev'

@@ -11,6 +11,7 @@ import (
 
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/modbustcp"
 	"harns-platform/pkg/gateway/collection/opcua"
 	v1 "harns-platform/pkg/gateway/collectionmgr/v1"
@@ -398,4 +399,49 @@ func TestDeleteReferencedCalculatedVariableRejected(t *testing.T) {
 	record, err := store.Get(context.Background(), created.ID)
 	require.NoError(t, err)
 	assert.Len(t, record.Variables, 2)
+}
+
+func TestCreateAndUpdateFinsCollection(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	driverStore := drivermgr.NewStore(db)
+	require.NoError(t, driverStore.Initialize(context.Background()))
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(context.Background()))
+	service, err := NewService(store, &fins.CreateHandler{})
+	require.NoError(t, err)
+
+	createBody := `{
+		"driverType":"omron",
+		"driverModel":"fins",
+		"name":"fins-1",
+		"collectorCycleMs":1000,
+		"protocolConfig":{
+			"location":"127.0.0.1","port":9600,"transport":"udp","type":2,
+			"expires":500,"slidingWindow":1,"maxSize":64
+		},
+		"variables":[{"name":"d100","dataType":"int16","address":"D100","accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(createBody))
+	require.NoError(t, err)
+	created, ok := result.(*v1.CollectionDetailVo)
+	require.True(t, ok)
+	assert.Contains(t, string(created.ProtocolConfig), `"transport":"udp"`)
+
+	updateBody := `{
+		"name":"fins-updated",
+		"collectorCycleMs":2000,
+		"protocolConfig":{
+			"location":"127.0.0.2","port":9600,"transport":"tcp","type":3,
+			"expires":800,"slidingWindow":2,"maxSize":128
+		}
+	}`
+	updated, err := service.Update(context.Background(), created.ID, []byte(updateBody))
+	require.NoError(t, err)
+	detail, ok := updated.(*v1.CollectionDetailVo)
+	require.True(t, ok)
+	assert.Equal(t, "fins-updated", detail.Name)
+	assert.Contains(t, string(detail.ProtocolConfig), `"transport":"tcp"`)
+	assert.Contains(t, string(detail.ProtocolConfig), `"maxSize":128`)
 }

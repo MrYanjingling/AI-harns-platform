@@ -8,9 +8,12 @@ import (
 
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
+	"harns-platform/pkg/gateway/collection/fins"
+	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
@@ -168,6 +171,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&opcua.CreateHandler{},
 		&s7.CreateHandler{},
 		s7.NewS7200CreateHandler(),
+		&fins.CreateHandler{},
+		&hostlinkcmode.CreateHandler{},
+		&omroncip.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -180,6 +186,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&opcua.CollectorFactory{},
 		&s7.CollectorFactory{},
 		s7.NewS7200CollectorFactory(),
+		&fins.CollectorFactory{},
+		&hostlinkcmode.CollectorFactory{},
+		&omroncip.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()
