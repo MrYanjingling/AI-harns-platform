@@ -482,6 +482,35 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   gap: var(--table-actions-gap);
 }
 
+.app-table-action-button {
+  display: inline-flex;
+  width: var(--table-action-size);
+  height: var(--table-action-size);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--muted);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.app-table-action-button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.app-table-action-button:disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.app-table-action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .app-dialog-body-scroll {
   max-height: var(--dialog-body-max-height);
   overflow-y: auto;

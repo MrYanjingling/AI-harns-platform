@@ -10,24 +10,30 @@ export interface TableActionButtonProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   label: string
   icon: ReactNode
+  disabledReason?: string
 }
 
 export const TableActionButton = forwardRef<HTMLButtonElement, TableActionButtonProps>(
-  function TableActionButton({ label, icon, className, disabled, ...props }, forwardedRef) {
+  function TableActionButton(
+    { label, icon, disabledReason, className, disabled, ...props },
+    forwardedRef,
+  ) {
+    const tooltip = disabled && disabledReason ? disabledReason : label
+
     return (
-      <Tooltip content={label} disabled={disabled} className="shrink-0">
+      <Tooltip
+        content={tooltip}
+        disabled={Boolean(disabled && !disabledReason)}
+        focusable={Boolean(disabled && disabledReason)}
+        ariaLabel={disabled && disabledReason ? disabledReason : undefined}
+        className="shrink-0"
+      >
         <button
           ref={forwardedRef}
           type="button"
           disabled={disabled}
           aria-label={label}
-          title={label}
-          className={cn(
-            'inline-flex size-[var(--table-action-size)] shrink-0 items-center justify-center rounded text-muted transition-colors',
-            'hover:bg-surface-2 hover:text-fg disabled:pointer-events-none disabled:opacity-40',
-            '[&_svg]:size-4',
-            className,
-          )}
+          className={cn('app-table-action-button', className)}
           {...props}
         >
           {icon}

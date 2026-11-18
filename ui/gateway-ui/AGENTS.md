@@ -101,6 +101,7 @@
 - toast 默认 3 秒自动关闭，不显示关闭按钮；多条错误信息在正文内分行展示。
 - 异步提交按钮必须有 loading/disabled，避免重复提交。
 - 删除、启动、停止、重启等操作先确认再请求。
+- 手动下控在 `collecting` 和 `collectingError` 状态下可用；`stopped`、`unconnected`、`emptyVariable`、`error` 状态前端禁用操作，后端接口同步拒绝。
 
 ## 样式与主题
 
