@@ -191,6 +191,33 @@ func TestRuntimeManagerStopCollectionKeepsRuntime(t *testing.T) {
 	assert.Same(t, hubBefore, hubAfter)
 }
 
+type fakeActionCollector struct {
+	fakeCollector
+	delivered int
+}
+
+func (c *fakeActionCollector) DeliverAction(context.Context, []collection.ActionValue) error {
+	c.delivered++
+	return nil
+}
+
+func TestRuntimeCollectionDeliverActionAllowsCollectingStates(t *testing.T) {
+	meta := &collection.CollectionMeta{CollectStatus: collection.CollectStatusCollectingError}
+	collector := &fakeActionCollector{fakeCollector: fakeCollector{meta: meta}}
+	runtime := &RuntimeCollection{Collector: collector}
+
+	require.NoError(t, runtime.DeliverAction(context.Background(), []collection.ActionValue{{}}))
+	assert.Equal(t, 1, collector.delivered)
+
+	meta.SetCollectStatus(collection.CollectStatusCollecting)
+	require.NoError(t, runtime.DeliverAction(context.Background(), []collection.ActionValue{{}}))
+	assert.Equal(t, 2, collector.delivered)
+
+	meta.SetCollectStatus(collection.CollectStatusStopped)
+	require.Error(t, runtime.DeliverAction(context.Background(), []collection.ActionValue{{}}))
+	assert.Equal(t, 2, collector.delivered)
+}
+
 func TestRetryPolicyDelay(t *testing.T) {
 	policy := retryPolicy{
 		initial:    15 * time.Second,
