@@ -1123,7 +1123,7 @@ export async function handleGateway(
       group.status = 'stopped'
     } else {
       if (group.runState !== 'running') {
-        badRequest(res, 'connection group is stopped')
+        badRequest(res, 'push group is stopped')
         return true
       }
       if (!connector || connector.status !== 'running') {
