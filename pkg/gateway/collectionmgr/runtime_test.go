@@ -254,3 +254,66 @@ func TestRuntimeCollectionLastErrorFromReporter(t *testing.T) {
 	meta.ReportError(nil)
 	assert.Empty(t, runtime.LastError())
 }
+
+func TestRuntimeManagerStopAll(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c2")))
+
+	require.NoError(t, manager.StopAll(context.Background(), "license deadline"))
+	for _, id := range []string{"c1", "c2"} {
+		runtime, ok := manager.Get(id)
+		require.True(t, ok)
+		assert.Equal(t, collection.CollectStatusStopped, runtime.Collector.GetCollectStatus())
+	}
+	assert.Equal(t, 2, factory.collectors[0].stops+factory.collectors[1].stops)
+}
+
+type copiedMetaCollector struct {
+	meta *collection.CollectionMeta
+}
+
+func (c *copiedMetaCollector) GetCollectionMeta() *collection.CollectionMeta { return c.meta }
+func (c *copiedMetaCollector) SetCollectionMeta(meta *collection.CollectionMeta) {
+	c.meta = &collection.CollectionMeta{}
+	c.meta.SetCollectionMeta(meta)
+}
+func (c *copiedMetaCollector) Connect(context.Context) error { return nil }
+func (c *copiedMetaCollector) Start(context.Context) error   { return nil }
+func (c *copiedMetaCollector) Stop(context.Context) error    { return nil }
+func (c *copiedMetaCollector) GetCollectStatus() string      { return c.meta.GetCollectStatus() }
+func (c *copiedMetaCollector) SetCollectStatus(status string) {
+	c.meta.SetCollectStatus(status)
+}
+func (c *copiedMetaCollector) IndexCollection() { c.meta.IndexCollection() }
+
+type copiedMetaFactory struct{}
+
+func (f *copiedMetaFactory) DriverType() string  { return "copy-test" }
+func (f *copiedMetaFactory) DriverModel() string { return "copy-test" }
+func (f *copiedMetaFactory) NewCollector(
+	meta *collection.CollectionMeta,
+	_ json.RawMessage,
+) (collection.Collector, error) {
+	collector := &copiedMetaCollector{}
+	collector.SetCollectionMeta(meta)
+	return collector, nil
+}
+
+func TestRuntimeReportsCollectorMetaErrors(t *testing.T) {
+	manager, err := NewRuntimeManager(&copiedMetaFactory{})
+	require.NoError(t, err)
+	record := fakeRecord("c1")
+	record.DriverType = "copy-test"
+	record.DriverModel = "copy-test"
+	runtime, err := manager.newRuntime(record)
+	require.NoError(t, err)
+
+	runtime.Collector.GetCollectionMeta().ReportError(errors.New("calculation expression failed"))
+	assert.Equal(t, "calculation expression failed", runtime.LastError())
+
+	runtime.Collector.GetCollectionMeta().ReportError(nil)
+	assert.Empty(t, runtime.LastError())
+}

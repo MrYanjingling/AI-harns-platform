@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { gatewayBaseUrl } from '@/api/gateway'
+import { gatewayAuthHeaders, gatewayBaseUrl, handleGatewayAuthFailure } from '@/api/gateway'
 import type { PushCommandEvent } from '@/api/types'
 
 const MAX_EVENTS = 200
@@ -92,12 +92,13 @@ export function usePushGroupCommandStream(groupId: string | undefined, enabled: 
         const response = await fetch(
           `${gatewayBaseUrl()}/push/groups/${encodeURIComponent(groupId)}/commands/stream`,
           {
-            headers: { Accept: 'text/event-stream' },
+            headers: gatewayAuthHeaders('text/event-stream'),
             cache: 'no-store',
             signal: controller.signal,
           },
         )
         if (!response.ok || !response.body) {
+          await handleGatewayAuthFailure(response)
           throw new Error(`push command stream http ${response.status}`)
         }
         if (stopped) return

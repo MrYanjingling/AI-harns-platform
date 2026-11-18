@@ -56,6 +56,39 @@ func (s *Service) Close(ctx context.Context) {
 	}
 }
 
+// StopAll stops all push groups and connectors while keeping persisted records.
+func (s *Service) StopAll(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	var errs []error
+	groups, err := s.store.ListAllGroups(ctx)
+	if err != nil {
+		return err
+	}
+	for _, group := range groups {
+		if group == nil || group.RunState != ConnectorRunStateRunning {
+			continue
+		}
+		if _, err := s.StopGroup(ctx, group.ID); err != nil && !errors.Is(err, ErrGroupNotFound) {
+			errs = append(errs, err)
+		}
+	}
+	connectors, err := s.store.ListAllConnectors(ctx)
+	if err != nil {
+		return errors.Join(append(errs, err)...)
+	}
+	for _, connector := range connectors {
+		if connector == nil || connector.RunState != ConnectorRunStateRunning {
+			continue
+		}
+		if _, err := s.StopConnector(ctx, connector.ID); err != nil && !errors.Is(err, ErrConnectorNotFound) {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 func (s *Service) ListConnectors(ctx context.Context, q apis.PageQuery, keyword, connectorType string) (*apis.PageResp[*v1.ConnectorVo], error) {
 	q.Normalize()
 	items, total, err := s.store.ListConnectors(ctx, q, keyword, connectorType)

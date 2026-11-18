@@ -168,6 +168,7 @@ type collectorRuntime struct {
 	mu      sync.Mutex
 	batches []*readBatch
 	calcs   []*collection.Calculation
+	calcErr error
 	pool    *connpool.Pool
 
 	cancel  context.CancelFunc
@@ -206,12 +207,8 @@ func (c *OpcUaCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
-	runtime := &collectorRuntime{batches: batches, calcs: calculations}
+	calculations, calcErr := collection.CompileCalculations(variables)
+	runtime := &collectorRuntime{batches: batches, calcs: calculations, calcErr: calcErr}
 	c.runtime = runtime
 	if len(batches) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
@@ -368,6 +365,11 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)

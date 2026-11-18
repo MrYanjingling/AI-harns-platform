@@ -257,7 +257,7 @@ export interface LicenseInfo {
 }
 
 export interface LicenseStatus {
-  status: 'authorized' | 'unauthorized' | string
+  status: 'authorized' | 'expired' | 'unauthorized' | string
   license?: LicenseInfo
 }
 
@@ -275,6 +275,17 @@ export interface GatewayUserPayload {
   username: string
   password?: string
   remark?: string
+}
+
+export interface LoginPayload {
+  username: string
+  password: string
+}
+
+export interface LoginResult {
+  token: string
+  expiresAt: string
+  user: GatewayUser
 }
 
 /** 后端字段名首字母大写:Total / Used / UsedPercent。 */

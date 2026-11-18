@@ -3,6 +3,8 @@ import { getSessionToken, notifySessionExpired } from './session'
 
 export type Service = 'gateway' | 'platform'
 
+const GATEWAY_SESSION_EXPIRED_CODE = 10030
+
 const BASES: Record<Service, string> = {
   gateway: import.meta.env.VITE_GATEWAY_BASE || '/api/v1',
   platform: import.meta.env.VITE_PLATFORM_BASE || '/api/v1',
@@ -127,7 +129,7 @@ export async function request<T>(
     'Accept-Language': getLocale(),
     ...headers,
   }
-  if (service === 'platform' && !skipAuth) {
+  if (!skipAuth) {
     const token = getSessionToken()
     if (token) finalHeaders.Authorization = `Bearer ${token}`
   }
@@ -163,8 +165,12 @@ export async function request<T>(
 
   if (!response.ok) {
     const { message, code, errors } = extractMessage(payload, response.status)
-    // 平台服务统一使用 Bearer 会话;401 表示会话过期,清理后由上层跳转登录。
-    if (service === 'platform' && response.status === 401 && !skipAuth) {
+    // 网关和平台统一使用 Bearer 会话;401 或网关 10030 表示会话过期。
+    const sessionExpired =
+      !skipAuth &&
+      (response.status === 401 ||
+        (service === 'gateway' && code === GATEWAY_SESSION_EXPIRED_CODE))
+    if (sessionExpired) {
       notifySessionExpired()
     }
     throw new ApiError(message, response.status, code, errors)

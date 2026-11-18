@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { KeyRound, LogOut, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  Button,
-  clearSessionToken,
-  Dialog,
-  Field,
-  Input,
-  useI18n,
-} from '@harns/core'
+import { Button, Dialog, Field, Input, useI18n } from '@harns/core'
+import { useAuth } from '@/providers/AuthProvider'
 
 interface PasswordForm {
   oldPassword: string
@@ -30,12 +25,14 @@ const emptyForm: PasswordForm = {
 
 export function GatewayAccountMenu() {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [form, setForm] = useState<PasswordForm>(emptyForm)
   const [errors, setErrors] = useState<PasswordErrors>({})
   const containerRef = useRef<HTMLDivElement>(null)
-  const currentUsername = t('common.user.notSignedIn')
+  const currentUsername = user?.username ?? t('common.user.notSignedIn')
 
   useEffect(() => {
     if (!open) return
@@ -81,10 +78,11 @@ export function GatewayAccountMenu() {
     toast.info(t('gateway.account.notAvailable'))
   }
 
-  const logout = () => {
-    clearSessionToken()
+  const logout = async () => {
     setOpen(false)
+    await signOut()
     toast.success(t('gateway.account.loggedOut'))
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -128,7 +126,7 @@ export function GatewayAccountMenu() {
             <button
               type="button"
               role="menuitem"
-              onClick={logout}
+              onClick={() => void logout()}
               className="flex w-full items-center gap-1.5 border-t border-border px-2 py-2 text-left text-sm text-danger transition-colors hover:bg-danger/5"
             >
               <LogOut className="size-3.5" />

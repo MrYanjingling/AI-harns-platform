@@ -29,6 +29,7 @@ import {
   listCollections,
   listDriverGroups,
   listDriversFlat,
+  login,
   listPushConnectors,
   listPushGroups,
   resetUserPassword,
@@ -57,6 +58,7 @@ import type {
   CollectionVariableInput,
   DriverPayload,
   GatewayUserPayload,
+  LoginPayload,
   PushConnectorPayload,
   PushGroupPayload,
 } from './types'
@@ -688,11 +690,11 @@ export function useSystemInfo() {
   })
 }
 
-export function useLicense() {
+export function useLicense(refetchInterval: number | false = false) {
   return useQuery({
     queryKey: queryKeys.gateway.license,
     queryFn: getLicense,
-    refetchInterval: RESOURCE_POLL_MS,
+    refetchInterval,
   })
 }
 
@@ -706,7 +708,16 @@ export function useImportLicense() {
   })
 }
 
+/* ---------------- 认证 ---------------- */
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: (payload: LoginPayload) => login(payload),
+  })
+}
+
 /* ---------------- 用户 ---------------- */
+
 
 export function useUsers(params: PageParams) {
   return useQuery({

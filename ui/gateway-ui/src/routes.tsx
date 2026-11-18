@@ -1,5 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router-dom'
-import { NotFoundPage, PagePad } from '@harns/core'
+import { PagePad } from '@harns/core'
 import { CollectionPage } from '@/features/collection/CollectionPage'
 import { CollectionDetailPage } from '@/features/collection/CollectionDetailPage'
 import { DriversPage } from '@/features/drivers/DriversPage'
@@ -82,7 +82,6 @@ export const gatewayRoutes: RouteObject[] = [
         element: <AboutPage />,
         handle: { titleKey: 'gateway.title.about' },
       },
-      { path: '*', element: <NotFoundPage homeTo="/overview" /> },
     ],
   },
 ]

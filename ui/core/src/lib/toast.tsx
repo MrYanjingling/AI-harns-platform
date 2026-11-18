@@ -18,9 +18,9 @@ export function errorToastContent(error: unknown): ReactNode {
   )
   if (messages.length <= 1) return trimToastText(errorMessage(error))
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       {messages.map((message, index) => (
-        <p key={`${index}-${message}`} className="whitespace-pre-line">
+        <p key={`${index}-${message}`} className="break-words whitespace-pre-line">
           {message}
         </p>
       ))}

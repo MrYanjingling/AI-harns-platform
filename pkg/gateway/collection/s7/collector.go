@@ -19,6 +19,7 @@ type collectorRuntime struct {
 	mu      sync.Mutex
 	frames  []*s7Frame
 	calcs   []*collection.Calculation
+	calcErr error
 	pool    *connpool.Pool
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -88,11 +89,7 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		cotp = newCOTPConnectMessage(c.Rack, c.Slot, c.ConnectionType)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
+	calculations, calcErr := collection.CompileCalculations(variables)
 	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
 		return newS7Client(ctx, c.endpoint(), cotp, c.PDUSize)
 	})
@@ -114,7 +111,7 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	runtime := &collectorRuntime{frames: frames, calcs: calculations, pool: pool}
+	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr, pool: pool}
 	c.runtime = runtime
 	if len(frames) == 0 {
 		_ = pool.Close()
@@ -260,6 +257,11 @@ func (c *S7Collection) poll(ctx context.Context) bool {
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)

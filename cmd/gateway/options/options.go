@@ -3,9 +3,7 @@ package options
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -38,7 +36,6 @@ type LicenseOptions struct {
 
 type Options struct {
 	Port         string               `json:"port"`
-	AuthEnabled  bool                 `json:"auth-enabled"`
 	Wait         baseoptions.Duration `json:"graceful-timeout"`
 	CertFile     string               `json:"cert-file"`
 	KeyFile      string               `json:"key-file"`
@@ -59,7 +56,6 @@ const (
 	_defaultSQLitePath             = "data/gateway.db"
 	_defaultUIDir                  = "ui/gateway-ui/dist"
 	_defaultLicensePublicKey       = "etc/gateway/license-public.pem"
-	_envAuthEnabled                = "GATEWAY_AUTH_ENABLED"
 )
 
 func NewDefaultOptions() *Options {
@@ -67,7 +63,6 @@ func NewDefaultOptions() *Options {
 	base.ConfigFile = _defaultConfigFile
 	return &Options{
 		Port:         _defaultPort,
-		AuthEnabled:  false,
 		Wait:         _defaultWait,
 		BaseOptions:  base,
 		CertFile:     "",
@@ -84,7 +79,6 @@ func NewDefaultOptions() *Options {
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	// refer to node port assignment https://rancher.com/docs/rancher/v2.x/en/installation/requirements/ports/#commonly-used-ports
 	fs.StringVarP(&o.Port, "port", "P", o.Port, "Port exposed")
-	fs.BoolVar(&o.AuthEnabled, "auth-enabled", o.AuthEnabled, "Require bearer token authentication")
 	baseoptions.DurationVar(fs, &o.Wait, "graceful-timeout", "The duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
 	fs.StringVarP(&o.KeyFile, "key-file", "", o.KeyFile, "The Key file")
@@ -156,11 +150,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	authEnabled := resolveAuthEnabled(o.AuthEnabled)
-	if !authEnabled {
-		logging.Warnf("Gateway token authentication is disabled; set auth-enabled=true or %s=true to enable it", _envAuthEnabled)
-	}
-	userService := usermgr.NewService(userStore, authEnabled)
+	userService := usermgr.NewService(userStore)
 	if err := userService.BootstrapSuperuser(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -196,6 +186,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	collectionMgr.SetRuntimeManager(runtimeManager)
+	collectionMgr.SetVariableLimitProvider(licenseService)
 	if err := collectionMgr.StartRuntime(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -224,6 +215,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.PushMgr = pushService
+	startLicenseRunGuard(stopCh, licenseService, collectionMgr, pushService)
 
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
@@ -257,17 +249,4 @@ func absoluteDirectory(path string) string {
 func isRootPath(path string) bool {
 	cleaned := filepath.Clean(path)
 	return cleaned == filepath.VolumeName(cleaned)+string(filepath.Separator)
-}
-
-func resolveAuthEnabled(configured bool) bool {
-	raw, ok := os.LookupEnv(_envAuthEnabled)
-	if !ok || strings.TrimSpace(raw) == "" {
-		return configured
-	}
-	enabled, err := strconv.ParseBool(strings.TrimSpace(raw))
-	if err != nil {
-		logging.Warnf("Invalid %s=%q; using auth-enabled=%t", _envAuthEnabled, raw, configured)
-		return configured
-	}
-	return enabled
 }

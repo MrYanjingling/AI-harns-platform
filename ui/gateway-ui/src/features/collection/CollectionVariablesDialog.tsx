@@ -405,10 +405,11 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
       setNormalRows(savedRows.filter((row) => !row.isCalculated))
       setCalculatedRows(savedRows.filter((row) => row.isCalculated))
       setOriginalRows(new Map(savedRows.map((row) => [row.name, { ...row }])))
+      setNormalErrors({})
+      setCalculatedErrors({})
       setNormalSelected(new Set())
       setCalculatedSelected(new Set())
       toast.success(t('gateway.variable.saved'))
-      onClose()
     } catch (error) {
       showErrorToast(error)
     }

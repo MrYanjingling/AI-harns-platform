@@ -74,6 +74,7 @@ import {
   canToggleCollectionEnable,
 } from '@/lib/collection-actions'
 import { formatCycle } from '@/lib/constants'
+import { formatVariableValue } from '@/lib/format-value'
 import { localized } from '@/lib/labels'
 
 type RuntimeAction = 'start' | 'stop' | 'restart'
@@ -456,7 +457,7 @@ export function CollectionDetailPage() {
                       </EnumBadge>
                     </TD>
                     <TD className="max-w-40 truncate font-mono text-[11px] text-fg">
-                      {formatValue(variable.value)}
+                      {formatVariableValue(variable)}
                     </TD>
                     <TD className="text-right">
                       <TableActionButton
@@ -546,7 +547,7 @@ export function CollectionDetailPage() {
                 label={`${variable.name} · ${variable.dataType}`}
                 htmlFor={`control-${variable.name}`}
                 hint={t('gateway.detail.control.current', {
-                  value: formatValue(variable.value),
+                  value: formatVariableValue(variable),
                 })}
               >
                 <Input

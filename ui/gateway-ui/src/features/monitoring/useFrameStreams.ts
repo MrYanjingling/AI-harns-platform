@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { gatewayBaseUrl } from '@/api/gateway'
+import { gatewayAuthHeaders, gatewayBaseUrl, handleGatewayAuthFailure } from '@/api/gateway'
 import type { FrameEvent } from '@/api/types'
 
 const MAX_EVENTS = 500
@@ -124,11 +124,12 @@ export function useFrameStreams(collectionId: string | undefined, enabled: boole
       try {
         const url = `${gatewayBaseUrl()}/collections/${encodeURIComponent(collectionId)}/frames/${kind}s/stream`
         const response = await fetch(url, {
-          headers: { Accept: 'text/event-stream' },
+          headers: gatewayAuthHeaders('text/event-stream'),
           cache: 'no-store',
           signal: controller.signal,
         })
         if (!response.ok || !response.body) {
+          await handleGatewayAuthFailure(response)
           throw new Error(`frame stream http ${response.status}`)
         }
         if (stopped) return

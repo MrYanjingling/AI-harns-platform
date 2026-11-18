@@ -22,7 +22,7 @@ func newTestService(t *testing.T) (*Service, *Store) {
 	t.Cleanup(func() { _ = db.Close() })
 	store := NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	return NewService(store, true), store
+	return NewService(store), store
 }
 
 func newBootstrappedService(t *testing.T) (*Service, *Store) {
@@ -173,16 +173,16 @@ func TestSessionStoreSlidesAndExpires(t *testing.T) {
 	}
 	store.Add(session)
 
-	touched, ok := store.GetAndTouch("token", now.Add(time.Hour))
+	touched, ok := store.GetAndTouch("token", now.Add(10*time.Minute))
 	require.True(t, ok)
-	assert.Equal(t, now.Add(time.Hour+DefaultSessionTTL), touched.ExpiresAt)
+	assert.Equal(t, now.Add(10*time.Minute+DefaultSessionTTL), touched.ExpiresAt)
 
 	store.Add(&Session{
 		Token:             "cap",
 		ExpiresAt:         now.Add(DefaultAbsoluteTTL),
 		AbsoluteExpiresAt: now.Add(DefaultAbsoluteTTL),
 	})
-	touched, ok = store.GetAndTouch("cap", now.Add(6*24*time.Hour))
+	touched, ok = store.GetAndTouch("cap", now.Add(23*time.Hour+50*time.Minute))
 	require.True(t, ok)
 	assert.Equal(t, now.Add(DefaultAbsoluteTTL), touched.ExpiresAt)
 

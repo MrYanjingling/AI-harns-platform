@@ -97,13 +97,55 @@ func (s *Service) GetStatus() *Status {
 	s.mu.RLock()
 	claims := s.claims
 	s.mu.RUnlock()
-	if claims == nil || ValidateForImport(claims, time.Now().UTC()) != nil {
+	if claims == nil {
 		return &Status{Status: StatusUnauthorized, License: s.ensureTrialInfo()}
+	}
+	if ValidateForImport(claims, time.Now().UTC()) != nil {
+		return &Status{Status: StatusExpired, License: claimsToInfo(claims)}
 	}
 	return &Status{
 		Status:  StatusAuthorized,
 		License: claimsToInfo(claims),
 	}
+}
+
+// MaxVariable returns the current licensed collection-variable quota.
+func (s *Service) MaxVariable() int {
+	s.mu.RLock()
+	claims := s.claims
+	s.mu.RUnlock()
+	if claims != nil && ValidateForImport(claims, time.Now().UTC()) == nil {
+		return claims.MaxVariable
+	}
+	info := s.ensureTrialInfo()
+	if info == nil {
+		return 0
+	}
+	return info.MaxVariable
+}
+
+// SoftwareRunDeadline returns the current license software run deadline.
+// The persisted claims are used even after license expiry so the guard can
+// still honor the signed run deadline. Without claims, the trial deadline is used.
+func (s *Service) SoftwareRunDeadline() (time.Time, bool) {
+	if s == nil {
+		return time.Time{}, false
+	}
+	s.mu.RLock()
+	claims := s.claims
+	s.mu.RUnlock()
+	if claims != nil && !claims.SoftwareRunDeadline.IsZero() {
+		return claims.SoftwareRunDeadline.UTC(), true
+	}
+	info := s.ensureTrialInfo()
+	if info == nil || strings.TrimSpace(info.SoftwareRunDeadline) == "" {
+		return time.Time{}, false
+	}
+	deadline, err := time.Parse(time.RFC3339, info.SoftwareRunDeadline)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return deadline.UTC(), true
 }
 
 // ensureTrialInfo returns the trial quota and deadline, loading it on demand so

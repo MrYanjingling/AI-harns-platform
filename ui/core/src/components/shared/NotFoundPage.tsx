@@ -1,24 +1,51 @@
 import { Link } from 'react-router-dom'
-import { Compass } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useI18n } from '../../i18n'
-import { Card } from '../ui/Card'
+import { cn } from '../../lib/cn'
+import { Copyright } from './Copyright'
+import { TechBackdrop } from '../layout/TechBackdrop'
 
-export function NotFoundPage({ homeTo = '/' }: { homeTo?: string }) {
+export function NotFoundPage({
+  homeTo = '/',
+  fullScreen = false,
+}: {
+  homeTo?: string
+  fullScreen?: boolean
+}) {
   const { t } = useI18n()
+  const heightClass = fullScreen ? 'min-h-dvh' : 'min-h-full'
+
   return (
-    <Card className="mx-auto mt-10 flex max-w-lg flex-col items-center px-6 py-16 text-center">
-      <div className="mb-5 flex size-12 items-center justify-center rounded border border-border bg-surface-2 text-muted">
-        <Compass className="size-5" />
+    <div
+      className={cn(
+        'dark relative isolate overflow-hidden bg-[#030812] text-header-fg',
+        heightClass,
+      )}
+    >
+      <TechBackdrop />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.22),transparent_42%),radial-gradient(circle_at_82%_78%,rgba(6,182,212,0.12),transparent_38%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(96,165,250,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(96,165,250,0.08)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_90%)]" />
+      <div className={cn('relative z-10 flex flex-col px-6 pt-6 sm:px-10', heightClass)}>
+        <main className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+          <p className="font-mono text-[clamp(7rem,22vw,16rem)] leading-none font-semibold tracking-[-0.09em] text-white/[0.06] tabular">
+            404
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-header-fg">
+            {t('common.notFound.title')}
+          </h1>
+          <Link
+            to={homeTo}
+            className="mt-7 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-fg shadow-[0_0_36px_-12px_var(--primary)] transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <ArrowLeft className="size-4" />
+            {t('common.notFound.backHome')}
+          </Link>
+        </main>
+
+        <footer className="flex h-5 shrink-0 items-center justify-center font-mono text-[10px] tracking-[0.16em] text-header-muted/50">
+          <Copyright />
+        </footer>
       </div>
-      <p className="text-4xl font-semibold tracking-tight tabular">404</p>
-      <h1 className="mt-2 text-sm font-semibold">{t('common.notFound.title')}</h1>
-      <p className="mt-1 text-xs text-muted">{t('common.notFound.description')}</p>
-      <Link
-        to={homeTo}
-        className="mt-5 inline-flex h-9.5 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg shadow-sm transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        {t('common.notFound.backHome')}
-      </Link>
-    </Card>
+    </div>
   )
 }

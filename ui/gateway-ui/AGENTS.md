@@ -107,6 +107,14 @@
 
 - 文字选中样式统一由 `core/src/styles.css` 的 `::selection` 控制：背景使用 `var(--primary)`，文字使用 `var(--primary-fg)`；子应用不得覆盖。
 
+## 认证
+
+- 网关业务请求统一使用 Bearer token；普通接口由 core `request` 自动带 `Authorization`。
+- SSE、日志导出等直接 `fetch` 必须使用 `gatewayAuthHeaders`。
+- 没有 token 时由 `AuthGate` 跳转 `/login`。
+- 后端返回 HTTP 401 或业务码 10030 时触发 `SESSION_EXPIRED_EVENT`，`AuthProvider` 清理会话并回到登录页。
+- 登录状态、token 与用户信息由 `AuthProvider` 统一管理，页面不要直接读写 token。
+
 ## 命名
 
 - 左侧菜单的“连接实例”是页面名称；代码和 API 类型仍可使用 `Connector`。

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { gatewayBaseUrl } from '@/api/gateway'
+import { gatewayAuthHeaders, gatewayBaseUrl, handleGatewayAuthFailure } from '@/api/gateway'
 
 export type StreamLogLevel = 'info' | 'warn' | 'error'
 
@@ -82,11 +82,12 @@ export function useSystemLogStream(): LogStreamState {
       controller = new AbortController()
       try {
         const response = await fetch(`${gatewayBaseUrl()}/system/logs/stream`, {
-          headers: { Accept: 'text/event-stream' },
+          headers: gatewayAuthHeaders('text/event-stream'),
           cache: 'no-store',
           signal: controller.signal,
         })
         if (!response.ok || !response.body) {
+          await handleGatewayAuthFailure(response)
           throw new Error(`log stream http ${response.status}`)
         }
         setError(false)

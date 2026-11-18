@@ -9,10 +9,6 @@
 # HTTP/HTTPS port exposed by the gateway.
 port: "32200"
 
-# Require Bearer token authentication for all /api/v1 endpoints except login.
-# Defaults to false for local debugging. GATEWAY_AUTH_ENABLED overrides it.
-auth-enabled: false
-
 # The duration the server gracefully waits for existing connections to finish
 # before shutting down (e.g. 15s, 1m).
 graceful-timeout: 15s

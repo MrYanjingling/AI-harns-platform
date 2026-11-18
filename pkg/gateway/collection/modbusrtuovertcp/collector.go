@@ -31,10 +31,11 @@ type wireFrame struct {
 }
 
 type collectorRuntime struct {
-	mu     sync.Mutex
-	frames []*wireFrame
-	calcs  []*collection.Calculation
-	pool   *connpool.Pool
+	mu      sync.Mutex
+	frames  []*wireFrame
+	calcs   []*collection.Calculation
+	calcErr error
+	pool    *connpool.Pool
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -85,11 +86,7 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
+	calculations, calcErr := collection.CompileCalculations(variables)
 	wireFrames := make([]*wireFrame, 0, len(frames))
 	for _, frame := range frames {
 		wireFrames = append(wireFrames, &wireFrame{
@@ -98,7 +95,7 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 			responseLen: modbus.RTUResponseLength(frame),
 		})
 	}
-	runtime := &collectorRuntime{frames: wireFrames, calcs: calculations}
+	runtime := &collectorRuntime{frames: wireFrames, calcs: calculations, calcErr: calcErr}
 	c.runtime = runtime
 	if len(wireFrames) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
@@ -267,6 +264,11 @@ func (c *ModbusRtuOverTcpCollection) poll(ctx context.Context) bool {
 	runtime.mu.Lock()
 	runtime.failureStreak = 0
 	runtime.mu.Unlock()
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)

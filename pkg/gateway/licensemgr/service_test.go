@@ -127,13 +127,34 @@ func TestServiceImportRejectsEmptyData(t *testing.T) {
 	assert.False(t, errors.Is(err, ErrInvalid))
 }
 
-func TestServiceStatusBecomesUnauthorizedAfterExpiry(t *testing.T) {
+func TestServiceStatusBecomesExpiredAfterExpiry(t *testing.T) {
 	svc, _, _ := newTestService(t, publicKeyFile(t))
-	svc.claims = validClaims(100)
+	svc.claims = validClaims(200)
 	svc.claims.ExpiresAt = jwt.NewNumericDate(time.Now().UTC().Add(-time.Minute))
 	status := svc.GetStatus()
-	assert.Equal(t, StatusUnauthorized, status.Status)
+	assert.Equal(t, StatusExpired, status.Status)
 	require.NotNil(t, status.License)
-	assert.Equal(t, DefaultTrialMaxVariable, status.License.MaxVariable)
+	assert.Equal(t, 200, status.License.MaxVariable)
+	assert.Equal(t, "Alice", status.License.Contact)
 	assert.NotEmpty(t, status.License.SoftwareRunDeadline)
+}
+
+func TestSoftwareRunDeadlineUsesSignedClaims(t *testing.T) {
+	svc, _, _ := newTestService(t, publicKeyFile(t))
+	deadline := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Second)
+	claims := validClaims(100)
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().UTC().Add(-time.Minute))
+	claims.SoftwareRunDeadline = deadline
+	svc.claims = claims
+
+	got, ok := svc.SoftwareRunDeadline()
+	require.True(t, ok)
+	assert.Equal(t, deadline, got)
+}
+
+func TestSoftwareRunDeadlineFallsBackToTrial(t *testing.T) {
+	svc, _, _ := newTestService(t, publicKeyFile(t))
+	deadline, ok := svc.SoftwareRunDeadline()
+	require.True(t, ok)
+	assert.False(t, deadline.IsZero())
 }

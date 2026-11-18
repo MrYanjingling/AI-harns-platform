@@ -12,9 +12,11 @@ import {
 import { Toaster } from 'sonner'
 import {
   AppShell,
+  Copyright,
   coreMessages,
   I18nProvider,
   mergeMessages,
+  NotFoundPage,
   queryClient,
   registerMessages,
   PreferencesPopover,
@@ -22,9 +24,13 @@ import {
   useTheme,
 } from '@harns/core'
 import { useSystemInfo } from '@/api/hooks'
+import { AuthGate } from '@/components/layout/AuthGate'
 import { GatewayAccountMenu } from '@/components/layout/GatewayAccountMenu'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { LicenseExpiryGuard } from '@/features/license/LicenseExpiryGuard'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
+import { AuthProvider } from '@/providers/AuthProvider'
 import { gatewayRoutes } from '@/routes'
 import './index.css'
 
@@ -46,24 +52,31 @@ function GatewaySidebarVersion() {
 }
 
 const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  { path: '/404', element: <NotFoundPage homeTo="/overview" fullScreen /> },
+  { path: '*', element: <Navigate to="/404" replace /> },
   {
     path: '/',
     element: (
-      <AppShell
-        sections={sections}
-        appName="AI-harns-gateway"
-        documentTitle="HarnsGateway"
-        homeTo="/overview"
-        headerTools={<PreferencesPopover />}
-        accountMenu={<GatewayAccountMenu />}
-        sidebarWidth={172}
-        sidebarCollapsedWidth={56}
-        sidebarCollapsible
-        sidebarResizable
-        sidebarFooter={<GatewaySidebarVersion />}
-        contentFooter={<span>© {new Date().getFullYear()} AI-harns</span>}
-        headerVariant="surface"
-      />
+      <AuthGate>
+        <LicenseExpiryGuard>
+          <AppShell
+            sections={sections}
+            appName="AI-harns-gateway"
+            documentTitle="HarnsGateway"
+            homeTo="/overview"
+            headerTools={<PreferencesPopover />}
+            accountMenu={<GatewayAccountMenu />}
+            sidebarWidth={172}
+            sidebarCollapsedWidth={56}
+            sidebarCollapsible
+            sidebarResizable
+            sidebarFooter={<GatewaySidebarVersion />}
+            contentFooter={<Copyright />}
+            headerVariant="surface"
+          />
+        </LicenseExpiryGuard>
+      </AuthGate>
     ),
     children: [{ index: true, element: <Navigate to="/overview" replace /> }, ...gatewayRoutes],
   },
@@ -89,10 +102,10 @@ function AppToaster() {
       toastOptions={{
         classNames: {
           toast:
-            'items-center! justify-start! gap-2! rounded-md! border! border-border! bg-surface! px-4! py-2.5! text-fg! shadow-lg!',
-          content: 'flex-none!',
-          title: 'text-sm! leading-5! font-normal! text-fg!',
-          description: 'mt-1! text-xs! leading-5! text-muted!',
+            'items-start! justify-start! gap-2! overflow-hidden! rounded-md! border! border-border! bg-surface! px-4! py-2.5! text-fg! shadow-lg!',
+          content: 'min-w-0! flex-1!',
+          title: 'text-sm! leading-5! font-normal! text-fg! break-words!',
+          description: 'mt-1! text-xs! leading-5! text-muted! break-words!',
           icon: 'm-0! shrink-0!',
         },
         style: {
@@ -112,8 +125,10 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <ThemeProvider>
-          <RouterProvider router={router} />
-          <AppToaster />
+          <AuthProvider>
+            <RouterProvider router={router} />
+            <AppToaster />
+          </AuthProvider>
         </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>

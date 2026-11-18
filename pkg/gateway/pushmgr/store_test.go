@@ -193,3 +193,36 @@ func TestRunStateLifecycle(t *testing.T) {
 	assert.Equal(t, ConnectorStatusRunning, status)
 	runtime.Close(ctx)
 }
+
+func TestStopAllStopsGroupsAndConnectors(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(context.Background()))
+	source := &fakeSource{}
+	runtime, err := NewRuntimeManager(source, "gateway-1", &fakeFactory{connector: &fakeConnector{}})
+	require.NoError(t, err)
+	service := NewService(store, source, runtime)
+	ctx := context.Background()
+
+	connector, err := service.CreateConnector(ctx, &v1.CreateConnectorReq{
+		Name:       "stop-all",
+		PushConfig: json.RawMessage(`{"brokerUrl":"tcp://127.0.0.1:1883"}`),
+	})
+	require.NoError(t, err)
+	group, err := service.CreateGroup(ctx, &v1.CreatePushGroupReq{
+		Name: "stop-all-group", ConnectorID: connector.ID, DataTopic: "data/stop-all",
+		PushIntervalMs: 10000, AllCollections: true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, service.StopAll(ctx))
+	storedConnector, err := store.GetConnector(ctx, connector.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ConnectorRunStateStopped, storedConnector.RunState)
+	storedGroup, err := store.GetGroup(ctx, group.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ConnectorRunStateStopped, storedGroup.RunState)
+	runtime.Close(ctx)
+}

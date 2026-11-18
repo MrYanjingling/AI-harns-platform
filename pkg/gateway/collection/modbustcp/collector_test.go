@@ -261,3 +261,36 @@ func TestCollectorFailbackAfterProbeSuccess(t *testing.T) {
 	assert.False(t, created.activeBackup)
 	assert.NotNil(t, created.runtime.pool)
 }
+
+func TestInvalidCalculationKeepsCollectionRunning(t *testing.T) {
+	server := newFakeModbusServer(t)
+	server.SetRegister(0, 0x3F80)
+
+	created, err := NewCollection(&CreateReq{
+		Name:             "modbus-tcp-invalid-calc",
+		CollectorCycleMs: 20,
+		ProtocolConfig: ProtocolConfig{
+			Location:        server.Addr(),
+			MemoryLayout:    "ABCD",
+			PositionAddress: 1,
+			TCPCount:        1,
+		},
+		Variables: []*collection.Variable{
+			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
+			{Name: "broken", DataType: "float64", IsCalculated: true, Expression: "missing +", AccessMode: collection.AccessModeRead},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = created.Stop(context.Background()) })
+	require.NoError(t, created.Connect(context.Background()))
+	require.NoError(t, created.Start(context.Background()))
+
+	require.Eventually(t, func() bool {
+		value, ok := created.GetVariableValue("temperature")
+		return ok && value == float32(1)
+	}, 2*time.Second, 10*time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		return created.GetCollectStatus() == collection.CollectStatusCollectingError
+	}, 2*time.Second, 10*time.Millisecond)
+}

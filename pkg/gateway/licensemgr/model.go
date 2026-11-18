@@ -17,6 +17,8 @@ const (
 	StatusUnauthorized = "unauthorized"
 	// StatusAuthorized means a valid license is loaded.
 	StatusAuthorized = "authorized"
+	// StatusExpired means a persisted license is loaded but no longer valid.
+	StatusExpired = "expired"
 
 	// DefaultTrialMaxVariable is the variable quota when no license is installed.
 	DefaultTrialMaxVariable = 100

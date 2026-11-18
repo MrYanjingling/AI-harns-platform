@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, Trash2 } from 'lucide-react'
 import { Button, cn, showErrorToast, useI18n } from '@harns/core'
-import { gatewayBaseUrl } from '@/api/gateway'
+import { gatewayAuthHeaders, gatewayBaseUrl, handleGatewayAuthFailure } from '@/api/gateway'
 import { LogLevelSelect } from './LogLevelSelect'
 import { useSystemLogStream, type StreamLogLevel } from './useSystemLogStream'
 
@@ -20,9 +20,10 @@ export function LogsPage() {
     try {
       const response = await fetch(
         `${gatewayBaseUrl()}/system/logs/export?level=${encodeURIComponent(level)}`,
-        { headers: { Accept: 'text/plain' }, cache: 'no-store' },
+        { headers: gatewayAuthHeaders('text/plain'), cache: 'no-store' },
       )
       if (!response.ok) {
+        await handleGatewayAuthFailure(response)
         let message = t('gateway.logs.exportFailed')
         try {
           const payload = (await response.json()) as { message?: unknown }

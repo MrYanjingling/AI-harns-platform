@@ -1,4 +1,11 @@
-import { buildQuery, request, type RequestOptions } from '@harns/core'
+import {
+  buildQuery,
+  getLocale,
+  getSessionToken,
+  notifySessionExpired,
+  request,
+  type RequestOptions,
+} from '@harns/core'
 import type {
   AddVariablesResult,
   Collection,
@@ -18,6 +25,8 @@ import type {
   GatewayUser,
   GatewayUserPayload,
   LicenseStatus,
+  LoginPayload,
+  LoginResult,
   PageResp,
   PushConnector,
   PushConnectorPayload,
@@ -40,6 +49,40 @@ async function gatewayData<T>(path: string, options?: RequestOptions): Promise<T
 
 export function gatewayBaseUrl(): string {
   return import.meta.env.VITE_GATEWAY_BASE || '/api/v1'
+}
+
+/** SSE/文件下载等直接 fetch 场景复用网关认证头。 */
+export function gatewayAuthHeaders(accept: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: accept,
+    'Accept-Language': getLocale(),
+  }
+  const token = getSessionToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+/** 直接 fetch 的 SSE/导出请求没有经过 request(),这里补齐过期会话处理。 */
+export async function handleGatewayAuthFailure(response: Response): Promise<void> {
+  if (response.status !== 401 && response.status !== 400) return
+  const payload = (await response.clone().json().catch(() => null)) as {
+    code?: number
+  } | null
+  if (response.status === 401 || payload?.code === 10030) {
+    notifySessionExpired()
+  }
+}
+
+export function login(payload: LoginPayload): Promise<LoginResult> {
+  return gatewayData<LoginResult>('/auth/login', {
+    method: 'POST',
+    body: payload,
+    skipAuth: true,
+  })
+}
+
+export function logout(): Promise<null> {
+  return gatewayData<null>('/auth/logout', { method: 'POST' })
 }
 
 interface ListQuery {

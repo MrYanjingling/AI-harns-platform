@@ -287,6 +287,25 @@ func (m *RuntimeManager) StopCollection(ctx context.Context, id, reason string) 
 	return nil
 }
 
+// StopAll pauses every loaded collection while keeping records and trace hubs.
+func (m *RuntimeManager) StopAll(ctx context.Context, reason string) error {
+	if m == nil {
+		return nil
+	}
+	var errs []error
+	m.collections.Range(func(key, _ interface{}) bool {
+		id, ok := key.(string)
+		if !ok {
+			return true
+		}
+		if err := m.StopCollection(ctx, id, reason); err != nil && !errors.Is(err, ErrCollectionNotFound) {
+			errs = append(errs, err)
+		}
+		return true
+	})
+	return errors.Join(errs...)
+}
+
 // Get returns one runtime collection.
 func (m *RuntimeManager) Get(id string) (*RuntimeCollection, bool) {
 	if m == nil {
@@ -382,7 +401,7 @@ func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollectio
 	if !ok {
 		return nil, fmt.Errorf("%w: %s/%s", ErrFactoryNotFound, record.DriverType, record.DriverModel)
 	}
-	meta := &collection.CollectionMeta{
+	collector, err := factory.NewCollector(&collection.CollectionMeta{
 		Meta: collection.Meta{
 			Name:    record.Name,
 			ID:      record.ID,
@@ -394,8 +413,7 @@ func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollectio
 		CollectStatus:    record.CollectStatus,
 		CollectorCycleMs: record.CollectorCycleMs,
 		Variables:        record.Variables,
-	}
-	collector, err := factory.NewCollector(meta, json.RawMessage(record.ProtocolConfig))
+	}, json.RawMessage(record.ProtocolConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +422,7 @@ func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollectio
 		aware.SetFrameTracer(hub)
 	}
 	runtime := &RuntimeCollection{Collector: collector, Trace: hub}
-	meta.SetErrorReporter(runtime.SetLastError)
+	collector.GetCollectionMeta().SetErrorReporter(runtime.SetLastError)
 	return runtime, nil
 }
 

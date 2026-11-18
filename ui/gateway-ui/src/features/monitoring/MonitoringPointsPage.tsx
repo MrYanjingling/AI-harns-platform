@@ -29,6 +29,7 @@ import {
 } from '@/api/hooks'
 import type { AccessMode, CollectionVariable } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
+import { formatVariableValue } from '@/lib/format-value'
 import {
   DataTableBody,
   DataTableCell,
@@ -39,12 +40,6 @@ import {
 } from '@harns/core'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { TableActionButton } from '@harns/core'
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === '') return '—'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
-}
 
 function variableAddress(variable: CollectionVariable): string {
   if (variable.isCalculated) return variable.expression || '—'
@@ -483,7 +478,7 @@ export function MonitoringPointsPage() {
                       </EnumBadge>
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="block truncate">{formatValue(variable.value)}</span>
+                      <span className="block truncate">{formatVariableValue(variable)}</span>
                     </DataTableCell>
                     <DataTableCell>
                       {variable.accessMode === 'w' || variable.accessMode === 'rw' ? (
@@ -556,7 +551,7 @@ export function MonitoringPointsPage() {
             <div className="app-control-dialog-row">
               <dt className="app-control-dialog-label">{t('gateway.variable.value')}</dt>
               <dd className="app-control-dialog-value app-control-dialog-value--truncate">
-                {formatValue(controlVariable?.value)}
+                {formatVariableValue(controlVariable)}
               </dd>
             </div>
             <div className="app-control-dialog-row">

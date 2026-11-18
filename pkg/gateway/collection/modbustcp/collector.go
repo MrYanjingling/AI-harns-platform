@@ -73,14 +73,11 @@ func (c *ModbusTcpCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := compileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
+	calculations, calcErr := compileCalculations(variables)
 	runtime := &collectorRuntime{
-		frames: frames,
-		calcs:  calculations,
+		frames:  frames,
+		calcs:   calculations,
+		calcErr: calcErr,
 	}
 	c.runtime = runtime
 	if len(frames) == 0 {
@@ -257,6 +254,11 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 	runtime.mu.Lock()
 	runtime.failureStreak = 0
 	runtime.mu.Unlock()
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := c.calculate(); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)

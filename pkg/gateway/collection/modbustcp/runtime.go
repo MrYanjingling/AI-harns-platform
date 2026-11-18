@@ -12,9 +12,10 @@ import (
 type collectorRuntime struct {
 	mu sync.Mutex
 
-	pool   *connpool.Pool
-	frames []*wireFrame
-	calcs  []*collection.Calculation
+	pool    *connpool.Pool
+	frames  []*wireFrame
+	calcs   []*collection.Calculation
+	calcErr error
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup

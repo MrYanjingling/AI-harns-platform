@@ -100,6 +100,7 @@ export { ColumnResizeHandle, useColumnResize, type ColumnWidths } from './compon
 export { Tabs, type TabItem } from './components/ui/Tabs'
 
 export { GaugeRing, toneForPercent, type GaugeTone } from './components/charts/GaugeRing'
+export { Copyright } from './components/shared/Copyright'
 export { ErrorState } from './components/shared/ErrorState'
 export { PageHeader } from './components/shared/PageHeader'
 export { Pagination } from './components/shared/Pagination'

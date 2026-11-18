@@ -10,8 +10,8 @@ const (
 	SuperuserPassword     = "Harns@123"
 	SuperuserRemark       = "超级管理员"
 	DefaultPasswordSuffix = "@gateway"
-	DefaultSessionTTL     = 24 * time.Hour
-	DefaultAbsoluteTTL    = 7 * 24 * time.Hour
+	DefaultSessionTTL     = time.Hour
+	DefaultAbsoluteTTL    = 24 * time.Hour
 	sessionContextKey     = "usermgr.session"
 	usernameMaxLength     = 64
 	passwordMinLength     = 6

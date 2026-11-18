@@ -28,11 +28,17 @@ import (
 
 var ErrUnsupportedDriver = errors.New("unsupported driver")
 
+// VariableLimitProvider returns the current licensed collection-variable quota.
+type VariableLimitProvider interface {
+	MaxVariable() int
+}
+
 // Service creates collection records.
 type Service struct {
-	store    *Store
-	registry *createRegistry
-	runtime  *RuntimeManager
+	store         *Store
+	registry      *createRegistry
+	runtime       *RuntimeManager
+	variableLimit VariableLimitProvider
 }
 
 // NewService creates a collection service with protocol create handlers.
@@ -47,6 +53,42 @@ func NewService(store *Store, handlers ...collection.CreateHandler) (*Service, e
 // SetRuntimeManager injects the collection runtime manager.
 func (s *Service) SetRuntimeManager(runtime *RuntimeManager) {
 	s.runtime = runtime
+}
+
+// SetVariableLimitProvider injects the license variable quota provider.
+func (s *Service) SetVariableLimitProvider(provider VariableLimitProvider) {
+	s.variableLimit = provider
+}
+
+func (s *Service) checkCollectedVariableLimit(ctx context.Context, incoming []*collection.Variable) error {
+	if s.variableLimit == nil {
+		return nil
+	}
+	maxVariable := s.variableLimit.MaxVariable()
+	if maxVariable <= 0 {
+		return nil
+	}
+	added := 0
+	for _, variable := range incoming {
+		if variable != nil && !variable.IsCalculated {
+			added++
+		}
+	}
+	if added == 0 {
+		return nil
+	}
+	current, err := s.store.CountCollectedVariables(ctx)
+	if err != nil {
+		return response.ErrInternal(err)
+	}
+	if current+int64(added) > int64(maxVariable) {
+		return validation.New([]validation.FieldIssue{{
+			Field: "variables",
+			MsgID: "validate.collection_variable_limit_exceeded",
+			Args:  []interface{}{maxVariable},
+		}})
+	}
+	return nil
 }
 
 // StartRuntime loads persisted collections and starts the runtime manager.
@@ -77,6 +119,14 @@ func (s *Service) Close(ctx context.Context) error {
 		return nil
 	}
 	return s.runtime.Close(ctx)
+}
+
+// StopAll pauses all collection runtimes without deleting persisted records.
+func (s *Service) StopAll(ctx context.Context) error {
+	if s == nil || s.runtime == nil {
+		return nil
+	}
+	return s.runtime.StopAll(ctx, "license run deadline reached")
 }
 
 type createEnvelope struct {
@@ -153,6 +203,12 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 	}
 
 	meta := created.GetCollectionMeta()
+	if err := collection.ValidateCalculations(meta.Variables); err != nil {
+		return nil, err
+	}
+	if err := s.checkCollectedVariableLimit(ctx, meta.Variables); err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 	meta.ID = ulid.Make().String()
 	meta.Version = "1"
@@ -331,6 +387,9 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		}
 		return nil, response.ErrInternal(err)
 	}
+	if err := s.reloadRuntimeAfterChange(ctx, id); err != nil {
+		return nil, response.ErrInternal(err)
+	}
 	return s.collectionDetail(ctx, record)
 }
 
@@ -475,7 +534,7 @@ func (s *Service) ListVariables(ctx context.Context, collectionID string, q v1.V
 func (s *Service) AddVariables(ctx context.Context, collectionID string, variables []*collection.Variable) (*v1.AddVariablesVo, error) {
 	defer logging.Trace("collectionmgr.AddVariables", "collectionId", collectionID, "count", len(variables))()
 
-	record, err := s.getCollection(ctx, collectionID)
+	record, err := s.getCollectionWithVariables(ctx, collectionID)
 	if err != nil {
 		return nil, err
 	}
@@ -499,6 +558,13 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 	if err := schema.ValidateVariables(variables); err != nil {
 		return nil, err
 	}
+	if err := s.checkCollectedVariableLimit(ctx, variables); err != nil {
+		return nil, err
+	}
+	combined := append(append([]*collection.Variable{}, record.Variables...), variables...)
+	if err := collection.ValidateCalculations(combined); err != nil {
+		return nil, err
+	}
 	added, err := s.store.AddVariables(ctx, collectionID, variables)
 	if err != nil {
 		if errors.Is(err, ErrVariableConflict) {
@@ -508,6 +574,9 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 				Args:  []interface{}{"variables"},
 			}})
 		}
+		return nil, response.ErrInternal(err)
+	}
+	if err := s.reloadRuntimeAfterChange(ctx, collectionID); err != nil {
 		return nil, response.ErrInternal(err)
 	}
 	result := make([]*v1.VariableVo, 0, len(variables))
@@ -521,7 +590,7 @@ func (s *Service) AddVariables(ctx context.Context, collectionID string, variabl
 func (s *Service) UpdateVariables(ctx context.Context, collectionID string, variables []*collection.Variable) ([]*v1.VariableVo, error) {
 	defer logging.Trace("collectionmgr.UpdateVariables", "collectionId", collectionID, "count", len(variables))()
 
-	record, err := s.getCollection(ctx, collectionID)
+	record, err := s.getCollectionWithVariables(ctx, collectionID)
 	if err != nil {
 		return nil, err
 	}
@@ -547,6 +616,9 @@ func (s *Service) UpdateVariables(ctx context.Context, collectionID string, vari
 	if err := schema.ValidateVariables(variables); err != nil {
 		return nil, err
 	}
+	if err := collection.ValidateCalculations(mergeVariableUpdates(record.Variables, variables)); err != nil {
+		return nil, err
+	}
 	if err := s.store.UpdateVariables(ctx, collectionID, variables); err != nil {
 		if errors.Is(err, ErrVariableNotFound) {
 			return nil, validation.New([]validation.FieldIssue{{
@@ -555,6 +627,9 @@ func (s *Service) UpdateVariables(ctx context.Context, collectionID string, vari
 				Args:  []interface{}{"variables"},
 			}})
 		}
+		return nil, response.ErrInternal(err)
+	}
+	if err := s.reloadRuntimeAfterChange(ctx, collectionID); err != nil {
 		return nil, response.ErrInternal(err)
 	}
 	result := make([]*v1.VariableVo, 0, len(variables))
@@ -568,12 +643,19 @@ func (s *Service) UpdateVariables(ctx context.Context, collectionID string, vari
 func (s *Service) DeleteVariables(ctx context.Context, collectionID string, names []string) (int64, error) {
 	defer logging.Trace("collectionmgr.DeleteVariables", "collectionId", collectionID, "count", len(names))()
 
-	if _, err := s.getCollection(ctx, collectionID); err != nil {
+	record, err := s.getCollectionWithVariables(ctx, collectionID)
+	if err != nil {
 		return 0, err
 	}
 	cleaned := dedupeStrings(names)
+	if err := collection.ValidateCalculations(removeVariables(record.Variables, cleaned)); err != nil {
+		return 0, err
+	}
 	deleted, err := s.store.DeleteVariables(ctx, collectionID, cleaned)
 	if err != nil {
+		return 0, response.ErrInternal(err)
+	}
+	if err := s.reloadRuntimeAfterChange(ctx, collectionID); err != nil {
 		return 0, response.ErrInternal(err)
 	}
 	return deleted, nil
@@ -676,6 +758,83 @@ func (s *Service) Restart(ctx context.Context, id string) error {
 		return response.ErrInternal(err)
 	}
 	return nil
+}
+
+func mergeVariableUpdates(existing, updates []*collection.Variable) []*collection.Variable {
+	result := append([]*collection.Variable{}, existing...)
+	index := make(map[string]int, len(result))
+	for i, variable := range result {
+		if variable != nil {
+			index[variable.Name] = i
+		}
+	}
+	for _, variable := range updates {
+		if variable == nil {
+			continue
+		}
+		if i, ok := index[variable.Name]; ok {
+			result[i] = variable
+			continue
+		}
+		index[variable.Name] = len(result)
+		result = append(result, variable)
+	}
+	return result
+}
+
+func removeVariables(variables []*collection.Variable, names []string) []*collection.Variable {
+	remove := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		remove[name] = struct{}{}
+	}
+	result := make([]*collection.Variable, 0, len(variables))
+	for _, variable := range variables {
+		if variable == nil {
+			continue
+		}
+		if _, ok := remove[variable.Name]; ok {
+			continue
+		}
+		result = append(result, variable)
+	}
+	return result
+}
+
+// reloadRuntimeAfterChange rebuilds the collector so variable/config changes take effect.
+// Stopped runtimes are left untouched; Start loads the latest record from storage.
+func (s *Service) reloadRuntimeAfterChange(ctx context.Context, id string) error {
+	if s == nil || s.runtime == nil {
+		return nil
+	}
+	current, ok := s.runtime.Get(id)
+	if !ok {
+		return nil
+	}
+	if current.Collector.GetCollectStatus() == collection.CollectStatusStopped {
+		return nil
+	}
+	record, err := s.store.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !record.Enable {
+		return nil
+	}
+	return s.runtime.Replace(ctx, record)
+}
+
+func (s *Service) getCollectionWithVariables(ctx context.Context, id string) (*CollectionRecord, error) {
+	record, err := s.store.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, response.ErrCollectionNotFound(id)
+	}
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	return record, nil
 }
 
 func (s *Service) getCollection(ctx context.Context, id string) (*CollectionRecord, error) {

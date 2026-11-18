@@ -14,6 +14,7 @@ export interface DialogProps {
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   closeOnBackdrop?: boolean
+  initialFocus?: 'first' | 'panel'
   className?: string
   headerClassName?: string
   bodyClassName?: string
@@ -62,6 +63,7 @@ export function Dialog({
   footer,
   size = 'md',
   closeOnBackdrop = true,
+  initialFocus = 'first',
   className,
   headerClassName,
   bodyClassName,
@@ -78,6 +80,10 @@ export function Dialog({
     const timer = window.setTimeout(() => {
       const panel = panelRef.current
       if (!panel || panel.contains(document.activeElement)) return
+      if (initialFocus === 'panel') {
+        panel.focus()
+        return
+      }
       const [first] = focusableElements(panel)
       ;(first ?? panel).focus()
     }, 0)
@@ -86,7 +92,7 @@ export function Dialog({
       unlockBodyScroll()
       if (previousFocus?.isConnected) previousFocus.focus()
     }
-  }, [open])
+  }, [initialFocus, open])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {

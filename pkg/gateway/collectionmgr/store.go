@@ -478,6 +478,16 @@ func (s *Store) ListVariables(ctx context.Context, collectionID string, q apis.P
 	return variables, total, rows.Err()
 }
 
+// CountCollectedVariables counts non-calculated variables across all collections.
+func (s *Store) CountCollectedVariables(ctx context.Context) (int64, error) {
+	var total int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM collection_variables WHERE is_calculated = 0`).Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 // AddVariables appends variables to one collection.
 func (s *Store) AddVariables(ctx context.Context, collectionID string, variables []*collection.Variable) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)

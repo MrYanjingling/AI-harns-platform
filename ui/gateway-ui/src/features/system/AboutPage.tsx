@@ -65,6 +65,7 @@ export function AboutPage() {
   const [licenseData, setLicenseData] = useState('')
   const licenseInfo = license.data?.license
   const authorized = license.data?.status === 'authorized' && Boolean(licenseInfo)
+  const expired = license.data?.status === 'expired' && Boolean(licenseInfo)
 
   const closeImport = () => {
     setImportOpen(false)
@@ -165,10 +166,20 @@ export function AboutPage() {
                 <DescriptionRow
                   label={t('gateway.about.license.status')}
                   value={
-                    <span className={authorized ? 'font-medium text-success' : 'font-medium text-danger'}>
+                    <span
+                      className={
+                        authorized
+                          ? 'font-medium text-success'
+                          : expired
+                            ? 'font-medium text-warning'
+                            : 'font-medium text-danger'
+                      }
+                    >
                       {authorized
                         ? t('gateway.about.license.authorized')
-                        : t('gateway.about.license.unauthorized')}
+                        : expired
+                          ? t('gateway.about.license.expired')
+                          : t('gateway.about.license.unauthorized')}
                     </span>
                   }
                 />
@@ -178,7 +189,7 @@ export function AboutPage() {
                       label={t('gateway.about.license.maxVariable')}
                       value={licenseInfo.maxVariable}
                     />
-                    {authorized ? (
+                    {authorized || expired ? (
                       <>
                         <DescriptionRow
                           label={t('gateway.about.license.contact')}

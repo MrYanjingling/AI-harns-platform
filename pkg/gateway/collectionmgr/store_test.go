@@ -304,3 +304,98 @@ func TestStoreMigratesVariablePresenceColumns(t *testing.T) {
 	_, hasBitsSet := columns["bits_set"]
 	assert.False(t, hasBitsSet)
 }
+
+type modbusRuntimeFactory struct {
+	collectors []*fakeCollector
+}
+
+func (f *modbusRuntimeFactory) DriverType() string  { return "modbus" }
+func (f *modbusRuntimeFactory) DriverModel() string { return "modbusTcp" }
+func (f *modbusRuntimeFactory) NewCollector(meta *collection.CollectionMeta, _ json.RawMessage) (collection.Collector, error) {
+	meta.IndexCollection()
+	collector := &fakeCollector{meta: meta}
+	f.collectors = append(f.collectors, collector)
+	return collector, nil
+}
+
+func TestAddVariablesRefreshesRunningRuntime(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	driverStore := drivermgr.NewStore(db)
+	require.NoError(t, driverStore.Initialize(context.Background()))
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(context.Background()))
+	service, err := NewService(store, &modbustcp.CreateHandler{})
+	require.NoError(t, err)
+	factory := &modbusRuntimeFactory{}
+	runtime, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	service.SetRuntimeManager(runtime)
+	t.Cleanup(func() { _ = runtime.Close(context.Background()) })
+
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"add-vars",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"first","dataType":"int16","address":"1!40001","accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created, ok := result.(*v1.CollectionDetailVo)
+	require.True(t, ok)
+	require.Len(t, factory.collectors, 1)
+	assert.Len(t, factory.collectors[0].meta.GetVariables(), 1)
+
+	_, err = service.AddVariables(context.Background(), created.ID, []*collection.Variable{{
+		Name: "second", DataType: "int16", Address: "1!40001", AccessMode: collection.AccessModeRead,
+	}})
+	require.NoError(t, err)
+	require.Len(t, factory.collectors, 2)
+	assert.Len(t, factory.collectors[1].meta.GetVariables(), 2)
+	assert.Equal(t, 1, factory.collectors[0].stops)
+}
+
+func TestCreateCollectionRejectsMissingCalculatedReference(t *testing.T) {
+	service, _ := newTestService(t)
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-calc",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[
+			{"name":"one","dataType":"float64","address":"1!40001","accessMode":"r"},
+			{"name":"result","dataType":"float64","address":"","accessMode":"r","isCalculated":true,"expression":"one + three"}
+		]
+	}`
+	_, err := service.Create(context.Background(), []byte(body))
+	require.Error(t, err)
+	var verr *validation.ValidationError
+	require.ErrorAs(t, err, &verr)
+	require.Len(t, verr.Issues, 1)
+	assert.Equal(t, "variables[1].expression", verr.Issues[0].Field)
+	assert.Equal(t, "validate.calculated_variable_reference_missing", verr.Issues[0].MsgID)
+}
+
+func TestDeleteReferencedCalculatedVariableRejected(t *testing.T) {
+	service, store := newTestService(t)
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"calc-delete",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[
+			{"name":"temperature","dataType":"float64","address":"1!40001","accessMode":"r"},
+			{"name":"energy","dataType":"float64","address":"","accessMode":"r","isCalculated":true,"expression":"temperature * 2"}
+		]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created, ok := result.(*v1.CollectionDetailVo)
+	require.True(t, ok)
+
+	_, err = service.DeleteVariables(context.Background(), created.ID, []string{"temperature"})
+	require.Error(t, err)
+	var verr *validation.ValidationError
+	require.ErrorAs(t, err, &verr)
+	assert.Equal(t, "validate.calculated_variable_reference_missing", verr.Issues[0].MsgID)
+
+	record, err := store.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	assert.Len(t, record.Variables, 2)
+}
