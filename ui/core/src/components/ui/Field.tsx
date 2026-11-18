@@ -120,7 +120,7 @@ export function Field({
       {error ? (
         <p className="text-xs text-danger">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-faint">{hint}</p>
+        <p className={cn('text-xs text-faint', hintClassName)}>{hint}</p>
       ) : null}
     </div>
   )
