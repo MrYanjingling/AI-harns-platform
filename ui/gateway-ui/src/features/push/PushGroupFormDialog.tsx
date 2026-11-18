@@ -299,19 +299,16 @@ export function PushGroupFormDialog({
             labelWidthClassName="w-[96px]"
             inline
             error={errors.pushIntervalMs}
+            hint={t('gateway.push.group.intervalHint')}
+            hintClassName="text-[13px] leading-relaxed text-muted"
           >
-            <div className="space-y-1">
-              <Input
-                id="push-group-interval"
-                value={form.pushIntervalMs}
-                className="w-full max-w-[240px]"
-                inputMode="numeric"
-                onChange={(event) => setForm({ ...form, pushIntervalMs: event.target.value })}
-              />
-              <p className="text-[13px] leading-relaxed text-muted">
-                {t('gateway.push.group.intervalHint')}
-              </p>
-            </div>
+            <Input
+              id="push-group-interval"
+              value={form.pushIntervalMs}
+              className="w-full max-w-[240px]"
+              inputMode="numeric"
+              onChange={(event) => setForm({ ...form, pushIntervalMs: event.target.value })}
+            />
           </Field>
           <Field
             label={t('gateway.push.columns.maxPerMessage')}
