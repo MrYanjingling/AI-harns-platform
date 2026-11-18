@@ -31,6 +31,7 @@ import {
   cn,
   formatDateTime,
   formatRelative,
+  parseDate,
   percentValue,
   toneForPercent,
   useI18n,
@@ -100,6 +101,8 @@ export function OverviewPage() {
   const memData = mem.data?.mem
   const diskEntries = Object.entries(disk.data?.disk ?? {})
   const licenseInfo = license.data?.license
+  const deadline = parseDate(licenseInfo?.softwareRunDeadline)
+  const expired = deadline ? deadline.getTime() < Date.now() : false
   const maxVariable = licenseInfo?.maxVariable
   const error = collections.error ?? connectors.error ?? groups.error
 
@@ -196,15 +199,13 @@ export function OverviewPage() {
         <StatCard
           label={t('gateway.overview.stat.groups')}
           value={
-            <span className="text-lg">
-              {licenseInfo?.softwareRunDeadline
-                ? formatDateTime(licenseInfo.softwareRunDeadline)
-                : '—'}
+            <span className={cn('text-lg', expired && 'text-danger')}>
+              {deadline ? formatDateTime(deadline) : '—'}
             </span>
           }
           icon={<CalendarClock />}
           variant="summary"
-          tone="neutral"
+          tone={expired ? 'danger' : 'neutral'}
           className={overviewCardClass}
           footer={<CardDescription>{t('gateway.overview.stat.groupsHint')}</CardDescription>}
         />
