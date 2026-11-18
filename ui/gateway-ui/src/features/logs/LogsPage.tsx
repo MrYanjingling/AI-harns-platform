@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Trash2 } from 'lucide-react'
 import { Button, cn, showErrorToast, useI18n } from '@harns/core'
 import { gatewayBaseUrl } from '@/api/gateway'
 import { LogLevelSelect } from './LogLevelSelect'
@@ -7,7 +7,7 @@ import { useSystemLogStream, type StreamLogLevel } from './useSystemLogStream'
 
 export function LogsPage() {
   const { t } = useI18n()
-  const { lines, error } = useSystemLogStream()
+  const { lines, error, clear } = useSystemLogStream()
   const [level, setLevel] = useState<StreamLogLevel>('info')
   const [exporting, setExporting] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -64,15 +64,23 @@ export function LogsPage() {
             setLevel(next)
           }}
         />
-        <Button
-          variant="outline"
-          className="ml-auto"
-          icon={<Download className="size-3.5" />}
-          loading={exporting}
-          onClick={() => void exportLogs()}
-        >
-          {t('gateway.logs.export')}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="ghost"
+            icon={<Trash2 className="size-3.5" />}
+            onClick={clear}
+          >
+            {t('gateway.logs.clear')}
+          </Button>
+          <Button
+            variant="outline"
+            icon={<Download className="size-3.5" />}
+            loading={exporting}
+            onClick={() => void exportLogs()}
+          >
+            {t('gateway.logs.export')}
+          </Button>
+        </div>
       </div>
 
       <div

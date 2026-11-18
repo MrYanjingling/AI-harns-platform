@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { gatewayBaseUrl } from '@/api/gateway'
 
 export type StreamLogLevel = 'info' | 'warn' | 'error'
@@ -12,6 +12,7 @@ export interface StreamLogLine {
 interface LogStreamState {
   lines: StreamLogLine[]
   error: boolean
+  clear: () => void
 }
 
 const MAX_LINES = 2000
@@ -69,6 +70,7 @@ export function useSystemLogStream(): LogStreamState {
   const [lines, setLines] = useState<StreamLogLine[]>([])
   const [error, setError] = useState(false)
   const nextId = useRef(0)
+  const clear = useCallback(() => setLines([]), [])
 
   useEffect(() => {
     let stopped = false
@@ -113,5 +115,5 @@ export function useSystemLogStream(): LogStreamState {
     }
   }, [])
 
-  return { lines, error }
+  return { lines, error, clear }
 }
