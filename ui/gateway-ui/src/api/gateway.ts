@@ -32,6 +32,10 @@ import type {
   PushConnectorPayload,
   PushGroup,
   PushGroupPayload,
+  SimulatorDataType,
+  SimulatorMode,
+  SimulatorPoint,
+  SimulatorState,
   SystemInfoMeta,
 } from './types'
 
@@ -410,4 +414,40 @@ export function getGatewayMem(): Promise<GatewayMemResponse> {
 
 export function getGatewayDisk(): Promise<GatewayDiskResponse> {
   return gatewayData<GatewayDiskResponse>('/gatewayDisk')
+}
+
+/* ---------------- 设备模拟 ---------------- */
+
+export function getSimulator(): Promise<SimulatorState> {
+  return gatewayData<SimulatorState>('/simulator')
+}
+
+export function openSimulator(port: number): Promise<SimulatorState> {
+  return gatewayData<SimulatorState>('/simulator/open', {
+    method: 'POST',
+    body: { port },
+  })
+}
+
+export function closeSimulator(): Promise<SimulatorState> {
+  return gatewayData<SimulatorState>('/simulator/close', { method: 'POST' })
+}
+
+export function createSimulatorPoint(
+  address: number,
+  name: string,
+  description: string,
+  dataType: SimulatorDataType,
+  mode: SimulatorMode,
+): Promise<SimulatorPoint> {
+  return gatewayData<SimulatorPoint>('/simulator/points', {
+    method: 'POST',
+    body: { address, name, description, registerType: 'holdingRegister', dataType, mode },
+  })
+}
+
+export function deleteSimulatorPoint(address: number): Promise<{ deleted: boolean }> {
+  return gatewayData<{ deleted: boolean }>(`/simulator/points/${address}`, {
+    method: 'DELETE',
+  })
 }

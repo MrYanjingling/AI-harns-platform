@@ -385,3 +385,24 @@ export interface PushCommandEvent {
   time: string
   payload: unknown
 }
+
+export type SimulatorMode = 'random' | 'increment' | 'decrement'
+export type SimulatorDataType = 'int16' | 'int32' | 'float'
+
+export interface SimulatorPoint {
+  address: number
+  name: string
+  description: string
+  registerType: string
+  dataType: SimulatorDataType
+  mode: SimulatorMode
+  value: number
+}
+
+export interface SimulatorState {
+  running: boolean
+  port: number
+  unitId: number
+  memoryLayout: string
+  points: SimulatorPoint[]
+}

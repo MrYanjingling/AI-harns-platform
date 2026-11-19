@@ -19,6 +19,7 @@ import (
 	"harns-platform/pkg/gateway/licensemgr"
 	"harns-platform/pkg/gateway/logmgr"
 	"harns-platform/pkg/gateway/pushmgr"
+	"harns-platform/pkg/gateway/simulatormgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
@@ -131,6 +132,9 @@ func (s *Server) InstallHandlers() {
 	drivermgr.InstallHandler(authed, s.Config.DriverMgr)
 	collectionmgr.InstallHandler(authed, s.Config.CollectionMgr)
 	pushmgr.InstallHandler(authed, s.Config.PushMgr)
+	if s.Config.SimulatorMgr != nil {
+		simulatormgr.InstallHandler(authed, s.Config.SimulatorMgr)
+	}
 	logmgr.InstallHandler(authed, s.Config.LogFilePath)
 	if s.Config.LicenseMgr != nil {
 		licensemgr.InstallHandler(authed, s.Config.LicenseMgr, s.Config.UserMgr.RequireAdmin())
@@ -190,6 +194,9 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		}
 		if s.Config.PushMgr != nil {
 			s.Config.PushMgr.Close(ctx)
+		}
+		if s.Config.SimulatorMgr != nil {
+			_, _ = s.Config.SimulatorMgr.Close(ctx)
 		}
 		if s.Config.DB != nil {
 			if err := s.Config.DB.Close(); err != nil {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useI18n } from '../../i18n'
@@ -131,6 +131,7 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   disabled = false,
+  actions,
 }: {
   page: number
   pageSize: number
@@ -138,6 +139,7 @@ export function Pagination({
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
   disabled?: boolean
+  actions?: ReactNode
 }) {
   const { t } = useI18n()
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
@@ -172,6 +174,7 @@ export function Pagination({
           {t('common.pagination.next')}
           <ChevronRight className="size-3.5" />
         </Button>
+        {actions}
       </div>
     </div>
   )

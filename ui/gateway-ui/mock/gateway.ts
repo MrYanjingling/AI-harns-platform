@@ -11,6 +11,10 @@ import type {
   PushConnectorPayload,
   PushGroup,
   PushGroupPayload,
+  SimulatorDataType,
+  SimulatorMode,
+  SimulatorPoint,
+  SimulatorState,
 } from '../src/api/types'
 import {
   collectionVariables,
@@ -28,6 +32,21 @@ import { readJson, send } from './utils'
 
 function ok<T>(data: T): { code: number; message: string; data: T } {
   return { code: 200, message: 'success', data }
+}
+
+const simulatorState: SimulatorState = {
+  running: false,
+  port: 2502,
+  unitId: 1,
+  memoryLayout: 'CDAB',
+  points: [],
+}
+
+function simulatorPayload(): SimulatorState {
+  return {
+    ...simulatorState,
+    points: simulatorState.points.map((point) => ({ ...point })),
+  }
 }
 
 function fail(res: ServerResponse, status: number, code: number, message: string) {
@@ -1175,6 +1194,82 @@ export async function handleGateway(
     }
     res.setHeader('Allow', 'PUT, DELETE')
     fail(res, 405, 10005, 'method not allowed')
+    return true
+  }
+
+  if (pathname === '/simulator' && method === 'GET') {
+    send(res, 200, ok(simulatorPayload()))
+    return true
+  }
+
+  if (pathname === '/simulator/open' && method === 'POST') {
+    const body = await readObject(req)
+    const port = Number(body?.port ?? 2502)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      badRequest(res, 'invalid simulator port')
+      return true
+    }
+    simulatorState.port = port
+    simulatorState.running = true
+    send(res, 200, ok(simulatorPayload()))
+    return true
+  }
+
+  if (pathname === '/simulator/close' && method === 'POST') {
+    simulatorState.running = false
+    send(res, 200, ok(simulatorPayload()))
+    return true
+  }
+
+  if (pathname === '/simulator/points' && method === 'POST') {
+    const body = await readObject(req)
+    const address = Number(body?.address)
+    const mode = body?.mode
+    const dataType =
+      body?.dataType === 'int32' || body?.dataType === 'float' ? body.dataType : 'int16'
+    const words = dataType === 'int16' ? 1 : 2
+    if (!Number.isInteger(address) || address < 1 || address + words - 1 > 65535) {
+      badRequest(res, 'invalid simulator address')
+      return true
+    }
+    if (mode !== 'random' && mode !== 'increment' && mode !== 'decrement') {
+      badRequest(res, 'invalid simulator mode')
+      return true
+    }
+    if (
+      simulatorState.points.some((point) => {
+        const pointWords = point.dataType === 'int16' ? 1 : 2
+        return address < point.address + pointWords && address + words > point.address
+      })
+    ) {
+      badRequest(res, 'simulator point already exists')
+      return true
+    }
+    const point: SimulatorPoint = {
+      address,
+      name: typeof body?.name === 'string' ? body.name : '',
+      description: typeof body?.description === 'string' ? body.description : '',
+      registerType: 'holdingRegister',
+      dataType: dataType as SimulatorDataType,
+      mode: mode as SimulatorMode,
+      value: 0,
+    }
+    simulatorState.points.push(point)
+    simulatorState.points.sort((left, right) => left.address - right.address)
+    send(res, 200, ok(point))
+    return true
+  }
+
+  const simulatorPointMatch = pathname.match(/^\/simulator\/points\/(\d+)$/)
+  if (simulatorPointMatch && method === 'DELETE') {
+    const address = Number(simulatorPointMatch[1])
+    const index = simulatorState.points.findIndex((point) => point.address === address)
+    if (index < 0) {
+      notFound(res, 'simulator point not found')
+      return true
+    }
+    simulatorState.points.splice(index, 1)
+    send(res, 200, ok({ deleted: true }))
     return true
   }
 

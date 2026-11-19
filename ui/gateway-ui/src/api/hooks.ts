@@ -7,12 +7,14 @@ import {
   createDriver,
   createPushConnector,
   createPushGroup,
+  createSimulatorPoint,
   createUser,
   deleteCollection,
   deleteCollectionVariables,
   deleteDriver,
   deletePushConnector,
   deletePushGroup,
+  deleteSimulatorPoint,
   deleteUser,
   deliverCollectionAction,
   getCollection,
@@ -22,6 +24,7 @@ import {
   getGatewayMem,
   getGatewayMeta,
   getLicense,
+  getSimulator,
   getSystemInfo,
   importLicense,
   listUsers,
@@ -30,8 +33,10 @@ import {
   listDriverGroups,
   listDriversFlat,
   login,
+  closeSimulator,
   listPushConnectors,
   listPushGroups,
+  openSimulator,
   resetUserPassword,
   restartCollection,
   restartPushConnector,
@@ -61,6 +66,8 @@ import type {
   LoginPayload,
   PushConnectorPayload,
   PushGroupPayload,
+  SimulatorDataType,
+  SimulatorMode,
 } from './types'
 import { appendOperationLog } from '@/lib/operation-log'
 
@@ -767,5 +774,87 @@ export function useGatewayDisk() {
   return useQuery({
     queryKey: queryKeys.gateway.disk,
     queryFn: getGatewayDisk,
+  })
+}
+
+
+/* ---------------- 设备模拟 ---------------- */
+
+export function useSimulator() {
+  return useQuery({
+    queryKey: queryKeys.gateway.simulator,
+    queryFn: getSimulator,
+  })
+}
+
+function invalidateSimulator(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.gateway.simulator })
+}
+
+export function useOpenSimulator() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (port: number) => openSimulator(port),
+    onSuccess: () => invalidateSimulator(queryClient),
+  })
+}
+
+export function useCloseSimulator() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => closeSimulator(),
+    onSuccess: () => invalidateSimulator(queryClient),
+  })
+}
+
+export function useCreateSimulatorPoint() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: {
+      address: number
+      name: string
+      description: string
+      dataType: SimulatorDataType
+      mode: SimulatorMode
+    }) => createSimulatorPoint(vars.address, vars.name, vars.description, vars.dataType, vars.mode),
+    onSuccess: () => invalidateSimulator(queryClient),
+  })
+}
+
+export function useDeleteSimulatorPoint() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (address: number) => deleteSimulatorPoint(address),
+    onSuccess: () => invalidateSimulator(queryClient),
+  })
+}
+
+export function useSaveSimulatorPoints() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: {
+      created: {
+        address: number
+        name: string
+        description: string
+        dataType: SimulatorDataType
+        mode: SimulatorMode
+      }[]
+      deleted: number[]
+    }) => {
+      for (const address of vars.deleted) {
+        await deleteSimulatorPoint(address)
+      }
+      for (const point of vars.created) {
+        await createSimulatorPoint(
+          point.address,
+          point.name,
+          point.description,
+          point.dataType,
+          point.mode,
+        )
+      }
+    },
+    onSettled: () => invalidateSimulator(queryClient),
   })
 }

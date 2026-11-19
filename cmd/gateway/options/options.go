@@ -21,6 +21,7 @@ import (
 	"harns-platform/pkg/gateway/gatewaymgr"
 	"harns-platform/pkg/gateway/licensemgr"
 	"harns-platform/pkg/gateway/pushmgr"
+	"harns-platform/pkg/gateway/simulatormgr"
 	"harns-platform/pkg/gateway/sqlite"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
@@ -234,6 +235,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.PushMgr = pushService
+	c.SimulatorMgr = simulatormgr.NewService()
 	startLicenseRunGuard(stopCh, licenseService, collectionMgr, pushService)
 
 	c.KeyFile = o.KeyFile

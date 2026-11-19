@@ -18,5 +18,6 @@ export const queryKeys = {
     cpu: ['gateway', 'cpu'] as const,
     mem: ['gateway', 'mem'] as const,
     disk: ['gateway', 'disk'] as const,
+    simulator: ['gateway', 'simulator'] as const,
   },
 }

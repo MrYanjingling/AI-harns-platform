@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import {
   Cpu,
+  FlaskConical,
   Gauge,
   Info,
   LayoutDashboard,
@@ -21,7 +22,7 @@ function icon(component: typeof LayoutDashboard) {
   return createElement(component, { className: 'size-4' })
 }
 
-/** 网关侧边栏:6 个一级菜单及其二级菜单。 */
+/** 网关侧边栏:7 个一级菜单及其二级菜单。 */
 export function createGatewayNav(base = ''): NavSection[] {
   return [
     {
@@ -100,6 +101,18 @@ export function createGatewayNav(base = ''): NavSection[] {
               labelKey: 'gateway.nav.logs.realtime',
               hintKey: 'gateway.nav.logsHint',
               icon: icon(Terminal),
+            },
+          ],
+        },
+        {
+          labelKey: 'gateway.nav.simulator',
+          icon: icon(FlaskConical),
+          items: [
+            {
+              to: `${base}/simulator/modbus`,
+              labelKey: 'gateway.nav.simulator.modbus',
+              hintKey: 'gateway.nav.simulatorHint',
+              icon: icon(FlaskConical),
             },
           ],
         },

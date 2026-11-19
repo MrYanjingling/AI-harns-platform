@@ -11,6 +11,7 @@ import { FrameAnalysisPage } from '@/features/monitoring/FrameAnalysisPage'
 import { ConnectorsPage } from '@/features/push/ConnectorsPage'
 import { PushGroupsPage } from '@/features/push/PushGroupsPage'
 import { AboutPage } from '@/features/system/AboutPage'
+import { ModbusSimulatorPage } from '@/features/simulator/ModbusSimulatorPage'
 import { UsersPage } from '@/features/system/UsersPage'
 
 /** 网关应用路由(相对路径),独立部署在站点根路径。 */
@@ -71,6 +72,11 @@ export const gatewayRoutes: RouteObject[] = [
         path: 'monitoring/points/analysis',
         element: <FrameAnalysisPage />,
         handle: { titleKey: 'gateway.title.frameAnalysis' },
+      },
+      {
+        path: 'simulator/modbus',
+        element: <ModbusSimulatorPage />,
+        handle: { titleKey: 'gateway.title.simulatorModbus' },
       },
       {
         path: 'system/users',
