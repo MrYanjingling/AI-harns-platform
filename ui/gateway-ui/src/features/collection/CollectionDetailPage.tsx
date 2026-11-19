@@ -258,6 +258,7 @@ export function CollectionDetailPage() {
         description={collection.id}
         backTo="/collections"
         backLabel={t('gateway.detail.back')}
+        backState={{ restoreListView: true }}
         actions={
           <>
             <Button

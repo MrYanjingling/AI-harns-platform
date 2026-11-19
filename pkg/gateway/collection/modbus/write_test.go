@@ -32,10 +32,23 @@ func TestBuildWriteCoilAndRegister(t *testing.T) {
 	assert.Equal(t, uint16(2), multi.Quantity)
 }
 
-func TestBuildWriteRejectsReadOnlyFunctionCodes(t *testing.T) {
-	_, err := BuildWrite(&collection.Variable{
+func TestBuildWriteSupportsInputRegisterFunction(t *testing.T) {
+	register, err := BuildWrite(&collection.Variable{
 		Name: "input", DataType: "int16", Address: "1!40001", AccessMode: collection.AccessModeReadWrite,
 	}, int16(1), 1, "ABCD")
+	require.NoError(t, err)
+	assert.Equal(t, uint8(6), register.Function)
+
+	multi, err := BuildWrite(&collection.Variable{
+		Name: "input32", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeReadWrite,
+	}, float32(1), 1, "CDAB")
+	require.NoError(t, err)
+	assert.Equal(t, uint8(16), multi.Function)
+	assert.Equal(t, uint16(2), multi.Quantity)
+
+	_, err = BuildWrite(&collection.Variable{
+		Name: "discrete", DataType: "bool", Address: "1!20001", AccessMode: collection.AccessModeReadWrite,
+	}, true, 1, "ABCD")
 	require.Error(t, err)
 }
 

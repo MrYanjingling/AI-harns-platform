@@ -28,7 +28,7 @@ func BuildWrite(variable *collection.Variable, value any, positionAddress uint, 
 		return nil, err
 	}
 	switch function {
-	case FunctionReadDiscreteInputs, FunctionReadInputRegisters:
+	case FunctionReadDiscreteInputs:
 		return nil, fmt.Errorf("function code %d is read-only", function)
 	case FunctionReadCoils:
 		boolean, ok := value.(bool)
@@ -40,7 +40,7 @@ func BuildWrite(variable *collection.Variable, value any, positionAddress uint, 
 			data[0], data[1] = 0xFF, 0x00
 		}
 		return &WriteFrame{Slave: slave, Function: 5, Start: address, Quantity: 1, Data: data}, nil
-	case FunctionReadHoldingRegisters:
+	case FunctionReadHoldingRegisters, FunctionReadInputRegisters:
 		if strings.EqualFold(variable.DataType, "bool") {
 			return nil, fmt.Errorf("register bool write requires read-modify-write")
 		}

@@ -31,15 +31,29 @@ import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { DriverFormDialog } from './DriverFormDialog'
 import { DriverPluginFileDialog } from './DriverPluginFileDialog'
 import { DriverSchemaDialog } from './DriverSchemaDialog'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 export function DriversPage() {
   const { t } = useI18n()
+  const restore = useListViewRestore()
   const drivers = useDriverList()
   const remove = useDeleteDriver()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.drivers,
+    restore,
+  )
+  const [keywordInput, setKeywordInput] = usePersistedState(
+    `${listViewKeys.drivers}:keywordInput`,
+    '',
+    restore,
+  )
+  const [keyword, setKeyword] = usePersistedState(`${listViewKeys.drivers}:keyword`, '', restore)
   const [createOpen, setCreateOpen] = useState(false)
   const [schemaTarget, setSchemaTarget] = useState<Driver | null>(null)
   const [pluginTarget, setPluginTarget] = useState<Driver | null>(null)
@@ -72,6 +86,7 @@ export function DriversPage() {
   }, [drivers.data, keyword])
 
   const total = filteredDrivers.length
+  useListPaginationClamp(page, pageSize, total, setPage)
   const pageDrivers = filteredDrivers.slice((page - 1) * pageSize, page * pageSize)
 
   const applySearch = () => {

@@ -10,6 +10,7 @@ export function PageHeader({
   actions,
   backTo,
   backLabel,
+  backState,
   className,
 }: {
   title: ReactNode
@@ -17,6 +18,7 @@ export function PageHeader({
   actions?: ReactNode
   backTo?: string
   backLabel?: string
+  backState?: unknown
   className?: string
 }) {
   const { t } = useI18n()
@@ -26,6 +28,7 @@ export function PageHeader({
         {backTo ? (
           <Link
             to={backTo}
+            state={backState}
             className="mb-1 inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-fg"
           >
             <ChevronLeft className="size-3" />

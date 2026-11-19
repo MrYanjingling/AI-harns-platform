@@ -42,6 +42,13 @@ import { CollectionActionsMenu } from './CollectionActionsMenu'
 import { CollectionCreateDialog } from './CollectionCreateDialog'
 import { CollectionEditDialog } from './CollectionEditDialog'
 import { CollectionVariablesDialog } from './CollectionVariablesDialog'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; collection: Collection }
 
@@ -59,14 +66,25 @@ const emptyFilters: CollectionFilters = {
 
 export function CollectionPage() {
   const { t } = useI18n()
+  const restore = useListViewRestore()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [variablesCollection, setVariablesCollection] = useState<Collection | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [filters, setFilters] = useState<CollectionFilters>(emptyFilters)
-  const [applied, setApplied] = useState<CollectionFilters>(emptyFilters)
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.collections,
+    restore,
+  )
+  const [filters, setFilters] = usePersistedState<CollectionFilters>(
+    `${listViewKeys.collections}:filters`,
+    emptyFilters,
+    restore,
+  )
+  const [applied, setApplied] = usePersistedState<CollectionFilters>(
+    `${listViewKeys.collections}:applied`,
+    emptyFilters,
+    restore,
+  )
   const [pending, setPending] = useState<PendingAction | null>(null)
 
   const collections = useCollections({
@@ -83,6 +101,7 @@ export function CollectionPage() {
 
   const list = collections.data?.list ?? []
   const total = collections.data?.total ?? 0
+  useListPaginationClamp(page, pageSize, total, setPage)
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
     name: 220,

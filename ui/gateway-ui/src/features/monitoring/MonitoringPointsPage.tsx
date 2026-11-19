@@ -40,6 +40,13 @@ import {
 } from '@harns/core'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { TableActionButton } from '@harns/core'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 function variableAddress(variable: CollectionVariable): string {
   if (variable.isCalculated) return variable.expression || '—'
@@ -117,13 +124,28 @@ function validateControlValue(
 
 export function MonitoringPointsPage() {
   const { t } = useI18n()
+  const restore = useListViewRestore()
   const collections = useCollections({ page: 1, pageSize: 100 })
   const collectionList = collections.data?.list ?? []
-  const [collectionId, setCollectionId] = useState('')
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [collectionId, setCollectionId] = usePersistedState(
+    `${listViewKeys.monitoringPoints}:collectionId`,
+    '',
+    restore,
+  )
+  const [keywordInput, setKeywordInput] = usePersistedState(
+    `${listViewKeys.monitoringPoints}:keywordInput`,
+    '',
+    restore,
+  )
+  const [keyword, setKeyword] = usePersistedState(
+    `${listViewKeys.monitoringPoints}:keyword`,
+    '',
+    restore,
+  )
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.monitoringPoints,
+    restore,
+  )
   const [controlVariable, setControlVariable] = useState<CollectionVariable | null>(null)
   const [controlValue, setControlValue] = useState('')
   const runtimeAction = useCollectionRuntimeAction()
@@ -135,6 +157,7 @@ export function MonitoringPointsPage() {
   })
   const list = variables.data?.list ?? []
   const total = variables.data?.total ?? 0
+  useListPaginationClamp(page, pageSize, total, setPage)
   const currentCollection = collectionList.find((item) => item.id === collectionId)
   const frameAnalysisSupported =
     Boolean(currentCollection) && currentCollection?.driverType !== 'opcUa'
@@ -159,6 +182,7 @@ export function MonitoringPointsPage() {
   })
 
   useEffect(() => {
+    if (collections.isLoading) return
     if (collectionList.length === 0) {
       if (collectionId) setCollectionId('')
       return
@@ -167,15 +191,17 @@ export function MonitoringPointsPage() {
       setCollectionId(collectionList[0].id)
       setPage(1)
     }
-  }, [collectionList, collectionId])
+  }, [collectionList, collectionId, collections.isLoading, setCollectionId, setPage])
 
   useEffect(() => {
+    const next = keywordInput.trim()
+    if (next === keyword) return
     const timer = window.setTimeout(() => {
-      setKeyword(keywordInput.trim())
+      setKeyword(next)
       setPage(1)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [keywordInput])
+  }, [keywordInput, keyword, setKeyword, setPage])
 
   const collectionOptions = useMemo<SearchSelectOption[]>(
     () => collectionList.map((item) => ({ value: item.id, label: item.name })),

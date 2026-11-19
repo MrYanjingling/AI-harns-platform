@@ -31,13 +31,31 @@ import {
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { TableActionButton } from '@harns/core'
 import { UserFormDialog } from './UserFormDialog'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 export function UsersPage() {
   const { t } = useI18n()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const restore = useListViewRestore()
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.users,
+    restore,
+  )
+  const [keywordInput, setKeywordInput] = usePersistedState(
+    `${listViewKeys.users}:keywordInput`,
+    '',
+    restore,
+  )
+  const [keyword, setKeyword] = usePersistedState(
+    `${listViewKeys.users}:keyword`,
+    '',
+    restore,
+  )
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<GatewayUser | undefined>(undefined)
   const [resetTarget, setResetTarget] = useState<GatewayUser | null>(null)
@@ -48,6 +66,7 @@ export function UsersPage() {
   const deleteMutation = useDeleteUser()
   const list = users.data?.list ?? []
   const total = users.data?.total ?? 0
+  useListPaginationClamp(page, pageSize, total, setPage)
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
     user: 280,

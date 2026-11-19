@@ -36,6 +36,13 @@ import { TableActionButton } from '@harns/core'
 import { ConnectorActionsMenu, type ConnectorOperation } from './ConnectorActionsMenu'
 import { ConnectorFormDialog } from './ConnectorFormDialog'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 type PendingAction = {
   kind: ConnectorOperation | 'delete'
@@ -45,11 +52,26 @@ type PendingAction = {
 export function ConnectorsPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [connectorType, setConnectorType] = useState('all')
+  const restore = useListViewRestore()
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.connectors,
+    restore,
+  )
+  const [keywordInput, setKeywordInput] = usePersistedState(
+    `${listViewKeys.connectors}:keywordInput`,
+    '',
+    restore,
+  )
+  const [keyword, setKeyword] = usePersistedState(
+    `${listViewKeys.connectors}:keyword`,
+    '',
+    restore,
+  )
+  const [connectorType, setConnectorType] = usePersistedState(
+    `${listViewKeys.connectors}:type`,
+    'all',
+    restore,
+  )
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<PushConnector | null>(null)
   const [groupConnector, setGroupConnector] = useState<PushConnector | null>(null)
@@ -67,6 +89,7 @@ export function ConnectorsPage() {
   const remove = useDeletePushConnector()
   const list = connectors.data?.list ?? []
   const total = connectors.data?.total ?? 0
+  useListPaginationClamp(page, pageSize, total, setPage)
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
     name: 220,

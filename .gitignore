@@ -7,3 +7,7 @@
 # UI build output
 /ui/*/node_modules/
 /ui/*/dist/
+
+# Runtime data
+/data/
+/log/

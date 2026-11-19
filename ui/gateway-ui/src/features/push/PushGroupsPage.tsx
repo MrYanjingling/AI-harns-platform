@@ -49,17 +49,39 @@ import { TableActionButton } from '@harns/core'
 import { PushGroupActionsMenu } from './PushGroupActionsMenu'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
 import { PushGroupPayloadDialog } from './PushGroupPayloadDialog'
+import {
+  listViewKeys,
+  useListViewRestore,
+  useListPagination,
+  useListPaginationClamp,
+  usePersistedState,
+} from '@/lib/list-view-state'
 
 type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; group: PushGroup }
 
 export function PushGroupsPage() {
   const { t } = useI18n()
+  const restore = useListViewRestore()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [selectedConnectorId, setSelectedConnectorId] = useState('')
+  const { page, pageSize, setPage, setPageSize } = useListPagination(
+    listViewKeys.pushGroups,
+    restore,
+  )
+  const [keywordInput, setKeywordInput] = usePersistedState(
+    `${listViewKeys.pushGroups}:keywordInput`,
+    '',
+    restore,
+  )
+  const [keyword, setKeyword] = usePersistedState(
+    `${listViewKeys.pushGroups}:keyword`,
+    '',
+    restore,
+  )
+  const [selectedConnectorId, setSelectedConnectorId] = usePersistedState(
+    `${listViewKeys.pushGroups}:connectorId`,
+    '',
+    restore,
+  )
   const focusedGroupId = searchParams.get('groupId') ?? ''
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<PushGroup | null>(null)
@@ -110,6 +132,7 @@ export function PushGroupsPage() {
   )
   const list = groups.data?.list ?? []
   const total = groups.data?.total ?? 0
+  useListPaginationClamp(page, pageSize, total, setPage)
   const noConnectors = !connectors.isLoading && connectorList.length === 0
   const { widths, totalWidth, resize } = useColumnResize({
     order: 80,
