@@ -60,6 +60,11 @@ type ConnectorFactory interface {
 	New(id string, config json.RawMessage) (Connector, error)
 }
 
+// ConnectorConfigNormalizer fills connector defaults before persistence.
+type ConnectorConfigNormalizer interface {
+	Normalize(name string, config json.RawMessage) (json.RawMessage, error)
+}
+
 type ConnectorErrorHandler interface {
 	SetErrorHandler(handler func(error))
 }

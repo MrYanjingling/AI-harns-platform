@@ -14,7 +14,12 @@ import {
   useI18n,
 } from '@harns/core'
 import { useCreatePushConnector, useUpdatePushConnector } from '@/api/hooks'
-import type { MQTTConfig, PushConnector, PushConnectorPayload } from '@/api/types'
+import type {
+  ConnectorConfig,
+  KafkaSASLMechanism,
+  PushConnector,
+  PushConnectorPayload,
+} from '@/api/types'
 
 interface ConnectorForm {
   name: string
@@ -23,8 +28,18 @@ interface ConnectorForm {
   username: string
   password: string
   clientId: string
+  groupId: string
+  saslMechanism: KafkaSASLMechanism
   qos: string
   keepAlive: string
+}
+
+const KAFKA_ID_LETTERS = 'abcdefghijklmnopqrstuvwxyz'
+
+function randomKafkaID(): string {
+  const values = new Uint8Array(6)
+  crypto.getRandomValues(values)
+  return `harns-${Array.from(values, (value) => KAFKA_ID_LETTERS[value % KAFKA_ID_LETTERS.length]).join('')}`
 }
 
 const EMPTY_CONNECTOR: ConnectorForm = {
@@ -34,34 +49,57 @@ const EMPTY_CONNECTOR: ConnectorForm = {
   username: '',
   password: '',
   clientId: '',
+  groupId: '',
+  saslMechanism: 'none',
   qos: '0',
   keepAlive: '60',
 }
 
+const SASL_MECHANISMS: KafkaSASLMechanism[] = ['none', 'plain', 'scram-sha-256', 'scram-sha-512']
+
 function connectorToForm(connector: PushConnector): ConnectorForm {
-  const config = connector.pushConfig ?? ({} as MQTTConfig)
+  const config = connector.pushConfig ?? ({} as ConnectorConfig)
+  const type = connector.type || 'mqtt'
+  const configuredMechanism = config.saslMechanism as KafkaSASLMechanism | undefined
+  const saslMechanism =
+    configuredMechanism && SASL_MECHANISMS.includes(configuredMechanism)
+      ? configuredMechanism
+      : config.username || config.password
+        ? 'plain'
+        : 'none'
   return {
     name: connector.name,
-    type: connector.type || 'mqtt',
+    type,
     brokerUrl: config.brokerUrl ?? '',
     username: config.username ?? '',
     password: config.password ?? '',
-    clientId: config.clientId ?? '',
+    clientId: config.clientId || (type === 'kafka' ? randomKafkaID() : ''),
+    groupId: config.groupId || (type === 'kafka' ? randomKafkaID() : ''),
+    saslMechanism,
     qos: String(config.qos ?? 0),
     keepAlive: String(config.keepAlive ?? 60),
   }
 }
 
 function connectorPayload(form: ConnectorForm): PushConnectorPayload {
-  const config: MQTTConfig = {
+  const config: ConnectorConfig = {
     brokerUrl: form.brokerUrl.trim(),
   }
-  if (form.username.trim()) config.username = form.username.trim()
-  if (form.password.trim()) config.password = form.password.trim()
   if (form.clientId.trim()) config.clientId = form.clientId.trim()
-  config.qos = Number(form.qos)
-  const keepAlive = Number(form.keepAlive)
-  if (Number.isFinite(keepAlive) && keepAlive > 0) config.keepAlive = keepAlive
+  if (form.type === 'kafka') {
+    if (form.groupId.trim()) config.groupId = form.groupId.trim()
+    config.saslMechanism = form.saslMechanism
+    if (form.saslMechanism !== 'none') {
+      if (form.username.trim()) config.username = form.username.trim()
+      if (form.password.trim()) config.password = form.password.trim()
+    }
+  } else {
+    if (form.username.trim()) config.username = form.username.trim()
+    if (form.password.trim()) config.password = form.password.trim()
+    config.qos = Number(form.qos)
+    const keepAlive = Number(form.keepAlive)
+    if (Number.isFinite(keepAlive) && keepAlive > 0) config.keepAlive = keepAlive
+  }
   return { type: form.type, name: form.name.trim(), pushConfig: config }
 }
 
@@ -106,6 +144,17 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
     setForm(connector ? connectorToForm(connector) : EMPTY_CONNECTOR)
     setErrors({})
   }, [open, connector])
+
+  const changeType = (type: string) => {
+    setForm((current) => {
+      const next = { ...current, type }
+      if (type === 'kafka') {
+        if (!next.clientId.trim()) next.clientId = randomKafkaID()
+        if (!next.groupId.trim()) next.groupId = randomKafkaID()
+      }
+      return next
+    })
+  }
 
   const submit = async () => {
     const nextErrors = validateConnector(form, t)
@@ -186,7 +235,7 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
                 { value: 'mqtt', label: 'MQTT' },
                 { value: 'kafka', label: 'KAFKA' },
               ]}
-              onChange={(type) => setForm({ ...form, type })}
+              onChange={changeType}
               ariaLabel={t('gateway.push.field.type')}
               emptyText={t('common.state.empty')}
               searchable
@@ -234,37 +283,85 @@ export function ConnectorFormDialog({ open, connector, onClose }: ConnectorFormD
               onChange={(event) => setForm({ ...form, clientId: event.target.value })}
             />
           </Field>
-          <Field
-            label={t('gateway.push.field.username')}
-            htmlFor="push-connector-username"
-            labelClassName="text-sm"
-            labelWidthClassName="w-[96px]"
-            inline
-          >
-            <Input
-              id="push-connector-username"
-              value={form.username}
-              className="w-full max-w-[240px]"
-              autoComplete="off"
-              onChange={(event) => setForm({ ...form, username: event.target.value })}
-            />
-          </Field>
-          <Field
-            label={t('gateway.push.field.password')}
-            htmlFor="push-connector-password"
-            labelClassName="text-sm"
-            labelWidthClassName="w-[96px]"
-            inline
-          >
-            <Input
-              id="push-connector-password"
-              type="password"
-              className="w-full max-w-[240px]"
-              value={form.password}
-              autoComplete="new-password"
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-            />
-          </Field>
+          {form.type === 'kafka' ? (
+            <>
+              <Field
+                label={t('gateway.push.field.groupId')}
+                htmlFor="push-connector-group-id"
+                labelClassName="text-sm"
+                labelWidthClassName="w-[96px]"
+                inline
+              >
+                <Input
+                  id="push-connector-group-id"
+                  value={form.groupId}
+                  className="w-full max-w-[240px]"
+                  autoComplete="off"
+                  onChange={(event) => setForm({ ...form, groupId: event.target.value })}
+                />
+              </Field>
+              <Field
+                label={t('gateway.push.field.saslMechanism')}
+                htmlFor="push-connector-sasl"
+                labelClassName="text-sm"
+                labelWidthClassName="w-[96px]"
+                inline
+              >
+                <SearchSelect
+                  id="push-connector-sasl"
+                  value={form.saslMechanism}
+                  options={[
+                    { value: 'none', label: t('gateway.push.sasl.none') },
+                    { value: 'plain', label: 'SASL PLAIN' },
+                    { value: 'scram-sha-256', label: 'SASL SCRAM-SHA-256' },
+                    { value: 'scram-sha-512', label: 'SASL SCRAM-SHA-512' },
+                  ]}
+                  onChange={(saslMechanism) =>
+                    setForm({ ...form, saslMechanism: saslMechanism as KafkaSASLMechanism })
+                  }
+                  ariaLabel={t('gateway.push.field.saslMechanism')}
+                  emptyText={t('common.state.empty')}
+                  searchable={false}
+                  className="w-[240px]"
+                />
+              </Field>
+            </>
+          ) : null}
+          {form.type === 'mqtt' || form.saslMechanism !== 'none' ? (
+            <>
+              <Field
+                label={t('gateway.push.field.username')}
+                htmlFor="push-connector-username"
+                labelClassName="text-sm"
+                labelWidthClassName="w-[96px]"
+                inline
+              >
+                <Input
+                  id="push-connector-username"
+                  value={form.username}
+                  className="w-full max-w-[240px]"
+                  autoComplete="off"
+                  onChange={(event) => setForm({ ...form, username: event.target.value })}
+                />
+              </Field>
+              <Field
+                label={t('gateway.push.field.password')}
+                htmlFor="push-connector-password"
+                labelClassName="text-sm"
+                labelWidthClassName="w-[96px]"
+                inline
+              >
+                <Input
+                  id="push-connector-password"
+                  type="password"
+                  className="w-full max-w-[240px]"
+                  value={form.password}
+                  autoComplete="new-password"
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                />
+              </Field>
+            </>
+          ) : null}
           {form.type === 'mqtt' ? (
             <>
           <Field

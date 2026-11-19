@@ -114,19 +114,27 @@ func (s *Service) GetConnector(ctx context.Context, id string) (*v1.ConnectorVo,
 }
 
 func (s *Service) CreateConnector(ctx context.Context, req *v1.CreateConnectorReq) (*v1.ConnectorVo, error) {
-	if err := s.validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
-		return nil, err
-	}
-	now := time.Now().UTC()
 	connectorType := strings.ToLower(strings.TrimSpace(req.Type))
 	if connectorType == "" {
 		connectorType = ConnectorTypeMQTT
 	}
+	pushConfig, err := s.normalizeConnectorConfig(connectorType, req.Name, req.PushConfig)
+	if err != nil {
+		return nil, &validation.ValidationError{Issues: []validation.FieldIssue{{
+			Field: "pushConfig",
+			MsgID: "validate.push_connector_config_invalid",
+			Args:  []interface{}{err.Error()},
+		}}}
+	}
+	if err := s.validateConnectorRequest(connectorType, req.Name, pushConfig); err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
 	item := &ConnectorRecord{
 		ID:          ulid.Make().String(),
 		Type:        connectorType,
 		Name:        strings.TrimSpace(req.Name),
-		PushConfig:  req.PushConfig,
+		PushConfig:  pushConfig,
 		RunState:    ConnectorRunStateRunning,
 		Version:     1,
 		CreatedTime: now,
@@ -149,15 +157,24 @@ func (s *Service) UpdateConnector(ctx context.Context, id string, req *v1.Update
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateConnectorRequest(req.Type, req.Name, req.PushConfig); err != nil {
+	connectorType := strings.ToLower(strings.TrimSpace(req.Type))
+	if connectorType == "" {
+		connectorType = ConnectorTypeMQTT
+	}
+	pushConfig, err := s.normalizeConnectorConfig(connectorType, req.Name, req.PushConfig)
+	if err != nil {
+		return nil, &validation.ValidationError{Issues: []validation.FieldIssue{{
+			Field: "pushConfig",
+			MsgID: "validate.push_connector_config_invalid",
+			Args:  []interface{}{err.Error()},
+		}}}
+	}
+	if err := s.validateConnectorRequest(connectorType, req.Name, pushConfig); err != nil {
 		return nil, err
 	}
-	item.Type = strings.ToLower(strings.TrimSpace(req.Type))
-	if item.Type == "" {
-		item.Type = ConnectorTypeMQTT
-	}
+	item.Type = connectorType
 	item.Name = strings.TrimSpace(req.Name)
-	item.PushConfig = req.PushConfig
+	item.PushConfig = pushConfig
 	item.Version++
 	item.UpdatedTime = time.Now().UTC()
 	if err := s.store.UpdateConnector(ctx, item); err != nil {
@@ -506,6 +523,17 @@ func (s *Service) buildGroup(ctx context.Context, name, connectorID, dataTopic, 
 		CollectionIDs:                collectionIDs,
 		MaxCollectionsPerPushMessage: maxCollections,
 	}, nil
+}
+
+func (s *Service) normalizeConnectorConfig(typ, name string, raw json.RawMessage) (json.RawMessage, error) {
+	factory, ok := s.factories[typ]
+	if !ok {
+		return raw, nil
+	}
+	if normalizer, ok := factory.(ConnectorConfigNormalizer); ok {
+		return normalizer.Normalize(name, raw)
+	}
+	return raw, nil
 }
 
 func (s *Service) validateConnectorRequest(typ, name string, raw json.RawMessage) error {

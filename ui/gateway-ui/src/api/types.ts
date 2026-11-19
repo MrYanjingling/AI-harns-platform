@@ -158,11 +158,15 @@ export interface DriverPayload {
 
 /* ---------------- 推送 ---------------- */
 
+export type KafkaSASLMechanism = 'none' | 'plain' | 'scram-sha-256' | 'scram-sha-512'
+
 export interface ConnectorConfig {
   brokerUrl: string
   username?: string
   password?: string
   clientId?: string
+  groupId?: string
+  saslMechanism?: KafkaSASLMechanism
   qos?: number
   retain?: boolean
   keepAlive?: number
@@ -171,6 +175,7 @@ export interface ConnectorConfig {
 }
 
 export type MQTTConfig = ConnectorConfig
+export type KafkaConfig = ConnectorConfig
 
 export type ConnectorRunState = 'running' | 'stopped'
 export type ConnectorStatus = 'running' | 'stopped' | 'error'

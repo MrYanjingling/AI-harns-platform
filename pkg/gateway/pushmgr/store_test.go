@@ -3,6 +3,7 @@ package pushmgr
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -225,4 +226,56 @@ func TestStopAllStopsGroupsAndConnectors(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ConnectorRunStateStopped, storedGroup.RunState)
 	runtime.Close(ctx)
+}
+
+func TestCreateKafkaConnectorFillsIDs(t *testing.T) {
+	service := newPushTestService(t)
+	ctx := context.Background()
+	connector, err := service.CreateConnector(ctx, &v1.CreateConnectorReq{
+		Type: ConnectorTypeKafka,
+		Name: "kafka-connector",
+		PushConfig: json.RawMessage(`{
+			"brokerUrl":"127.0.0.1:9092",
+			"saslMechanism":"none"
+		}`),
+	})
+	require.NoError(t, err)
+	var config KafkaConfig
+	require.NoError(t, json.Unmarshal(connector.PushConfig, &config))
+	assert.Regexp(t, `^harns-[a-z]{6}$`, config.ClientID)
+	assert.Regexp(t, `^harns-[a-z]{6}$`, config.GroupID)
+	assert.Equal(t, KafkaSASLNone, config.SASLMechanism)
+}
+
+func TestCreateUnreachableKafkaConnectorSavesErrorStatus(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(context.Background()))
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	address := listener.Addr().String()
+	require.NoError(t, listener.Close())
+
+	runtime, err := NewRuntimeManager(&fakeSource{}, "gateway-1", NewKafkaFactory())
+	require.NoError(t, err)
+	service := NewService(store, &fakeSource{}, runtime)
+	connector, err := service.CreateConnector(context.Background(), &v1.CreateConnectorReq{
+		Type: ConnectorTypeKafka,
+		Name: "unreachable",
+		PushConfig: json.RawMessage(`{
+			"brokerUrl":"` + address + `",
+			"saslMechanism":"none"
+		}`),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, ConnectorStatusError, connector.Status)
+	assert.NotEmpty(t, connector.LastError)
+
+	var config KafkaConfig
+	require.NoError(t, json.Unmarshal(connector.PushConfig, &config))
+	assert.Regexp(t, `^harns-[a-z]{6}$`, config.ClientID)
+	assert.Regexp(t, `^harns-[a-z]{6}$`, config.GroupID)
 }
