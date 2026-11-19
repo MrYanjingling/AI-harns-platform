@@ -289,7 +289,7 @@ func (c *S7Collection) readFrame(ctx context.Context, frame *s7Frame) ([]decoded
 		session := client.(*s7Client)
 		traceID := c.traceRequest("read", frame.Request)
 		started := time.Now()
-		response, exchangeErr := session.ask(frame.Request)
+		response, exchangeErr := session.Exchange(ctx, frame.Request)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
@@ -382,7 +382,7 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 		session := client.(*s7Client)
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
-		response, exchangeErr := session.ask(request)
+		response, exchangeErr := session.Exchange(ctx, request)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {

@@ -1,14 +1,18 @@
 package drivermgr
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"debug/elf"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -125,6 +129,9 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateDriverReq) (*v1.Driv
 	if err := validateDriver(req.DriverType, req.Model, req.PluginName, req.Schema); err != nil {
 		return nil, err
 	}
+	if err := s.validateUnique(ctx, "", req.Model, req.PluginName); err != nil {
+		return nil, err
+	}
 	item := &Driver{
 		ID:            ulid.Make().String(),
 		DriverType:    strings.TrimSpace(req.DriverType),
@@ -155,6 +162,9 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateDriverReq
 		return nil, response.ErrDriverBuiltinReadOnly()
 	}
 	if err := validateDriver(req.DriverType, req.Model, req.PluginName, req.Schema); err != nil {
+		return nil, err
+	}
+	if err := s.validateUnique(ctx, item.ID, req.Model, req.PluginName); err != nil {
 		return nil, err
 	}
 	item.DriverType = strings.TrimSpace(req.DriverType)
@@ -193,8 +203,20 @@ func (s *Service) UploadPlugin(ctx context.Context, id, filename string, src io.
 	if err := os.MkdirAll(s.pluginDir, 0o755); err != nil {
 		return nil, response.ErrInternal(err)
 	}
-	target := filepath.Join(s.pluginDir, item.PluginName+".so")
-	temp, err := os.CreateTemp(s.pluginDir, ".plugin-*.tmp")
+	data, err := io.ReadAll(src)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	arch, err := pluginArchitecture(data)
+	if err != nil {
+		return nil, response.ErrDriverInvalid(err.Error())
+	}
+	targetDir := filepath.Join(s.pluginDir, item.PluginName, "linux-"+arch)
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	target := filepath.Join(targetDir, item.PluginName+".so")
+	temp, err := os.CreateTemp(targetDir, ".plugin-*.tmp")
 	if err != nil {
 		return nil, response.ErrInternal(err)
 	}
@@ -203,7 +225,7 @@ func (s *Service) UploadPlugin(ctx context.Context, id, filename string, src io.
 		_ = temp.Close()
 		_ = os.Remove(tempName)
 	}
-	if _, err := io.Copy(temp, src); err != nil {
+	if _, err := temp.Write(data); err != nil {
 		cleanup()
 		return nil, response.ErrInternal(err)
 	}
@@ -216,6 +238,26 @@ func (s *Service) UploadPlugin(ctx context.Context, id, filename string, src io.
 		return nil, response.ErrInternal(err)
 	}
 	return toVo(item), nil
+}
+
+func pluginArchitecture(data []byte) (string, error) {
+	file, err := elf.NewFile(bytes.NewReader(data))
+	if err != nil {
+		return runtime.GOARCH, nil
+	}
+	defer file.Close()
+	switch file.Machine {
+	case elf.EM_X86_64:
+		return "amd64", nil
+	case elf.EM_AARCH64:
+		return "arm64", nil
+	case elf.EM_386:
+		return "386", nil
+	case elf.EM_ARM:
+		return "arm", nil
+	default:
+		return "", fmt.Errorf("unsupported plugin architecture %s", file.Machine)
+	}
 }
 
 // Delete removes a custom driver.
@@ -237,6 +279,42 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 			return response.ErrDriverBuiltinReadOnly()
 		}
 		return response.ErrInternal(err)
+	}
+	return nil
+}
+
+func (s *Service) validateUnique(ctx context.Context, id, model, pluginName string) error {
+	issues := make([]FieldIssue, 0, 2)
+	model = strings.TrimSpace(model)
+	if model != "" {
+		item, err := s.store.GetByModel(ctx, model)
+		switch {
+		case err == nil && item.ID != id:
+			issues = append(issues, FieldIssue{
+				Field: "model",
+				MsgID: "validate.driver_model_exists",
+				Args:  []interface{}{model},
+			})
+		case err != nil && !errors.Is(err, sql.ErrNoRows):
+			return response.ErrInternal(err)
+		}
+	}
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName != "" {
+		item, err := s.store.GetByPluginName(ctx, pluginName)
+		switch {
+		case err == nil && item.ID != id:
+			issues = append(issues, FieldIssue{
+				Field: "pluginName",
+				MsgID: "validate.driver_plugin_name_exists",
+				Args:  []interface{}{pluginName},
+			})
+		case err != nil && !errors.Is(err, sql.ErrNoRows):
+			return response.ErrInternal(err)
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
 	}
 	return nil
 }

@@ -58,6 +58,14 @@ func (s *Service) SetRuntimeManager(runtime *RuntimeManager) {
 	s.runtime = runtime
 }
 
+// RegisterCreateHandler adds one protocol create handler.
+func (s *Service) RegisterCreateHandler(handler collection.CreateHandler) error {
+	if s == nil || s.registry == nil {
+		return fmt.Errorf("collection service registry is nil")
+	}
+	return s.registry.register(handler)
+}
+
 // SetVariableLimitProvider injects the license variable quota provider.
 func (s *Service) SetVariableLimitProvider(provider VariableLimitProvider) {
 	s.variableLimit = provider

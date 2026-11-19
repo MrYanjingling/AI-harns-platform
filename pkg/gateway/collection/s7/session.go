@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/utils/binutil"
 )
 
@@ -76,10 +77,23 @@ func (c *s7Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *s7Client) ask(request []byte) ([]byte, error) {
+func (c *s7Client) Exchange(ctx context.Context, request []byte) ([]byte, error) {
+	if c == nil {
+		return nil, fmt.Errorf("s7 client is nil")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
+	if c.conn == nil || c.closed.Load() {
+		return nil, fmt.Errorf("s7 connection is closed")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(c.timeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := c.conn.SetDeadline(deadline); err != nil {
 		return nil, err
 	}
 	if _, err := c.conn.Write(request); err != nil {
@@ -100,6 +114,8 @@ func (c *s7Client) ask(request []byte) ([]byte, error) {
 	}
 	return response, nil
 }
+
+var _ connpool.Transport = (*s7Client)(nil)
 
 func newCOTPConnectMessage(rack, slot, connectionType uint8) []byte {
 	rackSlotByte := (rack*2)<<4 + slot

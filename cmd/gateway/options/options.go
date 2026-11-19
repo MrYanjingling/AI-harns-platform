@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	stdruntime "runtime"
 	"strings"
 
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
+	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
@@ -20,6 +22,7 @@ import (
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/gatewaymgr"
 	"harns-platform/pkg/gateway/licensemgr"
+	"harns-platform/pkg/gateway/pluginmgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/simulatormgr"
 	"harns-platform/pkg/gateway/sqlite"
@@ -47,6 +50,7 @@ type Options struct {
 	UIDir        string               `json:"ui-dir"`
 	CORS         generic.CORSConfig   `json:"cors"`
 	SQLite       SQLiteOptions        `json:"sqlite"`
+	PluginDir    string               `json:"plugin-dir"`
 	License      LicenseOptions       `json:"license"`
 	baseoptions.BaseOptions
 	// logs.BaseOptions
@@ -58,6 +62,7 @@ const (
 	_defaultConfigFile             = "/etc/gateway/config.yaml"
 	_defaultMaxBodyBytes     int64 = 10 << 20
 	_defaultSQLitePath             = "data/gateway.db"
+	_defaultPluginDir              = "plugins"
 	_defaultUIDir                  = "ui/gateway-ui/dist"
 	_defaultLicensePublicKey       = "etc/gateway/license-public.pem"
 )
@@ -75,6 +80,7 @@ func NewDefaultOptions() *Options {
 		UIDir:        _defaultUIDir,
 		CORS:         generic.DefaultCORSConfig(),
 		SQLite:       SQLiteOptions{Path: _defaultSQLitePath},
+		PluginDir:    _defaultPluginDir,
 		License:      LicenseOptions{PublicKeyFile: _defaultLicensePublicKey},
 		// BaseOptions: logs.NewOptions(),
 	}
@@ -87,6 +93,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
 	fs.StringVarP(&o.KeyFile, "key-file", "", o.KeyFile, "The Key file")
 	fs.StringVar(&o.License.PublicKeyFile, "license-public-key-file", o.License.PublicKeyFile, "License JWT verification public key PEM file")
+	fs.StringVar(&o.PluginDir, "plugin-dir", o.PluginDir, "Custom driver plugin directory")
 }
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
@@ -154,10 +161,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.DB = db
-	pluginDir := ""
-	if storageDir := resolveStorageDirectory(o.SQLite.Path, c.LogFilePath); storageDir != "" {
-		pluginDir = filepath.Join(storageDir, "plugins")
-	}
+	pluginDir := strings.TrimSpace(o.PluginDir)
 	c.DriverMgr = drivermgr.NewService(driverStore, pluginDir)
 	userStore := usermgr.NewStore(db)
 	if err := userStore.Initialize(context.Background()); err != nil {
@@ -207,6 +211,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	}
 	collectionMgr.SetRuntimeManager(runtimeManager)
 	collectionMgr.SetVariableLimitProvider(licenseService)
+	loadCustomDrivers(context.Background(), c.DriverMgr, pluginDir, collectionMgr, runtimeManager)
 	if err := collectionMgr.StartRuntime(context.Background()); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -241,6 +246,43 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil
+}
+
+func loadCustomDrivers(ctx context.Context, drivers *drivermgr.Service, pluginDir string, collections *collectionmgr.Service, runtime *collectionmgr.RuntimeManager) {
+	if drivers == nil || pluginDir == "" {
+		return
+	}
+	items, err := drivers.List(ctx, "")
+	if err != nil {
+		logging.Warnf("Failed to list custom drivers: %v", err)
+		return
+	}
+	for _, item := range items {
+		if item == nil || item.BuiltinDriver || item.PluginName == "" {
+			continue
+		}
+		path := filepath.Join(pluginDir, item.PluginName, "linux-"+stdruntime.GOARCH, item.PluginName+".so")
+		driver, err := pluginmgr.Load(path)
+		if err != nil {
+			logging.Warnf("Failed to load custom driver plugin: driverType=%s driverModel=%s plugin=%s err=%v", item.DriverType, item.Model, item.PluginName, err)
+			continue
+		}
+		descriptor := driver.Descriptor()
+		if descriptor.DriverType != item.DriverType || descriptor.DriverModel != item.Model || descriptor.PluginName != item.PluginName {
+			logging.Warnf("Custom driver plugin descriptor mismatch: driverType=%s driverModel=%s plugin=%s", item.DriverType, item.Model, item.PluginName)
+			continue
+		}
+		factory := custom.NewFactory(item.DriverType, item.Model, driver)
+		if err := collections.RegisterCreateHandler(factory); err != nil {
+			logging.Warnf("Failed to register custom driver create handler: driverType=%s driverModel=%s err=%v", item.DriverType, item.Model, err)
+			continue
+		}
+		if err := runtime.RegisterFactory(factory); err != nil {
+			logging.Warnf("Failed to register custom driver runtime: driverType=%s driverModel=%s err=%v", item.DriverType, item.Model, err)
+			continue
+		}
+		logging.Infof("Loaded custom driver plugin: driverType=%s driverModel=%s plugin=%s path=%s", item.DriverType, item.Model, item.PluginName, path)
+	}
 }
 
 func resolveStorageDirectory(dbPath, logFilePath string) string {

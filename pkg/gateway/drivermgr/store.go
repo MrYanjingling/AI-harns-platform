@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     schema          TEXT NOT NULL DEFAULT '{}',
     plugin_name     TEXT NOT NULL,
     created_time    TEXT NOT NULL,
-    UNIQUE (driver_type, model),
+    UNIQUE (model),
     UNIQUE (plugin_name),
     CHECK (builtin_driver IN (0, 1)),
     CHECK (plugin_name <> '')
@@ -124,6 +124,13 @@ func (s *Store) GetByModel(ctx context.Context, model string) (*Driver, error) {
 	return scanDriver(s.db.QueryRowContext(ctx,
 		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time
 		 FROM drivers WHERE model = ? ORDER BY builtin_driver DESC, id ASC LIMIT 1`, model))
+}
+
+// GetByPluginName returns one driver by plugin name.
+func (s *Store) GetByPluginName(ctx context.Context, pluginName string) (*Driver, error) {
+	return scanDriver(s.db.QueryRowContext(ctx,
+		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time
+		 FROM drivers WHERE plugin_name = ? LIMIT 1`, pluginName))
 }
 
 // Create inserts a custom driver.

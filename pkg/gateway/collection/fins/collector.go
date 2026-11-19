@@ -245,7 +245,7 @@ func (c *Collection) readFrame(ctx context.Context, frame *readFrame) ([]decoded
 		if err != nil {
 			return nil, err
 		}
-		conn, ok := client.(transport)
+		conn, ok := client.(connpool.Transport)
 		if !ok {
 			runtime.pool.Put(client, true)
 			return nil, fmt.Errorf("invalid fins transport type")
@@ -321,7 +321,7 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		if err != nil {
 			return err
 		}
-		conn, ok := client.(transport)
+		conn, ok := client.(connpool.Transport)
 		if !ok {
 			runtime.pool.Put(client, true)
 			return fmt.Errorf("invalid fins transport type")

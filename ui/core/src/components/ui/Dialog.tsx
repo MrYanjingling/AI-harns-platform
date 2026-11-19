@@ -10,6 +10,7 @@ export interface DialogProps {
   onClose: () => void
   title?: ReactNode
   description?: ReactNode
+  headerActions?: ReactNode
   children?: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -59,6 +60,7 @@ export function Dialog({
   onClose,
   title,
   description,
+  headerActions,
   children,
   footer,
   size = 'md',
@@ -156,9 +158,12 @@ export function Dialog({
               <p className="app-dialog-description">{description}</p>
             ) : null}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('components.dialog.close')}>
-            <X className="size-4" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            {headerActions}
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('components.dialog.close')}>
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
         {children ? <div className={cn('px-4 py-3', bodyClassName)}>{children}</div> : null}
         {footer ? (

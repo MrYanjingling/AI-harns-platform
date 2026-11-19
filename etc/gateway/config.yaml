@@ -20,6 +20,10 @@ max-body-bytes: 10485760
 sqlite:
   path: "data/gateway.db"
 
+# Custom driver plugin directory. Keeping this as a relative path places it
+# beside the default data and log directories.
+plugin-dir: "plugins"
+
 # License verification (RS256 JWT signed by the license issuer).
 license:
   # RSA public key PEM used to verify imported licenses (PKIX or PKCS1).

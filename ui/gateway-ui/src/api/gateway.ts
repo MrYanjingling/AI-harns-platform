@@ -254,6 +254,16 @@ export function uploadDriverPlugin(id: string, file: File): Promise<Driver> {
   })
 }
 
+export async function downloadDriverPluginTemplate(id: string): Promise<Blob> {
+  const response = await fetch(`${gatewayBaseUrl()}/drivers/${id}/template`, {
+    headers: gatewayAuthHeaders('application/zip'),
+  })
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
+  return response.blob()
+}
+
 /* ---------------- 推送 ---------------- */
 
 export function listPushConnectors(

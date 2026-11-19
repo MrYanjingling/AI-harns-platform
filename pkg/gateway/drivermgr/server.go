@@ -2,6 +2,7 @@ package drivermgr
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g.POST("", create(svc))
 	g.GET("/schema", getSchema(svc))
 	g.GET("/:id", get(svc))
+	g.GET("/:id/template", exportTemplate(svc))
 	g.PUT("/:id", update(svc))
 	g.DELETE("/:id", deleteDriver(svc))
 	g.POST("/:id/plugin", uploadPlugin(svc))
@@ -107,6 +109,18 @@ func update(svc *Service) gin.HandlerFunc {
 	}
 }
 
+func exportTemplate(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		filename, data, err := svc.ExportTemplate(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+		c.Data(http.StatusOK, "application/zip", data)
+	}
+}
+
 func uploadPlugin(svc *Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const maxPluginSize = 64 << 20
@@ -152,7 +166,7 @@ func writeErr(c *gin.Context, err error) {
 		items := make([]response.ErrorItem, 0, len(validation.Issues))
 		for _, issue := range validation.Issues {
 			items = append(items, response.NewFieldItem(
-				lang, response.ErrCodeDriverInvalid, issue.Field, issue.MsgID))
+				lang, response.ErrCodeDriverInvalid, issue.Field, issue.MsgID, issue.Args...))
 		}
 		response.WriteFieldErrors(c, http.StatusBadRequest, response.ErrCodeDriverInvalid, items)
 		return

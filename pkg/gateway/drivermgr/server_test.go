@@ -1,6 +1,7 @@
 package drivermgr
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"harns-platform/pkg/gateway/drivermgr/v1"
 	"harns-platform/pkg/i18n"
 )
 
@@ -51,6 +53,40 @@ func TestDriverRoutes(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"drivers"`)
 	assert.NotContains(t, rec.Body.String(), `"groups"`)
+}
+
+func TestDriverRoutesReturnDuplicateFieldErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service, _ := newTestService(t)
+	_, err := service.Create(context.Background(), &v1.CreateDriverReq{
+		DriverType: "custom-a",
+		Model:      "shared-model",
+		PluginName: "shared-plugin",
+	})
+	require.NoError(t, err)
+	engine := gin.New()
+	engine.Use(i18n.Middleware())
+	InstallHandler(engine.Group("/api/v1"), service)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drivers",
+		strings.NewReader(`{"driverType":"custom-b","model":"shared-model","pluginName":"another-plugin"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "zh-CN")
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"field":"model"`)
+	assert.Contains(t, rec.Body.String(), `"message":"驱动型号 [shared-model] 已存在。"`)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/drivers",
+		strings.NewReader(`{"driverType":"custom-b","model":"another-model","pluginName":"shared-plugin"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "zh-CN")
+	rec = httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"field":"pluginName"`)
+	assert.Contains(t, rec.Body.String(), `"message":"插件名称 [shared-plugin] 已存在。"`)
 }
 
 func TestDriverRoutesReturnLocalizedFieldErrors(t *testing.T) {

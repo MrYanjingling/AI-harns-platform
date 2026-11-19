@@ -7,15 +7,16 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"harns-platform/pkg/gateway/collection/connpool"
 )
 
 const tcpMagic = "FINS"
 
-type transport interface {
-	Exchange(ctx context.Context, request []byte) ([]byte, error)
-	Available() bool
-	Close() error
-}
+var (
+	_ connpool.Transport = (*tcpTransport)(nil)
+	_ connpool.Transport = (*udpTransport)(nil)
+)
 
 type tcpTransport struct {
 	conn    net.Conn

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -86,7 +87,9 @@ func TestCreateRejectsDuplicateAndInvalidValues(t *testing.T) {
 		PluginName: "another-modbus-tcp",
 	})
 	require.Error(t, err)
-	assert.Equal(t, int(response.ErrCodeDriverConflict), response.ErrorCode(err))
+	var validation *ValidationError
+	require.True(t, errors.As(err, &validation))
+	assert.Equal(t, "model", validation.Issues[0].Field)
 
 	_, err = service.Create(ctx, &v1.CreateDriverReq{
 		DriverType: "modbus",
@@ -94,7 +97,6 @@ func TestCreateRejectsDuplicateAndInvalidValues(t *testing.T) {
 		PluginName: "bad/name",
 	})
 	require.Error(t, err)
-	var validation *ValidationError
 	require.True(t, errors.As(err, &validation))
 	assert.Equal(t, "pluginName", validation.Issues[0].Field)
 
@@ -107,6 +109,46 @@ func TestCreateRejectsDuplicateAndInvalidValues(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.As(err, &validation))
 	assert.Equal(t, "schema", validation.Issues[0].Field)
+}
+
+func TestCreateRejectsDuplicateModelAndPluginName(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := context.Background()
+
+	created, err := service.Create(ctx, &v1.CreateDriverReq{
+		DriverType: "custom-a",
+		Model:      "shared-model",
+		PluginName: "shared-model-plugin",
+	})
+	require.NoError(t, err)
+
+	_, err = service.Create(ctx, &v1.CreateDriverReq{
+		DriverType: "custom-b",
+		Model:      "shared-model",
+		PluginName: "another-plugin",
+	})
+	require.Error(t, err)
+	var validation *ValidationError
+	require.True(t, errors.As(err, &validation))
+	assert.Equal(t, "model", validation.Issues[0].Field)
+
+	_, err = service.Create(ctx, &v1.CreateDriverReq{
+		DriverType: "custom-b",
+		Model:      "another-model",
+		PluginName: "shared-model-plugin",
+	})
+	require.Error(t, err)
+	require.True(t, errors.As(err, &validation))
+	assert.Equal(t, "pluginName", validation.Issues[0].Field)
+
+	_, err = service.Update(ctx, created.ID, &v1.UpdateDriverReq{
+		DriverType: "custom-a",
+		Model:      "modbusTcp",
+		PluginName: "shared-model-plugin",
+	})
+	require.Error(t, err)
+	require.True(t, errors.As(err, &validation))
+	assert.Equal(t, "model", validation.Issues[0].Field)
 }
 
 func TestBuiltinDriverIsReadOnly(t *testing.T) {
@@ -171,7 +213,7 @@ func TestUploadPlugin(t *testing.T) {
 	updated, err := service.UploadPlugin(context.Background(), created.ID, "libdriver.so", strings.NewReader("binary"))
 	require.NoError(t, err)
 	assert.Equal(t, "plugin-target", updated.PluginName)
-	data, err := os.ReadFile(filepath.Join(service.pluginDir, "plugin-target.so"))
+	data, err := os.ReadFile(filepath.Join(service.pluginDir, "plugin-target", "linux-"+runtime.GOARCH, "plugin-target.so"))
 	require.NoError(t, err)
 	assert.Equal(t, "binary", string(data))
 

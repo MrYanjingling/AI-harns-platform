@@ -6,6 +6,7 @@ import "fmt"
 type FieldIssue struct {
 	Field string
 	MsgID string
+	Args  []interface{}
 }
 
 // ValidationError carries field-level driver validation failures.

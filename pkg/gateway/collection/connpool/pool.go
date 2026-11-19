@@ -16,6 +16,12 @@ type Client interface {
 	Close() error
 }
 
+// Transport is one protocol connection that supports a full request/response round trip.
+type Transport interface {
+	Client
+	Exchange(ctx context.Context, request []byte) ([]byte, error)
+}
+
 // Factory creates one already-connected client.
 type Factory func(ctx context.Context) (Client, error)
 

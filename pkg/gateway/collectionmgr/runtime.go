@@ -131,6 +131,7 @@ type RuntimeManager struct {
 	collections sync.Map // collectionID -> *RuntimeCollection
 	hubs        sync.Map // collectionID -> *collection.TraceHub
 	retryStates sync.Map // collectionID -> *retryState
+	factoriesMu sync.RWMutex
 	factories   map[driverKey]collection.CollectorFactory
 	retryPolicy retryPolicy
 
@@ -147,16 +148,26 @@ func NewRuntimeManager(factories ...collection.CollectorFactory) (*RuntimeManage
 		stopCh:      make(chan struct{}),
 	}
 	for _, factory := range factories {
-		if factory == nil {
-			return nil, fmt.Errorf("collector factory is nil")
+		if err := manager.RegisterFactory(factory); err != nil {
+			return nil, err
 		}
-		key := driverKey{driverType: factory.DriverType(), driverModel: factory.DriverModel()}
-		if _, exists := manager.factories[key]; exists {
-			return nil, fmt.Errorf("duplicate collector factory %s/%s", key.driverType, key.driverModel)
-		}
-		manager.factories[key] = factory
 	}
 	return manager, nil
+}
+
+// RegisterFactory adds one collector factory to the runtime registry.
+func (m *RuntimeManager) RegisterFactory(factory collection.CollectorFactory) error {
+	if m == nil || factory == nil {
+		return fmt.Errorf("collector factory is nil")
+	}
+	key := driverKey{driverType: factory.DriverType(), driverModel: factory.DriverModel()}
+	m.factoriesMu.Lock()
+	defer m.factoriesMu.Unlock()
+	if _, exists := m.factories[key]; exists {
+		return fmt.Errorf("duplicate collector factory %s/%s", key.driverType, key.driverModel)
+	}
+	m.factories[key] = factory
+	return nil
 }
 
 // Start starts the unconnected retry loop.
@@ -397,7 +408,9 @@ func (m *RuntimeManager) Close(ctx context.Context) error {
 }
 
 func (m *RuntimeManager) newRuntime(record *CollectionRecord) (*RuntimeCollection, error) {
+	m.factoriesMu.RLock()
 	factory, ok := m.factories[driverKey{driverType: record.DriverType, driverModel: record.DriverModel}]
+	m.factoriesMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("%w: %s/%s", ErrFactoryNotFound, record.DriverType, record.DriverModel)
 	}

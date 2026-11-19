@@ -7,6 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDefaultPluginDirectory(t *testing.T) {
+	assert.Equal(t, "plugins", NewDefaultOptions().PluginDir)
+}
+
 func TestResolveStorageDirectory(t *testing.T) {
 	root := t.TempDir()
 	dbPath := filepath.Join(root, "data", "gateway.db")
