@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { Play, Plus, RefreshCw, RotateCw, Trash2, Upload } from 'lucide-react'
+import { Download, Play, Plus, RefreshCw, RotateCw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -35,7 +35,10 @@ import {
   validateVariableRows,
   type VariableFormValues,
 } from '@/lib/collection-form'
-import { importCollectionVariablesFile } from './collection-variables-excel'
+import {
+  exportCollectionVariablesTemplate,
+  importCollectionVariablesFile,
+} from './collection-variables-excel'
 import { CalculatedVariablesEditor } from './CalculatedVariablesEditor'
 import { VariablesEditor } from './VariablesEditor'
 
@@ -100,6 +103,7 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
   const [originalRows, setOriginalRows] = useState<Map<string, VariableFormValues>>(new Map())
   const [tab, setTab] = useState<VariableTab>('collection')
   const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [singleDelete, setSingleDelete] = useState<{
@@ -351,6 +355,18 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
     setDeleteOpen(true)
   }
 
+  const exportTemplate = async () => {
+    if (!driverSchema) return
+    setExporting(true)
+    try {
+      await exportCollectionVariablesTemplate({ schema: driverSchema, locale, t })
+    } catch (error) {
+      showErrorToast(error)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const importVariables = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
@@ -533,10 +549,21 @@ export function CollectionVariablesDialog({ collection, onClose }: CollectionVar
                     variant="outline"
                     size="sm"
                     loading={importing}
+                    disabled={exporting}
                     icon={<Upload className="size-3.5" />}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {t('gateway.variable.import')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    loading={exporting}
+                    disabled={importing}
+                    icon={<Download className="size-3.5" />}
+                    onClick={() => void exportTemplate()}
+                  >
+                    {t('gateway.variable.exportTemplate')}
                   </Button>
                 </>
               ) : null}
