@@ -9,24 +9,24 @@ type protocolConfig struct {
 	Slot           uint8        `json:"slot"`
 	PDUSize        FlexibleInt  `json:"pduSize"`
 	ConnectionType FlexibleInt  `json:"connectionType"`
-	TCPCount       int          `json:"tcpCount"`
+	Concurrency    int          `json:"concurrency"`
 	LocalTSAP      FlexibleTSAP `json:"localTsap,omitempty"`
 	RemoteTSAP     FlexibleTSAP `json:"remoteTsap,omitempty"`
 }
 
 type s7200ProtocolConfig struct {
-	Location   string       `json:"location"`
-	Port       int          `json:"port"`
-	PDUSize    FlexibleInt  `json:"pduSize"`
-	TCPCount   int          `json:"tcpCount"`
-	LocalTSAP  FlexibleTSAP `json:"localTsap"`
-	RemoteTSAP FlexibleTSAP `json:"remoteTsap"`
+	Location    string       `json:"location"`
+	Port        int          `json:"port"`
+	PDUSize     FlexibleInt  `json:"pduSize"`
+	Concurrency int          `json:"concurrency"`
+	LocalTSAP   FlexibleTSAP `json:"localTsap"`
+	RemoteTSAP  FlexibleTSAP `json:"remoteTsap"`
 }
 
 func (c *S7Collection) ConfigJSON() ([]byte, error) {
-	tcpCount := c.TCPCount
-	if tcpCount == 0 {
-		tcpCount = DefaultTCPCount
+	concurrency := c.Concurrency
+	if concurrency == 0 {
+		concurrency = DefaultConcurrency
 	}
 	pduSize := c.PDUSize
 	if pduSize == 0 {
@@ -46,12 +46,12 @@ func (c *S7Collection) ConfigJSON() ([]byte, error) {
 	}
 	if c.GetDriverModel() == DriverModelS7200 {
 		return json.Marshal(s7200ProtocolConfig{
-			Location:   c.Location,
-			Port:       port,
-			PDUSize:    FlexibleInt(pduSize),
-			TCPCount:   tcpCount,
-			LocalTSAP:  FlexibleTSAP(localTSAP),
-			RemoteTSAP: FlexibleTSAP(remoteTSAP),
+			Location:    c.Location,
+			Port:        port,
+			PDUSize:     FlexibleInt(pduSize),
+			Concurrency: concurrency,
+			LocalTSAP:   FlexibleTSAP(localTSAP),
+			RemoteTSAP:  FlexibleTSAP(remoteTSAP),
 		})
 	}
 	connectionType := c.ConnectionType
@@ -65,7 +65,7 @@ func (c *S7Collection) ConfigJSON() ([]byte, error) {
 		Slot:           c.Slot,
 		PDUSize:        FlexibleInt(pduSize),
 		ConnectionType: FlexibleInt(connectionType),
-		TCPCount:       tcpCount,
+		Concurrency:    concurrency,
 	})
 }
 
@@ -80,7 +80,7 @@ func (c *S7Collection) ApplyConfig(raw []byte) error {
 	c.Slot = config.Slot
 	c.PDUSize = int(config.PDUSize)
 	c.ConnectionType = uint8(config.ConnectionType)
-	c.TCPCount = config.TCPCount
+	c.Concurrency = config.Concurrency
 	c.LocalTSAP = uint16(config.LocalTSAP)
 	c.RemoteTSAP = uint16(config.RemoteTSAP)
 	if c.PDUSize == 0 {
@@ -99,8 +99,8 @@ func (c *S7Collection) ApplyConfig(raw []byte) error {
 	if c.Port == 0 {
 		c.Port = DefaultPort
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 	return nil
 }

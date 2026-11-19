@@ -60,6 +60,11 @@ func (m *Manager) Init(ctx context.Context) error {
 	m.gatewayMeta = meta
 	m.metaMu.Unlock()
 	logging.V(3).InfoS("Gateway metadata loaded", "gatewayId", meta.ID)
+	if percent, err := cpu.Percent(time.Second, false); err == nil && len(percent) > 0 {
+		m.appendCPUSample(percent[0])
+	} else if err != nil {
+		logging.V(2).InfoS("Failed to collect initial gateway cpu info", "err", err)
+	}
 	go m.collectCpu()
 	return nil
 }
@@ -214,15 +219,23 @@ func (m *Manager) collectCpu() {
 		default:
 			percent, err := cpu.Percent(time.Minute, false)
 			if err != nil {
-				logging.V(2).InfoS("Failed to collect gateway cpu info")
+				logging.V(2).InfoS("Failed to collect gateway cpu info", "err", err)
+				continue
 			}
-			m.mux.Lock()
-			if len(m.cpus) < 15 {
-				m.cpus = append(m.cpus, percent[0])
-			} else {
-				m.cpus = append(m.cpus[1:], percent[0])
+			if len(percent) == 0 {
+				continue
 			}
-			m.mux.Unlock()
+			m.appendCPUSample(percent[0])
 		}
 	}
+}
+
+func (m *Manager) appendCPUSample(value float64) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if len(m.cpus) < 15 {
+		m.cpus = append(m.cpus, value)
+		return
+	}
+	m.cpus = append(m.cpus[1:], value)
 }

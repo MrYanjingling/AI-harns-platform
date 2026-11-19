@@ -49,15 +49,15 @@ func (c *ModbusTcpCollection) Connect(ctx context.Context) error {
 	if c == nil {
 		return fmt.Errorf("modbusTcp collector is nil")
 	}
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
-	if c.TCPCount < 1 || c.TCPCount > MaxTCPCount {
+	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: tcpCount must be between 1 and %d", collection.ErrInvalidConfig, MaxTCPCount)
+		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
 	}
 	layout := strings.ToUpper(strings.TrimSpace(c.MemoryLayout))
 	switch layout {
@@ -89,9 +89,9 @@ func (c *ModbusTcpCollection) Connect(ctx context.Context) error {
 	if c.activeBackup && c.BackupLocation != "" {
 		target = c.BackupLocation
 	}
-	pool, err := newNetPool(ctx, target, c.TCPCount)
+	pool, err := newNetPool(ctx, target, c.Concurrency)
 	if err != nil && target == c.Location && c.BackupLocation != "" {
-		pool, err = newNetPool(ctx, c.BackupLocation, c.TCPCount)
+		pool, err = newNetPool(ctx, c.BackupLocation, c.Concurrency)
 		if err == nil {
 			c.activeBackup = true
 		}
@@ -227,16 +227,15 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 	failed := false
 	var cycleErr error
 	for result := range results {
+		for _, item := range result.values {
+			if item.Variable != nil {
+				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
+			}
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
-			}
-			continue
-		}
-		for _, item := range result.values {
-			if item.Variable != nil {
-				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
 	}
@@ -298,7 +297,11 @@ func (c *ModbusTcpCollection) collectFrame(ctx context.Context, frame *wireFrame
 			lastErr = err
 			continue
 		}
-		return modbus.DecodeFrame(frame.frame, payload, c.MemoryLayout)
+		values, err := modbus.DecodeFrame(frame.frame, payload, c.MemoryLayout)
+		if err != nil {
+			return values, err
+		}
+		return values, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("modbusTcp frame failed")
@@ -332,7 +335,7 @@ func (c *ModbusTcpCollection) recordCycleFailure(ctx context.Context) {
 	if activeBackup || c.BackupLocation == "" {
 		return
 	}
-	newPool, err := newNetPool(ctx, c.BackupLocation, c.TCPCount)
+	newPool, err := newNetPool(ctx, c.BackupLocation, c.Concurrency)
 	if err == nil {
 		oldPool := runtime.pool
 		runtime.mu.Lock()
@@ -382,7 +385,7 @@ func (c *ModbusTcpCollection) maybeFailback(ctx context.Context) {
 	if success < failbackSuccessCount {
 		return
 	}
-	newPool, err := newNetPool(ctx, c.Location, c.TCPCount)
+	newPool, err := newNetPool(ctx, c.Location, c.Concurrency)
 	if err == nil {
 		oldPool := runtime.pool
 		runtime.mu.Lock()

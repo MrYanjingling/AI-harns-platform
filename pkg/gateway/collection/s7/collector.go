@@ -52,18 +52,18 @@ func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config 
 }
 
 func (c *S7Collection) Connect(ctx context.Context) error {
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
 	if c.PDUSize == 0 {
 		c.PDUSize = DefaultPDUSize
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
-	if c.TCPCount < 1 || c.TCPCount > MaxTCPCount {
+	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: tcpCount must be between 1 and %d", collection.ErrInvalidConfig, MaxTCPCount)
+		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
 	}
 	if c.PDUSize != 480 && c.PDUSize != 960 {
 		c.SetCollectStatus(collection.CollectStatusError)
@@ -90,7 +90,7 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	calculations, calcErr := collection.CompileCalculations(variables)
-	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
+	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
 		return newS7Client(ctx, c.endpoint(), cotp, c.PDUSize)
 	})
 	if err != nil {
@@ -235,16 +235,15 @@ func (c *S7Collection) poll(ctx context.Context) bool {
 	failed := false
 	var cycleErr error
 	for result := range results {
+		for _, item := range result.values {
+			if item.variable != nil {
+				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
+			}
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
-			}
-			continue
-		}
-		for _, item := range result.values {
-			if item.variable != nil {
-				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
 			}
 		}
 	}
@@ -302,7 +301,11 @@ func (c *S7Collection) readFrame(ctx context.Context, frame *s7Frame) ([]decoded
 			lastErr = err
 			continue
 		}
-		return decodeFrame(frame, payload)
+		values, err := decodeFrame(frame, payload)
+		if err != nil {
+			return values, err
+		}
+		return values, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("s7 frame failed")

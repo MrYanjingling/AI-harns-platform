@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import {
   CircleCheck,
@@ -17,7 +17,6 @@ import {
   I18nProvider,
   mergeMessages,
   NotFoundPage,
-  queryClient,
   registerMessages,
   PreferencesPopover,
   ThemeProvider,
@@ -35,6 +34,20 @@ import { gatewayRoutes } from '@/routes'
 import './index.css'
 
 registerMessages(mergeMessages(coreMessages, gatewayMessages))
+
+const gatewayQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      gcTime: 0,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+})
 
 const sections = createGatewayNav()
 
@@ -122,7 +135,7 @@ function AppToaster() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={gatewayQueryClient}>
       <I18nProvider>
         <ThemeProvider>
           <AuthProvider>

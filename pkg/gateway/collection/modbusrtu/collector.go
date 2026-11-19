@@ -55,7 +55,7 @@ func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config 
 }
 
 func (c *ModbusRtuCollection) Connect(ctx context.Context) error {
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
 	layout := strings.ToUpper(strings.TrimSpace(c.MemoryLayout))
@@ -192,16 +192,15 @@ func (c *ModbusRtuCollection) poll(ctx context.Context) bool {
 	var cycleErr error
 	for _, frame := range runtime.frames {
 		values, err := c.collectFrame(ctx, frame)
+		for _, item := range values {
+			if item.Variable != nil {
+				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
+			}
+		}
 		if err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = err
-			}
-			continue
-		}
-		for _, item := range values {
-			if item.Variable != nil {
-				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
 	}
@@ -254,7 +253,11 @@ func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame
 			lastErr = err
 			continue
 		}
-		return modbus.DecodeFrame(frame.frame, payload, c.MemoryLayout)
+		values, err := modbus.DecodeFrame(frame.frame, payload, c.MemoryLayout)
+		if err != nil {
+			return values, err
+		}
+		return values, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("modbusRtu frame failed")

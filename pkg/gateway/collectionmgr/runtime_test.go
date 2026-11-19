@@ -344,3 +344,23 @@ func TestRuntimeReportsCollectorMetaErrors(t *testing.T) {
 	runtime.Collector.GetCollectionMeta().ReportError(nil)
 	assert.Empty(t, runtime.LastError())
 }
+
+func TestRetryUnconnectedKeepsStateWhileRetrying(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+	runtime, ok := manager.Get("c1")
+	require.True(t, ok)
+	runtime.Collector.SetCollectStatus(collection.CollectStatusStopped)
+
+	state := manager.ensureRetryState("c1")
+	state.mu.Lock()
+	state.retrying = true
+	state.mu.Unlock()
+
+	manager.retryUnconnected()
+
+	_, exists := manager.retryStates.Load("c1")
+	assert.True(t, exists)
+}

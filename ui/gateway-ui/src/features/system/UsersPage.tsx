@@ -57,8 +57,11 @@ export function UsersPage() {
   })
 
   const applySearch = () => {
-    setKeyword(keywordInput.trim())
+    const next = keywordInput.trim()
+    const unchanged = page === 1 && next === keyword
+    setKeyword(next)
     setPage(1)
+    if (unchanged) void users.refetch()
   }
 
   const resetSearch = () => {

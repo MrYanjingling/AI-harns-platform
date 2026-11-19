@@ -136,8 +136,15 @@ export function CollectionPage() {
   )
 
   const applyFilters = () => {
-    setApplied({ ...filters, keyword: filters.keyword.trim() })
+    const next = { ...filters, keyword: filters.keyword.trim() }
+    const unchanged =
+      page === 1 &&
+      next.keyword === applied.keyword &&
+      next.driverType === applied.driverType &&
+      next.driverModel === applied.driverModel
+    setApplied(next)
     setPage(1)
+    if (unchanged) void collections.refetch()
   }
 
   const resetFilters = () => {

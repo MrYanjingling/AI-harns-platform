@@ -341,3 +341,19 @@ func TestBuildFramesMapsVAreaToDB1(t *testing.T) {
 	require.Len(t, frames[0].Items, 1)
 	assert.Equal(t, []byte{0x12, 0x0a, 0x10, 0x02, 0x00, 0x02, 0x00, 0x01, 0x84, 0x00, 0x00, 0x00}, frames[0].Items[0].RequestData)
 }
+
+func TestDecodeFrameKeepsSuccessfulValues(t *testing.T) {
+	frame := &s7Frame{
+		Variables: []*frameVariable{
+			{Variable: &collection.Variable{Name: "a", DataType: "int16"}, Start: 0, Length: 2},
+			{Variable: &collection.Variable{Name: "b", DataType: "int32"}, Start: 4, Length: 4},
+		},
+	}
+	values, err := decodeFrame(frame, []byte{0x00, 0x0A})
+	if err == nil {
+		t.Fatal("expected decode error")
+	}
+	if len(values) != 1 || values[0].variable.Name != "a" || values[0].value != int16(10) {
+		t.Fatalf("unexpected decoded values %+v", values)
+	}
+}

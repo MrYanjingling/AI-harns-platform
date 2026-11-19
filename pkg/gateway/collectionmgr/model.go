@@ -9,17 +9,18 @@ import (
 
 // CollectionRecord is the persisted representation of a collection.
 type CollectionRecord struct {
-	ID               string
-	Name             string
-	Version          string
-	DriverType       string
-	DriverModel      string
-	CollectStatus    string
-	Enable           bool
-	CollectorCycleMs uint64
-	VariableCount    int64
-	ProtocolConfig   json.RawMessage
-	Variables        []*collection.Variable
-	CreatedTime      time.Time
-	UpdatedTime      time.Time
+	ID                     string
+	Name                   string
+	Version                string
+	DriverType             string
+	DriverModel            string
+	CollectStatus          string
+	Enable                 bool
+	CollectorCycleMs       uint64
+	VariableCount          int64
+	CollectedVariableCount int64
+	ProtocolConfig         json.RawMessage
+	Variables              []*collection.Variable
+	CreatedTime            time.Time
+	UpdatedTime            time.Time
 }

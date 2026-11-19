@@ -26,10 +26,11 @@ var openSerialPort = func(location string, mode *serial.Mode) (serialPort, error
 }
 
 type collectorRuntime struct {
-	mu     sync.Mutex
-	frames []*hostlinkFrame
-	calcs  []*collection.Calculation
-	port   serialPort
+	mu      sync.Mutex
+	frames  []*hostlinkFrame
+	calcs   []*collection.Calculation
+	calcErr error
+	port    serialPort
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -40,7 +41,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 	if c == nil {
 		return fmt.Errorf("hostlink collector is nil")
 	}
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
 	if strings.TrimSpace(c.Location) == "" {
@@ -53,12 +54,8 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
-	runtime := &collectorRuntime{frames: frames, calcs: calculations}
+	calculations, calcErr := collection.CompileCalculations(variables)
+	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr}
 	c.runtime = runtime
 	if len(frames) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
@@ -177,16 +174,15 @@ func (c *Collection) poll(ctx context.Context) bool {
 	var cycleErr error
 	for _, frame := range runtime.frames {
 		values, err := c.readFrame(ctx, frame)
+		for _, item := range values {
+			if item.Variable != nil {
+				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
+			}
+		}
 		if err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = err
-			}
-		} else {
-			for _, item := range values {
-				if item.Variable != nil {
-					c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
-				}
 			}
 		}
 		if c.IntervalMs > 0 {
@@ -206,6 +202,11 @@ func (c *Collection) poll(ctx context.Context) bool {
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
@@ -237,8 +238,7 @@ func (c *Collection) readFrame(ctx context.Context, frame *hostlinkFrame) ([]dec
 		}
 		values, err := decodeFrame(frame, parsed)
 		if err != nil {
-			lastErr = err
-			continue
+			return values, err
 		}
 		return values, nil
 	}

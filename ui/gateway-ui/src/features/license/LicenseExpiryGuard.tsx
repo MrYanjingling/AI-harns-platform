@@ -3,13 +3,11 @@ import { CircleAlert } from 'lucide-react'
 import { Button, Dialog, formatDateTime, parseDate, useI18n } from '@harns/core'
 import { useLicense } from '@/api/hooks'
 
-const DAY_MS = 24 * 60 * 60 * 1000
-const CHECK_INTERVAL_MS = 30_000
+const MAX_TIMEOUT_MS = 2_147_483_647
 
 export function LicenseExpiryGuard({ children }: { children: ReactNode }) {
   const { t } = useI18n()
-  const [polling, setPolling] = useState(false)
-  const license = useLicense(polling ? CHECK_INTERVAL_MS : false)
+  const license = useLicense()
   const [open, setOpen] = useState(false)
   const timerRef = useRef<number | undefined>(undefined)
 
@@ -21,44 +19,33 @@ export function LicenseExpiryGuard({ children }: { children: ReactNode }) {
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== undefined) {
-      window.clearInterval(timerRef.current)
+      window.clearTimeout(timerRef.current)
       timerRef.current = undefined
     }
   }, [])
 
-  const startTimer = useCallback(() => {
+  useEffect(() => {
     clearTimer()
-    if (deadlineMs === null) return
-    timerRef.current = window.setInterval(() => {
-      if (Date.now() > deadlineMs) setOpen(true)
-    }, CHECK_INTERVAL_MS)
+    if (deadlineMs === null) {
+      setOpen(false)
+      return
+    }
+    const schedule = () => {
+      const remaining = deadlineMs - Date.now()
+      if (remaining <= 0) {
+        setOpen(true)
+        return
+      }
+      timerRef.current = window.setTimeout(
+        schedule,
+        Math.min(remaining, MAX_TIMEOUT_MS),
+      )
+    }
+    schedule()
+    return clearTimer
   }, [clearTimer, deadlineMs])
 
-  useEffect(() => {
-    if (deadlineMs === null) {
-      setPolling(false)
-      clearTimer()
-      setOpen(false)
-      return
-    }
-    const remaining = deadlineMs - Date.now()
-    setPolling(remaining <= DAY_MS)
-    if (remaining > DAY_MS) {
-      clearTimer()
-      setOpen(false)
-      return
-    }
-    setOpen(remaining <= 0)
-    startTimer()
-    return clearTimer
-  }, [clearTimer, deadlineMs, startTimer])
-
-  const close = () => {
-    setOpen(false)
-    if (deadlineMs !== null && deadlineMs - Date.now() <= DAY_MS) {
-      startTimer()
-    }
-  }
+  const close = () => setOpen(false)
 
   return (
     <>

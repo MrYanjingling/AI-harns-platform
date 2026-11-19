@@ -62,6 +62,9 @@ func (r *CreateReq) Validate() error {
 	if strings.TrimSpace(r.ProtocolConfig.Location) == "" {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.location", MsgID: "validate.collection_field_required", Args: []interface{}{"protocolConfig.location"}})
 	}
+	if r.ProtocolConfig.Concurrency != 0 && (r.ProtocolConfig.Concurrency < 1 || r.ProtocolConfig.Concurrency > MaxConcurrency) {
+		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.concurrency", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.concurrency"}})
+	}
 	if err := collection.NormalizeVariables(r.Variables); err != nil {
 		var validationErr *validation.ValidationError
 		if errors.As(err, &validationErr) {

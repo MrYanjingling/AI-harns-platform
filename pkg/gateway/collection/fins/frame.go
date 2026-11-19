@@ -166,11 +166,15 @@ type decodedValue struct {
 
 func decodeFrame(frame *readFrame, data []byte) ([]decodedValue, error) {
 	values := make([]decodedValue, 0, len(frame.Variables))
+	var firstErr error
 	for _, item := range frame.Variables {
 		parsed := item.Parsed
 		if parsed.isBit {
 			if len(data) == 0 {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value := int(data[0] & 1)
 			if strings.EqualFold(item.Variable.DataType, "bool") {
@@ -183,16 +187,22 @@ func decodeFrame(frame *readFrame, data []byte) ([]decodedValue, error) {
 		base := int(item.Offset) * 2
 		length := int(parsed.length) * 2
 		if base+length > len(data) {
-			return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			}
+			continue
 		}
 		raw := reorder(append([]byte(nil), data[base:base+length]...), parsed.order)
 		value, err := decodeWord(raw, item.Variable.DataType, parsed)
 		if err != nil {
-			return nil, fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+			}
+			continue
 		}
 		values = append(values, decodedValue{Variable: item.Variable, Value: collection.ApplyTransform(value, item.Variable)})
 	}
-	return values, nil
+	return values, firstErr
 }
 
 func decodeWord(data []byte, dataType string, parsed parsedAddress) (any, error) {

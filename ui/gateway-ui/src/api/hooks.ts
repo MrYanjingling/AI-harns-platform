@@ -64,10 +64,6 @@ import type {
 } from './types'
 import { appendOperationLog } from '@/lib/operation-log'
 
-const COLLECTION_POLL_MS = 15_000
-const COLLECTION_DETAIL_POLL_MS = 5_000
-const PUSH_POLL_MS = 15_000
-const RESOURCE_POLL_MS = 15_000
 
 export interface CollectionQueryParams {
   page: number
@@ -97,7 +93,6 @@ export function useCollections(params: CollectionQueryParams) {
   return useQuery({
     queryKey: queryKeys.gateway.collections(params),
     queryFn: () => listCollections(params),
-    refetchInterval: COLLECTION_POLL_MS,
     placeholderData: keepPreviousData,
   })
 }
@@ -107,7 +102,6 @@ export function useCollection(id: string | undefined) {
     queryKey: queryKeys.gateway.collection(id ?? ''),
     queryFn: () => getCollection(id as string),
     enabled: Boolean(id),
-    refetchInterval: COLLECTION_DETAIL_POLL_MS,
   })
 }
 
@@ -116,7 +110,6 @@ export function useCollectionVariables(id: string | undefined, params: PageParam
     queryKey: queryKeys.gateway.variables(id ?? '', params),
     queryFn: () => listCollectionVariables(id as string, params),
     enabled: Boolean(id),
-    refetchInterval: COLLECTION_DETAIL_POLL_MS,
     placeholderData: keepPreviousData,
   })
 }
@@ -363,7 +356,6 @@ export function useDriverGroups() {
   return useQuery({
     queryKey: queryKeys.gateway.driverGroups,
     queryFn: () => listDriverGroups(),
-    staleTime: 60_000,
   })
 }
 
@@ -371,7 +363,6 @@ export function useDriverList() {
   return useQuery({
     queryKey: queryKeys.gateway.drivers,
     queryFn: () => listDriversFlat(),
-    staleTime: 60_000,
   })
 }
 
@@ -380,7 +371,6 @@ export function useDriverSchema(model: string | undefined) {
     queryKey: queryKeys.gateway.driverSchema(model ?? ''),
     queryFn: () => getDriverSchema(model as string),
     enabled: Boolean(model),
-    staleTime: 5 * 60_000,
   })
 }
 
@@ -480,7 +470,6 @@ export function usePushConnectors(params: PushConnectorParams) {
   return useQuery({
     queryKey: queryKeys.gateway.connectors(params),
     queryFn: () => listPushConnectors(params),
-    refetchInterval: PUSH_POLL_MS,
     placeholderData: keepPreviousData,
   })
 }
@@ -490,7 +479,6 @@ export function usePushGroups(params: PushGroupParams, enabled = true) {
     queryKey: queryKeys.gateway.pushGroups(params),
     queryFn: () => listPushGroups(params),
     enabled,
-    refetchInterval: PUSH_POLL_MS,
     placeholderData: keepPreviousData,
   })
 }
@@ -678,7 +666,6 @@ export function useGatewayMeta() {
   return useQuery({
     queryKey: queryKeys.gateway.meta,
     queryFn: getGatewayMeta,
-    refetchInterval: RESOURCE_POLL_MS,
   })
 }
 
@@ -686,15 +673,13 @@ export function useSystemInfo() {
   return useQuery({
     queryKey: queryKeys.gateway.systemInfo,
     queryFn: getSystemInfo,
-    refetchInterval: RESOURCE_POLL_MS,
   })
 }
 
-export function useLicense(refetchInterval: number | false = false) {
+export function useLicense() {
   return useQuery({
     queryKey: queryKeys.gateway.license,
     queryFn: getLicense,
-    refetchInterval,
   })
 }
 
@@ -768,7 +753,6 @@ export function useGatewayCpu() {
   return useQuery({
     queryKey: queryKeys.gateway.cpu,
     queryFn: getGatewayCpu,
-    refetchInterval: RESOURCE_POLL_MS,
   })
 }
 
@@ -776,7 +760,6 @@ export function useGatewayMem() {
   return useQuery({
     queryKey: queryKeys.gateway.mem,
     queryFn: getGatewayMem,
-    refetchInterval: RESOURCE_POLL_MS,
   })
 }
 
@@ -784,6 +767,5 @@ export function useGatewayDisk() {
   return useQuery({
     queryKey: queryKeys.gateway.disk,
     queryFn: getGatewayDisk,
-    refetchInterval: RESOURCE_POLL_MS,
   })
 }

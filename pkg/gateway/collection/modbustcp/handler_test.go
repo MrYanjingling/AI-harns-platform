@@ -39,7 +39,7 @@ func TestCreateHandlerDecodeAndBuild(t *testing.T) {
 	require.NoError(t, json.Unmarshal(config, &configMap))
 	assert.Equal(t, "127.0.0.1:502", configMap["location"])
 	assert.Equal(t, float64(0), configMap["positionAddress"])
-	assert.Equal(t, float64(1), configMap["tcpCount"])
+	assert.Equal(t, float64(1), configMap["concurrency"])
 }
 
 func TestCreateReqValidate(t *testing.T) {

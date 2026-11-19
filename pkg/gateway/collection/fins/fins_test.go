@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -218,5 +219,22 @@ func TestTCPTransportHandshakeAndRead(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestConcurrencyDefaultsAndConfig(t *testing.T) {
+	item, err := NewCollection(&CreateReq{Name: "fins"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Concurrency != DefaultConcurrency {
+		t.Fatalf("unexpected concurrency %d", item.Concurrency)
+	}
+	raw, err := item.ConfigJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"concurrency":1`) {
+		t.Fatalf("unexpected config %s", raw)
 	}
 }

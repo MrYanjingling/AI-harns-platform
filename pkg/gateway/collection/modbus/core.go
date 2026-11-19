@@ -225,6 +225,7 @@ func DataTypeWords(dataType string) (uint16, error) {
 
 func DecodeFrame(frame *Frame, payload []byte, memoryLayout string) ([]DecodedValue, error) {
 	values := make([]DecodedValue, 0, len(frame.Variables))
+	var firstErr error
 	for _, item := range frame.Variables {
 		var (
 			value any
@@ -233,21 +234,30 @@ func DecodeFrame(frame *Frame, payload []byte, memoryLayout string) ([]DecodedVa
 		switch frame.Function {
 		case FunctionReadCoils, FunctionReadDiscreteInputs:
 			if item.Offset >= len(payload) {
-				return nil, fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+				}
+				continue
 			}
 			value = payload[item.Offset] != 0
 		case FunctionReadHoldingRegisters, FunctionReadInputRegisters:
 			if item.Offset+int(item.Words)*2 > len(payload) {
-				return nil, fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+				}
+				continue
 			}
 			value, err = decodeRegister(payload[item.Offset:item.Offset+int(item.Words)*2], item.Variable, memoryLayout)
 			if err != nil {
-				return nil, err
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
 			}
 		}
 		values = append(values, DecodedValue{Variable: item.Variable, Value: collection.ApplyTransform(value, item.Variable)})
 	}
-	return values, nil
+	return values, firstErr
 }
 
 func decodeRegister(data []byte, variable *collection.Variable, memoryLayout string) (any, error) {

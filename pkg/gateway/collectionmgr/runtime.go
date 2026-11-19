@@ -495,6 +495,15 @@ func (m *RuntimeManager) retryUnconnected() {
 			return true
 		}
 		runtime := value.(*RuntimeCollection)
+		if current, ok := m.retryStates.Load(id); ok {
+			state := current.(*retryState)
+			state.mu.Lock()
+			retrying := state.retrying
+			state.mu.Unlock()
+			if retrying {
+				return true
+			}
+		}
 		if runtime.Collector.GetCollectStatus() != collection.CollectStatusUnconnected {
 			m.retryStates.Delete(id)
 			return true

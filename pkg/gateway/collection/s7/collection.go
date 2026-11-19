@@ -17,12 +17,12 @@ const (
 	DriverS7200      = "s7-200"
 
 	DefaultPort           = 102
-	DefaultTCPCount       = 1
+	DefaultConcurrency    = 1
 	DefaultPDUSize        = 480
 	DefaultConnectionType = 1
 	DefaultLocalTSAP      = 0x1000
 	DefaultRemoteTSAP     = 0x1000
-	MaxTCPCount           = 3
+	MaxConcurrency        = 3
 )
 
 // FlexibleInt accepts both JSON numbers and numeric strings.
@@ -95,7 +95,7 @@ type ProtocolConfig struct {
 	Slot           uint8        `json:"slot"`
 	PDUSize        FlexibleInt  `json:"pduSize"`
 	ConnectionType FlexibleInt  `json:"connectionType"`
-	TCPCount       int          `json:"tcpCount"`
+	Concurrency    int          `json:"concurrency"`
 	LocalTSAP      FlexibleTSAP `json:"localTsap,omitempty"`
 	RemoteTSAP     FlexibleTSAP `json:"remoteTsap,omitempty"`
 }
@@ -107,8 +107,8 @@ func (c *ProtocolConfig) Normalize(model string) {
 	if c.PDUSize == 0 {
 		c.PDUSize = DefaultPDUSize
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 	if model == DriverModelS7200 {
 		if c.LocalTSAP == 0 {
@@ -146,7 +146,7 @@ type S7Collection struct {
 	Slot           uint8  `json:"slot"`
 	PDUSize        int    `json:"pduSize"`
 	ConnectionType uint8  `json:"connectionType"`
-	TCPCount       int    `json:"tcpCount"`
+	Concurrency    int    `json:"concurrency"`
 	LocalTSAP      uint16 `json:"localTsap"`
 	RemoteTSAP     uint16 `json:"remoteTsap"`
 
@@ -182,7 +182,7 @@ func newCollection(req *CreateReq, model string) (*S7Collection, error) {
 		Slot:           req.ProtocolConfig.Slot,
 		PDUSize:        int(req.ProtocolConfig.PDUSize),
 		ConnectionType: uint8(req.ProtocolConfig.ConnectionType),
-		TCPCount:       req.ProtocolConfig.TCPCount,
+		Concurrency:    req.ProtocolConfig.Concurrency,
 		LocalTSAP:      uint16(req.ProtocolConfig.LocalTSAP),
 		RemoteTSAP:     uint16(req.ProtocolConfig.RemoteTSAP),
 	}, nil
@@ -198,7 +198,7 @@ func (c *S7Collection) ApplyUpdate(req *UpdateReq) {
 	c.Slot = req.ProtocolConfig.Slot
 	c.PDUSize = int(req.ProtocolConfig.PDUSize)
 	c.ConnectionType = uint8(req.ProtocolConfig.ConnectionType)
-	c.TCPCount = req.ProtocolConfig.TCPCount
+	c.Concurrency = req.ProtocolConfig.Concurrency
 	c.LocalTSAP = uint16(req.ProtocolConfig.LocalTSAP)
 	c.RemoteTSAP = uint16(req.ProtocolConfig.RemoteTSAP)
 }

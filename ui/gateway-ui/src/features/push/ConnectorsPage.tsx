@@ -85,8 +85,11 @@ export function ConnectorsPage() {
   ]
 
   const applySearch = () => {
-    setKeyword(keywordInput.trim())
+    const next = keywordInput.trim()
+    const unchanged = page === 1 && next === keyword
+    setKeyword(next)
     setPage(1)
+    if (unchanged) void connectors.refetch()
   }
 
   const resetSearch = () => {

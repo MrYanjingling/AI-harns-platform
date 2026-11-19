@@ -15,10 +15,14 @@ type decodedValue struct {
 
 func decodeFrame(frame *s7Frame, data []byte) ([]decodedValue, error) {
 	values := make([]decodedValue, 0, len(frame.Variables))
+	var firstErr error
 	for _, item := range frame.Variables {
 		base := int(item.Start)
 		if base >= len(data) {
-			return nil, fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s response offset out of range", item.Variable.Name)
+			}
+			continue
 		}
 		var value any
 		switch strings.ToLower(item.Variable.DataType) {
@@ -31,55 +35,82 @@ func decodeFrame(frame *s7Frame, data []byte) ([]decodedValue, error) {
 			value = (1<<item.Bit)&data[base] != 0
 		case "uint16":
 			if base+2 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = binutil.ParseUint16BigEndian(data[base:])
 		case "int16":
 			if base+2 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = int16(binutil.ParseUint16BigEndian(data[base:]))
 		case "int32":
 			if base+4 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = int32(binutil.ParseUint32BigEndian(data[base:]))
 		case "float32":
 			if base+4 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = binutil.ParseFloat32BigEndian(data[base:])
 		case "int64":
 			if base+8 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = int64(binutil.ParseUint64BigEndian(data[base:]))
 		case "float64":
 			if base+8 > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = binutil.ParseFloat64BigEndian(data[base:])
 		case "string":
 			if base+int(item.Length) > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
 			value = strings.TrimRight(string(data[base:base+int(item.Length)]), "\x00")
 		case "byte_array":
 			if base+int(item.Length) > len(data) {
-				return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+				}
+				continue
 			}
-			values := make([]int, 0, item.Length)
+			byteValues := make([]int, 0, item.Length)
 			for _, b := range data[base : base+int(item.Length)] {
-				values = append(values, int(b))
+				byteValues = append(byteValues, int(b))
 			}
-			value = values
+			value = byteValues
 		default:
-			return nil, fmt.Errorf("variable %s data type %q is not supported", item.Variable.Name, item.Variable.DataType)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s data type %q is not supported", item.Variable.Name, item.Variable.DataType)
+			}
+			continue
 		}
 		values = append(values, decodedValue{
 			variable: item.Variable,
 			value:    collection.ApplyTransform(value, item.Variable),
 		})
 	}
-	return values, nil
+	return values, firstErr
 }

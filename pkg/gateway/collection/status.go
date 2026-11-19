@@ -9,3 +9,9 @@ const (
 	CollectStatusStopped         = "stopped"
 	CollectStatusError           = "error"
 )
+
+// ShouldStopBeforeConnect reports whether the previous runtime is actively running
+// and must be stopped before a new connection attempt.
+func ShouldStopBeforeConnect(status string) bool {
+	return status == CollectStatusCollecting || status == CollectStatusCollectingError
+}

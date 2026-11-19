@@ -9,8 +9,8 @@ const (
 	DriverType  = "modbus"
 	DriverModel = "modbusTcp"
 
-	DefaultTCPCount = 1
-	MaxTCPCount     = 3
+	DefaultConcurrency = 1
+	MaxConcurrency     = 3
 )
 
 // ProtocolConfig contains Modbus TCP protocol fields.
@@ -19,13 +19,13 @@ type ProtocolConfig struct {
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
-	TCPCount        int    `json:"tcpCount"`
+	Concurrency     int    `json:"concurrency"`
 }
 
-// Normalize applies the default TCP connection count.
+// Normalize applies the default concurrency.
 func (c *ProtocolConfig) Normalize() {
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -45,7 +45,7 @@ type ModbusTcpCollection struct {
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
-	TCPCount        int    `json:"tcpCount"`
+	Concurrency     int    `json:"concurrency"`
 
 	runtime      *collectorRuntime
 	activeBackup bool
@@ -75,6 +75,6 @@ func NewCollection(req *CreateReq) (*ModbusTcpCollection, error) {
 		BackupLocation:  req.ProtocolConfig.BackupLocation,
 		MemoryLayout:    req.ProtocolConfig.MemoryLayout,
 		PositionAddress: req.ProtocolConfig.PositionAddress,
-		TCPCount:        req.ProtocolConfig.TCPCount,
+		Concurrency:     req.ProtocolConfig.Concurrency,
 	}, nil
 }

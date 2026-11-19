@@ -211,14 +211,17 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 
 内置采集协议：
 
-- `modbusTcp`：TCP 主备、`tcpCount`、寄存器/线圈批量读取
+- `modbusTcp`：TCP 主备、`concurrency`、寄存器/线圈批量读取
 - `modbusRtu`：串口 RTU，固定单连接
-- `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `tcpCount`
-- `opcUa`：完整 NodeID 地址、批量 Read、`tcpCount`，详情响应密码脱敏
-- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`tcpCount`；支持 `BIT`（读取返回 0/1，反控接受 0/1）、`BOOL`（返回 true/false）、`STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持 `STRING`/`BYTE_ARRAY` 写入
-- `s7-200`（`driverType=s7`）：复用 S7 读写、PDU 分帧、`tcpCount` 和变量类型；不使用 `rack`/`slot`/`connectionType`，改用十六进制字符串 `localTsap`/`remoteTsap`（默认 `0x1000`/`0x1000`）；支持 `V0.0`、`VB0`、`VW0`、`VD0`，其中 V 区映射到 DB1
+- `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `concurrency`
+- `opcUa`：完整 NodeID 地址、批量 Read、`concurrency`，详情响应密码脱敏
+- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`concurrency`；支持 `BIT`（读取返回 0/1，反控接受 0/1）、`BOOL`（返回 true/false）、`STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持 `STRING`/`BYTE_ARRAY` 写入
+- `s7-200`（`driverType=s7`）：复用 S7 读写、PDU 分帧、`concurrency` 和变量类型；不使用 `rack`/`slot`/`connectionType`，改用十六进制字符串 `localTsap`/`remoteTsap`（默认 `0x1000`/`0x1000`）；支持 `V0.0`、`VB0`、`VW0`、`VD0`，其中 V 区映射到 DB1
+- `fins`（`driverType=omron`）：FINS/TCP 或 FINS/UDP 地址，支持 `concurrency` 多连接并发读帧
+- `hostlinkCmode`（`driverType=omron`）：HostLink C-Mode 串口，固定单连接
+- `omronCip`（`driverType=omron`）：EtherNet/IP CIP 符号地址，支持 `concurrency` 多 session 并发读帧
 
-Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp 和 ModbusRtuOverTcp 的 `protocolConfig` 支持 `tcpCount`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
+Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp、ModbusRtuOverTcp、OPC UA、S7、FINS 和 Omron CIP 的 `protocolConfig` 支持 `concurrency`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
 
 更新采集器配置、增加或删除变量不会自动重启运行时，必须显式调用 `POST /api/v1/collections/:id/restart` 或 `start` 后才会按最新配置重建 Collector。`stop` 只暂停当前运行时并关闭连接，不持久化停止状态；停止期间 SSE 保持连接，但反控会被拒绝。
 

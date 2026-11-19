@@ -19,24 +19,24 @@ const (
 	DriverType  = "opcUa"
 	DriverModel = "opcUa"
 
-	DefaultTCPCount = 1
-	MaxTCPCount     = 3
+	DefaultConcurrency = 1
+	MaxConcurrency     = 3
 )
 
 type ProtocolConfig struct {
-	Location string `json:"location"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	TCPCount int    `json:"tcpCount"`
+	Location    string `json:"location"`
+	Port        int    `json:"port"`
+	Username    string `json:"username,omitempty"`
+	Password    string `json:"password,omitempty"`
+	Concurrency int    `json:"concurrency"`
 }
 
 func (c *ProtocolConfig) Normalize() {
 	if c.Port == 0 {
 		c.Port = 4840
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -56,11 +56,11 @@ type UpdateReq struct {
 type OpcUaCollection struct {
 	collection.CollectionMeta
 
-	Location string `json:"location"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	TCPCount int    `json:"tcpCount"`
+	Location    string `json:"location"`
+	Port        int    `json:"port"`
+	Username    string `json:"username,omitempty"`
+	Password    string `json:"password,omitempty"`
+	Concurrency int    `json:"concurrency"`
 
 	runtime *collectorRuntime
 }
@@ -79,11 +79,11 @@ func NewCollection(req *CreateReq) (*OpcUaCollection, error) {
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
 		},
-		Location: req.ProtocolConfig.Location,
-		Port:     req.ProtocolConfig.Port,
-		Username: req.ProtocolConfig.Username,
-		Password: req.ProtocolConfig.Password,
-		TCPCount: req.ProtocolConfig.TCPCount,
+		Location:    req.ProtocolConfig.Location,
+		Port:        req.ProtocolConfig.Port,
+		Username:    req.ProtocolConfig.Username,
+		Password:    req.ProtocolConfig.Password,
+		Concurrency: req.ProtocolConfig.Concurrency,
 	}, nil
 }
 
@@ -99,28 +99,28 @@ func (c *OpcUaCollection) ApplyUpdate(req *UpdateReq) {
 	c.Port = req.ProtocolConfig.Port
 	c.Username = req.ProtocolConfig.Username
 	c.Password = password
-	c.TCPCount = req.ProtocolConfig.TCPCount
+	c.Concurrency = req.ProtocolConfig.Concurrency
 }
 
 type protocolConfig struct {
-	Location string `json:"location"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	TCPCount int    `json:"tcpCount"`
+	Location    string `json:"location"`
+	Port        int    `json:"port"`
+	Username    string `json:"username,omitempty"`
+	Password    string `json:"password,omitempty"`
+	Concurrency int    `json:"concurrency"`
 }
 
 func (c *OpcUaCollection) ConfigJSON() ([]byte, error) {
-	tcpCount := c.TCPCount
-	if tcpCount == 0 {
-		tcpCount = DefaultTCPCount
+	concurrency := c.Concurrency
+	if concurrency == 0 {
+		concurrency = DefaultConcurrency
 	}
 	return json.Marshal(protocolConfig{
-		Location: c.Location,
-		Port:     c.Port,
-		Username: c.Username,
-		Password: c.Password,
-		TCPCount: tcpCount,
+		Location:    c.Location,
+		Port:        c.Port,
+		Username:    c.Username,
+		Password:    c.Password,
+		Concurrency: concurrency,
 	})
 }
 
@@ -133,12 +133,12 @@ func (c *OpcUaCollection) ApplyConfig(raw []byte) error {
 	c.Port = config.Port
 	c.Username = config.Username
 	c.Password = config.Password
-	c.TCPCount = config.TCPCount
+	c.Concurrency = config.Concurrency
 	if c.Port == 0 {
 		c.Port = 4840
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 	return nil
 }
@@ -191,15 +191,15 @@ func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config 
 }
 
 func (c *OpcUaCollection) Connect(ctx context.Context) error {
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
-	if c.TCPCount < 1 || c.TCPCount > MaxTCPCount {
+	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: tcpCount must be between 1 and %d", collection.ErrInvalidConfig, MaxTCPCount)
+		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	batches, err := buildBatches(variables)
@@ -214,7 +214,7 @@ func (c *OpcUaCollection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	pool, err := connpool.NewPool(ctx, c.TCPCount, func(ctx context.Context) (connpool.Client, error) {
+	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
 		return newUAClient(ctx, c.endpoint(), c.Username, c.Password)
 	})
 	if err != nil {
@@ -343,16 +343,15 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 	failed := false
 	var cycleErr error
 	for result := range results {
+		for _, item := range result.values {
+			if item.variable != nil {
+				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
+			}
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
-			}
-			continue
-		}
-		for _, item := range result.values {
-			if item.variable != nil {
-				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
 			}
 		}
 	}
@@ -402,9 +401,12 @@ func (c *OpcUaCollection) readBatch(ctx context.Context, batch *readBatch) ([]de
 			continue
 		}
 		values := make([]decodedValue, 0, len(batch.variables))
+		var batchErr error
 		for i, result := range response.Results {
 			if result == nil || result.Status != ua.StatusOK || result.Value == nil {
-				lastErr = fmt.Errorf("opcUa node %s read failed", batch.variables[i].Address)
+				if batchErr == nil {
+					batchErr = fmt.Errorf("opcUa node %s read failed", batch.variables[i].Address)
+				}
 				continue
 			}
 			values = append(values, decodedValue{
@@ -412,10 +414,7 @@ func (c *OpcUaCollection) readBatch(ctx context.Context, batch *readBatch) ([]de
 				value:    collection.ApplyTransform(result.Value.Value(), batch.variables[i]),
 			})
 		}
-		if lastErr != nil {
-			return nil, lastErr
-		}
-		return values, nil
+		return values, batchErr
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("opcUa batch failed")

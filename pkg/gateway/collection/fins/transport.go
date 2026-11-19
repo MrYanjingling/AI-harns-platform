@@ -13,6 +13,7 @@ const tcpMagic = "FINS"
 
 type transport interface {
 	Exchange(ctx context.Context, request []byte) ([]byte, error)
+	Available() bool
 	Close() error
 }
 
@@ -100,6 +101,12 @@ func (t *tcpTransport) Exchange(ctx context.Context, request []byte) ([]byte, er
 		return nil, fmt.Errorf("fins/tcp data error %d", errorCode)
 	}
 	return payload, nil
+}
+
+func (t *tcpTransport) Available() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.conn != nil
 }
 
 func (t *tcpTransport) Close() error {
@@ -207,6 +214,12 @@ func (t *udpTransport) Exchange(ctx context.Context, request []byte) ([]byte, er
 		return nil, err
 	}
 	return buffer[:length], nil
+}
+
+func (t *udpTransport) Available() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.conn != nil
 }
 
 func (t *udpTransport) Close() error {

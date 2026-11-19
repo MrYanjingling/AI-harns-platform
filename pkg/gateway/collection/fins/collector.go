@@ -8,26 +8,28 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/validation"
 )
 
 const frameRetryCount = 3
 
 type collectorRuntime struct {
-	mu        sync.Mutex
-	frames    []*readFrame
-	calcs     []*collection.Calculation
-	transport transport
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-	started   bool
+	mu      sync.Mutex
+	frames  []*readFrame
+	calcs   []*collection.Calculation
+	calcErr error
+	pool    *connpool.Pool
+	cancel  context.CancelFunc
+	wg      sync.WaitGroup
+	started bool
 }
 
 func (c *Collection) Connect(ctx context.Context) error {
 	if c == nil {
 		return fmt.Errorf("fins collector is nil")
 	}
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
 	if strings.TrimSpace(c.Location) == "" {
@@ -46,6 +48,13 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: maxSize must be between %d and %d", collection.ErrInvalidConfig, MinMaxSize, MaxMaxSize)
 	}
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
+	}
+	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
+		c.SetCollectStatus(collection.CollectStatusError)
+		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
+	}
 	if c.Expires <= 0 {
 		c.Expires = DefaultExpiresMs
 	}
@@ -55,29 +64,25 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
-	runtime := &collectorRuntime{frames: frames, calcs: calculations}
+	calculations, calcErr := collection.CompileCalculations(variables)
+	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr}
 	c.runtime = runtime
 	if len(frames) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
 	timeout := time.Duration(c.Expires) * time.Millisecond
-	var conn transport
-	if c.Transport == TransportUDP {
-		conn, err = newUDPTransport(ctx, c.Location, c.Port, timeout)
-	} else {
-		conn, err = newTCPTransport(ctx, c.endpoint(), timeout)
-	}
+	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
+		if c.Transport == TransportUDP {
+			return newUDPTransport(ctx, c.Location, c.Port, timeout)
+		}
+		return newTCPTransport(ctx, c.endpoint(), timeout)
+	})
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
-	runtime.transport = conn
+	runtime.pool = pool
 	c.SetCollectStatus(collection.CollectStatusStopped)
 	return nil
 }
@@ -98,7 +103,7 @@ func (c *Collection) Start(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	if runtime.transport == nil {
+	if runtime.pool == nil {
 		runtime.mu.Unlock()
 		return fmt.Errorf("fins runtime is not connected")
 	}
@@ -121,18 +126,18 @@ func (c *Collection) Stop(ctx context.Context) error {
 	cancel := runtime.cancel
 	runtime.cancel = nil
 	runtime.started = false
-	conn := runtime.transport
+	pool := runtime.pool
 	runtime.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
 	runtime.wg.Wait()
-	if conn != nil {
-		_ = conn.Close()
+	if pool != nil {
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
-	if runtime.transport == conn {
-		runtime.transport = nil
+	if runtime.pool == pool {
+		runtime.pool = nil
 	}
 	runtime.mu.Unlock()
 	c.SetCollectStatus(collection.CollectStatusStopped)
@@ -168,25 +173,41 @@ func (c *Collection) loop(ctx context.Context) {
 	}
 }
 
+type frameResult struct {
+	values []decodedValue
+	err    error
+}
+
 func (c *Collection) poll(ctx context.Context) bool {
 	runtime := c.runtime
-	if runtime == nil || runtime.transport == nil {
+	if runtime == nil || runtime.pool == nil {
 		return false
 	}
+	results := make(chan frameResult, len(runtime.frames))
+	var wait sync.WaitGroup
+	for _, frame := range runtime.frames {
+		wait.Add(1)
+		go func(item *readFrame) {
+			defer wait.Done()
+			values, err := c.readFrame(ctx, item)
+			results <- frameResult{values: values, err: err}
+		}(frame)
+	}
+	wait.Wait()
+	close(results)
+
 	failed := false
 	var cycleErr error
-	for _, frame := range runtime.frames {
-		values, err := c.readFrame(ctx, frame)
-		if err != nil {
-			failed = true
-			if cycleErr == nil {
-				cycleErr = err
-			}
-			continue
-		}
-		for _, item := range values {
+	for result := range results {
+		for _, item := range result.values {
 			if item.Variable != nil {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
+			}
+		}
+		if result.err != nil {
+			failed = true
+			if cycleErr == nil {
+				cycleErr = result.err
 			}
 		}
 	}
@@ -199,6 +220,11 @@ func (c *Collection) poll(ctx context.Context) bool {
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
@@ -210,15 +236,25 @@ func (c *Collection) poll(ctx context.Context) bool {
 
 func (c *Collection) readFrame(ctx context.Context, frame *readFrame) ([]decodedValue, error) {
 	runtime := c.runtime
-	if runtime == nil || runtime.transport == nil {
+	if runtime == nil || runtime.pool == nil {
 		return nil, fmt.Errorf("fins runtime is not connected")
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
+		client, err := runtime.pool.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		conn, ok := client.(transport)
+		if !ok {
+			runtime.pool.Put(client, true)
+			return nil, fmt.Errorf("invalid fins transport type")
+		}
 		traceID := c.traceRequest("read", frame.Request)
 		started := time.Now()
-		response, err := runtime.transport.Exchange(ctx, frame.Request)
+		response, err := conn.Exchange(ctx, frame.Request)
 		c.traceResponse(traceID, "read", response, started, err)
+		runtime.pool.Put(client, err != nil)
 		if err != nil {
 			lastErr = err
 			continue
@@ -228,7 +264,11 @@ func (c *Collection) readFrame(ctx context.Context, frame *readFrame) ([]decoded
 			lastErr = err
 			continue
 		}
-		return decodeFrame(frame, payload)
+		values, err := decodeFrame(frame, payload)
+		if err != nil {
+			return values, err
+		}
+		return values, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("fins frame failed")
@@ -265,7 +305,7 @@ func (c *Collection) traceResponse(traceID uint64, operation string, data []byte
 
 func (c *Collection) DeliverAction(ctx context.Context, actions []collection.ActionValue) error {
 	runtime := c.runtime
-	if runtime == nil || runtime.transport == nil {
+	if runtime == nil || runtime.pool == nil {
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
 	for _, action := range actions {
@@ -277,10 +317,20 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
+		client, err := runtime.pool.Get(ctx)
+		if err != nil {
+			return err
+		}
+		conn, ok := client.(transport)
+		if !ok {
+			runtime.pool.Put(client, true)
+			return fmt.Errorf("invalid fins transport type")
+		}
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
-		response, exchangeErr := runtime.transport.Exchange(ctx, request)
+		response, exchangeErr := conn.Exchange(ctx, request)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
+		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
 			return exchangeErr
 		}

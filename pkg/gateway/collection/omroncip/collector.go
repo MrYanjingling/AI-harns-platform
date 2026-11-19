@@ -8,16 +8,18 @@ import (
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/validation"
 )
 
 const frameRetryCount = 3
 
 type collectorRuntime struct {
-	mu     sync.Mutex
-	frames []*cipFrame
-	calcs  []*collection.Calculation
-	client *cipClient
+	mu      sync.Mutex
+	frames  []*cipFrame
+	calcs   []*collection.Calculation
+	calcErr error
+	pool    *connpool.Pool
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -28,12 +30,19 @@ func (c *Collection) Connect(ctx context.Context) error {
 	if c == nil {
 		return fmt.Errorf("omron cip collector is nil")
 	}
-	if c.runtime != nil {
+	if c.runtime != nil && collection.ShouldStopBeforeConnect(c.GetCollectStatus()) {
 		_ = c.Stop(ctx)
 	}
 	if strings.TrimSpace(c.Location) == "" {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: location is required", collection.ErrInvalidConfig)
+	}
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
+	}
+	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
+		c.SetCollectStatus(collection.CollectStatusError)
+		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	frames, err := buildReadFrames(variables)
@@ -41,23 +50,21 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	calculations, err := collection.CompileCalculations(variables)
-	if err != nil {
-		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
-	}
-	runtime := &collectorRuntime{frames: frames, calcs: calculations}
+	calculations, calcErr := collection.CompileCalculations(variables)
+	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr}
 	c.runtime = runtime
 	if len(frames) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	client, err := newCIPClient(ctx, c.endpoint(), cipTimeout)
+	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
+		return newCIPClient(ctx, c.endpoint(), cipTimeout)
+	})
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
 	}
-	runtime.client = client
+	runtime.pool = pool
 	c.SetCollectStatus(collection.CollectStatusStopped)
 	return nil
 }
@@ -78,7 +85,7 @@ func (c *Collection) Start(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	if runtime.client == nil {
+	if runtime.pool == nil {
 		runtime.mu.Unlock()
 		return fmt.Errorf("omron cip runtime is not connected")
 	}
@@ -101,18 +108,18 @@ func (c *Collection) Stop(ctx context.Context) error {
 	cancel := runtime.cancel
 	runtime.cancel = nil
 	runtime.started = false
-	client := runtime.client
+	pool := runtime.pool
 	runtime.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
 	runtime.wg.Wait()
-	if client != nil {
-		_ = client.Close()
+	if pool != nil {
+		_ = pool.Close()
 	}
 	runtime.mu.Lock()
-	if runtime.client == client {
-		runtime.client = nil
+	if runtime.pool == pool {
+		runtime.pool = nil
 	}
 	runtime.mu.Unlock()
 	c.SetCollectStatus(collection.CollectStatusStopped)
@@ -148,24 +155,41 @@ func (c *Collection) loop(ctx context.Context) {
 	}
 }
 
+type frameResult struct {
+	values []decodedValue
+	err    error
+}
+
 func (c *Collection) poll(ctx context.Context) bool {
 	runtime := c.runtime
-	if runtime == nil || runtime.client == nil {
+	if runtime == nil || runtime.pool == nil {
 		return false
 	}
+	results := make(chan frameResult, len(runtime.frames))
+	var wait sync.WaitGroup
+	for _, frame := range runtime.frames {
+		wait.Add(1)
+		go func(item *cipFrame) {
+			defer wait.Done()
+			values, err := c.readFrame(ctx, item)
+			results <- frameResult{values: values, err: err}
+		}(frame)
+	}
+	wait.Wait()
+	close(results)
+
 	failed := false
 	var cycleErr error
-	for _, frame := range runtime.frames {
-		values, err := c.readFrame(ctx, frame)
-		for _, item := range values {
+	for result := range results {
+		for _, item := range result.values {
 			if item.Variable != nil {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
-		if err != nil {
+		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
-				cycleErr = err
+				cycleErr = result.err
 			}
 		}
 	}
@@ -178,6 +202,11 @@ func (c *Collection) poll(ctx context.Context) bool {
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
+	if runtime.calcErr != nil {
+		c.GetCollectionMeta().ReportError(runtime.calcErr)
+		c.SetCollectStatus(collection.CollectStatusCollectingError)
+		return true
+	}
 	if err := collection.Calculate(c.GetCollectionMeta(), runtime.calcs); err != nil {
 		c.GetCollectionMeta().ReportError(err)
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
@@ -189,24 +218,30 @@ func (c *Collection) poll(ctx context.Context) bool {
 
 func (c *Collection) readFrame(ctx context.Context, frame *cipFrame) ([]decodedValue, error) {
 	runtime := c.runtime
-	if runtime == nil || runtime.client == nil {
+	if runtime == nil || runtime.pool == nil {
 		return nil, fmt.Errorf("omron cip runtime is not connected")
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
-		response, wireRequest, wireResponse, err := runtime.client.Exchange(ctx, frame.Request)
+		client, err := runtime.pool.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		session, ok := client.(*cipClient)
+		if !ok {
+			runtime.pool.Put(client, true)
+			return nil, fmt.Errorf("invalid omron cip client type")
+		}
+		response, wireRequest, wireResponse, err := session.Exchange(ctx, frame.Request)
 		traceID := c.traceRequest("read", wireRequest)
 		c.traceResponse(traceID, "read", wireResponse, err)
+		runtime.pool.Put(client, err != nil)
 		if err != nil {
 			lastErr = err
 			continue
 		}
 		values, err := decodeFrame(frame, response)
 		if err != nil {
-			lastErr = err
-			if len(values) == 0 {
-				continue
-			}
 			return values, err
 		}
 		return values, nil
@@ -246,7 +281,7 @@ func (c *Collection) traceResponse(traceID uint64, operation string, data []byte
 
 func (c *Collection) DeliverAction(ctx context.Context, actions []collection.ActionValue) error {
 	runtime := c.runtime
-	if runtime == nil || runtime.client == nil {
+	if runtime == nil || runtime.pool == nil {
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
 	for _, action := range actions {
@@ -270,9 +305,19 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		if err != nil {
 			return err
 		}
-		response, wireRequest, wireResponse, exchangeErr := runtime.client.Exchange(ctx, request)
+		client, err := runtime.pool.Get(ctx)
+		if err != nil {
+			return err
+		}
+		session, ok := client.(*cipClient)
+		if !ok {
+			runtime.pool.Put(client, true)
+			return fmt.Errorf("invalid omron cip client type")
+		}
+		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
 		traceID := c.traceRequest("write", wireRequest)
 		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
+		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
 			return exchangeErr
 		}

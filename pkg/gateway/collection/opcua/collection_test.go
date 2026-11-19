@@ -26,7 +26,7 @@ func TestBuildBatchesExcludesCalculatedAndWriteOnly(t *testing.T) {
 
 func TestRedactConfig(t *testing.T) {
 	handler := &CreateHandler{}
-	raw := json.RawMessage(`{"location":"opc.tcp://host","port":4840,"username":"u","password":"secret","tcpCount":1}`)
+	raw := json.RawMessage(`{"location":"opc.tcp://host","port":4840,"username":"u","password":"secret","concurrency":1}`)
 	redacted := handler.RedactConfig(raw)
 	assert.Contains(t, string(redacted), `"password":"***"`)
 	assert.NotContains(t, string(redacted), "secret")

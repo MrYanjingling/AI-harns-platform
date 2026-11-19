@@ -78,7 +78,7 @@ export function OverviewPage() {
       normal: list.filter((item) => item.collectStatus === 'collecting').length,
       groups: groups.data?.total ?? groupList.length,
       normalGroups: groupList.filter((item) => item.status === 'running').length,
-      currentVariables: list.reduce((sum, item) => sum + (item.variableCount ?? 0), 0),
+      currentVariables: list.reduce((sum, item) => sum + (item.collectedVariableCount ?? 0), 0),
     }
   }, [list, collections.data, groupList, groups.data])
 
@@ -104,6 +104,10 @@ export function OverviewPage() {
   const deadline = parseDate(licenseInfo?.softwareRunDeadline)
   const expired = deadline ? deadline.getTime() < Date.now() : false
   const maxVariable = licenseInfo?.maxVariable
+  const lowVariableQuota =
+    typeof maxVariable === 'number' &&
+    maxVariable > 0 &&
+    maxVariable - stats.currentVariables <= maxVariable * 0.1
   const error = collections.error ?? connectors.error ?? groups.error
 
   return (
@@ -189,7 +193,12 @@ export function OverviewPage() {
         />
         <StatCard
           label={t('gateway.overview.stat.connectors')}
-          value={<span className="text-lg">{`${maxVariable ?? '—'}/${stats.currentVariables}`}</span>}
+          value={
+            <span className="text-lg">
+              {maxVariable ?? '—'}/
+              <span className={cn(lowVariableQuota && 'text-warning')}>{stats.currentVariables}</span>
+            </span>
+          }
           icon={<Boxes />}
           variant="summary"
           tone="success"

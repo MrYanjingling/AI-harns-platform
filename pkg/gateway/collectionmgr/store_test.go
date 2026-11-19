@@ -142,12 +142,12 @@ func TestCreateCollectionUsesDriverSchema(t *testing.T) {
 
 	body = `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
-		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD","tcpCount":4},"variables":[]
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD","concurrency":4},"variables":[]
 	}`
 	_, err = service.Create(ctx, []byte(body))
 	require.Error(t, err)
 	require.True(t, errors.As(err, &fieldErr))
-	assert.Equal(t, "protocolConfig.tcpCount", fieldErr.Issues[0].Field)
+	assert.Equal(t, "protocolConfig.concurrency", fieldErr.Issues[0].Field)
 
 	body = `{
 		"driverType":"modbus","driverModel":"modbusTcp","name":"bad-schema",
@@ -212,7 +212,7 @@ func TestOpcUaPasswordIsRedactedFromDetail(t *testing.T) {
 	service, _ := newTestService(t)
 	body := `{
 		"driverType":"opcUa","driverModel":"opcUa","name":"ua-test","collectorCycleMs":1000,
-		"protocolConfig":{"location":"opc.tcp://127.0.0.1","port":4840,"username":"u","password":"secret","tcpCount":1},
+		"protocolConfig":{"location":"opc.tcp://127.0.0.1","port":4840,"username":"u","password":"secret","concurrency":1},
 		"variables":[{"name":"temperature","dataType":"number","address":"ns=2;s=Tag","accessMode":"r"}]
 	}`
 	result, err := service.Create(context.Background(), []byte(body))
@@ -419,7 +419,7 @@ func TestCreateAndUpdateFinsCollection(t *testing.T) {
 		"collectorCycleMs":1000,
 		"protocolConfig":{
 			"location":"127.0.0.1","port":9600,"transport":"udp","type":2,
-			"expires":500,"slidingWindow":1,"maxSize":64
+			"expires":500,"concurrency":1,"maxSize":64
 		},
 		"variables":[{"name":"d100","dataType":"int16","address":"D100","accessMode":"r"}]
 	}`
@@ -434,7 +434,7 @@ func TestCreateAndUpdateFinsCollection(t *testing.T) {
 		"collectorCycleMs":2000,
 		"protocolConfig":{
 			"location":"127.0.0.2","port":9600,"transport":"tcp","type":3,
-			"expires":800,"slidingWindow":2,"maxSize":128
+			"expires":800,"concurrency":2,"maxSize":128
 		}
 	}`
 	updated, err := service.Update(context.Background(), created.ID, []byte(updateBody))

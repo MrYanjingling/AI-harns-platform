@@ -7,20 +7,20 @@ type protocolConfig struct {
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
-	TCPCount        int    `json:"tcpCount"`
+	Concurrency     int    `json:"concurrency"`
 }
 
 func (c *ModbusRtuOverTcpCollection) ConfigJSON() ([]byte, error) {
-	tcpCount := c.TCPCount
-	if tcpCount == 0 {
-		tcpCount = DefaultTCPCount
+	concurrency := c.Concurrency
+	if concurrency == 0 {
+		concurrency = DefaultConcurrency
 	}
 	return json.Marshal(protocolConfig{
 		Location:        c.Location,
 		BackupLocation:  c.BackupLocation,
 		MemoryLayout:    c.MemoryLayout,
 		PositionAddress: c.PositionAddress,
-		TCPCount:        tcpCount,
+		Concurrency:     concurrency,
 	})
 }
 
@@ -33,9 +33,9 @@ func (c *ModbusRtuOverTcpCollection) ApplyConfig(raw []byte) error {
 	c.BackupLocation = config.BackupLocation
 	c.MemoryLayout = config.MemoryLayout
 	c.PositionAddress = config.PositionAddress
-	c.TCPCount = config.TCPCount
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	c.Concurrency = config.Concurrency
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 	return nil
 }

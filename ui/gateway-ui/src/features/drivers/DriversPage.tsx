@@ -77,6 +77,7 @@ export function DriversPage() {
   const applySearch = () => {
     setKeyword(keywordInput.trim())
     setPage(1)
+    void drivers.refetch()
   }
 
   const resetSearch = () => {

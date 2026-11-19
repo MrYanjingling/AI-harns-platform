@@ -195,13 +195,18 @@ const SLAVE_FIELD = {
   required: true,
 }
 
-const TCP_COUNT_FIELD = {
-  name: 'tcpCount',
-  labelZh: 'TCP 连接数',
-  labelEn: 'TCP connections',
-  regex: '^\\d+$',
+const CONCURRENCY_FIELD = {
+  name: 'concurrency',
+  labelZh: '并发数',
+  labelEn: 'Concurrency',
+  regex: '^[1-3]$',
   sort: 7,
-  type: 'input' as const,
+  type: 'select' as const,
+  options: [
+    { value: '1', labelZh: '1', labelEn: '1' },
+    { value: '2', labelZh: '2', labelEn: '2' },
+    { value: '3', labelZh: '3', labelEn: '3' },
+  ],
 }
 
 const POSITION_FIELD = {
@@ -295,6 +300,7 @@ const S7_FIELDS = [
     sort: 8,
     type: 'input' as const,
   },
+  { ...CONCURRENCY_FIELD, sort: 9 },
 ]
 
 const S7_200_FIELDS = [
@@ -326,6 +332,7 @@ const S7_200_FIELDS = [
     sort: 5,
     type: 'input' as const,
   },
+  { ...CONCURRENCY_FIELD, sort: 6 },
 ]
 
 const OPCUA_SCHEMA: DriverSchema = {
@@ -365,6 +372,7 @@ const OPCUA_SCHEMA: DriverSchema = {
         },
       ],
     },
+    { ...CONCURRENCY_FIELD, sort: 6 },
   ],
   variableAddress: {
     labelZh: '节点 ID',
@@ -387,7 +395,7 @@ const MODBUS_TCP_SCHEMA: DriverSchema = {
     LOCATION_FIELD,
     { ...PORT_FIELD, sort: 2, required: true },
     { ...SLAVE_FIELD, sort: 3 },
-    { ...TCP_COUNT_FIELD, sort: 4 },
+    { ...CONCURRENCY_FIELD, sort: 4 },
     MEMORY_LAYOUT,
     { ...POSITION_FIELD, sort: 7 },
   ],
@@ -420,7 +428,7 @@ const MODBUS_RTU_TCP_SCHEMA: DriverSchema = {
     SLAVE_FIELD,
     MEMORY_LAYOUT,
     { ...POSITION_FIELD, sort: 7 },
-    { ...TCP_COUNT_FIELD, sort: 8 },
+    { ...CONCURRENCY_FIELD, sort: 8 },
   ],
   variableAddress: MODBUS_ADDRESS,
   variableDataTypes: MODBUS_TYPES,
@@ -479,12 +487,13 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 5000,
     variableCount: 3,
+    collectedVariableCount: 3,
     modTime: iso(2),
     protocolConfig: {
       location: '192.168.1.10',
       port: 502,
       slave: 1,
-      tcpCount: 1,
+      concurrency: 1,
       memoryLayout: 'ABCD',
       positionAddress: 0,
     },
@@ -499,6 +508,7 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 10000,
     variableCount: 3,
+    collectedVariableCount: 3,
     modTime: iso(4),
     protocolConfig: {
       location: '/dev/ttyS0',
@@ -521,6 +531,7 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 3000,
     variableCount: 3,
+    collectedVariableCount: 3,
     modTime: iso(1),
     protocolConfig: {
       location: '192.168.1.20',
@@ -528,6 +539,7 @@ export const collections: CollectionDetail[] = [
       username: 'operator',
       password: '***',
       securityPolicy: 'None',
+      concurrency: 1,
     },
   },
   {
@@ -541,6 +553,7 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 2000,
     variableCount: 3,
+    collectedVariableCount: 3,
     modTime: iso(6),
     protocolConfig: {
       location: '192.168.1.30',
@@ -551,6 +564,7 @@ export const collections: CollectionDetail[] = [
       pduSize: 480,
       localTsap: 0x1000,
       remoteTsap: 0x1000,
+      concurrency: 1,
     },
   },
   {
@@ -564,11 +578,13 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 5000,
     variableCount: 1,
+    collectedVariableCount: 1,
     modTime: iso(18),
     protocolConfig: {
       location: '192.168.1.21',
       port: 4840,
       securityPolicy: 'None',
+      concurrency: 1,
     },
   },
   {
@@ -581,12 +597,13 @@ export const collections: CollectionDetail[] = [
     enable: false,
     collectorCycleMs: 15000,
     variableCount: 2,
+    collectedVariableCount: 2,
     modTime: iso(45),
     protocolConfig: {
       location: '192.168.1.40',
       port: 502,
       slave: 3,
-      tcpCount: 1,
+      concurrency: 1,
       memoryLayout: 'ABCD',
       positionAddress: 0,
     },
@@ -601,6 +618,7 @@ export const collections: CollectionDetail[] = [
     enable: true,
     collectorCycleMs: 1000,
     variableCount: 0,
+    collectedVariableCount: 0,
     modTime: iso(12),
     protocolConfig: {
       location: '192.168.1.31',
@@ -608,6 +626,7 @@ export const collections: CollectionDetail[] = [
       localTsap: 0x1000,
       remoteTsap: 0x1000,
       pduSize: 480,
+      concurrency: 1,
     },
   },
 ]

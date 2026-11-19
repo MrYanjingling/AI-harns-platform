@@ -9,17 +9,18 @@ import (
 
 // CollectionVo is one collection summary.
 type CollectionVo struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	Version          string    `json:"version"`
-	DriverType       string    `json:"driverType"`
-	DriverModel      string    `json:"driverModel"`
-	CollectStatus    string    `json:"collectStatus"`
-	Enable           bool      `json:"enable"`
-	CollectorCycleMs uint64    `json:"collectorCycleMs"`
-	VariableCount    int64     `json:"variableCount"`
-	LastError        string    `json:"lastError,omitempty"`
-	ModTime          time.Time `json:"modTime"`
+	ID                     string    `json:"id"`
+	Name                   string    `json:"name"`
+	Version                string    `json:"version"`
+	DriverType             string    `json:"driverType"`
+	DriverModel            string    `json:"driverModel"`
+	CollectStatus          string    `json:"collectStatus"`
+	Enable                 bool      `json:"enable"`
+	CollectorCycleMs       uint64    `json:"collectorCycleMs"`
+	VariableCount          int64     `json:"variableCount"`
+	CollectedVariableCount int64     `json:"collectedVariableCount"`
+	LastError              string    `json:"lastError,omitempty"`
+	ModTime                time.Time `json:"modTime"`
 }
 
 // AddVariablesVo is the batch variable add result.

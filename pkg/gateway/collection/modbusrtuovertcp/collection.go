@@ -7,8 +7,8 @@ const (
 	DriverType  = "modbus"
 	DriverModel = "modbusRtuOverTcp"
 
-	DefaultTCPCount = 1
-	MaxTCPCount     = 3
+	DefaultConcurrency = 1
+	MaxConcurrency     = 3
 )
 
 type ProtocolConfig struct {
@@ -16,12 +16,12 @@ type ProtocolConfig struct {
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
-	TCPCount        int    `json:"tcpCount"`
+	Concurrency     int    `json:"concurrency"`
 }
 
 func (c *ProtocolConfig) Normalize() {
-	if c.TCPCount == 0 {
-		c.TCPCount = DefaultTCPCount
+	if c.Concurrency == 0 {
+		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -45,7 +45,7 @@ type ModbusRtuOverTcpCollection struct {
 	BackupLocation  string `json:"backupLocation,omitempty"`
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
-	TCPCount        int    `json:"tcpCount"`
+	Concurrency     int    `json:"concurrency"`
 
 	runtime      *collectorRuntime
 	activeBackup bool
@@ -70,7 +70,7 @@ func NewCollection(req *CreateReq) (*ModbusRtuOverTcpCollection, error) {
 		BackupLocation:  req.ProtocolConfig.BackupLocation,
 		MemoryLayout:    req.ProtocolConfig.MemoryLayout,
 		PositionAddress: req.ProtocolConfig.PositionAddress,
-		TCPCount:        req.ProtocolConfig.TCPCount,
+		Concurrency:     req.ProtocolConfig.Concurrency,
 	}, nil
 }
 
@@ -82,7 +82,7 @@ func (c *ModbusRtuOverTcpCollection) ApplyUpdate(req *UpdateReq) {
 	c.BackupLocation = req.ProtocolConfig.BackupLocation
 	c.MemoryLayout = req.ProtocolConfig.MemoryLayout
 	c.PositionAddress = req.ProtocolConfig.PositionAddress
-	c.TCPCount = req.ProtocolConfig.TCPCount
+	c.Concurrency = req.ProtocolConfig.Concurrency
 }
 
 var _ collection.Collector = (*ModbusRtuOverTcpCollection)(nil)

@@ -93,15 +93,19 @@ func buildReadFrames(variables []*collection.Variable, maxReadWords int) ([]*hos
 
 func decodeFrame(frame *hostlinkFrame, response response) ([]decodedValue, error) {
 	values := make([]decodedValue, 0, len(frame.Variables))
+	var firstErr error
 	if frame.Address.isBit {
 		for _, item := range frame.Variables {
 			value, err := decodeBitValue(response.data, int(item.Offset), item.Variable.DataType)
 			if err != nil {
-				return nil, fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+				}
+				continue
 			}
 			values = append(values, decodedValue{Variable: item.Variable, Value: collection.ApplyTransform(value, item.Variable)})
 		}
-		return values, nil
+		return values, firstErr
 	}
 	raw, err := decodeHexWords(response.data, int(frame.Address.length))
 	if err != nil {
@@ -111,13 +115,19 @@ func decodeFrame(frame *hostlinkFrame, response response) ([]decodedValue, error
 		start := int(item.Offset) * 2
 		length := int(item.Address.length) * 2
 		if start+length > len(raw) {
-			return nil, fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s response is too short", item.Variable.Name)
+			}
+			continue
 		}
 		value, err := decodeWords(raw[start:start+length], item.Address, item.Variable.DataType)
 		if err != nil {
-			return nil, fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("variable %s: %w", item.Variable.Name, err)
+			}
+			continue
 		}
 		values = append(values, decodedValue{Variable: item.Variable, Value: collection.ApplyTransform(value, item.Variable)})
 	}
-	return values, nil
+	return values, firstErr
 }

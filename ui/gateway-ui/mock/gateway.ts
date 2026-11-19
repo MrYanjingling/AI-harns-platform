@@ -490,6 +490,7 @@ export async function handleGateway(
         enable: true,
         collectorCycleMs: cycle,
         variableCount: parsed.length,
+        collectedVariableCount: parsed.filter((item) => !item.isCalculated).length,
         modTime: nowIso(),
         protocolConfig: isObject(body.protocolConfig) ? body.protocolConfig : {},
       }

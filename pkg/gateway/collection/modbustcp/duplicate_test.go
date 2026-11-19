@@ -63,7 +63,7 @@ func TestCollectorCollectsDuplicateAddresses(t *testing.T) {
 			Location:        server.Addr(),
 			MemoryLayout:    "ABCD",
 			PositionAddress: 1,
-			TCPCount:        1,
+			Concurrency:     1,
 		},
 		Variables: variables,
 	})

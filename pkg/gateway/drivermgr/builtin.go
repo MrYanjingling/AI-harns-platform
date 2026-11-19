@@ -101,9 +101,9 @@ const modbusTcpSchema = `{
       ]
     },
     {
-      "name": "tcpCount",
-      "labelZh": "TCP 连接数",
-      "labelEn": "TCP Connections",
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
       "regex": "^[1-3]$",
       "sort": 5,
       "type": "select",
@@ -296,9 +296,9 @@ const modbusRtuOverTcpSchema = `{
       ]
     },
     {
-      "name": "tcpCount",
-      "labelZh": "TCP 连接数",
-      "labelEn": "TCP Connections",
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
       "regex": "^[1-3]$",
       "sort": 5,
       "type": "select",
@@ -390,9 +390,9 @@ const s71500Schema = `{
       ]
     },
     {
-      "name": "tcpCount",
-      "labelZh": "TCP 连接数",
-      "labelEn": "TCP Connections",
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
       "regex": "^[1-3]$",
       "sort": 7,
       "type": "select",
@@ -458,9 +458,9 @@ const s7200Schema = `{
       ]
     },
     {
-      "name": "tcpCount",
-      "labelZh": "TCP 连接数",
-      "labelEn": "TCP Connections",
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
       "regex": "^[1-3]$",
       "sort": 4,
       "type": "select",
@@ -547,9 +547,9 @@ const opcUaSchema = `{
       "type": "input"
     },
     {
-      "name": "tcpCount",
-      "labelZh": "TCP 连接数",
-      "labelEn": "TCP Connections",
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
       "regex": "^[1-3]$",
       "sort": 5,
       "type": "select",
@@ -595,11 +595,24 @@ const finsSchema = `{
       "type": "input"
     },
     {
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
+      "regex": "^[1-3]$",
+      "sort": 3,
+      "type": "select",
+      "options": [
+        {"value":"1","labelZh":"1","labelEn":"1"},
+        {"value":"2","labelZh":"2","labelEn":"2"},
+        {"value":"3","labelZh":"3","labelEn":"3"}
+      ]
+    },
+    {
       "name": "transport",
       "labelZh": "传输方式",
       "labelEn": "Transport",
       "regex": "^(tcp|udp)$",
-      "sort": 3,
+      "sort": 4,
       "type": "select",
       "options": [
         {"value":"tcp","labelZh":"TCP","labelEn":"TCP"},
@@ -611,7 +624,7 @@ const finsSchema = `{
       "labelZh": "PLC 型号",
       "labelEn": "PLC Type",
       "regex": "^[0-7]$",
-      "sort": 4,
+      "sort": 5,
       "type": "select",
       "options": [
         {"value":"0","labelZh":"Other","labelEn":"Other"},
@@ -629,14 +642,6 @@ const finsSchema = `{
       "labelZh": "超时(ms)",
       "labelEn": "Timeout (ms)",
       "regex": "^[1-9][0-9]{0,5}$",
-      "sort": 5,
-      "type": "input"
-    },
-    {
-      "name": "slidingWindow",
-      "labelZh": "并发窗口",
-      "labelEn": "Sliding Window",
-      "regex": "^[1-9][0-9]{0,2}$",
       "sort": 6,
       "type": "input"
     },
@@ -816,6 +821,19 @@ const omronCipSchema = `{
       "regex": "^[0-9]{1,5}$",
       "sort": 2,
       "type": "input"
+    },
+    {
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
+      "regex": "^[1-3]$",
+      "sort": 3,
+      "type": "select",
+      "options": [
+        {"value":"1","labelZh":"1","labelEn":"1"},
+        {"value":"2","labelZh":"2","labelEn":"2"},
+        {"value":"3","labelZh":"3","labelEn":"3"}
+      ]
     }
   ],
   "variableAddress": {

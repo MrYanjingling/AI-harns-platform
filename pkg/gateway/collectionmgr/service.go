@@ -225,10 +225,16 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 		CollectStatus:    meta.CollectStatus,
 		Enable:           true,
 		CollectorCycleMs: meta.CollectorCycleMs,
+		VariableCount:    int64(len(meta.Variables)),
 		ProtocolConfig:   config,
 		Variables:        meta.Variables,
 		CreatedTime:      now,
 		UpdatedTime:      now,
+	}
+	for _, variable := range meta.Variables {
+		if variable != nil && !variable.IsCalculated {
+			record.CollectedVariableCount++
+		}
 	}
 	if err := s.store.Create(ctx, record); err != nil {
 		return nil, err
@@ -909,16 +915,17 @@ func toVariableVo(variable *collection.Variable) *v1.VariableVo {
 
 func toCollectionVo(record *CollectionRecord) *v1.CollectionVo {
 	return &v1.CollectionVo{
-		ID:               record.ID,
-		Name:             record.Name,
-		Version:          record.Version,
-		DriverType:       record.DriverType,
-		DriverModel:      record.DriverModel,
-		CollectStatus:    record.CollectStatus,
-		Enable:           record.Enable,
-		CollectorCycleMs: record.CollectorCycleMs,
-		VariableCount:    record.VariableCount,
-		ModTime:          record.UpdatedTime,
+		ID:                     record.ID,
+		Name:                   record.Name,
+		Version:                record.Version,
+		DriverType:             record.DriverType,
+		DriverModel:            record.DriverModel,
+		CollectStatus:          record.CollectStatus,
+		Enable:                 record.Enable,
+		CollectorCycleMs:       record.CollectorCycleMs,
+		VariableCount:          record.VariableCount,
+		CollectedVariableCount: record.CollectedVariableCount,
+		ModTime:                record.UpdatedTime,
 	}
 }
 

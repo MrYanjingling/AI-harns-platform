@@ -87,7 +87,7 @@ func TestConfigJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original.PositionAddress, restored.PositionAddress)
 }
 
-func TestTCPCountDefaultsToOne(t *testing.T) {
+func TestConcurrencyDefaultsToOne(t *testing.T) {
 	req := &CreateReq{
 		Name:             "modbus-tcp-default",
 		CollectorCycleMs: 1000,
@@ -98,9 +98,9 @@ func TestTCPCountDefaultsToOne(t *testing.T) {
 	}
 	created, err := NewCollection(req)
 	require.NoError(t, err)
-	assert.Equal(t, DefaultTCPCount, created.TCPCount)
+	assert.Equal(t, DefaultConcurrency, created.Concurrency)
 
 	config, err := created.ConfigJSON()
 	require.NoError(t, err)
-	assert.Contains(t, string(config), `"tcpCount":1`)
+	assert.Contains(t, string(config), `"concurrency":1`)
 }

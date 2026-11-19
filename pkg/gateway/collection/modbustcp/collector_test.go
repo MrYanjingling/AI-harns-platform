@@ -160,7 +160,7 @@ func TestCollectorCollectsAndCalculates(t *testing.T) {
 			Location:        server.Addr(),
 			MemoryLayout:    "ABCD",
 			PositionAddress: 1,
-			TCPCount:        1,
+			Concurrency:     1,
 		},
 		Variables: []*collection.Variable{
 			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
@@ -194,7 +194,7 @@ func TestCollectorSwitchesToBackupAfterFailures(t *testing.T) {
 			BackupLocation:  backup.Addr(),
 			MemoryLayout:    "ABCD",
 			PositionAddress: 1,
-			TCPCount:        1,
+			Concurrency:     1,
 		},
 		Variables: []*collection.Variable{
 			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
@@ -225,7 +225,7 @@ func TestCollectorFailbackAfterProbeSuccess(t *testing.T) {
 			BackupLocation:  backup.Addr(),
 			MemoryLayout:    "ABCD",
 			PositionAddress: 1,
-			TCPCount:        1,
+			Concurrency:     1,
 		},
 		Variables: []*collection.Variable{
 			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
@@ -273,7 +273,7 @@ func TestInvalidCalculationKeepsCollectionRunning(t *testing.T) {
 			Location:        server.Addr(),
 			MemoryLayout:    "ABCD",
 			PositionAddress: 1,
-			TCPCount:        1,
+			Concurrency:     1,
 		},
 		Variables: []*collection.Variable{
 			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},

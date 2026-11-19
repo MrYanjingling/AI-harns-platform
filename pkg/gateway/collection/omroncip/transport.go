@@ -136,6 +136,12 @@ func parseRRData(payload []byte) ([]byte, error) {
 	return nil, fmt.Errorf("omron cip send rr data response has no unconnected data")
 }
 
+func (c *cipClient) Available() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn != nil && !c.closed
+}
+
 func (c *cipClient) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()

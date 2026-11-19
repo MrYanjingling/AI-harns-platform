@@ -130,7 +130,7 @@ export function driverModelLabel(model: string): string {
  */
 export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'positionAddress',
-  'tcpCount',
+  'concurrency',
   'baudRate',
   'dataBits',
   'port',
@@ -142,7 +142,6 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'remoteTsap',
   'type',
   'expires',
-  'slidingWindow',
   'maxSize',
   'timeoutMs',
   'intervalMs',

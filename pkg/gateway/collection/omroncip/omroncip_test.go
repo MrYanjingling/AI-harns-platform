@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -233,5 +234,22 @@ func TestMultipleRequestAndResponse(t *testing.T) {
 	}
 	if len(items) != 2 || !bytes.Equal(items[0], response1) || !bytes.Equal(items[1], response2) {
 		t.Fatalf("unexpected items % X", items)
+	}
+}
+
+func TestConcurrencyDefaultsAndConfig(t *testing.T) {
+	item, err := NewCollection(&CreateReq{Name: "omron-cip"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Concurrency != DefaultConcurrency {
+		t.Fatalf("unexpected concurrency %d", item.Concurrency)
+	}
+	raw, err := item.ConfigJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"concurrency":1`) {
+		t.Fatalf("unexpected config %s", raw)
 	}
 }
