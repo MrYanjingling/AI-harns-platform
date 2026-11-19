@@ -132,6 +132,16 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		}
 		return meta.ID, meta.Secret, nil
 	}, o.License.PublicKeyFile)
+	licenseService.SetInitTimeProvider(func(ctx context.Context) (time.Time, error) {
+		meta, err := gatewayMgr.GetGatewayMeta()
+		if err != nil {
+			return time.Time{}, err
+		}
+		if meta == nil {
+			return time.Time{}, fmt.Errorf("gateway metadata is not initialized")
+		}
+		return meta.InitTime, nil
+	})
 	if err := licenseService.Load(context.Background()); err != nil {
 		logging.Warnf("Failed to load persisted license: %v", err)
 	}

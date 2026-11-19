@@ -1,6 +1,5 @@
 import { createElement } from 'react'
 import {
-  Activity,
   Cpu,
   Gauge,
   Info,
@@ -22,7 +21,7 @@ function icon(component: typeof LayoutDashboard) {
   return createElement(component, { className: 'size-4' })
 }
 
-/** 网关侧边栏:7 个一级菜单及其二级菜单。 */
+/** 网关侧边栏:6 个一级菜单及其二级菜单。 */
 export function createGatewayNav(base = ''): NavSection[] {
   return [
     {
@@ -44,18 +43,6 @@ export function createGatewayNav(base = ''): NavSection[] {
           ],
         },
         {
-          labelKey: 'gateway.nav.monitor',
-          icon: icon(Activity),
-          items: [
-            {
-              to: `${base}/monitoring/points`,
-              labelKey: 'gateway.nav.monitor.points',
-              hintKey: 'gateway.nav.monitor.pointsHint',
-              icon: icon(Gauge),
-            },
-          ],
-        },
-        {
           labelKey: 'gateway.nav.collection',
           icon: icon(Radio),
           items: [
@@ -64,6 +51,12 @@ export function createGatewayNav(base = ''): NavSection[] {
               labelKey: 'gateway.nav.collection.instance',
               hintKey: 'gateway.nav.collectionHint',
               icon: icon(ListTree),
+            },
+            {
+              to: `${base}/monitoring/points`,
+              labelKey: 'gateway.nav.monitor.points',
+              hintKey: 'gateway.nav.monitor.pointsHint',
+              icon: icon(Gauge),
             },
           ],
         },

@@ -16,10 +16,14 @@ import (
 // IdentityProvider returns the current gateway id and secret.
 type IdentityProvider func() (gatewayID, secret string, err error)
 
+// InitTimeProvider returns the gateway initialization time.
+type InitTimeProvider func(context.Context) (time.Time, error)
+
 // Service validates licenses and keeps the active license in memory.
 type Service struct {
 	store         *Store
 	identity      IdentityProvider
+	initTime      InitTimeProvider
 	publicKeyFile string
 
 	mu        sync.RWMutex
@@ -33,6 +37,13 @@ func NewService(store *Store, identity IdentityProvider, publicKeyFile string) *
 		store:         store,
 		identity:      identity,
 		publicKeyFile: strings.TrimSpace(publicKeyFile),
+	}
+}
+
+// SetInitTimeProvider sets the gateway initialization time provider.
+func (s *Service) SetInitTimeProvider(provider InitTimeProvider) {
+	if s != nil {
+		s.initTime = provider
 	}
 }
 
@@ -164,10 +175,14 @@ func (s *Service) ensureTrialInfo() *Info {
 }
 
 func (s *Service) loadTrialInfo(ctx context.Context) {
-	initTime, err := s.store.GatewayInitTime(ctx)
-	if err != nil {
-		logging.Warnf("Failed to load gateway init time for trial license: %v", err)
-		initTime = time.Now().UTC()
+	initTime := time.Now().UTC()
+	if s.initTime != nil {
+		value, err := s.initTime(ctx)
+		if err != nil {
+			logging.Warnf("Failed to load gateway init time for trial license: %v", err)
+		} else {
+			initTime = value
+		}
 	}
 	info := &Info{
 		MaxVariable:         DefaultTrialMaxVariable,

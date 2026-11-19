@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 )
 
 const licenseTableSQL = `
@@ -45,23 +44,6 @@ func (s *Store) Get(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return data, nil
-}
-
-// GatewayInitTime returns the persisted gateway initialization time.
-func (s *Store) GatewayInitTime(ctx context.Context) (time.Time, error) {
-	if s == nil || s.db == nil {
-		return time.Time{}, fmt.Errorf("license store database is nil")
-	}
-	var raw string
-	if err := s.db.QueryRowContext(ctx,
-		`SELECT init_time FROM gateway ORDER BY id LIMIT 1`).Scan(&raw); err != nil {
-		return time.Time{}, err
-	}
-	initTime, err := time.Parse(time.RFC3339Nano, raw)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid gateway init_time %q: %w", raw, err)
-	}
-	return initTime, nil
 }
 
 // Save replaces the persisted license data.

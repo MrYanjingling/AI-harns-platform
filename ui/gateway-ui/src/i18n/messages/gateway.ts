@@ -6,8 +6,7 @@ export const gateway = defineMessages({
     'gateway.nav.section': '网关管理',
     'gateway.nav.overview': '概览',
     'gateway.nav.overviewHint': '网关状态、资源占用与最近操作',
-    'gateway.nav.monitor': '数据监控',
-    'gateway.nav.monitor.points': '变量监控',
+    'gateway.nav.monitor.points': '采集监控',
     'gateway.nav.monitor.pointsHint': '查看采集变量的当前值与实时数据',
     'gateway.nav.collection': '采集管理',
     'gateway.nav.collection.instance': '采集实例',
@@ -57,7 +56,7 @@ export const gateway = defineMessages({
 
     /* ---------------- 页面标题 ---------------- */
     'gateway.title.overview': '概览',
-    'gateway.title.monitorPoints': '变量监控',
+    'gateway.title.monitorPoints': '采集监控',
     'gateway.title.frameAnalysis': '报文分析',
     'gateway.title.collection': '采集实例',
     'gateway.title.collectionNew': '新建采集实例',
@@ -108,7 +107,7 @@ export const gateway = defineMessages({
     'gateway.frames.resume': '继续',
     'gateway.frames.clear': '清空',
     'gateway.frames.missingCollection': '缺少采集实例参数',
-    'gateway.frames.backToMonitoring': '返回变量监控',
+    'gateway.frames.backToMonitoring': '返回采集监控',
     'gateway.frames.unsupported': '当前协议不支持报文分析',
     'gateway.frames.unsupportedDescription': 'OPC UA 采集实例暂不支持报文分析。',
     'gateway.frames.info.collection': '采集实例',
@@ -706,8 +705,7 @@ export const gateway = defineMessages({
     'gateway.nav.section': 'Gateway',
     'gateway.nav.overview': 'Overview',
     'gateway.nav.overviewHint': 'Gateway status, resources and recent activity',
-    'gateway.nav.monitor': 'Data monitoring',
-    'gateway.nav.monitor.points': 'Variable monitoring',
+    'gateway.nav.monitor.points': 'Collection monitoring',
     'gateway.nav.monitor.pointsHint': 'View current values and real-time collection data',
     'gateway.nav.collection': 'Collection',
     'gateway.nav.collection.instance': 'Collection instances',
@@ -757,7 +755,7 @@ export const gateway = defineMessages({
 
     /* ---------------- Page titles ---------------- */
     'gateway.title.overview': 'Overview',
-    'gateway.title.monitorPoints': 'Variable monitoring',
+    'gateway.title.monitorPoints': 'Collection monitoring',
     'gateway.title.frameAnalysis': 'Frame analysis',
     'gateway.title.collection': 'Collection instances',
     'gateway.title.collectionNew': 'New collection instance',
@@ -809,7 +807,7 @@ export const gateway = defineMessages({
     'gateway.frames.resume': 'Resume',
     'gateway.frames.clear': 'Clear',
     'gateway.frames.missingCollection': 'Missing collection parameter',
-    'gateway.frames.backToMonitoring': 'Back to variable monitoring',
+    'gateway.frames.backToMonitoring': 'Back to collection monitoring',
     'gateway.frames.unsupported': 'Frame analysis is not supported for this protocol',
     'gateway.frames.unsupportedDescription':
       'Frame analysis is not yet supported for OPC UA collections.',

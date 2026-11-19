@@ -18,6 +18,10 @@ func testIdentity() (string, string, error) {
 	return "gateway-1", "secret-1", nil
 }
 
+func testInitTime() (time.Time, error) {
+	return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), nil
+}
+
 func newTestService(t *testing.T, publicKeyFile string) (*Service, *Store, *sql.DB) {
 	t.Helper()
 	db, err := sqlite.Open(":memory:")
@@ -25,7 +29,9 @@ func newTestService(t *testing.T, publicKeyFile string) (*Service, *Store, *sql.
 	t.Cleanup(func() { _ = db.Close() })
 	store := NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	return NewService(store, testIdentity, publicKeyFile), store, db
+	service := NewService(store, testIdentity, publicKeyFile)
+	service.SetInitTimeProvider(func(context.Context) (time.Time, error) { return testInitTime() })
+	return service, store, db
 }
 
 func TestServiceImportQueryAndLoad(t *testing.T) {
@@ -58,6 +64,7 @@ func TestServiceImportQueryAndLoad(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	reloaded := NewService(store, testIdentity, publicKeyFile(t))
+	reloaded.SetInitTimeProvider(func(context.Context) (time.Time, error) { return testInitTime() })
 	require.NoError(t, reloaded.Load(ctx))
 	reloadedStatus := reloaded.GetStatus()
 	assert.Equal(t, StatusAuthorized, reloadedStatus.Status)
@@ -75,13 +82,9 @@ func TestServiceLoadWithoutLicense(t *testing.T) {
 }
 
 func TestServiceLoadWithoutLicenseUsesTrial(t *testing.T) {
-	svc, _, db := newTestService(t, publicKeyFile(t))
+	svc, _, _ := newTestService(t, publicKeyFile(t))
 	initTime := time.Now().UTC().Add(-time.Hour)
-	_, err := db.Exec(`CREATE TABLE gateway (id TEXT PRIMARY KEY, init_time TEXT NOT NULL)`)
-	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO gateway (id, init_time) VALUES (?, ?)`,
-		"gateway-1", initTime.Format(time.RFC3339Nano))
-	require.NoError(t, err)
+	svc.SetInitTimeProvider(func(context.Context) (time.Time, error) { return initTime, nil })
 
 	require.NoError(t, svc.Load(context.Background()))
 	status := svc.GetStatus()

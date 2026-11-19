@@ -53,18 +53,29 @@ func TestGatewayServiceLoadOrCreate(t *testing.T) {
 	assert.True(t, second.ModTime.After(first.ModTime))
 	assert.Equal(t, first.Secret, second.Secret)
 
-	_, err = store.db.ExecContext(ctx, `UPDATE gateway SET secret = '' WHERE id = ?`, first.ID)
+	stored, err := store.GetMeta(ctx)
 	require.NoError(t, err)
+	stored.Secret = ""
+	require.NoError(t, store.UpdateMeta(ctx, stored))
 	third, err := service.LoadOrCreate(ctx)
 	require.NoError(t, err)
 	assert.Len(t, third.Secret, 64)
 	assert.NotEqual(t, first.Secret, third.Secret)
 
-	_, err = store.db.ExecContext(ctx, `UPDATE gateway SET version = ? WHERE id = ?`, strings.Repeat("a", 40), first.ID)
+	stored, err = store.GetMeta(ctx)
 	require.NoError(t, err)
+	stored.Version = strings.Repeat("a", 40)
+	require.NoError(t, store.UpdateMeta(ctx, stored))
 	fourth, err := service.LoadOrCreate(ctx)
 	require.NoError(t, err)
 	assert.Len(t, fourth.Version, 32)
+
+	var payload []byte
+	require.NoError(t, store.db.QueryRowContext(ctx, `SELECT payload FROM gateway_meta WHERE singleton = 1`).Scan(&payload))
+	assert.NotContains(t, string(payload), fourth.ID)
+	assert.NotContains(t, string(payload), fourth.Secret)
+	assert.NotContains(t, string(payload), fourth.Name)
+	assert.NotContains(t, string(payload), fourth.InitTime.Format(time.RFC3339Nano))
 }
 
 func TestGatewayMetaVoUptimeAndJSON(t *testing.T) {
@@ -123,4 +134,40 @@ func TestGatewayServiceRename(t *testing.T) {
 		require.True(t, errors.As(err, &validationErr), invalid)
 		assert.Equal(t, "name", validationErr.Issues[0].Field)
 	}
+}
+
+func TestGatewayMetaIgnoresLegacyGatewayTable(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	_, err = db.ExecContext(ctx, `CREATE TABLE gateway (id TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL, secret TEXT NOT NULL DEFAULT '', init_time TEXT NOT NULL, mod_time TEXT NOT NULL)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO gateway (id, name, version, secret, init_time, mod_time) VALUES ('old', 'old', 'old', 'old', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+	require.NoError(t, err)
+
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(ctx))
+	exists, err := tableExists(ctx, db, "gateway")
+	require.NoError(t, err)
+	assert.False(t, exists)
+	_, err = store.GetMeta(ctx)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func TestGatewayMetaDecryptFailsForCorruptPayload(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	store := NewStore(db)
+	require.NoError(t, store.Initialize(ctx))
+	service := NewService(store)
+	_, err = service.LoadOrCreate(ctx)
+	require.NoError(t, err)
+
+	_, err = store.db.ExecContext(ctx, `UPDATE gateway_meta SET payload = ? WHERE singleton = 1`, []byte("corrupt"))
+	require.NoError(t, err)
+	_, err = store.GetMeta(ctx)
+	require.Error(t, err)
 }
