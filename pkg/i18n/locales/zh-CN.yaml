@@ -205,6 +205,7 @@ error.system_log_level_invalid: "日志级别 [%s] 无效，仅支持 error、wa
 error.ai_provider_not_found: "AI 模型配置 [%s] 不存在。"
 error.ai_provider_invalid: "AI 模型配置无效：%s。"
 error.ai_token_not_found: "MCP Token [%s] 不存在。"
+error.ai_busy: "AI 请求繁忙，请稍后重试。"
 validate.ai_provider_name_required: "模型配置名称不能为空。"
 validate.ai_provider_protocol_invalid: "接口类型仅支持 openai-compatible 和 anthropic-messages。"
 validate.ai_provider_endpoint_invalid: "接口地址必须是合法的 http/https URL。"

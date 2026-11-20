@@ -205,6 +205,7 @@ error.system_log_level_invalid: "Log level [%s] is invalid. Supported values: er
 error.ai_provider_not_found: "AI provider [%s] not found."
 error.ai_provider_invalid: "Invalid AI provider: %s."
 error.ai_token_not_found: "MCP token [%s] not found."
+error.ai_busy: "The AI service is busy. Please try again later."
 validate.ai_provider_name_required: "Provider name is required."
 validate.ai_provider_protocol_invalid: "Protocol must be openai-compatible or anthropic-messages."
 validate.ai_provider_endpoint_invalid: "Endpoint URL must be a valid http/https URL."

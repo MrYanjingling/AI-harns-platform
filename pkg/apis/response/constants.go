@@ -97,6 +97,7 @@ const (
 	ErrCodeAIProviderNotFound                  // 20029
 	ErrCodeAIProviderInvalid                   // 20030
 	ErrCodeAITokenNotFound                     // 20031
+	ErrCodeAIBusy                              // 20032
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

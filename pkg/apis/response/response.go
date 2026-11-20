@@ -461,6 +461,11 @@ func ErrAITokenNotFound(id string) *responseError {
 	return generateError(ErrCodeAITokenNotFound, id)
 }
 
+// ErrAIBusy reports a generic AI service failure without exposing provider details.
+func ErrAIBusy() *responseError {
+	return generateError(ErrCodeAIBusy)
+}
+
 // ErrCollectionNotFound reports that a collection does not exist.
 func ErrCollectionNotFound(id string) *responseError {
 	return generateError(ErrCodeCollectionNotFound, id)

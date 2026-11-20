@@ -61,14 +61,17 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 	defer logging.Trace("assistant.Chat", "userId", principal.UserID)()
 
 	if s == nil || s.config == nil {
-		return nil, response.ErrInternal(fmt.Errorf("assistant is not configured"))
+		logging.ErrorS(fmt.Errorf("assistant is not configured"), "AI assistant unavailable")
+		return nil, response.ErrAIBusy()
 	}
 	if s.tools == nil {
-		return nil, response.ErrInternal(fmt.Errorf("tool registry is not configured"))
+		logging.ErrorS(fmt.Errorf("tool registry is not configured"), "AI assistant unavailable")
+		return nil, response.ErrAIBusy()
 	}
 	model, err := s.config.RuntimeModel(ctx)
 	if err != nil {
-		return nil, err
+		logging.ErrorS(err, "AI assistant model configuration is invalid")
+		return nil, response.ErrAIBusy()
 	}
 	messages := toChatMessages(req.Messages)
 	if len(messages) == 0 {
@@ -80,7 +83,8 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 	available := s.tools.List()
 	providerTools, toolNames, err := providerToolAliases(available)
 	if err != nil {
-		return nil, response.ErrInternal(err)
+		logging.ErrorS(err, "AI assistant tool registration is invalid")
+		return nil, response.ErrAIBusy()
 	}
 	provider := newProvider(model)
 	toolNamesForPrompt := make([]string, 0, len(providerTools))
@@ -92,19 +96,22 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 		Tools:     toolNamesForPrompt,
 	})
 	if err != nil {
-		return nil, response.ErrInternal(err)
+		logging.ErrorS(err, "AI assistant prompt rendering failed")
+		return nil, response.ErrAIBusy()
 	}
 	usedTools := make([]string, 0)
 
 	for round := 0; round < maxToolRounds; round++ {
 		result, err := provider.Chat(ctx, system, messages, providerTools)
 		if err != nil {
-			return nil, response.ErrAIProviderInvalid(err.Error())
+			logging.ErrorS(err, "AI assistant model request failed")
+			return nil, response.ErrAIBusy()
 		}
 		if len(result.ToolCalls) == 0 {
 			reply := strings.TrimSpace(result.Content)
 			if reply == "" {
-				return nil, response.ErrAIProviderInvalid("model returned an empty response")
+				logging.ErrorS(fmt.Errorf("model returned an empty response"), "AI assistant model request failed")
+				return nil, response.ErrAIBusy()
 			}
 			return &ChatResponse{Reply: reply, Tools: usedTools}, nil
 		}
@@ -134,7 +141,8 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 			})
 		}
 	}
-	return nil, response.ErrAIProviderInvalid("too many tool calls")
+	logging.ErrorS(fmt.Errorf("too many tool calls"), "AI assistant tool loop exceeded")
+	return nil, response.ErrAIBusy()
 }
 
 type aliasedTool struct {
