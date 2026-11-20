@@ -8,6 +8,7 @@ import (
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/ai/tool"
 	"harns-platform/pkg/gateway/usermgr"
+	"harns-platform/pkg/i18n"
 )
 
 // InstallHandler registers the authenticated assistant routes.
@@ -36,7 +37,7 @@ func chat(svc *Service) gin.HandlerFunc {
 			Username: session.Username,
 			IsAdmin:  session.IsAdmin,
 			Source:   "assistant",
-		}, &req)
+		}, i18n.Lang(c), &req)
 		if err != nil {
 			response.WriteError(c, http.StatusBadRequest, err)
 			return

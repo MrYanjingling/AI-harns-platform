@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { Navigate, type RouteObject } from 'react-router-dom'
 import { PagePad } from '@harns/core'
 import { CollectionPage } from '@/features/collection/CollectionPage'
@@ -13,16 +12,9 @@ import { ConnectorsPage } from '@/features/push/ConnectorsPage'
 import { PushGroupsPage } from '@/features/push/PushGroupsPage'
 import { AIAssistantPage } from '@/features/ai/AIAssistantPage'
 import { AIModelsPage } from '@/features/ai/AIModelsPage'
-import { useAuth } from '@/providers/AuthProvider'
 import { AboutPage } from '@/features/system/AboutPage'
 import { ModbusSimulatorPage } from '@/features/simulator/ModbusSimulatorPage'
 import { UsersPage } from '@/features/system/UsersPage'
-
-function AdminOnly({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  if (!user?.isAdmin) return <Navigate to="/404" replace />
-  return <>{children}</>
-}
 
 /** 网关应用路由(相对路径),独立部署在站点根路径。 */
 export const gatewayRoutes: RouteObject[] = [
@@ -95,11 +87,7 @@ export const gatewayRoutes: RouteObject[] = [
       },
       {
         path: 'ai/models',
-        element: (
-          <AdminOnly>
-            <AIModelsPage />
-          </AdminOnly>
-        ),
+        element: <AIModelsPage />,
         handle: { titleKey: 'gateway.title.aiModels' },
       },
       {

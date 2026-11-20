@@ -6,7 +6,6 @@ import {
   Gauge,
   Info,
   LayoutDashboard,
-  MessageCircle,
   ListTree,
   PlugZap,
   Radio,
@@ -26,7 +25,7 @@ function icon(component: typeof LayoutDashboard) {
 }
 
 /** 网关侧边栏:一级菜单及其二级菜单。 */
-export function createGatewayNav(base = '', isAdmin = false): NavSection[] {
+export function createGatewayNav(base = ''): NavSection[] {
   return [
     {
       key: 'gateway',
@@ -124,21 +123,11 @@ export function createGatewayNav(base = '', isAdmin = false): NavSection[] {
           icon: icon(Sparkles),
           items: [
             {
-              to: `${base}/ai/assistant`,
-              labelKey: 'gateway.nav.ai.assistant',
-              hintKey: 'gateway.nav.ai.assistantHint',
-              icon: icon(MessageCircle),
+              to: `${base}/ai/models`,
+              labelKey: 'gateway.nav.ai.models',
+              hintKey: 'gateway.nav.ai.modelsHint',
+              icon: icon(Bot),
             },
-            ...(isAdmin
-              ? [
-                  {
-                    to: `${base}/ai/models`,
-                    labelKey: 'gateway.nav.ai.models',
-                    hintKey: 'gateway.nav.ai.modelsHint',
-                    icon: icon(Bot),
-                  },
-                ]
-              : []),
           ],
         },
         {

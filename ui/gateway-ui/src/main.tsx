@@ -1,4 +1,4 @@
-import { StrictMode, useMemo } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
@@ -30,7 +30,7 @@ import { AIAssistant } from '@/features/ai/AIAssistant'
 import { LicenseExpiryGuard } from '@/features/license/LicenseExpiryGuard'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
-import { AuthProvider, useAuth } from '@/providers/AuthProvider'
+import { AuthProvider } from '@/providers/AuthProvider'
 import { gatewayRoutes } from '@/routes'
 import './index.css'
 
@@ -63,9 +63,9 @@ function GatewaySidebarVersion() {
   )
 }
 
+const sections = createGatewayNav()
+
 function GatewayShell() {
-  const { user } = useAuth()
-  const sections = useMemo(() => createGatewayNav('', Boolean(user?.isAdmin)), [user?.isAdmin])
   return (
     <AppShell
       sections={sections}

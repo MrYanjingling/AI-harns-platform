@@ -57,7 +57,7 @@ func NewService(config *aimgr.Service, tools *tool.Registry) *Service {
 }
 
 // Chat runs one assistant conversation turn.
-func (s *Service) Chat(ctx context.Context, principal tool.Principal, req *ChatRequest) (*ChatResponse, error) {
+func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang string, req *ChatRequest) (*ChatResponse, error) {
 	defer logging.Trace("assistant.Chat", "userId", principal.UserID)()
 
 	if s == nil || s.config == nil {
@@ -83,7 +83,17 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, req *ChatR
 		return nil, response.ErrInternal(err)
 	}
 	provider := newProvider(model)
-	system := assistantSystemPrompt(model, providerTools)
+	toolNamesForPrompt := make([]string, 0, len(providerTools))
+	for _, item := range providerTools {
+		toolNamesForPrompt = append(toolNamesForPrompt, item.Name())
+	}
+	system, err := renderSystemPrompt(lang, systemPromptData{
+		ModelName: model.Name,
+		Tools:     toolNamesForPrompt,
+	})
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
 	usedTools := make([]string, 0)
 
 	for round := 0; round < maxToolRounds; round++ {
@@ -230,21 +240,6 @@ func toChatMessages(items []Message) []chatMessage {
 		out = append(out, chatMessage{Role: role, Content: content})
 	}
 	return out
-}
-
-func assistantSystemPrompt(model *aimgr.RuntimeModel, tools []tool.Tool) string {
-	names := make([]string, 0, len(tools))
-	for _, item := range tools {
-		names = append(names, item.Name())
-	}
-	name := model.Name
-	if name == "" {
-		name = "AI 助手"
-	}
-	return fmt.Sprintf(`你是工业物联网网关的 %s。你只能通过已注册工具读取网关数据，不要编造查询结果。
-可用工具：%s。
-回答使用简洁中文，先给结论，再给必要依据。涉及设备控制时必须明确说明风险。`,
-		name, strings.Join(names, ", "))
 }
 
 func trimToolResult(value string) string {

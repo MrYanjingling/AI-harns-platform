@@ -105,7 +105,7 @@ func gatewayTools(deps Deps) []tool.Tool {
 		out = append(out,
 			&tool.Function{
 				ToolName:        "collections.list",
-				ToolDescription: "List collection instances with status and last error.",
+				ToolDescription: "List collection instances with status and last error. variableCount includes collected and calculated variables; collectedVariableCount excludes calculated variables.",
 				Schema:          json.RawMessage(`{"type":"object","properties":{"page":{"type":"integer","minimum":1},"pageSize":{"type":"integer","minimum":1,"maximum":100},"keyword":{"type":"string"},"driverType":{"type":"string"},"driverModel":{"type":"string"}}}`),
 				RiskLevel:       tool.RiskRead,
 				Handler: func(ctx context.Context, _ tool.Principal, raw json.RawMessage) (any, error) {
@@ -144,7 +144,7 @@ func gatewayTools(deps Deps) []tool.Tool {
 			},
 			&tool.Function{
 				ToolName:        "collections.get_variables",
-				ToolDescription: "List variables and current values for one collection.",
+				ToolDescription: "List variables and current values for one collection. isCalculated=true means a calculated variable that is not collected from the device.",
 				Schema:          json.RawMessage(`{"type":"object","properties":{"collectionId":{"type":"string"},"page":{"type":"integer","minimum":1},"pageSize":{"type":"integer","minimum":1,"maximum":100},"keyword":{"type":"string"}},"required":["collectionId"]}`),
 				RiskLevel:       tool.RiskRead,
 				Handler: func(ctx context.Context, _ tool.Principal, raw json.RawMessage) (any, error) {
@@ -169,7 +169,7 @@ func gatewayTools(deps Deps) []tool.Tool {
 		out = append(out,
 			&tool.Function{
 				ToolName:        "push.connectors.list",
-				ToolDescription: "List push connectors.",
+				ToolDescription: "List push connectors. groupCount is only the number of groups; use push.groups.list with connectorId to read each group dataTopic and commandTopic.",
 				Schema:          json.RawMessage(`{"type":"object","properties":{"page":{"type":"integer","minimum":1},"pageSize":{"type":"integer","minimum":1,"maximum":100},"keyword":{"type":"string"},"type":{"type":"string"}}}`),
 				RiskLevel:       tool.RiskRead,
 				Handler: func(ctx context.Context, _ tool.Principal, raw json.RawMessage) (any, error) {
@@ -187,7 +187,7 @@ func gatewayTools(deps Deps) []tool.Tool {
 			},
 			&tool.Function{
 				ToolName:        "push.groups.list",
-				ToolDescription: "List push groups.",
+				ToolDescription: "List push groups with name, dataTopic, commandTopic, connectorId, status and push interval.",
 				Schema:          json.RawMessage(`{"type":"object","properties":{"page":{"type":"integer","minimum":1},"pageSize":{"type":"integer","minimum":1,"maximum":100},"keyword":{"type":"string"},"connectorId":{"type":"string"}}}`),
 				RiskLevel:       tool.RiskRead,
 				Handler: func(ctx context.Context, _ tool.Principal, raw json.RawMessage) (any, error) {

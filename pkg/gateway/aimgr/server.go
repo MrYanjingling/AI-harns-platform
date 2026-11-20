@@ -12,16 +12,9 @@ import (
 	"harns-platform/pkg/i18n"
 )
 
-// InstallHandler registers admin-only AI configuration routes.
-func InstallHandler(group *gin.RouterGroup, svc *Service, admin gin.HandlerFunc) {
-	if admin == nil {
-		admin = func(c *gin.Context) {
-			response.WriteError(c, http.StatusBadRequest, response.ErrForbidden())
-			c.Abort()
-		}
-	}
+// InstallHandler registers AI configuration routes.
+func InstallHandler(group *gin.RouterGroup, svc *Service) {
 	g := group.Group("/ai")
-	g.Use(admin)
 	g.GET("/settings", getSettings(svc))
 	g.PUT("/settings", updateSettings(svc))
 	g.PUT("/model", updateModel(svc))

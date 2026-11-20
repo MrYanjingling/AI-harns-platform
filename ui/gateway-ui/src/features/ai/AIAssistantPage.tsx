@@ -11,6 +11,7 @@ import {
 } from '@harns/core'
 import { chatWithAssistant } from '@/api/gateway'
 import type { AIChatAttachment, AIChatMessage, AIChatResponse } from '@/api/types'
+import { AIMarkdown } from './AIMarkdown'
 
 const STORAGE_KEY = 'gateway.ai.assistant.session'
 const MAX_FILES = 5
@@ -19,7 +20,6 @@ const MAX_TOTAL_BYTES = 256 << 10
 const ACCEPTED_FILE = /\.(txt|log|json|ya?ml|csv|md|xml)$/i
 
 interface UIMessage extends AIChatMessage {
-  tools?: string[]
   files?: string[]
 }
 
@@ -139,7 +139,7 @@ export function AIAssistantPage() {
       )
       setMessages((current) => [
         ...current,
-        { role: 'assistant', content: response.reply, tools: response.tools },
+        { role: 'assistant', content: response.reply },
       ])
     } catch (error) {
       showErrorToast(error)
@@ -192,24 +192,21 @@ export function AIAssistantPage() {
                   }
                 >
                   <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      {message.role === 'assistant' ? (
+                        <AIMarkdown content={message.content} />
+                      ) : (
+                        <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                          {message.content}
+                        </p>
+                      )}
+                    </div>
                     <CopyButton value={message.content} className="size-5 shrink-0" />
                   </div>
                   {message.files && message.files.length > 0 ? (
                     <p className="mt-1 text-[13px] opacity-80">
                       {t('gateway.ai.assistant.filesAttached', {
                         files: message.files.join(', '),
-                      })}
-                    </p>
-                  ) : null}
-                  {message.role === 'assistant' &&
-                  message.tools &&
-                  message.tools.length > 0 ? (
-                    <p className="mt-2 text-[13px] text-muted">
-                      {t('gateway.ai.assistant.toolsUsed', {
-                        tools: message.tools.join(', '),
                       })}
                     </p>
                   ) : null}

@@ -143,7 +143,7 @@ func (s *Server) InstallHandlers() {
 	}
 	usermgr.InstallHandler(authed, s.Config.UserMgr)
 	if s.Config.AIMgr != nil {
-		aimgr.InstallHandler(authed, s.Config.AIMgr, s.Config.UserMgr.RequireAdmin())
+		aimgr.InstallHandler(authed, s.Config.AIMgr)
 	}
 	if s.Config.Assistant != nil {
 		assistant.InstallHandler(authed, s.Config.Assistant, s.Config.UserMgr.RequireAdmin())
