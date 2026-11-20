@@ -19,7 +19,7 @@ func testProvider(ctx context.Context, protocol, endpointURL, model, apiKey stri
 	if strings.TrimSpace(apiKey) == "" {
 		return fmt.Errorf("API key is required")
 	}
-	endpointURL = resolveEndpointURL(endpointURL, protocol)
+	endpointURL = ResolveEndpointURL(endpointURL, protocol)
 	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -70,7 +70,7 @@ func testProvider(ctx context.Context, protocol, endpointURL, model, apiKey stri
 	return nil
 }
 
-func resolveEndpointURL(endpointURL, protocol string) string {
+func ResolveEndpointURL(endpointURL, protocol string) string {
 	parsed, err := url.Parse(strings.TrimSpace(endpointURL))
 	if err != nil {
 		return endpointURL

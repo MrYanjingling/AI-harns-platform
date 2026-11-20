@@ -8,6 +8,9 @@ import {
 } from '@harns/core'
 import type {
   AddVariablesResult,
+  AIChatAttachment,
+  AIChatMessage,
+  AIChatResponse,
   AISettings,
   AIModelPayload,
   Collection,
@@ -270,6 +273,16 @@ export async function downloadDriverPluginTemplate(id: string): Promise<Blob> {
 
 export function getAISettings(): Promise<AISettings> {
   return gatewayData<AISettings>('/ai/settings')
+}
+
+export function chatWithAssistant(
+  messages: AIChatMessage[],
+  attachments: AIChatAttachment[] = [],
+): Promise<AIChatResponse> {
+  return gatewayData<AIChatResponse>('/ai/chat', {
+    method: 'POST',
+    body: { messages, attachments },
+  })
 }
 
 export function updateAISettings(payload: {

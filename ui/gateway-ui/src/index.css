@@ -1,3 +1,59 @@
 @import "../../core/src/styles.css";
 @source "../../core/src";
 @source "./src";
+
+
+@keyframes ai-thinking-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-thinking-pulse {
+  0%,
+  100% {
+    transform: scale(0.68);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ai-thinking-orb {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.ai-thinking-orb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid var(--primary);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  animation: ai-thinking-spin 0.8s linear infinite;
+}
+
+.ai-thinking-orb::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: var(--primary);
+  animation: ai-thinking-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-orb::before {
+    animation-duration: 2.4s;
+  }
+  .ai-thinking-orb::after {
+    animation-duration: 2.4s;
+  }
+}

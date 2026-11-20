@@ -13,6 +13,7 @@ import (
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/cmd/gateway/options"
 	"harns-platform/pkg/apis/response"
+	"harns-platform/pkg/gateway/ai/assistant"
 	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -143,6 +144,9 @@ func (s *Server) InstallHandlers() {
 	usermgr.InstallHandler(authed, s.Config.UserMgr)
 	if s.Config.AIMgr != nil {
 		aimgr.InstallHandler(authed, s.Config.AIMgr, s.Config.UserMgr.RequireAdmin())
+	}
+	if s.Config.Assistant != nil {
+		assistant.InstallHandler(authed, s.Config.Assistant, s.Config.UserMgr.RequireAdmin())
 	}
 }
 

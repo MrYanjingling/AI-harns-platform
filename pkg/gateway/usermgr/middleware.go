@@ -45,6 +45,11 @@ func (s *Service) RequireAdmin() gin.HandlerFunc {
 	}
 }
 
+// CurrentSession returns the authenticated session from the request context.
+func CurrentSession(c *gin.Context) *Session {
+	return currentSession(c)
+}
+
 func currentSession(c *gin.Context) *Session {
 	if c == nil {
 		return nil

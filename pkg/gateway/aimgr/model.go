@@ -19,3 +19,13 @@ type Settings struct {
 	MCPToken         string
 	UpdatedTime      time.Time
 }
+
+// RuntimeModel is the decrypted model configuration used by the assistant.
+type RuntimeModel struct {
+	Name        string
+	Remark      string
+	Protocol    string
+	EndpointURL string
+	Model       string
+	APIKey      string
+}

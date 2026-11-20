@@ -44,6 +44,13 @@ export interface AppShellProps {
   headerVariant?: 'brand' | 'surface'
 }
 
+function hideBreadcrumbFromMatches(matches: ReadonlyArray<{ handle?: unknown }>): boolean {
+  return matches.some((match) => {
+    const handle = match.handle
+    return Boolean(handle && typeof handle === 'object' && 'hideBreadcrumb' in handle && handle.hideBreadcrumb)
+  })
+}
+
 function breadcrumbActionFromMatches(matches: ReadonlyArray<{ handle?: unknown }>): ReactNode {
   for (let index = matches.length - 1; index >= 0; index -= 1) {
     const handle = matches[index]?.handle
@@ -83,6 +90,7 @@ export function AppShell({
   const title = titleKey ? t(titleKey) : appName
   const breadcrumb = breadcrumbForPath(pathname, sections)
   const breadcrumbAction = breadcrumbActionFromMatches(matches)
+  const hideBreadcrumb = hideBreadcrumbFromMatches(matches)
   const isMock = import.meta.env.VITE_USE_MOCK === 'true'
   const surfaceHeader = headerVariant === 'surface'
   const searchEntries = buildNavEntries(sections)
@@ -282,7 +290,7 @@ export function AppShell({
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="app-breadcrumb-bar flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 sm:px-6">
+          {hideBreadcrumb ? null : <div className="app-breadcrumb-bar flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-3 px-4 sm:px-6">
             <nav
               aria-label={t('layout.shell.breadcrumb')}
               className="flex min-w-0 items-center gap-2 text-sm"
@@ -306,7 +314,7 @@ export function AppShell({
               ) : null}
             </nav>
             {breadcrumbAction ? <div className="shrink-0">{breadcrumbAction}</div> : null}
-          </div>
+          </div>}
           <div className="min-h-0 flex-1 overflow-auto">
             <Outlet />
           </div>

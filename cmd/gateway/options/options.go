@@ -9,6 +9,8 @@ import (
 
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
+	"harns-platform/pkg/gateway/ai/assistant"
+	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/fins"
@@ -262,6 +264,20 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	}
 	c.PushMgr = pushService
 	c.SimulatorMgr = simulatormgr.NewService()
+	toolRegistry, err := tools.NewRegistry(tools.Deps{
+		Collections: collectionMgr,
+		Drivers:     c.DriverMgr,
+		Push:        pushService,
+		Users:       userService,
+		License:     licenseService,
+		Gateway:     gatewayMgr,
+	})
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	c.ToolRegistry = toolRegistry
+	c.Assistant = assistant.NewService(c.AIMgr, toolRegistry)
 	startLicenseRunGuard(stopCh, licenseService, collectionMgr, pushService)
 
 	c.KeyFile = o.KeyFile

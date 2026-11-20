@@ -20,8 +20,8 @@ func TestResolveEndpointURL(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := resolveEndpointURL(test.endpoint, test.protocol); got != test.want {
-				t.Fatalf("resolveEndpointURL() = %q, want %q", got, test.want)
+			if got := ResolveEndpointURL(test.endpoint, test.protocol); got != test.want {
+				t.Fatalf("ResolveEndpointURL() = %q, want %q", got, test.want)
 			}
 		})
 	}

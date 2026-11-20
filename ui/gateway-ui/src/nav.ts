@@ -6,6 +6,7 @@ import {
   Gauge,
   Info,
   LayoutDashboard,
+  MessageCircle,
   ListTree,
   PlugZap,
   Radio,
@@ -118,22 +119,28 @@ export function createGatewayNav(base = '', isAdmin = false): NavSection[] {
             },
           ],
         },
-        ...(isAdmin
-          ? [
-              {
-                labelKey: 'gateway.nav.ai',
-                icon: icon(Sparkles),
-                items: [
+        {
+          labelKey: 'gateway.nav.ai',
+          icon: icon(Sparkles),
+          items: [
+            {
+              to: `${base}/ai/assistant`,
+              labelKey: 'gateway.nav.ai.assistant',
+              hintKey: 'gateway.nav.ai.assistantHint',
+              icon: icon(MessageCircle),
+            },
+            ...(isAdmin
+              ? [
                   {
                     to: `${base}/ai/models`,
                     labelKey: 'gateway.nav.ai.models',
                     hintKey: 'gateway.nav.ai.modelsHint',
                     icon: icon(Bot),
                   },
-                ],
-              },
-            ]
-          : []),
+                ]
+              : []),
+          ],
+        },
         {
           labelKey: 'gateway.nav.system',
           icon: icon(Settings),

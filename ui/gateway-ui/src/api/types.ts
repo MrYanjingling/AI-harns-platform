@@ -429,3 +429,20 @@ export interface AIModelPayload {
   apiKey?: string
   endpointUrl: string
 }
+
+/* ---------------- AI 助手 ---------------- */
+
+export interface AIChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AIChatAttachment {
+  name: string
+  content: string
+}
+
+export interface AIChatResponse {
+  reply: string
+  tools?: string[]
+}

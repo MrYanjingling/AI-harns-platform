@@ -26,6 +26,7 @@ import { useSystemInfo } from '@/api/hooks'
 import { AuthGate } from '@/components/layout/AuthGate'
 import { GatewayAccountMenu } from '@/components/layout/GatewayAccountMenu'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { AIAssistant } from '@/features/ai/AIAssistant'
 import { LicenseExpiryGuard } from '@/features/license/LicenseExpiryGuard'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
@@ -71,7 +72,12 @@ function GatewayShell() {
       appName="AI-harns-gateway"
       documentTitle="HarnsGateway"
       homeTo="/overview"
-      headerTools={<PreferencesPopover />}
+      headerTools={
+        <>
+          <AIAssistant />
+          <PreferencesPopover />
+        </>
+      }
       accountMenu={<GatewayAccountMenu />}
       sidebarWidth={172}
       sidebarCollapsedWidth={56}

@@ -35,6 +35,28 @@ func (s *Service) GetSettings(ctx context.Context) (*v1.SettingsVo, error) {
 	return toSettingsVo(item), nil
 }
 
+// RuntimeModel returns the enabled model configuration with its decrypted API key.
+func (s *Service) RuntimeModel(ctx context.Context) (*RuntimeModel, error) {
+	item, err := s.store.GetSettings(ctx)
+	if err != nil {
+		return nil, response.ErrInternal(err)
+	}
+	if !item.AssistantEnabled {
+		return nil, response.ErrAIProviderInvalid("assistant is disabled")
+	}
+	if item.APIKey == "" || item.EndpointURL == "" || item.Model == "" {
+		return nil, response.ErrAIProviderInvalid("model configuration is incomplete")
+	}
+	return &RuntimeModel{
+		Name:        item.Name,
+		Remark:      item.Remark,
+		Protocol:    ProtocolForEndpoint(item.EndpointURL),
+		EndpointURL: ResolveEndpointURL(item.EndpointURL, ProtocolForEndpoint(item.EndpointURL)),
+		Model:       item.Model,
+		APIKey:      item.APIKey,
+	}, nil
+}
+
 // UpdateSettings updates AI service switches without touching the model config.
 func (s *Service) UpdateSettings(ctx context.Context, req *v1.UpdateSettingsReq) (*v1.SettingsVo, error) {
 	defer logging.Trace("aimgr.UpdateSettings", "assistant", req.AssistantEnabled, "mcp", req.MCPEnabled)()
@@ -114,7 +136,7 @@ func (s *Service) TestModel(ctx context.Context, req *v1.UpdateModelReq) error {
 	if err := validateModel(name, model, endpointURL, apiKey); err != nil {
 		return err
 	}
-	if err := testProvider(ctx, inferProtocol(endpointURL), endpointURL, model, apiKey); err != nil {
+	if err := testProvider(ctx, ProtocolForEndpoint(endpointURL), endpointURL, model, apiKey); err != nil {
 		return response.ErrAIProviderInvalid(err.Error())
 	}
 	return nil
@@ -145,7 +167,7 @@ func validateModel(name, model, endpointURL, apiKey string) error {
 	return &validation.ValidationError{Issues: issues}
 }
 
-func inferProtocol(endpointURL string) string {
+func ProtocolForEndpoint(endpointURL string) string {
 	lower := strings.ToLower(endpointURL)
 	if strings.Contains(lower, "anthropic") || strings.Contains(lower, "/messages") {
 		return ProtocolAnthropicMessages
