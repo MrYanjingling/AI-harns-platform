@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import {
+  Bot,
   Cpu,
   FlaskConical,
   Gauge,
@@ -12,6 +13,7 @@ import {
   Send,
   Settings,
   Settings2,
+  Sparkles,
   Terminal,
   Users,
   Boxes,
@@ -22,8 +24,8 @@ function icon(component: typeof LayoutDashboard) {
   return createElement(component, { className: 'size-4' })
 }
 
-/** 网关侧边栏:7 个一级菜单及其二级菜单。 */
-export function createGatewayNav(base = ''): NavSection[] {
+/** 网关侧边栏:一级菜单及其二级菜单。 */
+export function createGatewayNav(base = '', isAdmin = false): NavSection[] {
   return [
     {
       key: 'gateway',
@@ -116,6 +118,22 @@ export function createGatewayNav(base = ''): NavSection[] {
             },
           ],
         },
+        ...(isAdmin
+          ? [
+              {
+                labelKey: 'gateway.nav.ai',
+                icon: icon(Sparkles),
+                items: [
+                  {
+                    to: `${base}/ai/models`,
+                    labelKey: 'gateway.nav.ai.models',
+                    hintKey: 'gateway.nav.ai.modelsHint',
+                    icon: icon(Bot),
+                  },
+                ],
+              },
+            ]
+          : []),
         {
           labelKey: 'gateway.nav.system',
           icon: icon(Settings),

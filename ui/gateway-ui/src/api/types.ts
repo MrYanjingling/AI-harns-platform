@@ -406,3 +406,26 @@ export interface SimulatorState {
   memoryLayout: string
   points: SimulatorPoint[]
 }
+
+/* ---------------- AI 配置 ---------------- */
+
+export interface AISettings {
+  assistantEnabled: boolean
+  mcpEnabled: boolean
+  name: string
+  remark: string
+  model: string
+  endpointUrl: string
+  apiKey: string
+  hasApiKey: boolean
+  mcpToken: string
+  updatedTime: string
+}
+
+export interface AIModelPayload {
+  name: string
+  remark: string
+  model: string
+  apiKey?: string
+  endpointUrl: string
+}

@@ -446,6 +446,21 @@ func ErrDriverInvalid(reason string) *responseError {
 	return generateError(ErrCodeDriverInvalid, reason)
 }
 
+// ErrAIProviderNotFound reports that an AI provider does not exist.
+func ErrAIProviderNotFound(id string) *responseError {
+	return generateError(ErrCodeAIProviderNotFound, id)
+}
+
+// ErrAIProviderInvalid reports invalid AI provider configuration.
+func ErrAIProviderInvalid(reason string) *responseError {
+	return generateError(ErrCodeAIProviderInvalid, reason)
+}
+
+// ErrAITokenNotFound reports that an MCP token does not exist.
+func ErrAITokenNotFound(id string) *responseError {
+	return generateError(ErrCodeAITokenNotFound, id)
+}
+
 // ErrCollectionNotFound reports that a collection does not exist.
 func ErrCollectionNotFound(id string) *responseError {
 	return generateError(ErrCodeCollectionNotFound, id)

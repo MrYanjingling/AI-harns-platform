@@ -94,6 +94,9 @@ const (
 	ErrCodeLicenseExpired                      // 20026
 	ErrCodeLicensePublicKeyUnavailable         // 20027
 	ErrCodeSystemLogLevelInvalid               // 20028
+	ErrCodeAIProviderNotFound                  // 20029
+	ErrCodeAIProviderInvalid                   // 20030
+	ErrCodeAITokenNotFound                     // 20031
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

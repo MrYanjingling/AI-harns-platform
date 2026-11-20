@@ -3,6 +3,7 @@ package config
 import (
 	"database/sql"
 
+	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/device"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -16,6 +17,7 @@ import (
 
 type Config struct {
 	DeviceMgr     *device.Manager
+	AIMgr         *aimgr.Service
 	GatewayMgr    *gatewaymgr.Manager
 	DriverMgr     *drivermgr.Service
 	CollectionMgr *collectionmgr.Service

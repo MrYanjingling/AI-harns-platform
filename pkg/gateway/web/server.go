@@ -13,6 +13,7 @@ import (
 	"harns-platform/cmd/gateway/config"
 	"harns-platform/cmd/gateway/options"
 	"harns-platform/pkg/apis/response"
+	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/gatewaymgr"
@@ -140,6 +141,9 @@ func (s *Server) InstallHandlers() {
 		licensemgr.InstallHandler(authed, s.Config.LicenseMgr, s.Config.UserMgr.RequireAdmin())
 	}
 	usermgr.InstallHandler(authed, s.Config.UserMgr)
+	if s.Config.AIMgr != nil {
+		aimgr.InstallHandler(authed, s.Config.AIMgr, s.Config.UserMgr.RequireAdmin())
+	}
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {

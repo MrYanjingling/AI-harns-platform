@@ -8,6 +8,8 @@ import {
 } from '@harns/core'
 import type {
   AddVariablesResult,
+  AISettings,
+  AIModelPayload,
   Collection,
   CollectionAction,
   CollectionDetail,
@@ -263,6 +265,32 @@ export async function downloadDriverPluginTemplate(id: string): Promise<Blob> {
   }
   return response.blob()
 }
+
+/* ---------------- AI 配置 ---------------- */
+
+export function getAISettings(): Promise<AISettings> {
+  return gatewayData<AISettings>('/ai/settings')
+}
+
+export function updateAISettings(payload: {
+  assistantEnabled: boolean
+  mcpEnabled: boolean
+}): Promise<AISettings> {
+  return gatewayData<AISettings>('/ai/settings', { method: 'PUT', body: payload })
+}
+
+export function updateAIModel(payload: AIModelPayload): Promise<AISettings> {
+  return gatewayData<AISettings>('/ai/model', { method: 'PUT', body: payload })
+}
+
+export function testAIModel(payload: AIModelPayload): Promise<{ success: boolean }> {
+  return gatewayData<{ success: boolean }>('/ai/model/test', {
+    method: 'POST',
+    body: payload,
+  })
+}
+
+
 
 /* ---------------- 推送 ---------------- */
 

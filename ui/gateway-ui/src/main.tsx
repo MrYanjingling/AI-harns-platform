@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useMemo } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
@@ -29,7 +29,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { LicenseExpiryGuard } from '@/features/license/LicenseExpiryGuard'
 import { gatewayMessages } from '@/i18n/messages'
 import { createGatewayNav } from '@/nav'
-import { AuthProvider } from '@/providers/AuthProvider'
+import { AuthProvider, useAuth } from '@/providers/AuthProvider'
 import { gatewayRoutes } from '@/routes'
 import './index.css'
 
@@ -49,8 +49,6 @@ const gatewayQueryClient = new QueryClient({
   },
 })
 
-const sections = createGatewayNav()
-
 function GatewaySidebarVersion() {
   const systemInfo = useSystemInfo()
   const version = systemInfo.data?.version || '—'
@@ -64,6 +62,28 @@ function GatewaySidebarVersion() {
   )
 }
 
+function GatewayShell() {
+  const { user } = useAuth()
+  const sections = useMemo(() => createGatewayNav('', Boolean(user?.isAdmin)), [user?.isAdmin])
+  return (
+    <AppShell
+      sections={sections}
+      appName="AI-harns-gateway"
+      documentTitle="HarnsGateway"
+      homeTo="/overview"
+      headerTools={<PreferencesPopover />}
+      accountMenu={<GatewayAccountMenu />}
+      sidebarWidth={172}
+      sidebarCollapsedWidth={56}
+      sidebarCollapsible
+      sidebarResizable
+      sidebarFooter={<GatewaySidebarVersion />}
+      contentFooter={<Copyright />}
+      headerVariant="surface"
+    />
+  )
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/404', element: <NotFoundPage homeTo="/overview" fullScreen /> },
@@ -73,21 +93,7 @@ const router = createBrowserRouter([
     element: (
       <AuthGate>
         <LicenseExpiryGuard>
-          <AppShell
-            sections={sections}
-            appName="AI-harns-gateway"
-            documentTitle="HarnsGateway"
-            homeTo="/overview"
-            headerTools={<PreferencesPopover />}
-            accountMenu={<GatewayAccountMenu />}
-            sidebarWidth={172}
-            sidebarCollapsedWidth={56}
-            sidebarCollapsible
-            sidebarResizable
-            sidebarFooter={<GatewaySidebarVersion />}
-            contentFooter={<Copyright />}
-            headerVariant="surface"
-          />
+          <GatewayShell />
         </LicenseExpiryGuard>
       </AuthGate>
     ),

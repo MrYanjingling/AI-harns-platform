@@ -19,5 +19,6 @@ export const queryKeys = {
     mem: ['gateway', 'mem'] as const,
     disk: ['gateway', 'disk'] as const,
     simulator: ['gateway', 'simulator'] as const,
+    aiSettings: ['gateway', 'ai', 'settings'] as const,
   },
 }

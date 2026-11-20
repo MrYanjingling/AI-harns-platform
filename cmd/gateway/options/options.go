@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"harns-platform/cmd/gateway/config"
+	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
@@ -124,6 +125,26 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.GatewayMgr = gatewayMgr
+
+	meta, err := gatewayMgr.GetGatewayMeta()
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if meta == nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("gateway metadata is not initialized")
+	}
+	aiStore, err := aimgr.NewStore(db, meta.Secret)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := aiStore.Initialize(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	c.AIMgr = aimgr.NewService(aiStore)
 
 	licenseStore := licensemgr.NewStore(db)
 	if err := licenseStore.Initialize(context.Background()); err != nil {

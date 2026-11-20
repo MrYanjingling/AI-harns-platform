@@ -10,6 +10,7 @@ export const listViewKeys = {
   monitoringPoints: 'gateway.list.monitoringPoints',
   drivers: 'gateway.list.drivers',
   users: 'gateway.list.users',
+  aiModels: 'gateway.list.aiModels',
 } as const
 
 interface ListViewLocationState {

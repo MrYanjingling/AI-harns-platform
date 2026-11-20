@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
+  AISettings,
   CollectionDetail,
   CollectionVariable,
   CollectionVariableInput,
@@ -32,6 +33,19 @@ import { readJson, send } from './utils'
 
 function ok<T>(data: T): { code: number; message: string; data: T } {
   return { code: 200, message: 'success', data }
+}
+
+let aiSettings: AISettings = {
+  assistantEnabled: false,
+  mcpEnabled: false,
+  name: '',
+  remark: '',
+  model: '',
+  endpointUrl: '',
+  apiKey: '',
+  hasApiKey: false,
+  mcpToken: '',
+  updatedTime: nowIso(),
 }
 
 const simulatorState: SimulatorState = {
@@ -305,6 +319,66 @@ export async function handleGateway(
       return true
     }
     send(res, 200, ok(license))
+    return true
+  }
+
+  /* ---------------- AI 配置 ---------------- */
+
+  if (pathname === '/ai/settings' && method === 'GET') {
+    send(res, 200, ok(aiSettings))
+    return true
+  }
+
+  if (pathname === '/ai/settings' && method === 'PUT') {
+    const body = await readObject(req)
+    if (!body) {
+      badRequest(res, 'invalid body')
+      return true
+    }
+    const mcpEnabled = Boolean(body.mcpEnabled)
+    let mcpToken = aiSettings.mcpToken
+    if (mcpEnabled && !mcpToken) {
+      mcpToken = `mcp_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
+    } else if (!mcpEnabled) {
+      mcpToken = ''
+    }
+    aiSettings = {
+      ...aiSettings,
+      assistantEnabled: Boolean(body.assistantEnabled),
+      mcpEnabled,
+      mcpToken,
+      updatedTime: nowIso(),
+    }
+    send(res, 200, ok(aiSettings))
+    return true
+  }
+
+  if (pathname === '/ai/model' && method === 'PUT') {
+    const body = await readObject(req)
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    const remark = typeof body?.remark === 'string' ? body.remark.trim() : ''
+    const model = typeof body?.model === 'string' ? body.model.trim() : ''
+    const endpointUrl = typeof body?.endpointUrl === 'string' ? body.endpointUrl.trim() : ''
+    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey.trim() : ''
+    if (!name || !model || !endpointUrl || (!aiSettings.hasApiKey && !apiKey)) {
+      badRequest(res, 'name, model, endpointUrl and apiKey are required')
+      return true
+    }
+    aiSettings = {
+      ...aiSettings,
+      name,
+      remark,
+      model,
+      endpointUrl,
+      hasApiKey: aiSettings.hasApiKey || Boolean(apiKey),
+      updatedTime: nowIso(),
+    }
+    send(res, 200, ok(aiSettings))
+    return true
+  }
+
+  if (pathname === '/ai/model/test' && method === 'POST') {
+    send(res, 200, ok({ success: true }))
     return true
   }
 

@@ -90,6 +90,9 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeLicenseExpired:              "error.license_expired",
 	ErrCodeLicensePublicKeyUnavailable: "error.license_public_key_unavailable",
 	ErrCodeSystemLogLevelInvalid:       "error.system_log_level_invalid",
+	ErrCodeAIProviderNotFound:          "error.ai_provider_not_found",
+	ErrCodeAIProviderInvalid:           "error.ai_provider_invalid",
+	ErrCodeAITokenNotFound:             "error.ai_token_not_found",
 }
 
 func messageID(code ErrCode) string {

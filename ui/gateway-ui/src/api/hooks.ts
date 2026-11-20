@@ -17,6 +17,7 @@ import {
   deleteSimulatorPoint,
   deleteUser,
   deliverCollectionAction,
+  getAISettings,
   getCollection,
   getDriverSchema,
   getGatewayCpu,
@@ -48,6 +49,9 @@ import {
   stopCollection,
   stopPushConnector,
   stopPushGroup,
+  testAIModel,
+  updateAIModel,
+  updateAISettings,
   updateCollection,
   updateCollectionVariables,
   updateDriver,
@@ -58,6 +62,7 @@ import {
 } from './gateway'
 import { queryKeys } from './query-keys'
 import type {
+  AIModelPayload,
   CollectionAction,
   CollectionPayload,
   CollectionVariableInput,
@@ -856,5 +861,41 @@ export function useSaveSimulatorPoints() {
       }
     },
     onSettled: () => invalidateSimulator(queryClient),
+  })
+}
+
+/* ---------------- AI 配置 ---------------- */
+
+export function useAISettings() {
+  return useQuery({
+    queryKey: queryKeys.gateway.aiSettings,
+    queryFn: getAISettings,
+  })
+}
+
+export function useUpdateAISettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { assistantEnabled: boolean; mcpEnabled: boolean }) =>
+      updateAISettings(payload),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(queryKeys.gateway.aiSettings, settings)
+    },
+  })
+}
+
+export function useUpdateAIModel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: AIModelPayload) => updateAIModel(payload),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(queryKeys.gateway.aiSettings, settings)
+    },
+  })
+}
+
+export function useTestAIModel() {
+  return useMutation({
+    mutationFn: (payload: AIModelPayload) => testAIModel(payload),
   })
 }
