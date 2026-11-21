@@ -445,3 +445,33 @@ func TestCreateAndUpdateFinsCollection(t *testing.T) {
 	assert.Contains(t, string(detail.ProtocolConfig), `"transport":"tcp"`)
 	assert.Contains(t, string(detail.ProtocolConfig), `"maxSize":128`)
 }
+
+type fakeCollectionReferenceCleaner struct {
+	collectionID string
+	err          error
+}
+
+func (f *fakeCollectionReferenceCleaner) RemoveCollectionReferences(_ context.Context, collectionID string) error {
+	f.collectionID = collectionID
+	return f.err
+}
+
+func TestDeleteCollectionRemovesReferences(t *testing.T) {
+	service, _ := newTestService(t)
+	body := `{
+		"driverType":"modbus","driverModel":"modbusTcp","name":"delete-refs",
+		"collectorCycleMs":1000,"protocolConfig":{"location":"127.0.0.1:502","memoryLayout":"ABCD"},
+		"variables":[{"name":"temperature","dataType":"int16","address":"1!40001","accessMode":"r"}]
+	}`
+	result, err := service.Create(context.Background(), []byte(body))
+	require.NoError(t, err)
+	created, ok := result.(*v1.CollectionDetailVo)
+	require.True(t, ok)
+
+	cleaner := &fakeCollectionReferenceCleaner{}
+	service.SetReferenceCleaner(cleaner)
+	deleted, err := service.Delete(context.Background(), created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), deleted)
+	assert.Equal(t, created.ID, cleaner.collectionID)
+}

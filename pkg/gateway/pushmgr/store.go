@@ -33,13 +33,19 @@ CREATE TABLE IF NOT EXISTS push_groups (
     enable           INTEGER NOT NULL DEFAULT 1,
     push_interval_ms INTEGER NOT NULL,
     all_collections  INTEGER NOT NULL DEFAULT 0,
-    collection_ids   TEXT NOT NULL DEFAULT '[]',
     max_collections_per_push_message INTEGER NOT NULL DEFAULT 10,
     version          INTEGER NOT NULL DEFAULT 1,
     created_time     TEXT NOT NULL,
     updated_time     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_push_groups_connector ON push_groups (connector_id);
+CREATE TABLE IF NOT EXISTS push_group_collections (
+    push_group_id TEXT NOT NULL,
+    collection_id TEXT NOT NULL,
+    PRIMARY KEY (push_group_id, collection_id),
+    FOREIGN KEY (push_group_id) REFERENCES push_groups(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_push_group_collections_collection ON push_group_collections (collection_id);
 `
 
 type Store struct {
@@ -323,6 +329,11 @@ func (s *Store) DeleteConnector(ctx context.Context, id string, cascade bool) ([
 		if err := rows.Close(); err != nil {
 			return nil, err
 		}
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM push_group_collections WHERE push_group_id IN (SELECT id FROM push_groups WHERE connector_id = ?)`,
+			id); err != nil {
+			return nil, err
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM push_groups WHERE connector_id = ?`, id); err != nil {
 			return nil, err
 		}
@@ -346,21 +357,33 @@ func (s *Store) DeleteConnector(ctx context.Context, id string, cascade bool) ([
 
 func (s *Store) ListAllGroups(ctx context.Context) ([]*PushGroup, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, collection_ids, max_collections_per_push_message, version, created_time, updated_time
+		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, max_collections_per_push_message, version, created_time, updated_time
 		 FROM push_groups ORDER BY created_time ASC, id ASC`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	out := make([]*PushGroup, 0)
 	for rows.Next() {
 		item, err := scanGroup(rows)
 		if err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		out = append(out, item)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for _, item := range out {
+		if err := s.loadGroupCollectionIDs(ctx, item); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (s *Store) ListGroups(ctx context.Context, q apis.PageQuery, keyword, connectorID string) ([]*PushGroup, int64, error) {
@@ -384,56 +407,104 @@ func (s *Store) ListGroups(ctx context.Context, q apis.PageQuery, keyword, conne
 	}
 	queryArgs := append(append([]interface{}{}, args...), q.Limit(), q.Offset())
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, collection_ids, max_collections_per_push_message, version, created_time, updated_time
+		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, max_collections_per_push_message, version, created_time, updated_time
 		 FROM push_groups WHERE `+where+` ORDER BY created_time ASC, id ASC LIMIT ? OFFSET ?`, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 	out := make([]*PushGroup, 0)
 	for rows.Next() {
 		item, err := scanGroup(rows)
 		if err != nil {
+			_ = rows.Close()
 			return nil, 0, err
 		}
 		out = append(out, item)
 	}
-	return out, total, rows.Err()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, 0, err
+	}
+	for _, item := range out {
+		if err := s.loadGroupCollectionIDs(ctx, item); err != nil {
+			return nil, 0, err
+		}
+	}
+	return out, total, nil
 }
 
 func (s *Store) GetGroup(ctx context.Context, id string) (*PushGroup, error) {
-	return scanGroup(s.db.QueryRowContext(ctx,
-		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, collection_ids, max_collections_per_push_message, version, created_time, updated_time
+	item, err := scanGroup(s.db.QueryRowContext(ctx,
+		`SELECT id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, max_collections_per_push_message, version, created_time, updated_time
 		 FROM push_groups WHERE id = ?`, id))
+	if err != nil {
+		return nil, err
+	}
+	if err := s.loadGroupCollectionIDs(ctx, item); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (s *Store) loadGroupCollectionIDs(ctx context.Context, item *PushGroup) error {
+	if item == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT collection_id FROM push_group_collections WHERE push_group_id = ? ORDER BY rowid ASC`,
+		item.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	item.CollectionIDs = make([]string, 0)
+	for rows.Next() {
+		var collectionID string
+		if err := rows.Scan(&collectionID); err != nil {
+			return err
+		}
+		item.CollectionIDs = append(item.CollectionIDs, collectionID)
+	}
+	return rows.Err()
 }
 
 func (s *Store) CreateGroup(ctx context.Context, item *PushGroup) error {
 	if item == nil {
 		return fmt.Errorf("push group is nil")
 	}
-	ids, err := json.Marshal(item.CollectionIDs)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO push_groups (id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, collection_ids, max_collections_per_push_message, version, created_time, updated_time)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.ID, item.Name, item.ConnectorID, item.DataTopic, item.CommandTopic, item.RunState, item.PushIntervalMs, boolInt(item.AllCollections), string(ids),
-		item.MaxCollectionsPerPushMessage, item.Version, item.CreatedTime.UTC().Format(time.RFC3339Nano), item.UpdatedTime.UTC().Format(time.RFC3339Nano))
-	return err
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO push_groups (id, name, connector_id, data_topic, command_topic, run_state, push_interval_ms, all_collections, max_collections_per_push_message, version, created_time, updated_time)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.ID, item.Name, item.ConnectorID, item.DataTopic, item.CommandTopic, item.RunState, item.PushIntervalMs, boolInt(item.AllCollections),
+		item.MaxCollectionsPerPushMessage, item.Version, item.CreatedTime.UTC().Format(time.RFC3339Nano), item.UpdatedTime.UTC().Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if err := replaceGroupCollectionLinks(ctx, tx, item.ID, item.CollectionIDs); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) UpdateGroup(ctx context.Context, item *PushGroup) error {
 	if item == nil {
 		return fmt.Errorf("push group is nil")
 	}
-	ids, err := json.Marshal(item.CollectionIDs)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE push_groups SET name = ?, connector_id = ?, data_topic = ?, command_topic = ?, run_state = ?, push_interval_ms = ?, all_collections = ?, collection_ids = ?, max_collections_per_push_message = ?, version = ?, updated_time = ? WHERE id = ?`,
-		item.Name, item.ConnectorID, item.DataTopic, item.CommandTopic, item.RunState, item.PushIntervalMs, boolInt(item.AllCollections), string(ids),
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx,
+		`UPDATE push_groups SET name = ?, connector_id = ?, data_topic = ?, command_topic = ?, run_state = ?, push_interval_ms = ?, all_collections = ?, max_collections_per_push_message = ?, version = ?, updated_time = ? WHERE id = ?`,
+		item.Name, item.ConnectorID, item.DataTopic, item.CommandTopic, item.RunState, item.PushIntervalMs, boolInt(item.AllCollections),
 		item.MaxCollectionsPerPushMessage, item.Version, item.UpdatedTime.UTC().Format(time.RFC3339Nano), item.ID)
 	if err != nil {
 		return err
@@ -445,11 +516,22 @@ func (s *Store) UpdateGroup(ctx context.Context, item *PushGroup) error {
 	if n == 0 {
 		return ErrGroupNotFound
 	}
-	return nil
+	if err := replaceGroupCollectionLinks(ctx, tx, item.ID, item.CollectionIDs); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) DeleteGroup(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM push_groups WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM push_group_collections WHERE push_group_id = ?`, id); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM push_groups WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
@@ -460,7 +542,67 @@ func (s *Store) DeleteGroup(ctx context.Context, id string) error {
 	if n == 0 {
 		return ErrGroupNotFound
 	}
+	return tx.Commit()
+}
+
+func replaceGroupCollectionLinks(ctx context.Context, tx *sql.Tx, groupID string, collectionIDs []string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM push_group_collections WHERE push_group_id = ?`, groupID); err != nil {
+		return err
+	}
+	seen := make(map[string]struct{}, len(collectionIDs))
+	for _, collectionID := range collectionIDs {
+		collectionID = strings.TrimSpace(collectionID)
+		if collectionID == "" {
+			continue
+		}
+		if _, ok := seen[collectionID]; ok {
+			continue
+		}
+		seen[collectionID] = struct{}{}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO push_group_collections (push_group_id, collection_id) VALUES (?, ?)`,
+			groupID, collectionID); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (s *Store) RemoveCollectionReferences(ctx context.Context, collectionID string) ([]string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx,
+		`SELECT DISTINCT push_group_id FROM push_group_collections WHERE collection_id = ?`,
+		collectionID)
+	if err != nil {
+		return nil, err
+	}
+	groupIDs := make([]string, 0)
+	for rows.Next() {
+		var groupID string
+		if err := rows.Scan(&groupID); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		groupIDs = append(groupIDs, groupID)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM push_group_collections WHERE collection_id = ?`, collectionID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return groupIDs, nil
 }
 
 type rowScanner interface {
@@ -522,14 +664,10 @@ func scanGroup(row rowScanner) (*PushGroup, error) {
 	var (
 		item       PushGroup
 		all        int
-		idsRaw     string
 		createdRaw string
 		updatedRaw string
 	)
-	if err := row.Scan(&item.ID, &item.Name, &item.ConnectorID, &item.DataTopic, &item.CommandTopic, &item.RunState, &item.PushIntervalMs, &all, &idsRaw, &item.MaxCollectionsPerPushMessage, &item.Version, &createdRaw, &updatedRaw); err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(idsRaw), &item.CollectionIDs); err != nil {
+	if err := row.Scan(&item.ID, &item.Name, &item.ConnectorID, &item.DataTopic, &item.CommandTopic, &item.RunState, &item.PushIntervalMs, &all, &item.MaxCollectionsPerPushMessage, &item.Version, &createdRaw, &updatedRaw); err != nil {
 		return nil, err
 	}
 	item.AllCollections = all != 0

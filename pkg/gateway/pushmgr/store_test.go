@@ -16,12 +16,18 @@ import (
 
 func newPushTestService(t *testing.T) *Service {
 	t.Helper()
+	service, _ := newPushTestStore(t)
+	return service
+}
+
+func newPushTestStore(t *testing.T) (*Service, *Store) {
+	t.Helper()
 	db, err := sqlite.Open(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 	store := NewStore(db)
 	require.NoError(t, store.Initialize(context.Background()))
-	return NewService(store, &fakeSource{}, nil)
+	return NewService(store, &fakeSource{}, nil), store
 }
 
 func TestPushConnectorAndGroupCRUD(t *testing.T) {
@@ -111,7 +117,6 @@ func TestStoreMigratesGroupTopicsFromConnector(t *testing.T) {
 			connector_id TEXT NOT NULL,
 			push_interval_ms INTEGER NOT NULL,
 			all_collections INTEGER NOT NULL DEFAULT 0,
-			collection_ids TEXT NOT NULL DEFAULT '[]',
 			max_collections_per_push_message INTEGER NOT NULL DEFAULT 10,
 			version INTEGER NOT NULL DEFAULT 1,
 			created_time TEXT NOT NULL,
@@ -119,8 +124,8 @@ func TestStoreMigratesGroupTopicsFromConnector(t *testing.T) {
 		);
 		INSERT INTO push_connectors (id, type, name, push_config, version, created_time, updated_time)
 		VALUES ('c1', 'mqtt', 'legacy', '{"brokerUrl":"tcp://127.0.0.1:1883","dataTopic":"legacy/data","commandTopic":"legacy/cmd"}', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
-		INSERT INTO push_groups (id, name, connector_id, push_interval_ms, all_collections, collection_ids, max_collections_per_push_message, version, created_time, updated_time)
-		VALUES ('g1', 'legacy-group', 'c1', 1000, 1, '[]', 10, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		INSERT INTO push_groups (id, name, connector_id, push_interval_ms, all_collections, max_collections_per_push_message, version, created_time, updated_time)
+		VALUES ('g1', 'legacy-group', 'c1', 1000, 0, 10, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 	`)
 	require.NoError(t, err)
 	store := NewStore(db)
@@ -130,6 +135,59 @@ func TestStoreMigratesGroupTopicsFromConnector(t *testing.T) {
 	assert.Equal(t, "legacy/data", group.DataTopic)
 	assert.Equal(t, "legacy/cmd", group.CommandTopic)
 	assert.Equal(t, ConnectorRunStateRunning, group.RunState)
+	assert.Empty(t, group.CollectionIDs)
+}
+
+func TestPushGroupCollectionLinks(t *testing.T) {
+	service, store := newPushTestStore(t)
+	ctx := context.Background()
+
+	connector, err := service.CreateConnector(ctx, &v1.CreateConnectorReq{
+		Name:       "links",
+		PushConfig: json.RawMessage(`{"brokerUrl":"tcp://127.0.0.1:1883"}`),
+	})
+	require.NoError(t, err)
+	group, err := service.CreateGroup(ctx, &v1.CreatePushGroupReq{
+		Name:           "links-group",
+		ConnectorID:    connector.ID,
+		DataTopic:      "data/links",
+		PushIntervalMs: 1000,
+		AllCollections: false,
+		CollectionIDs:  []string{"c1", "c2"},
+	})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"c1", "c2"}, group.CollectionIDs)
+
+	var count int
+	require.NoError(t, store.db.QueryRow(
+		`SELECT COUNT(1) FROM push_group_collections WHERE push_group_id = ?`, group.ID).Scan(&count))
+	assert.Equal(t, 2, count)
+
+	group, err = service.UpdateGroup(ctx, group.ID, &v1.UpdatePushGroupReq{
+		Name:           "links-group-v2",
+		ConnectorID:    connector.ID,
+		DataTopic:      "data/links-v2",
+		PushIntervalMs: 1000,
+		AllCollections: false,
+		CollectionIDs:  []string{"c2", "c3"},
+	})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"c2", "c3"}, group.CollectionIDs)
+
+	require.NoError(t, service.RemoveCollectionReferences(ctx, "c2"))
+	group, err = service.GetGroup(ctx, group.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"c3"}, group.CollectionIDs)
+
+	require.NoError(t, service.RemoveCollectionReferences(ctx, "c3"))
+	group, err = service.GetGroup(ctx, group.ID)
+	require.NoError(t, err)
+	assert.Empty(t, group.CollectionIDs)
+
+	require.NoError(t, service.DeleteGroup(ctx, group.ID))
+	require.NoError(t, store.db.QueryRow(
+		`SELECT COUNT(1) FROM push_group_collections WHERE push_group_id = ?`, group.ID).Scan(&count))
+	assert.Zero(t, count)
 }
 
 func TestRunStateLifecycle(t *testing.T) {

@@ -369,6 +369,30 @@ func (s *Service) DeleteGroup(ctx context.Context, id string) error {
 	return nil
 }
 
+func (s *Service) RemoveCollectionReferences(ctx context.Context, collectionID string) error {
+	if s == nil || s.store == nil {
+		return nil
+	}
+	groupIDs, err := s.store.RemoveCollectionReferences(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+	if s.runtime == nil {
+		return nil
+	}
+	for _, groupID := range groupIDs {
+		group, err := s.store.GetGroup(ctx, groupID)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		s.runtime.UpsertGroup(group)
+	}
+	return nil
+}
+
 func (s *Service) StartGroup(ctx context.Context, id string) (string, error) {
 	item, err := s.store.GetGroup(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {

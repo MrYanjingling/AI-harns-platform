@@ -36,12 +36,17 @@ type VariableLimitProvider interface {
 	MaxVariable() int
 }
 
+type CollectionReferenceCleaner interface {
+	RemoveCollectionReferences(ctx context.Context, collectionID string) error
+}
+
 // Service creates collection records.
 type Service struct {
-	store         *Store
-	registry      *createRegistry
-	runtime       *RuntimeManager
-	variableLimit VariableLimitProvider
+	store            *Store
+	registry         *createRegistry
+	runtime          *RuntimeManager
+	variableLimit    VariableLimitProvider
+	referenceCleaner CollectionReferenceCleaner
 }
 
 // NewService creates a collection service with protocol create handlers.
@@ -69,6 +74,10 @@ func (s *Service) RegisterCreateHandler(handler collection.CreateHandler) error 
 // SetVariableLimitProvider injects the license variable quota provider.
 func (s *Service) SetVariableLimitProvider(provider VariableLimitProvider) {
 	s.variableLimit = provider
+}
+
+func (s *Service) SetReferenceCleaner(cleaner CollectionReferenceCleaner) {
+	s.referenceCleaner = cleaner
 }
 
 func (s *Service) checkCollectedVariableLimit(ctx context.Context, incoming []*collection.Variable) error {
@@ -543,6 +552,11 @@ func (s *Service) Delete(ctx context.Context, id string) (int64, error) {
 	}
 	if deleted == 0 {
 		return 0, response.ErrCollectionNotFound(id)
+	}
+	if s.referenceCleaner != nil {
+		if err := s.referenceCleaner.RemoveCollectionReferences(ctx, id); err != nil {
+			return deleted, response.ErrInternal(err)
+		}
 	}
 	return deleted, nil
 }

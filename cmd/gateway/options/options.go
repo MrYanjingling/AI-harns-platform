@@ -262,6 +262,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	collectionMgr.SetReferenceCleaner(pushService)
 	c.PushMgr = pushService
 	c.SimulatorMgr = simulatormgr.NewService()
 	toolRegistry, err := tools.NewRegistry(tools.Deps{
