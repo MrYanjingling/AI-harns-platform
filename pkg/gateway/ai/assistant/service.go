@@ -92,8 +92,7 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 		toolNamesForPrompt = append(toolNamesForPrompt, item.Name())
 	}
 	system, err := renderSystemPrompt(lang, systemPromptData{
-		ModelName: model.Name,
-		Tools:     toolNamesForPrompt,
+		Tools: toolNamesForPrompt,
 	})
 	if err != nil {
 		logging.ErrorS(err, "AI assistant prompt rendering failed")

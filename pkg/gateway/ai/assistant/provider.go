@@ -172,7 +172,8 @@ type anthropicMessage struct {
 
 func (p *anthropicProvider) Chat(ctx context.Context, system string, messages []chatMessage, tools []tool.Tool) (*chatResult, error) {
 	converted := make([]anthropicMessage, 0, len(messages))
-	for _, item := range messages {
+	for index := 0; index < len(messages); index++ {
+		item := messages[index]
 		switch item.Role {
 		case "assistant":
 			blocks := make([]anthropicContent, 0, len(item.ToolCalls)+1)
@@ -184,9 +185,15 @@ func (p *anthropicProvider) Chat(ctx context.Context, system string, messages []
 			}
 			converted = append(converted, anthropicMessage{Role: "assistant", Content: blocks})
 		case "tool":
-			converted = append(converted, anthropicMessage{Role: "user", Content: []anthropicContent{{
-				Type: "tool_result", ToolUseID: item.ToolCallID, Content: item.Content,
-			}}})
+			blocks := make([]anthropicContent, 0, 4)
+			for ; index < len(messages) && messages[index].Role == "tool"; index++ {
+				toolMessage := messages[index]
+				blocks = append(blocks, anthropicContent{
+					Type: "tool_result", ToolUseID: toolMessage.ToolCallID, Content: toolMessage.Content,
+				})
+			}
+			index--
+			converted = append(converted, anthropicMessage{Role: "user", Content: blocks})
 		default:
 			converted = append(converted, anthropicMessage{Role: "user", Content: []anthropicContent{{Type: "text", Text: item.Content}}})
 		}

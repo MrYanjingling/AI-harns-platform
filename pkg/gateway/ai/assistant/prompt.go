@@ -12,8 +12,7 @@ import (
 var promptFS embed.FS
 
 type systemPromptData struct {
-	ModelName string
-	Tools     []string
+	Tools []string
 }
 
 func renderSystemPrompt(lang string, data systemPromptData) (string, error) {

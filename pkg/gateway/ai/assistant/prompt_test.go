@@ -9,13 +9,12 @@ import (
 
 func TestRenderSystemPrompt(t *testing.T) {
 	data := systemPromptData{
-		ModelName: "gateway-assistant",
-		Tools:     []string{"collections_list", "drivers_get_schema"},
+		Tools: []string{"collections_list", "drivers_get_schema"},
 	}
 
 	zh, err := renderSystemPrompt("zh-CN", data)
 	require.NoError(t, err)
-	assert.Contains(t, zh, "gateway-assistant")
+	assert.Contains(t, zh, "网关的 AI 助手")
 	assert.Contains(t, zh, "collections_list")
 	assert.Contains(t, zh, "**异常：具体信息**")
 	assert.Contains(t, zh, "计算变量")
@@ -25,6 +24,7 @@ func TestRenderSystemPrompt(t *testing.T) {
 
 	en, err := renderSystemPrompt("en-US", data)
 	require.NoError(t, err)
+	assert.Contains(t, en, "industrial IoT gateway")
 	assert.Contains(t, en, "**Error: details**")
 	assert.Contains(t, en, "calculated variables")
 	assert.Contains(t, en, "dataTopic")

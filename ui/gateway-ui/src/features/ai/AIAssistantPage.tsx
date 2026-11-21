@@ -10,10 +10,11 @@ import {
   useI18n,
 } from '@harns/core'
 import { chatWithAssistant } from '@/api/gateway'
+import { ASSISTANT_SESSION_KEY, clearAssistantSession } from '@/lib/assistant-session'
 import type { AIChatAttachment, AIChatMessage, AIChatResponse } from '@/api/types'
 import { AIMarkdown } from './AIMarkdown'
 
-const STORAGE_KEY = 'gateway.ai.assistant.session'
+const STORAGE_KEY = ASSISTANT_SESSION_KEY
 const MAX_FILES = 5
 const MAX_FILE_BYTES = 128 << 10
 const MAX_TOTAL_BYTES = 256 << 10
@@ -152,7 +153,7 @@ export function AIAssistantPage() {
     setMessages([])
     setInput('')
     setAttachments([])
-    window.sessionStorage.removeItem(STORAGE_KEY)
+    clearAssistantSession()
   }
 
   return (

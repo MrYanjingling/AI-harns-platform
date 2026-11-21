@@ -16,6 +16,7 @@ import {
   translate,
 } from '@harns/core'
 import { logout as logoutRequest } from '@/api/gateway'
+import { clearAssistantSession } from '@/lib/assistant-session'
 import type { GatewayUser, LoginResult } from '@/api/types'
 
 const USER_KEY = 'harns-gateway-auth-user'
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleExpired = () => {
       clearSessionToken()
+      clearAssistantSession()
       writeUser(null)
       setToken(null)
       setUser(null)
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     (result: LoginResult) => {
+      clearAssistantSession()
       queryClient.clear()
       setSessionToken(result.token)
       writeUser(result.user)
@@ -82,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 会话可能已过期,本地状态仍需要清理。
     } finally {
       clearSessionToken()
+      clearAssistantSession()
       writeUser(null)
       setToken(null)
       setUser(null)
