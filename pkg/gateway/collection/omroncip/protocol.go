@@ -181,16 +181,34 @@ func parseReadResponse(response []byte) ([]byte, uint16, error) {
 	}
 	additional := int(response[3])
 	offset := 4 + additional
-	if offset+4 > len(response) {
+	if offset+2 > len(response) {
 		return nil, 0, fmt.Errorf("omron cip read response is too short")
 	}
 	dataType := binary.LittleEndian.Uint16(response[offset:])
-	count := binary.LittleEndian.Uint16(response[offset+2:])
-	data := response[offset+4:]
-	if count > 0 && len(data) == 0 {
-		return nil, 0, fmt.Errorf("omron cip read response has no data")
+	rest := response[offset+2:]
+	data := rest
+	if size := cipTypeSize(dataType); size > 0 && len(rest) >= 2 {
+		count := int(binary.LittleEndian.Uint16(rest))
+		if count > 0 && len(rest) == 2+count*size {
+			data = rest[2:]
+		}
 	}
 	return data, dataType, nil
+}
+
+func cipTypeSize(dataType uint16) int {
+	switch dataType {
+	case 0xC1, 0xC2, 0xC6:
+		return 1
+	case 0xC3, 0xC7, 0xD2:
+		return 2
+	case 0xC4, 0xC8, 0xCA, 0xD3:
+		return 4
+	case 0xC5, 0xC9, 0xCB, 0xD4:
+		return 8
+	default:
+		return 0
+	}
 }
 
 func parseWriteResponse(response []byte) error {

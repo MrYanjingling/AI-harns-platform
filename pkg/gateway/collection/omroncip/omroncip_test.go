@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +75,40 @@ func TestReadResponse(t *testing.T) {
 	}
 	if value != int16(10) {
 		t.Fatalf("unexpected value %v", value)
+	}
+}
+
+func TestReadResponseWithoutElementCount(t *testing.T) {
+	cases := []struct {
+		dataType string
+		value    any
+		response []byte
+	}{
+		{"bool", true, []byte{0xCC, 0, 0, 0, 0xC1, 0, 1}},
+		{"int16", int16(75), []byte{0xCC, 0, 0, 0, 0xC3, 0, 0x4B, 0}},
+		{"int32", int32(296), []byte{0xCC, 0, 0, 0, 0xC4, 0, 0x28, 1, 0, 0}},
+		{"float32", float32(608.0999755859375), []byte{0xCC, 0, 0, 0, 0xCA, 0, 0x66, 6, 0x18, 0x44}},
+		{"float64", float64(1000.1), []byte{0xCC, 0, 0, 0, 0xCB, 0, 0xCD, 0xCC, 0xCC, 0xCC, 0xCC, 0x40, 0x8F, 0x40}},
+	}
+	for _, tc := range cases {
+		address, err := parseAddress("D0", tc.dataType)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, dataType, err := parseReadResponse(tc.response)
+		if err != nil {
+			t.Fatal(err)
+		}
+		value, err := decodeValue(data, tc.dataType, address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dataType != address.typeCode {
+			t.Fatalf("%s: unexpected data type %X", tc.dataType, dataType)
+		}
+		if !reflect.DeepEqual(value, tc.value) {
+			t.Fatalf("%s: unexpected value %v", tc.dataType, value)
+		}
 	}
 }
 
