@@ -1,6 +1,7 @@
 package hostlinkcmode
 
 import (
+	"errors"
 	"testing"
 
 	"harns-platform/pkg/gateway/collection"
@@ -70,6 +71,26 @@ func TestWriteFrame(t *testing.T) {
 	}
 	if _, err := parseResponse([]byte("@00WR13A5*\r"), address); err == nil {
 		t.Fatal("expected end code error")
+	} else {
+		var deviceErr *collection.DeviceError
+		if !errors.As(err, &deviceErr) || deviceErr.Code != "13" {
+			t.Fatalf("unexpected end code error %v", err)
+		}
+	}
+}
+
+func TestWriteEndCode16ReturnsDeviceError(t *testing.T) {
+	address, err := parseAddress("00!TS0000", "bool")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = parseResponse([]byte("@00WG1657*\r"), address)
+	var deviceErr *collection.DeviceError
+	if !errors.As(err, &deviceErr) {
+		t.Fatalf("expected device error, got %v", err)
+	}
+	if deviceErr.Code != "16" || deviceErr.MessageID != "error.hostlink_end_code_16" {
+		t.Fatalf("unexpected device error %+v", deviceErr)
 	}
 }
 

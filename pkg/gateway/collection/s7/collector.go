@@ -336,15 +336,19 @@ func validateResponse(response []byte, frame *s7Frame) ([]byte, error) {
 		if payload[offset] != 0xFF {
 			return nil, fmt.Errorf("s7 response item %d failed", index)
 		}
-		if payload[offset+1] != 2 {
+		if payload[offset+1] != 4 {
 			return nil, fmt.Errorf("s7 response item %d has invalid transport %d", index, payload[offset+1])
 		}
 		lengthBits := int(binutil.ParseUint16(payload[offset+2:]))
+		if lengthBits%8 != 0 {
+			return nil, fmt.Errorf("s7 response item %d length is not byte aligned", index)
+		}
 		expectedBits := int(item.Length) * 8
 		if lengthBits != expectedBits {
 			return nil, fmt.Errorf("s7 response item %d length mismatch: got %d bits, want %d", index, lengthBits, expectedBits)
 		}
-		dataBytes := (lengthBits + 7) / 8
+		//dataBytes := (lengthBits + 7) / 8
+		dataBytes := lengthBits / 8
 		if offset+4+dataBytes > len(payload) {
 			return nil, fmt.Errorf("s7 response item %d data is too short", index)
 		}

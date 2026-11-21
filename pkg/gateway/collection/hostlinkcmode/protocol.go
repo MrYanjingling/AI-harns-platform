@@ -5,6 +5,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"harns-platform/pkg/gateway/collection"
 )
 
 type parsedAddress struct {
@@ -197,9 +199,20 @@ func parseResponse(raw []byte, address parsedAddress) (response, error) {
 		return response{}, fmt.Errorf("hostlink command mismatch: got %s", command)
 	}
 	if endCode != "00" {
-		return response{}, fmt.Errorf("hostlink end code %s", endCode)
+		return response{}, hostlinkEndCodeError(endCode)
 	}
 	return response{command: command, data: body[6:]}, nil
+}
+
+func hostlinkEndCodeError(code string) error {
+	deviceErr := &collection.DeviceError{Code: code}
+	if code == "16" {
+		deviceErr.MessageID = "error.hostlink_end_code_16"
+		return deviceErr
+	}
+	deviceErr.MessageID = "error.hostlink_end_code"
+	deviceErr.Args = []interface{}{code}
+	return deviceErr
 }
 
 func decodeResponse(response response, address parsedAddress, dataType string) (any, error) {

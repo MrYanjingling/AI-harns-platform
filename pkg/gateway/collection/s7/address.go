@@ -35,11 +35,11 @@ func (a storeArea) transportSize() uint8 {
 }
 
 type parsedAddress struct {
-	area      storeArea
-	blockSize uint
-	address   uint32
-	bit       uint8
-	length    uint16
+	area      storeArea //区
+	blockSize uint      //block
+	address   uint32    //字节地址
+	bit       uint8     //位偏移
+	length    uint16    //长度 主要代表 字符串或者数组的长度
 }
 
 func parseAddress(value string) (parsedAddress, error) {

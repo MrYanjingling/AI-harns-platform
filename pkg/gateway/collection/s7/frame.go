@@ -10,16 +10,16 @@ import (
 
 type frameVariable struct {
 	Variable *collection.Variable
-	Start    uint
-	Bit      uint8
-	Length   uint16
+	Start    uint   //响应的该item里该变量的起始位置
+	Bit      uint8  //位
+	Length   uint16 //长度 单位byte
 }
 
 type frameItem struct {
 	RequestData []byte
-	Start       uint
-	Length      uint16
-	Variables   []*frameVariable
+	Start       uint             //响应里该item的起始位置
+	Length      uint16           //响应里该item的数据位的长度 单位byte
+	Variables   []*frameVariable //响应里该item包含了哪些变量
 }
 
 type s7Frame struct {
@@ -198,7 +198,7 @@ func packItems(items []*frameItem, pdu uint16) ([]*s7Frame, error) {
 	const (
 		requestItemSize  = 12
 		responseItemSize = 4
-		maxProtocolItems = 255
+		maxProtocolItems = 20
 	)
 	frames := make([]*s7Frame, 0)
 	current := make([]*frameItem, 0)

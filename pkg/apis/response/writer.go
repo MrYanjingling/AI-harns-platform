@@ -128,3 +128,14 @@ func WriteFieldErrors(c *gin.Context, status int, code ErrCode, items []ErrorIte
 		Errors:  items,
 	})
 }
+
+// WriteErrorItems writes business errors with a stable top-level message and
+// per-item details.
+func WriteErrorItems(c *gin.Context, status int, code ErrCode, items []ErrorItem) {
+	lang := i18n.Lang(c)
+	c.JSON(status, Result{
+		Code:    int(code),
+		Message: i18n.Translate(lang, messageID(code)),
+		Errors:  items,
+	})
+}

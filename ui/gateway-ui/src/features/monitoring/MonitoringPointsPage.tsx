@@ -13,9 +13,9 @@ import {
   SearchInput,
   Pagination,
   SearchSelect,
-  Select,
   TableSkeleton,
   Tooltip,
+  cn,
   showErrorToast,
   useI18n,
   type SearchSelectOption,
@@ -79,7 +79,13 @@ function validateControlValue(
   const text = value.trim()
   if (!text) return ''
   const dataType = variable.dataType.trim().toLowerCase()
-  if (dataType === 'bool' || dataType === 'bit') {
+  if (dataType === 'bool') {
+    const normalized = text.toLowerCase()
+    return normalized === 'true' || normalized === 'false'
+      ? ''
+      : t('gateway.monitoring.valueBoolean')
+  }
+  if (dataType === 'bit') {
     return text === '0' || text === '1' ? '' : t('gateway.monitoring.valueBinary')
   }
   if (dataType === 'string') return ''
@@ -207,11 +213,34 @@ export function MonitoringPointsPage() {
     () => collectionList.map((item) => ({ value: item.id, label: item.name })),
     [collectionList],
   )
-  const isBoolControl =
-    controlVariable?.dataType.trim().toLowerCase() === 'bool'
+  const controlDataType = controlVariable?.dataType.trim().toLowerCase() ?? ''
+  const isBoolControl = controlDataType === 'bool'
+  const isBitControl = controlDataType === 'bit'
+  const isSelectControl = isBoolControl || isBitControl
   const isIntegerControl = ['int16', 'uint16', 'int32', 'int64'].includes(
-    controlVariable?.dataType.trim().toLowerCase() ?? '',
+    controlDataType,
   )
+  const controlOptions = useMemo<SearchSelectOption[]>(() => {
+    const placeholder = {
+      value: '',
+      label: t('gateway.form.selectPlaceholder'),
+    }
+    if (isBoolControl) {
+      return [
+        placeholder,
+        { value: 'true', label: 'true' },
+        { value: 'false', label: 'false' },
+      ]
+    }
+    if (isBitControl) {
+      return [
+        placeholder,
+        { value: '0', label: '0' },
+        { value: '1', label: '1' },
+      ]
+    }
+    return []
+  }, [isBitControl, isBoolControl, t])
   const controlError = useMemo(
     () => validateControlValue(controlVariable, controlValue, t),
     [controlVariable, controlValue, t],
@@ -584,25 +613,20 @@ export function MonitoringPointsPage() {
               <dt className="app-control-dialog-label">{t('gateway.monitoring.writeValue')}</dt>
               <dd className="app-control-dialog-value-field">
                 <div className="app-control-dialog-field">
-                  {isBoolControl ? (
-                    <Select
+                  {isSelectControl ? (
+                    <SearchSelect
                       id="monitoring-control-value"
                       value={controlValue}
-                      autoFocus
-                      aria-invalid={Boolean(controlError)}
-                      className={
-                        controlError
-                          ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                          : undefined
-                      }
-                      onChange={(event) => setControlValue(event.target.value)}
-                    >
-                      <option value="" disabled>
-                        {t('gateway.form.selectPlaceholder')}
-                      </option>
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                    </Select>
+                      options={controlOptions}
+                      onChange={setControlValue}
+                      ariaLabel={t('gateway.monitoring.writeValue')}
+                      placeholderValue=""
+                      searchable={false}
+                      className={cn(
+                        'w-full',
+                        controlError && 'border-danger hover:border-danger',
+                      )}
+                    />
                   ) : (
                     <Input
                       id="monitoring-control-value"

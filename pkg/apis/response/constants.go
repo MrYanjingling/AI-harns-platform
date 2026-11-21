@@ -98,6 +98,7 @@ const (
 	ErrCodeAIProviderInvalid                   // 20030
 	ErrCodeAITokenNotFound                     // 20031
 	ErrCodeAIBusy                              // 20032
+	ErrCodeDeviceResponse                      // 20033
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

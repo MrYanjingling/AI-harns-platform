@@ -173,6 +173,19 @@ func listVariables(svc *Service) gin.HandlerFunc {
 }
 
 func writeErr(c *gin.Context, err error) {
+	var deviceErr *collection.DeviceError
+	if errors.As(err, &deviceErr) {
+		lang := i18n.Lang(c)
+		messageID := deviceErr.MessageID
+		if messageID == "" {
+			messageID = "error.device_response"
+		}
+		response.WriteErrorItems(c, http.StatusBadRequest, response.ErrCodeDeviceResponse, []response.ErrorItem{
+			response.NewFieldItem(lang, response.ErrCodeDeviceResponse, deviceErr.Field, messageID, deviceErr.Args...),
+		})
+		return
+	}
+
 	var validationErr *validation.ValidationError
 	if errors.As(err, &validationErr) {
 		lang := i18n.Lang(c)

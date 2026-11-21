@@ -2,6 +2,7 @@ package hostlinkcmode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -336,6 +337,10 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 			return exchangeErr
 		}
 		if _, err := parseResponse(response, address); err != nil {
+			var deviceErr *collection.DeviceError
+			if errors.As(err, &deviceErr) {
+				deviceErr.Field = fmt.Sprintf("actions[%d].name", action.Index)
+			}
 			return err
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
