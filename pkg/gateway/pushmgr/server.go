@@ -107,8 +107,15 @@ func updateConnector(svc *Service) gin.HandlerFunc {
 
 func deleteConnector(svc *Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id := c.Param("id")
 		cascade, _ := strconv.ParseBool(c.Query("cascade"))
-		if err := svc.DeleteConnector(c.Request.Context(), c.Param("id"), cascade); err != nil {
+		if err := svc.DeleteConnector(c.Request.Context(), id, cascade); err != nil {
+			if errors.Is(err, ErrConnectorInUse) {
+				if item, getErr := svc.GetConnector(c.Request.Context(), id); getErr == nil {
+					response.WriteError(c, http.StatusBadRequest, response.ErrPushConnectorConflict(item.Name))
+					return
+				}
+			}
 			writeErr(c, err, response.ErrCodePushConnectorInvalid)
 			return
 		}
