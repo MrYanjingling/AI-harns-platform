@@ -9,6 +9,7 @@ const (
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
 	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
+	ModelModbusASCII      = "modbusAscii"
 	ModelS71500           = "s71500"
 	ModelS7200            = "s7-200"
 	ModelOpcUa            = "opcUa"
@@ -19,6 +20,7 @@ const (
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
 	DriverModbusRTUOverTCP = "modbus-rtu-over-tcp"
+	DriverModbusASCII      = "modbus-ascii"
 	DriverS71500           = "s7-1500"
 	DriverS7200            = "s7-200"
 	DriverOpcUa            = "opcua"
@@ -29,6 +31,7 @@ const (
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
 	BuiltinModbusRTUOverTCPID = "01M706HSSR3Q8KY52DPNYR9MW5"
+	BuiltinModbusASCIIID      = "01M7Z9X3Q8KY52DPGDWG9KEXYZ"
 	BuiltinS71500ID           = "01M706HSSR3Q8KY52DPQZHT18E"
 	BuiltinS7200ID            = "01M706HSSR3Q8KY52DPQZHT18F"
 	BuiltinOpcUaID            = "01M706HSSR3Q8KY52DPSV88HRY"
@@ -249,6 +252,8 @@ const modbusRtuSchema = `{
     {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,3}![34][0-9]{1,5}$"}
   ]
 }`
+
+const modbusAsciiSchema = modbusRtuSchema
 
 const modbusRtuOverTcpSchema = `{
   "fields": [
@@ -876,6 +881,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinModbusTCPID, DriverTypeModbus, ModelModbusTCP, DriverModbusTCP, modbusTcpSchema},
 	{BuiltinModbusRTUID, DriverTypeModbus, ModelModbusRTU, DriverModbusRTU, modbusRtuSchema},
 	{BuiltinModbusRTUOverTCPID, DriverTypeModbus, ModelModbusRTUOverTCP, DriverModbusRTUOverTCP, modbusRtuOverTcpSchema},
+	{BuiltinModbusASCIIID, DriverTypeModbus, ModelModbusASCII, DriverModbusASCII, modbusAsciiSchema},
 	{BuiltinS71500ID, DriverTypeS7, ModelS71500, DriverS71500, s71500Schema},
 	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},

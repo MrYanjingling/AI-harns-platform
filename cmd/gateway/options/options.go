@@ -15,6 +15,7 @@ import (
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
+	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
@@ -205,6 +206,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	collectionMgr, err := collectionmgr.NewService(collectionStore,
 		&modbustcp.CreateHandler{},
 		&modbusrtu.CreateHandler{},
+		&modbusascii.CreateHandler{},
 		&modbusrtuovertcp.CreateHandler{},
 		&opcua.CreateHandler{},
 		&s7.CreateHandler{},
@@ -220,6 +222,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	runtimeManager, err := collectionmgr.NewRuntimeManager(
 		&modbustcp.CollectorFactory{},
 		&modbusrtu.CollectorFactory{},
+		&modbusascii.CollectorFactory{},
 		&modbusrtuovertcp.CollectorFactory{},
 		&opcua.CollectorFactory{},
 		&s7.CollectorFactory{},

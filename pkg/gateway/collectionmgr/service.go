@@ -17,6 +17,7 @@ import (
 	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
+	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
@@ -349,6 +350,18 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 			return nil, err
 		}
 		item := &modbusrtu.ModbusRtuCollection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == modbusascii.DriverType && record.DriverModel == modbusascii.DriverModel:
+		var req modbusascii.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &modbusascii.Collection{}
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
