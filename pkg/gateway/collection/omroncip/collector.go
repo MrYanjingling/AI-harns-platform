@@ -179,6 +179,9 @@ func (c *Collection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -186,10 +189,18 @@ func (c *Collection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -198,8 +209,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -219,7 +229,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 func (c *Collection) readFrame(ctx context.Context, frame *cipFrame) ([]decodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("omron cip runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("omron cip runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -303,26 +313,26 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		}
 		request, err := writeRequest(address, data)
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		session, ok := client.(*cipClient)
 		if !ok {
 			runtime.pool.Put(client, true)
-			return fmt.Errorf("invalid omron cip client type")
+			return collection.DeviceActionError(action, fmt.Errorf("invalid omron cip client type"))
 		}
 		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
 		traceID := c.traceRequest("write", wireRequest)
 		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
 		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := parseWriteResponse(response); err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

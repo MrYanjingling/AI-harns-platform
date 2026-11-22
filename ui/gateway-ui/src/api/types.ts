@@ -209,7 +209,12 @@ export interface PushGroup {
   runState: ConnectorRunState
   status: ConnectorStatus | string
   lastError?: string
+  pushError?: string
+  subscriptionError?: string
   lastPushTime?: string
+  pendingMessages: number
+  pendingBatches: number
+  oldestPendingTime?: string
   pushIntervalMs: number
   allCollections: boolean
   collectionIds: string[]

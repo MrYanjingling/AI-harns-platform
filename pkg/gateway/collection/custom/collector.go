@@ -241,6 +241,9 @@ func (c *Collector) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -248,10 +251,18 @@ func (c *Collector) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -260,8 +271,7 @@ func (c *Collector) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -281,7 +291,7 @@ func (c *Collector) poll(ctx context.Context) bool {
 func (c *Collector) readFrame(ctx context.Context, frame pluginmgr.ReadFrame) ([]pluginmgr.DecodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("custom runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("custom runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -330,16 +340,16 @@ func (c *Collector) DeliverAction(ctx context.Context, actions []collection.Acti
 			return c.driver.BuildWrite(action, c.config)
 		})
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		transport, ok := client.(*transportClient)
 		if !ok {
 			runtime.pool.Put(client, true)
-			return fmt.Errorf("invalid custom transport type")
+			return collection.DeviceActionError(action, fmt.Errorf("invalid custom transport type"))
 		}
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
@@ -349,11 +359,11 @@ func (c *Collector) DeliverAction(ctx context.Context, actions []collection.Acti
 		c.traceResponse(traceID, "write", response, started, err)
 		if err != nil {
 			runtime.pool.Put(client, true)
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		runtime.pool.Put(client, false)
 		if err := safeError(func() error { return c.driver.DecodeWrite(response) }); err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

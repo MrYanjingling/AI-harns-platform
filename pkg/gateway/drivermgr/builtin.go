@@ -5,17 +5,22 @@ const (
 	DriverTypeS7     = "s7"
 	DriverTypeOpcUa  = "opcUa"
 	DriverTypeOmron  = "omron"
+	DriverTypeIEC    = "IEC"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
 	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
-	ModelModbusASCII      = "modbusAscii"
+	ModelModbusASCII      = "Modbus Ascii"
 	ModelS71500           = "s71500"
 	ModelS7200            = "s7-200"
 	ModelOpcUa            = "opcUa"
 	ModelFins             = "fins"
 	ModelHostlinkCmode    = "hostlinkCmode"
 	ModelOmronCip         = "omronCip"
+	ModelIEC101           = "IEC101"
+	ModelIEC102           = "IEC102"
+	ModelIEC103           = "IEC103"
+	ModelIEC104           = "IEC104"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -27,6 +32,10 @@ const (
 	DriverFins             = "omron-fins"
 	DriverHostlinkCmode    = "omron-hostlink-cmode"
 	DriverOmronCip         = "omron-cip"
+	DriverIEC101           = "iec101"
+	DriverIEC102           = "iec102"
+	DriverIEC103           = "iec103"
+	DriverIEC104           = "iec104"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -38,6 +47,10 @@ const (
 	BuiltinFinsID             = "01M706HSSR3Q8KY52DPSV88HRZ"
 	BuiltinHostlinkCmodeID    = "01M706HSSR3Q8KY52DPSV88HS1"
 	BuiltinOmronCipID         = "01M706HSSR3Q8KY52DPSV88HS2"
+	BuiltinIEC101ID           = "01M7Z9X3Q8KY52DPGDWG9KEX01"
+	BuiltinIEC102ID           = "01M7Z9X3Q8KY52DPGDWG9KEX02"
+	BuiltinIEC103ID           = "01M7Z9X3Q8KY52DPGDWG9KEX03"
+	BuiltinIEC104ID           = "01M7Z9X3Q8KY52DPGDWG9KEX04"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -867,6 +880,104 @@ const omronCipSchema = `{
   ]
 }`
 
+const iec104Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"PLC 地址","labelEn":"PLC Address","regex":"^[A-Za-z0-9.-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"interval","labelZh":"总招周期(s)","labelEn":"Interrogation Interval (s)","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"timeout","labelZh":"超时(s)","labelEn":"Timeout (s)","regex":"^[1-9][0-9]{0,3}$","sort":5,"type":"input"},
+    {"name":"active","labelZh":"主动总召","labelEn":"Active Interrogation","regex":"^(true|false)$","sort":6,"type":"select","options":[{"value":"true","labelZh":"是","labelEn":"Yes"},{"value":"false","labelZh":"否","labelEn":"No"}]}
+  ],
+  "variableAddress": {"labelZh":"信息对象地址 IOA","labelEn":"Information Object Address","placeholderZh":"1","placeholderEn":"1","descriptionZh":"十进制 IOA","descriptionEn":"Decimal IOA"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[0-9]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]+$"}
+  ]
+}`
+
+const iec101Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"caLength","labelZh":"CA 长度","labelEn":"CA Length","regex":"^[12]$","sort":5,"type":"input"},
+    {"name":"cotLength","labelZh":"COT 长度","labelEn":"COT Length","regex":"^[12]$","sort":6,"type":"input"},
+    {"name":"ioaLength","labelZh":"IOA 长度","labelEn":"IOA Length","regex":"^[123]$","sort":7,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":8,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":9,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":10,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":11,"type":"input"},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":12,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"信息对象地址 IOA","labelEn":"Information Object Address","placeholderZh":"100 / 2000","placeholderEn":"100 / 2000","descriptionZh":"十进制 IOA","descriptionEn":"Decimal IOA"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[0-9]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]+$"}
+  ]
+}`
+
+const iec102Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"la","labelZh":"链路地址","labelEn":"Link Address","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":5,"type":"input"},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":6,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":7,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":8,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":9,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":10,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"记录地址.IOA","labelEn":"RA.IOA","placeholderZh":"1.0","placeholderEn":"1.0","descriptionZh":"格式 RA.IOA，范围 0..255","descriptionEn":"RA.IOA, 0..255"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]+\\.[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]+\\.[0-9]+$"}
+  ]
+}`
+
+const iec103Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":4,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":5,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":6,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":7,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"CA.FUN.NUM","labelEn":"CA.FUN.NUM","placeholderZh":"1.16.1","placeholderEn":"1.16.1","descriptionZh":"CA、FUN、NUM 范围 0..255","descriptionEn":"CA, FUN, NUM 0..255"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+  ]
+}`
+
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
 	ID         string
@@ -882,6 +993,10 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinModbusRTUID, DriverTypeModbus, ModelModbusRTU, DriverModbusRTU, modbusRtuSchema},
 	{BuiltinModbusRTUOverTCPID, DriverTypeModbus, ModelModbusRTUOverTCP, DriverModbusRTUOverTCP, modbusRtuOverTcpSchema},
 	{BuiltinModbusASCIIID, DriverTypeModbus, ModelModbusASCII, DriverModbusASCII, modbusAsciiSchema},
+	{BuiltinIEC101ID, DriverTypeIEC, ModelIEC101, DriverIEC101, iec101Schema},
+	{BuiltinIEC104ID, DriverTypeIEC, ModelIEC104, DriverIEC104, iec104Schema},
+	{BuiltinIEC102ID, DriverTypeIEC, ModelIEC102, DriverIEC102, iec102Schema},
+	{BuiltinIEC103ID, DriverTypeIEC, ModelIEC103, DriverIEC103, iec103Schema},
 	{BuiltinS71500ID, DriverTypeS7, ModelS71500, DriverS71500, s71500Schema},
 	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},

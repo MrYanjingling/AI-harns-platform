@@ -469,8 +469,14 @@ func (m *RuntimeManager) connectAndStart(ctx context.Context, runtime *RuntimeCo
 }
 
 func (m *RuntimeManager) connectAndStartLocked(ctx context.Context, runtime *RuntimeCollection) {
+	meta := runtime.Collector.GetCollectionMeta()
 	if err := runtime.Collector.Connect(ctx); err != nil {
 		runtime.SetLastError(err)
+		logging.ErrorS(err, "Failed to connect collection",
+			"collectionId", meta.GetID(),
+			"driverType", meta.GetDriverType(),
+			"driverModel", meta.GetDriverModel(),
+		)
 		if errors.Is(err, collection.ErrNotImplemented) || errors.Is(err, collection.ErrInvalidConfig) {
 			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		} else {
@@ -480,6 +486,11 @@ func (m *RuntimeManager) connectAndStartLocked(ctx context.Context, runtime *Run
 	}
 	if err := runtime.Collector.Start(ctx); err != nil {
 		runtime.SetLastError(err)
+		logging.ErrorS(err, "Failed to start collection",
+			"collectionId", meta.GetID(),
+			"driverType", meta.GetDriverType(),
+			"driverModel", meta.GetDriverModel(),
+		)
 		runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		return
 	}
@@ -527,6 +538,12 @@ func (m *RuntimeManager) retryUnconnected() {
 			state.mu.Unlock()
 			return true
 		}
+		if state.nextRetryAt.IsZero() {
+			state.attempts = 1
+			state.nextRetryAt = now.Add(m.retryPolicy.delay(state.attempts))
+			state.mu.Unlock()
+			return true
+		}
 		state.retrying = true
 		state.mu.Unlock()
 		m.wg.Add(1)
@@ -541,6 +558,7 @@ func (m *RuntimeManager) retryOne(id string, runtime *RuntimeCollection, state *
 	defer cancel()
 
 	runtime.opMu.Lock()
+	_ = runtime.Collector.Stop(ctx)
 	connectErr := runtime.Collector.Connect(ctx)
 	var startErr error
 	if connectErr == nil {
@@ -556,6 +574,10 @@ func (m *RuntimeManager) retryOne(id string, runtime *RuntimeCollection, state *
 	switch {
 	case connectErr != nil:
 		runtime.SetLastError(connectErr)
+		logging.ErrorS(connectErr, "Failed to reconnect collection",
+			"collectionId", id,
+			"attempt", state.attempts+1,
+		)
 		if errors.Is(connectErr, collection.ErrInvalidConfig) || errors.Is(connectErr, collection.ErrNotImplemented) {
 			runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 			m.retryStates.Delete(id)
@@ -566,10 +588,12 @@ func (m *RuntimeManager) retryOne(id string, runtime *RuntimeCollection, state *
 		state.nextRetryAt = now.Add(m.retryPolicy.delay(state.attempts))
 	case startErr != nil:
 		runtime.SetLastError(startErr)
+		logging.ErrorS(startErr, "Failed to start collection after reconnect", "collectionId", id)
 		runtime.Collector.SetCollectStatus(collection.CollectStatusError)
 		m.retryStates.Delete(id)
 	default:
 		runtime.ClearLastError()
+		logging.InfoS("Collection reconnected", "collectionId", id)
 		m.retryStates.Delete(id)
 	}
 }

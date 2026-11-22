@@ -1,6 +1,9 @@
 package collection
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // DeviceError carries a protocol-level device failure for API presentation.
 type DeviceError struct {
@@ -29,4 +32,26 @@ func (e *DeviceError) Unwrap() error {
 		return nil
 	}
 	return e.Err
+}
+
+// DeviceActionError converts a protocol/transport failure from a write action
+// into a DeviceError so the API returns a device response instead of 10017.
+func DeviceActionError(action ActionValue, err error) error {
+	if err == nil {
+		return nil
+	}
+	field := fmt.Sprintf("actions[%d].name", action.Index)
+	var deviceErr *DeviceError
+	if errors.As(err, &deviceErr) {
+		if deviceErr.Field == "" {
+			deviceErr.Field = field
+		}
+		return deviceErr
+	}
+	return &DeviceError{
+		Field:     field,
+		MessageID: "error.device_action_failed",
+		Args:      []interface{}{err.Error()},
+		Err:       err,
+	}
 }

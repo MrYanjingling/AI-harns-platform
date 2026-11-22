@@ -2,7 +2,6 @@ package hostlinkcmode
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -172,6 +171,9 @@ func (c *Collection) poll(ctx context.Context) bool {
 		return false
 	}
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for _, frame := range runtime.frames {
 		values, err := c.readFrame(ctx, frame)
@@ -180,10 +182,18 @@ func (c *Collection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if err == nil || len(values) > 0 {
+			succeeded++
+		}
 		if err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = err
+			}
+			if collection.IsConnectionLost(err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 		if c.IntervalMs > 0 {
@@ -199,8 +209,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -220,7 +229,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 func (c *Collection) readFrame(ctx context.Context, frame *hostlinkFrame) ([]decodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.port == nil {
-		return nil, fmt.Errorf("hostlink runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("hostlink runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -252,7 +261,7 @@ func (c *Collection) readFrame(ctx context.Context, frame *hostlinkFrame) ([]dec
 func (c *Collection) exchange(ctx context.Context, request []byte) ([]byte, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.port == nil {
-		return nil, fmt.Errorf("hostlink runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("hostlink runtime is not connected"))
 	}
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
@@ -260,20 +269,20 @@ func (c *Collection) exchange(ctx context.Context, request []byte) ([]byte, erro
 		return nil, err
 	}
 	if _, err := runtime.port.Write(request); err != nil {
-		return nil, err
+		return nil, collection.ConnectionLost(err)
 	}
 	if err := runtime.port.SetReadTimeout(time.Duration(c.TimeoutMs) * time.Millisecond); err != nil {
-		return nil, err
+		return nil, collection.ConnectionLost(err)
 	}
 	response := make([]byte, 0, 64)
 	buffer := make([]byte, 1)
 	for len(response) < 4096 {
 		read, err := runtime.port.Read(buffer)
 		if err != nil {
-			return nil, err
+			return nil, collection.ConnectionLost(err)
 		}
 		if read == 0 {
-			continue
+			return nil, collection.ConnectionLost(collection.ErrReadTimeout)
 		}
 		response = append(response, buffer[0])
 		if buffer[0] == '\r' {
@@ -334,14 +343,10 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		response, exchangeErr := c.exchange(ctx, request)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if _, err := parseResponse(response, address); err != nil {
-			var deviceErr *collection.DeviceError
-			if errors.As(err, &deviceErr) {
-				deviceErr.Field = fmt.Sprintf("actions[%d].name", action.Index)
-			}
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"harns-platform/pkg/i18n"
+	"harns-platform/pkg/logging"
 )
 
 const (
@@ -64,12 +65,40 @@ func ErrorResult(lang string, errs ...error) Result {
 // WriteError writes errs as a localized JSON error response. The HTTP status is
 // preserved so callers keep REST semantics (400/404/409/412/...).
 func WriteError(c *gin.Context, status int, errs ...error) {
-	c.JSON(status, ErrorResult(i18n.Lang(c), errs...))
+	result := ErrorResult(i18n.Lang(c), errs...)
+	logError(c, status, result)
+	c.JSON(status, result)
 }
 
 // WriteJSONP writes errs as a localized JSONP error response.
 func WriteJSONP(c *gin.Context, status int, errs ...error) {
-	c.JSONP(status, ErrorResult(i18n.Lang(c), errs...))
+	result := ErrorResult(i18n.Lang(c), errs...)
+	logError(c, status, result)
+	c.JSONP(status, result)
+}
+
+// logError records non-success API responses with their business details so the
+// service log explains the 4xx/5xx access log line.
+func logError(c *gin.Context, status int, result Result) {
+	if status < http.StatusBadRequest {
+		return
+	}
+	args := []interface{}{
+		"traceId", c.Writer.Header().Get("X-Trace-Id"),
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+		"status", status,
+		"code", result.Code,
+		"message", result.Message,
+	}
+	if len(result.Errors) > 0 {
+		args = append(args, "errors", result.Errors)
+	}
+	if status >= http.StatusInternalServerError {
+		logging.Logger().Error("http error", args...)
+		return
+	}
+	logging.Logger().Warn("http error", args...)
 }
 
 func flatten(errs []error) []error {
@@ -122,20 +151,24 @@ func WriteFieldErrors(c *gin.Context, status int, code ErrCode, items []ErrorIte
 	if len(items) > 0 && items[0].Message != "" {
 		message = items[0].Message
 	}
-	c.JSON(status, Result{
+	result := Result{
 		Code:    int(code),
 		Message: message,
 		Errors:  items,
-	})
+	}
+	logError(c, status, result)
+	c.JSON(status, result)
 }
 
 // WriteErrorItems writes business errors with a stable top-level message and
 // per-item details.
 func WriteErrorItems(c *gin.Context, status int, code ErrCode, items []ErrorItem) {
 	lang := i18n.Lang(c)
-	c.JSON(status, Result{
+	result := Result{
 		Code:    int(code),
 		Message: i18n.Translate(lang, messageID(code)),
 		Errors:  items,
-	})
+	}
+	logError(c, status, result)
+	c.JSON(status, result)
 }

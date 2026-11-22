@@ -68,3 +68,8 @@ type ConnectorConfigNormalizer interface {
 type ConnectorErrorHandler interface {
 	SetErrorHandler(handler func(error))
 }
+
+// ConnectorConnectedHandler notifies a connector that the connection was (re)established.
+type ConnectorConnectedHandler interface {
+	SetConnectedHandler(handler func())
+}

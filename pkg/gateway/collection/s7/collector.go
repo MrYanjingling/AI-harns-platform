@@ -233,6 +233,9 @@ func (c *S7Collection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -240,10 +243,18 @@ func (c *S7Collection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -252,8 +263,7 @@ func (c *S7Collection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -278,7 +288,7 @@ func (c *S7Collection) SetFrameTracer(tracer collection.FrameTracer) {
 func (c *S7Collection) readFrame(ctx context.Context, frame *s7Frame) ([]decodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("s7 runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("s7 runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -381,7 +391,7 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 		}
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		session := client.(*s7Client)
 		traceID := c.traceRequest("write", request)
@@ -390,10 +400,10 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if len(response) < 22 || response[21] != 255 {
-			return fmt.Errorf("s7 write failed")
+			return collection.DeviceActionError(action, fmt.Errorf("s7 write failed"))
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

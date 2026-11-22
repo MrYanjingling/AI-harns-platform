@@ -28,7 +28,12 @@ type PushGroupVo struct {
 	RunState                     string     `json:"runState"`
 	Status                       string     `json:"status"`
 	LastError                    string     `json:"lastError,omitempty"`
+	PushError                    string     `json:"pushError,omitempty"`
+	SubscriptionError            string     `json:"subscriptionError,omitempty"`
 	LastPushTime                 *time.Time `json:"lastPushTime,omitempty"`
+	PendingMessages              int64      `json:"pendingMessages"`
+	PendingBatches               int64      `json:"pendingBatches"`
+	OldestPendingTime            *time.Time `json:"oldestPendingTime,omitempty"`
 	PushIntervalMs               int64      `json:"pushIntervalMs"`
 	AllCollections               bool       `json:"allCollections"`
 	CollectionIDs                []string   `json:"collectionIds"`

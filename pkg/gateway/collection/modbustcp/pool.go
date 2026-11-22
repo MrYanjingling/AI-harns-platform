@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/connpool"
 )
 
@@ -46,7 +47,7 @@ func newNetPool(ctx context.Context, address string, size int) (*connpool.Pool, 
 func exchange(ctx context.Context, pool *connpool.Pool, request, response []byte) error {
 	client, err := pool.Get(ctx)
 	if err != nil {
-		return err
+		return collection.ConnectionLost(err)
 	}
 	netConn, ok := client.(*netClient)
 	if !ok {
@@ -55,7 +56,7 @@ func exchange(ctx context.Context, pool *connpool.Pool, request, response []byte
 	}
 	err = exchangeConn(netConn.Conn, request, response)
 	pool.Put(client, err != nil)
-	return err
+	return collection.ConnectionLost(err)
 }
 
 func probeTCP(ctx context.Context, address string, request, response []byte) error {

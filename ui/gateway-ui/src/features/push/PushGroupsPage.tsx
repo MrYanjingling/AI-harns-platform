@@ -144,6 +144,7 @@ export function PushGroupsPage() {
     interval: 120,
     scope: 100,
     lastPush: 160,
+    pending: 130,
     actions: 140,
   })
 
@@ -264,7 +265,7 @@ export function PushGroupsPage() {
         }
       >
           {connectors.isLoading ? (
-            <TableSkeleton rows={6} cols={10} />
+            <TableSkeleton rows={6} cols={11} />
           ) : connectors.isError ? (
             <div className="p-5">
               <ErrorState
@@ -274,7 +275,7 @@ export function PushGroupsPage() {
               />
             </div>
           ) : noConnectors || !activeConnectorId ? null : groups.isLoading ? (
-            <TableSkeleton rows={6} cols={10} />
+            <TableSkeleton rows={6} cols={11} />
           ) : groups.isError ? (
             <div className="p-5">
               <ErrorState error={groups.error} onRetry={() => void groups.refetch()} compact />
@@ -296,6 +297,7 @@ export function PushGroupsPage() {
                 <col style={{ width: widths.interval }} />
                 <col style={{ width: widths.scope }} />
                 <col style={{ width: widths.lastPush }} />
+                <col style={{ width: widths.pending }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
               <DataTableHead>
@@ -356,6 +358,14 @@ export function PushGroupsPage() {
                       onResize={resize}
                     />
                   </DataTableHeadCell>
+                  <DataTableHeadCell>
+                    {t('gateway.push.columns.pending')}
+                    <ColumnResizeHandle
+                      column="pending"
+                      width={widths.pending}
+                      onResize={resize}
+                    />
+                  </DataTableHeadCell>
                   <DataTableHeadCell className="text-left">
                     {t('common.field.actions')}
                     <ColumnResizeHandle
@@ -388,7 +398,20 @@ export function PushGroupsPage() {
                       <DataTableCell>
                         <ConnectorStatusBadge
                           status={group.status}
-                          error={group.lastError}
+                          error={
+                            [
+                              group.pushError
+                                ? t('gateway.push.error.push', { message: group.pushError })
+                                : '',
+                              group.subscriptionError
+                                ? t('gateway.push.error.subscription', {
+                                    message: group.subscriptionError,
+                                  })
+                                : '',
+                            ]
+                              .filter(Boolean)
+                              .join('；') || group.lastError
+                          }
                         />
                       </DataTableCell>
                       <DataTableCell>
@@ -432,11 +455,30 @@ export function PushGroupsPage() {
                       <DataTableCell className="whitespace-nowrap">
                         {group.lastPushTime ? formatDateTime(group.lastPushTime) : '—'}
                       </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
+                        {group.pendingMessages > 0 ? (
+                          <span
+                            title={`${t('gateway.push.pending.batches', { count: group.pendingBatches })}${
+                              group.oldestPendingTime
+                                ? ` · ${t('gateway.push.pending.oldest', {
+                                    time: formatDateTime(group.oldestPendingTime),
+                                  })}`
+                                : ''
+                            }`}
+                          >
+                            {group.pendingMessages}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </DataTableCell>
                       <DataTableCell>
                         <TableActions>
                           <TableActionButton
                             label={t('gateway.collection.action.update')}
                             icon={<Pencil />}
+                            disabled={group.runState !== 'stopped'}
+                            disabledReason={t('gateway.push.action.editRequiresStopped')}
                             onClick={() => openEdit(group)}
                           />
                           <TableActionButton

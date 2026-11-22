@@ -112,6 +112,12 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 			c.activeBackup = true
 		}
 	}
+	if err != nil && target == c.BackupLocation {
+		pool, err = newNetPool(ctx, c.Location, c.Concurrency)
+		if err == nil {
+			c.activeBackup = false
+		}
+	}
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
@@ -236,6 +242,9 @@ func (c *ModbusRtuOverTcpCollection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -243,10 +252,18 @@ func (c *ModbusRtuOverTcpCollection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -255,8 +272,14 @@ func (c *ModbusRtuOverTcpCollection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
+		if succeeded == 0 && connectionFailures > 0 && !protocolFailure {
+			if c.recordCycleFailure(ctx) {
+				c.SetCollectStatus(collection.CollectStatusCollectingError)
+				return true
+			}
+			return collection.MarkConnectionLost(c, cycleErr)
+		}
 		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		c.recordCycleFailure(ctx)
 		return true
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
@@ -286,7 +309,7 @@ func (c *ModbusRtuOverTcpCollection) SetFrameTracer(tracer collection.FrameTrace
 func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wireFrame) ([]modbus.DecodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("modbusRtuOverTcp runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("modbusRtuOverTcp runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -316,39 +339,43 @@ func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wi
 	return nil, lastErr
 }
 
-func (c *ModbusRtuOverTcpCollection) recordCycleFailure(ctx context.Context) {
+func (c *ModbusRtuOverTcpCollection) recordCycleFailure(ctx context.Context) bool {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return
+		return false
+	}
+	runtime.mu.Lock()
+	activeBackup := c.activeBackup
+	runtime.mu.Unlock()
+	if activeBackup || c.BackupLocation == "" {
+		return false
 	}
 	runtime.mu.Lock()
 	runtime.failureStreak++
 	streak := runtime.failureStreak
-	activeBackup := c.activeBackup
 	runtime.mu.Unlock()
 	if streak < 3 {
-		return
+		return true
 	}
 	runtime.mu.Lock()
 	runtime.failureStreak = 0
 	runtime.mu.Unlock()
-	if activeBackup || c.BackupLocation == "" {
-		return
-	}
 	newPool, err := newNetPool(ctx, c.BackupLocation, c.Concurrency)
-	if err == nil {
-		oldPool := runtime.pool
-		runtime.mu.Lock()
-		runtime.pool = newPool
-		runtime.mu.Unlock()
-		_ = oldPool.Close()
-		c.activeBackup = true
-		runtime.mu.Lock()
-		runtime.backupSince = time.Now()
-		runtime.probeSuccess = 0
-		runtime.lastProbe = time.Time{}
-		runtime.mu.Unlock()
+	if err != nil {
+		return false
 	}
+	oldPool := runtime.pool
+	runtime.mu.Lock()
+	runtime.pool = newPool
+	runtime.mu.Unlock()
+	_ = oldPool.Close()
+	c.activeBackup = true
+	runtime.mu.Lock()
+	runtime.backupSince = time.Now()
+	runtime.probeSuccess = 0
+	runtime.lastProbe = time.Time{}
+	runtime.mu.Unlock()
+	return true
 }
 
 func (c *ModbusRtuOverTcpCollection) maybeFailback(ctx context.Context) {
@@ -441,10 +468,10 @@ func (c *ModbusRtuOverTcpCollection) DeliverAction(ctx context.Context, actions 
 		exchangeErr := exchange(ctx, runtime.pool, request, response)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := modbus.ValidateRTUWriteResponse(response, write.Slave, write.Function); err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

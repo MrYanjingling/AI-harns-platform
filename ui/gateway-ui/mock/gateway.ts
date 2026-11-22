@@ -1094,6 +1094,8 @@ export async function handleGateway(
         maxCollectionsPerPushMessage: payload.maxCollectionsPerPushMessage ?? 50,
         runState: 'running',
         status: findConnector(payload.connectorId)?.status === 'running' ? 'running' : 'stopped',
+        pendingMessages: 0,
+        pendingBatches: 0,
         version: 1,
         createdTime: nowIso(),
         updatedTime: nowIso(),

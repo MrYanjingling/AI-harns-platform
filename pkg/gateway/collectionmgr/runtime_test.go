@@ -364,3 +364,51 @@ func TestRetryUnconnectedKeepsStateWhileRetrying(t *testing.T) {
 	_, exists := manager.retryStates.Load("c1")
 	assert.True(t, exists)
 }
+
+func TestRetryUnconnectedSeedsBackoffForMidRunDisconnect(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	manager.retryPolicy = retryPolicy{
+		initial:    time.Minute,
+		max:        5 * time.Minute,
+		timeout:    time.Second,
+		multiplier: 2,
+	}
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+	runtime, ok := manager.Get("c1")
+	require.True(t, ok)
+	runtime.Collector.SetCollectStatus(collection.CollectStatusUnconnected)
+
+	manager.retryUnconnected()
+
+	state := manager.ensureRetryState("c1")
+	state.mu.Lock()
+	attempts := state.attempts
+	nextRetryAt := state.nextRetryAt
+	retrying := state.retrying
+	state.mu.Unlock()
+	assert.Equal(t, 1, attempts)
+	assert.False(t, retrying)
+	assert.True(t, nextRetryAt.After(time.Now()))
+	assert.Equal(t, 1, factory.collectors[0].connects)
+}
+
+func TestRetryOneStopsBeforeReconnect(t *testing.T) {
+	factory := &fakeCollectorFactory{}
+	manager, err := NewRuntimeManager(factory)
+	require.NoError(t, err)
+	require.NoError(t, manager.Register(context.Background(), fakeRecord("c1")))
+	runtime, ok := manager.Get("c1")
+	require.True(t, ok)
+	runtime.Collector.SetCollectStatus(collection.CollectStatusUnconnected)
+
+	state := manager.ensureRetryState("c1")
+	manager.wg.Add(1)
+	manager.retryOne("c1", runtime, state)
+
+	collector := factory.collectors[0]
+	assert.Equal(t, 1, collector.stops)
+	assert.Equal(t, 2, collector.connects)
+	assert.Equal(t, collection.CollectStatusCollecting, runtime.Collector.GetCollectStatus())
+}

@@ -15,6 +15,10 @@ import (
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
+	"harns-platform/pkg/gateway/collection/iec101"
+	"harns-platform/pkg/gateway/collection/iec102"
+	"harns-platform/pkg/gateway/collection/iec103"
+	"harns-platform/pkg/gateway/collection/iec104"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
@@ -212,6 +216,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&s7.CreateHandler{},
 		s7.NewS7200CreateHandler(),
 		&fins.CreateHandler{},
+		&iec101.CreateHandler{},
+		&iec102.CreateHandler{},
+		&iec103.CreateHandler{},
+		&iec104.CreateHandler{},
 		&hostlinkcmode.CreateHandler{},
 		&omroncip.CreateHandler{},
 	)
@@ -228,6 +236,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&s7.CollectorFactory{},
 		s7.NewS7200CollectorFactory(),
 		&fins.CollectorFactory{},
+		&iec101.CollectorFactory{},
+		&iec102.CollectorFactory{},
+		&iec103.CollectorFactory{},
+		&iec104.CollectorFactory{},
 		&hostlinkcmode.CollectorFactory{},
 		&omroncip.CollectorFactory{},
 	)
@@ -260,6 +272,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	pushRuntime.SetReadySendStore(pushStore)
 	pushService := pushmgr.NewService(pushStore, pushSource, pushRuntime)
 	if err := pushService.StartRuntime(context.Background()); err != nil {
 		_ = db.Close()

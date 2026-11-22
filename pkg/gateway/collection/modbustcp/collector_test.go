@@ -294,3 +294,32 @@ func TestInvalidCalculationKeepsCollectionRunning(t *testing.T) {
 		return created.GetCollectStatus() == collection.CollectStatusCollectingError
 	}, 2*time.Second, 10*time.Millisecond)
 }
+
+func TestCollectorMarksUnconnectedWhenLinkLostDuringCollection(t *testing.T) {
+	server := newClosingModbusServer(t)
+
+	created, err := NewCollection(&CreateReq{
+		Name:             "modbus-tcp-disconnect",
+		CollectorCycleMs: 10,
+		ProtocolConfig: ProtocolConfig{
+			Location:        server.Addr(),
+			MemoryLayout:    "ABCD",
+			PositionAddress: 1,
+			Concurrency:     1,
+		},
+		Variables: []*collection.Variable{
+			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = created.Stop(context.Background()) })
+	require.NoError(t, created.Connect(context.Background()))
+	require.NoError(t, created.Start(context.Background()))
+
+	require.Eventually(t, func() bool {
+		return created.GetCollectStatus() == collection.CollectStatusUnconnected
+	}, 2*time.Second, 10*time.Millisecond)
+
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, collection.CollectStatusUnconnected, created.GetCollectStatus())
+}

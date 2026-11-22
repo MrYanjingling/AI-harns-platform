@@ -173,6 +173,7 @@ export function VariablesEditor({
           </THead>
           <TBody>
             {variables.map((variable, index) => {
+              const locked = !variable.isNew && Boolean(lockedNames?.has(variable.name))
               return (
                 <TR key={index}>
                   {selectable ? (
@@ -188,14 +189,14 @@ export function VariablesEditor({
                   <TD>
                     <Input
                       value={variable.name}
-                      readOnly={lockedNames?.has(variable.name)}
+                      readOnly={locked}
                       aria-label={t('gateway.variable.name')}
                       aria-invalid={Boolean(errors[`variables.${index}.name`])}
                       placeholder={t('gateway.variable.namePlaceholder')}
                       className={
                         errors[`variables.${index}.name`]
                           ? 'border-danger hover:border-danger focus:border-danger focus:ring-danger/15'
-                          : lockedNames?.has(variable.name)
+                          : locked
                             ? 'bg-surface-2 text-muted'
                             : undefined
                       }

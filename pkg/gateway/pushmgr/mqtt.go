@@ -3,6 +3,7 @@ package pushmgr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -56,6 +57,7 @@ type MQTTConnector struct {
 	client     mqtt.Client
 	mu         sync.RWMutex
 	errHandler func(error)
+	onConnect  func()
 	subs       map[string]struct{}
 }
 
@@ -63,6 +65,21 @@ func (c *MQTTConnector) SetErrorHandler(handler func(error)) {
 	c.mu.Lock()
 	c.errHandler = handler
 	c.mu.Unlock()
+}
+
+func (c *MQTTConnector) SetConnectedHandler(handler func()) {
+	c.mu.Lock()
+	c.onConnect = handler
+	c.mu.Unlock()
+}
+
+func (c *MQTTConnector) notifyConnected() {
+	c.mu.RLock()
+	handler := c.onConnect
+	c.mu.RUnlock()
+	if handler != nil {
+		handler()
+	}
 }
 
 func (c *MQTTConnector) notifyError(err error) {
@@ -97,6 +114,9 @@ func (c *MQTTConnector) Connect(ctx context.Context) error {
 	opts.SetKeepAlive(time.Duration(c.config.KeepAlive) * time.Second)
 	opts.SetAutoReconnect(true)
 	opts.SetConnectTimeout(mqttConnectTimeout)
+	opts.SetOnConnectHandler(func(_ mqtt.Client) {
+		c.notifyConnected()
+	})
 	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
 		c.notifyError(fmt.Errorf("mqtt connection lost: %w", err))
 	})
@@ -115,7 +135,7 @@ func (c *MQTTConnector) Close(ctx context.Context) error {
 	c.mu.Lock()
 	c.subs = make(map[string]struct{})
 	c.mu.Unlock()
-	if c.client != nil && c.client.IsConnected() {
+	if c.client != nil {
 		c.client.Disconnect(250)
 	}
 	return nil
@@ -123,7 +143,7 @@ func (c *MQTTConnector) Close(ctx context.Context) error {
 
 func (c *MQTTConnector) Publish(ctx context.Context, message Message) error {
 	if c.client == nil || !c.client.IsConnected() {
-		return fmt.Errorf("mqtt connector is not connected")
+		return errPushConnectorUnavailable
 	}
 	if strings.TrimSpace(message.Topic) == "" {
 		return fmt.Errorf("mqtt topic is required")
@@ -132,7 +152,13 @@ func (c *MQTTConnector) Publish(ctx context.Context, message Message) error {
 	if !token.WaitTimeout(mqttConnectTimeout) {
 		return fmt.Errorf("mqtt publish timeout")
 	}
-	return token.Error()
+	if err := token.Error(); err != nil {
+		if errors.Is(err, mqtt.ErrNotConnected) {
+			return fmt.Errorf("%w: %v", errPushConnectorUnavailable, err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (c *MQTTConnector) Subscribe(ctx context.Context, topic string, handler CommandHandler) error {

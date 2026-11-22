@@ -336,6 +336,8 @@ export function ConnectorsPage() {
                         <TableActionButton
                           label={t('gateway.collection.action.update')}
                           icon={<Pencil />}
+                          disabled={connector.runState !== 'stopped'}
+                          disabledReason={t('gateway.push.action.editConnectorRequiresStopped')}
                           onClick={() => openEdit(connector)}
                         />
                         <TableActionButton

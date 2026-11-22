@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Play, RotateCw, ScanSearch, SlidersHorizontal } from 'lucide-react'
+import { Play, RefreshCw, RotateCw, ScanSearch, SlidersHorizontal } from 'lucide-react'
 import {
   AutoRefreshButton,
   Badge,
@@ -271,6 +271,10 @@ export function MonitoringPointsPage() {
     }
   }
 
+  const refreshCurrentPage = async () => {
+    await Promise.all([variables.refetch(), collections.refetch()])
+  }
+
   const submitControl = async () => {
     if (!currentCollection || !controlVariable || !controlValue.trim() || controlError) return
     try {
@@ -347,6 +351,15 @@ export function MonitoringPointsPage() {
                 {t('common.action.restart')}
               </Button>
             ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              loading={variables.isFetching || collections.isFetching}
+              icon={<RefreshCw className="size-3.5" />}
+              onClick={() => void refreshCurrentPage()}
+            >
+              {t('common.action.refresh')}
+            </Button>
           </>
         ) : null}
         <div className="ml-auto flex items-center gap-2">

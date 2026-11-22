@@ -28,16 +28,16 @@ func (c *OpcUaCollection) DeliverAction(ctx context.Context, actions []collectio
 	}
 	client, err := runtime.pool.Get(ctx)
 	if err != nil {
-		return err
+		return collection.DeviceActionError(actions[0], err)
 	}
 	conn := client.(*uaClient)
 	response, err := conn.client.Write(ctx, request)
 	runtime.pool.Put(client, err != nil)
 	if err != nil {
-		return err
+		return collection.DeviceActionError(actions[0], err)
 	}
 	if response == nil || len(response.Results) != len(actions) {
-		return fmt.Errorf("opcUa write response length mismatch")
+		return collection.DeviceActionError(actions[0], fmt.Errorf("opcUa write response length mismatch"))
 	}
 	var errs []error
 	for i, status := range response.Results {
@@ -48,7 +48,7 @@ func (c *OpcUaCollection) DeliverAction(ctx context.Context, actions []collectio
 		c.GetCollectionMeta().SetVariableValue(actions[i].Variable.Name, collection.ApplyTransform(actions[i].Value, actions[i].Variable))
 	}
 	if len(errs) > 0 {
-		return errors.Join(errs...)
+		return collection.DeviceActionError(actions[0], errors.Join(errs...))
 	}
 	return nil
 }

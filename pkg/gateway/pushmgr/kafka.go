@@ -4,21 +4,28 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
+
+	"harns-platform/pkg/logging"
 )
 
 const (
 	kafkaCloseTimeout   = 5 * time.Second
 	kafkaConnectTimeout = 5 * time.Second
+	kafkaReconnectMin   = time.Second
+	kafkaReconnectMax   = 10 * time.Minute
 	kafkaIDPrefix       = "harns-"
 	kafkaIDLength       = 6
 	kafkaIDLetters      = "abcdefghijklmnopqrstuvwxyz"
@@ -139,6 +146,8 @@ type kafkaReader struct {
 }
 
 var _ Connector = (*KafkaConnector)(nil)
+var _ ConnectorErrorHandler = (*KafkaConnector)(nil)
+var _ ConnectorConnectedHandler = (*KafkaConnector)(nil)
 
 type KafkaConnector struct {
 	id      string
@@ -146,6 +155,12 @@ type KafkaConnector struct {
 	writer  *kafka.Writer
 	readers map[string]*kafkaReader
 	mu      sync.Mutex
+
+	errHandler       func(error)
+	connectedHandler func()
+	reconnectCancel  context.CancelFunc
+	reconnectDone    chan struct{}
+	closed           bool
 }
 
 func NewKafkaConnector(id string, raw json.RawMessage) (*KafkaConnector, error) {
@@ -162,7 +177,48 @@ func NewKafkaConnector(id string, raw json.RawMessage) (*KafkaConnector, error) 
 
 func (c *KafkaConnector) Type() string { return ConnectorTypeKafka }
 
+func (c *KafkaConnector) SetErrorHandler(handler func(error)) {
+	c.mu.Lock()
+	c.errHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *KafkaConnector) SetConnectedHandler(handler func()) {
+	c.mu.Lock()
+	c.connectedHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *KafkaConnector) notifyError(err error) {
+	if err == nil {
+		return
+	}
+	c.mu.Lock()
+	handler := c.errHandler
+	c.mu.Unlock()
+	if handler != nil {
+		handler(err)
+	}
+}
+
+func (c *KafkaConnector) notifyConnected() {
+	c.mu.Lock()
+	handler := c.connectedHandler
+	c.mu.Unlock()
+	if handler != nil {
+		handler()
+	}
+}
+
 func (c *KafkaConnector) Connect(ctx context.Context) error {
+	c.stopReconnect()
+	c.mu.Lock()
+	c.closed = false
+	c.mu.Unlock()
+	return c.establish(ctx)
+}
+
+func (c *KafkaConnector) establish(ctx context.Context) error {
 	mechanism, err := c.config.saslMechanism()
 	if err != nil {
 		return err
@@ -182,31 +238,115 @@ func (c *KafkaConnector) Connect(ctx context.Context) error {
 	if lastErr != nil {
 		return fmt.Errorf("kafka broker is unreachable: %w", lastErr)
 	}
-	transport := &kafka.Transport{
-		ClientID: c.config.ClientID,
-		SASL:     mechanism,
-	}
-	c.mu.Lock()
-	c.writer = &kafka.Writer{
+	writer := &kafka.Writer{
 		Addr:         kafka.TCP(c.config.brokers()...),
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: kafka.RequireAll,
-		Transport:    transport,
+		Transport: &kafka.Transport{
+			ClientID: c.config.ClientID,
+			SASL:     mechanism,
+		},
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		_ = writer.Close()
+		return context.Canceled
+	}
+	old := c.writer
+	c.writer = writer
 	c.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
 	return nil
+}
+
+func (c *KafkaConnector) startReconnect() {
+	c.mu.Lock()
+	if c.closed || c.reconnectCancel != nil {
+		c.mu.Unlock()
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	c.reconnectCancel = cancel
+	c.reconnectDone = done
+	c.mu.Unlock()
+	logging.InfoS("Kafka push connector reconnecting")
+	go c.reconnectLoop(ctx, done)
+}
+
+func (c *KafkaConnector) reconnectLoop(ctx context.Context, done chan struct{}) {
+	defer close(done)
+	delay := kafkaReconnectMin
+	for {
+		err := c.establish(ctx)
+		if err == nil {
+			c.mu.Lock()
+			if c.reconnectDone == done {
+				c.reconnectCancel = nil
+				c.reconnectDone = nil
+			}
+			c.mu.Unlock()
+			logging.InfoS("Kafka push connector reconnected")
+			c.notifyConnected()
+			return
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		logging.ErrorS(err, "Kafka push connector reconnect failed", "retryIn", delay.String())
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+		if delay < kafkaReconnectMax {
+			delay *= 2
+			if delay > kafkaReconnectMax {
+				delay = kafkaReconnectMax
+			}
+		}
+	}
+}
+
+func (c *KafkaConnector) stopReconnect() {
+	c.mu.Lock()
+	cancel := c.reconnectCancel
+	done := c.reconnectDone
+	c.reconnectCancel = nil
+	c.reconnectDone = nil
+	c.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
 }
 
 func (c *KafkaConnector) Close(ctx context.Context) error {
 	c.mu.Lock()
+	c.closed = true
 	readers := c.readers
 	c.readers = make(map[string]*kafkaReader)
 	writer := c.writer
 	c.writer = nil
+	cancel := c.reconnectCancel
+	done := c.reconnectDone
+	c.reconnectCancel = nil
+	c.reconnectDone = nil
 	c.mu.Unlock()
 
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
 	for _, reader := range readers {
 		closeKafkaReader(reader)
 	}
@@ -221,16 +361,74 @@ func (c *KafkaConnector) Publish(ctx context.Context, message Message) error {
 	writer := c.writer
 	c.mu.Unlock()
 	if writer == nil {
-		return fmt.Errorf("kafka connector is not connected")
+		return errPushConnectorUnavailable
 	}
 	if strings.TrimSpace(message.Topic) == "" {
 		return fmt.Errorf("kafka topic is required")
 	}
-	return writer.WriteMessages(ctx, kafka.Message{
+	err := writer.WriteMessages(ctx, kafka.Message{
 		Topic: message.Topic,
 		Key:   []byte(message.Key),
 		Value: message.Payload,
 	})
+	if err == nil {
+		return nil
+	}
+	if !isKafkaConnectorError(err) {
+		return err
+	}
+	c.notifyError(err)
+	c.startReconnect()
+	return fmt.Errorf("%w: %v", errPushConnectorUnavailable, err)
+}
+
+func isKafkaConnectorError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var tooLarge kafka.MessageTooLargeError
+	if errors.As(err, &tooLarge) {
+		return false
+	}
+	if errors.Is(err, io.ErrClosedPipe) {
+		return false
+	}
+	var writeErrs kafka.WriteErrors
+	if errors.As(err, &writeErrs) {
+		for _, item := range writeErrs {
+			if item != nil && !isKafkaConnectorError(item) {
+				return false
+			}
+		}
+		return true
+	}
+	var kerr kafka.Error
+	if errors.As(err, &kerr) {
+		switch kerr {
+		case kafka.Unknown, kafka.UnknownTopicOrPartition, kafka.LeaderNotAvailable,
+			kafka.NotLeaderForPartition, kafka.RequestTimedOut, kafka.BrokerNotAvailable,
+			kafka.ReplicaNotAvailable, kafka.NetworkException, kafka.NotEnoughReplicas,
+			kafka.NotEnoughReplicasAfterAppend, kafka.NotController, kafka.KafkaStorageError,
+			kafka.FencedLeaderEpoch, kafka.UnknownLeaderEpoch, kafka.UnknownTopicID,
+			kafka.InconsistentTopicID:
+			return true
+		default:
+			return kerr.Temporary()
+		}
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.EPIPE) {
+		return true
+	}
+	return true
 }
 
 func (c *KafkaConnector) Subscribe(ctx context.Context, topic string, handler CommandHandler) error {

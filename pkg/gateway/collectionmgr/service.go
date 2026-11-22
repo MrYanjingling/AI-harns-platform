@@ -17,6 +17,10 @@ import (
 	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
+	"harns-platform/pkg/gateway/collection/iec101"
+	"harns-platform/pkg/gateway/collection/iec102"
+	"harns-platform/pkg/gateway/collection/iec103"
+	"harns-platform/pkg/gateway/collection/iec104"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
@@ -412,6 +416,54 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 			return nil, err
 		}
 		item := &fins.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == iec101.DriverType && record.DriverModel == iec101.DriverModel:
+		var req iec101.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &iec101.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == iec102.DriverType && record.DriverModel == iec102.DriverModel:
+		var req iec102.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &iec102.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == iec103.DriverType && record.DriverModel == iec103.DriverModel:
+		var req iec103.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &iec103.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == iec104.DriverType && record.DriverModel == iec104.DriverModel:
+		var req iec104.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &iec104.Collection{}
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}

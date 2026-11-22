@@ -12,6 +12,7 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/gateway/pushmgr/v1"
 	"harns-platform/pkg/gateway/sqlite"
+	"harns-platform/pkg/gateway/validation"
 )
 
 func newPushTestService(t *testing.T) *Service {
@@ -76,6 +77,8 @@ func TestPushConnectorAndGroupCRUD(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), groups.Total)
 
+	_, err = service.StopGroup(ctx, group.ID)
+	require.NoError(t, err)
 	group, err = service.UpdateGroup(ctx, group.ID, &v1.UpdatePushGroupReq{
 		Name:           "group-v2",
 		ConnectorID:    connector.ID,
@@ -85,7 +88,7 @@ func TestPushConnectorAndGroupCRUD(t *testing.T) {
 		CollectionIDs:  []string{"c1"},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), group.Version)
+	assert.Equal(t, int64(3), group.Version)
 	assert.False(t, group.AllCollections)
 
 	err = service.DeleteConnector(ctx, connector.ID, false)
@@ -163,6 +166,8 @@ func TestPushGroupCollectionLinks(t *testing.T) {
 		`SELECT COUNT(1) FROM push_group_collections WHERE push_group_id = ?`, group.ID).Scan(&count))
 	assert.Equal(t, 2, count)
 
+	_, err = service.StopGroup(ctx, group.ID)
+	require.NoError(t, err)
 	group, err = service.UpdateGroup(ctx, group.ID, &v1.UpdatePushGroupReq{
 		Name:           "links-group-v2",
 		ConnectorID:    connector.ID,
@@ -336,4 +341,41 @@ func TestCreateUnreachableKafkaConnectorSavesErrorStatus(t *testing.T) {
 	require.NoError(t, json.Unmarshal(connector.PushConfig, &config))
 	assert.Regexp(t, `^harns-[a-z]{6}$`, config.ClientID)
 	assert.Regexp(t, `^harns-[a-z]{6}$`, config.GroupID)
+}
+
+func TestUpdateGroupRequiresStopped(t *testing.T) {
+	service := newPushTestService(t)
+	ctx := context.Background()
+	connector, err := service.CreateConnector(ctx, &v1.CreateConnectorReq{
+		Name: "update-connector", PushConfig: json.RawMessage(`{"brokerUrl":"tcp://127.0.0.1:1883"}`),
+	})
+	require.NoError(t, err)
+	group, err := service.CreateGroup(ctx, &v1.CreatePushGroupReq{
+		Name: "update-group", ConnectorID: connector.ID, DataTopic: "data",
+		PushIntervalMs: 1000, AllCollections: true,
+	})
+	require.NoError(t, err)
+	_, err = service.UpdateGroup(ctx, group.ID, &v1.UpdatePushGroupReq{
+		Name: "update-group-v2", ConnectorID: connector.ID, DataTopic: "data/v2",
+		PushIntervalMs: 1000, AllCollections: true,
+	})
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.ErrorAs(t, err, &validationErr)
+}
+
+func TestUpdateConnectorRequiresStopped(t *testing.T) {
+	service := newPushTestService(t)
+	ctx := context.Background()
+	connector, err := service.CreateConnector(ctx, &v1.CreateConnectorReq{
+		Name: "update-connector", PushConfig: json.RawMessage(`{"brokerUrl":"tcp://127.0.0.1:1883"}`),
+	})
+	require.NoError(t, err)
+
+	_, err = service.UpdateConnector(ctx, connector.ID, &v1.UpdateConnectorReq{
+		Name: "update-connector-v2", PushConfig: json.RawMessage(`{"brokerUrl":"tcp://127.0.0.1:1883"}`),
+	})
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.ErrorAs(t, err, &validationErr)
 }

@@ -1,10 +1,17 @@
 package pushmgr
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"regexp"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,4 +96,75 @@ func TestNewKafkaConnector(t *testing.T) {
 	assert.Equal(t, "gateway-push-test", connector.config.ClientID)
 	assert.Equal(t, "gateway-push-group", connector.config.GroupID)
 	assert.Equal(t, KafkaSASLNone, connector.config.SASLMechanism)
+}
+
+func TestKafkaConnectorErrorClassification(t *testing.T) {
+	assert.False(t, isKafkaConnectorError(nil))
+	assert.False(t, isKafkaConnectorError(context.Canceled))
+	assert.False(t, isKafkaConnectorError(kafka.MessageTooLargeError{Message: kafka.Message{}}))
+	assert.False(t, isKafkaConnectorError(kafka.TopicAuthorizationFailed))
+
+	assert.True(t, isKafkaConnectorError(kafka.BrokerNotAvailable))
+	assert.True(t, isKafkaConnectorError(kafka.NetworkException))
+	assert.True(t, isKafkaConnectorError(io.EOF))
+	assert.True(t, isKafkaConnectorError(&net.OpError{Op: "dial", Net: "tcp", Err: syscall.ECONNREFUSED}))
+	assert.True(t, isKafkaConnectorError(kafka.WriteErrors{net.ErrClosed}))
+}
+
+func TestKafkaReconnectRecovers(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := listener.Addr().String()
+	connector, err := NewKafkaConnector("connector-1", json.RawMessage(fmt.Sprintf(`{
+		"brokerUrl":%q,
+		"clientId":"gateway-push-test",
+		"groupId":"gateway-push-group",
+		"saslMechanism":"none"
+	}`, addr)))
+	require.NoError(t, err)
+
+	connected := make(chan struct{}, 1)
+	connector.SetConnectedHandler(func() {
+		select {
+		case connected <- struct{}{}:
+		default:
+		}
+	})
+	require.NoError(t, connector.Connect(context.Background()))
+
+	require.NoError(t, listener.Close())
+	connector.startReconnect()
+	time.Sleep(200 * time.Millisecond)
+	listener, err = net.Listen("tcp", addr)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	select {
+	case <-connected:
+	case <-time.After(5 * time.Second):
+		t.Fatal("kafka connector did not report reconnection")
+	}
+	require.NoError(t, connector.Close(context.Background()))
+}
+
+func TestKafkaReconnectStopsOnClose(t *testing.T) {
+	connector, err := NewKafkaConnector("connector-1", json.RawMessage(`{
+		"brokerUrl":"127.0.0.1:1",
+		"clientId":"gateway-push-test",
+		"groupId":"gateway-push-group",
+		"saslMechanism":"none"
+	}`))
+	require.NoError(t, err)
+	connector.startReconnect()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		assert.NoError(t, connector.Close(context.Background()))
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("kafka reconnect loop did not stop on close")
+	}
 }

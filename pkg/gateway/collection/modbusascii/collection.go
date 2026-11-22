@@ -7,7 +7,7 @@ import (
 
 const (
 	DriverType  = "modbus"
-	DriverModel = "modbusAscii"
+	DriverModel = "Modbus Ascii"
 )
 
 type ProtocolConfig struct {

@@ -188,6 +188,9 @@ func (c *Collection) poll(ctx context.Context) bool {
 		return false
 	}
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for _, frame := range runtime.frames {
 		values, err := c.collectFrame(ctx, frame)
@@ -196,10 +199,18 @@ func (c *Collection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if err == nil || len(values) > 0 {
+			succeeded++
+		}
 		if err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = err
+			}
+			if collection.IsConnectionLost(err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -208,8 +219,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -234,7 +244,7 @@ func (c *Collection) SetFrameTracer(tracer collection.FrameTracer) {
 func (c *Collection) collectFrame(ctx context.Context, frame *wireFrame) ([]modbus.DecodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("modbusAscii runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("modbusAscii runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -266,16 +276,18 @@ func (c *Collection) collectFrame(ctx context.Context, frame *wireFrame) ([]modb
 func (c *Collection) exchange(ctx context.Context, runtime *collectorRuntime, request []byte) ([]byte, error) {
 	client, err := runtime.pool.Get(ctx)
 	if err != nil {
-		return nil, err
+		return nil, collection.ConnectionLost(err)
 	}
 	serialConn := client.(*serialClient)
 	serialConn.mu.Lock()
 	var response []byte
 	_, err = serialConn.port.Write(request)
-	if err == nil {
-		if err = serialConn.port.SetReadTimeout(serialTimeout); err == nil {
-			response, err = readASCIIResponse(serialConn.port)
-		}
+	if err != nil {
+		err = collection.ConnectionLost(err)
+	} else if err = serialConn.port.SetReadTimeout(serialTimeout); err != nil {
+		err = collection.ConnectionLost(err)
+	} else {
+		response, err = readASCIIResponse(serialConn.port)
 	}
 	serialConn.mu.Unlock()
 	runtime.pool.Put(client, err != nil)
@@ -291,10 +303,10 @@ func readASCIIResponse(port serialPort) ([]byte, error) {
 		}
 		n, err := port.Read(one)
 		if err != nil {
-			return nil, err
+			return nil, collection.ConnectionLost(err)
 		}
 		if n == 0 {
-			continue
+			return nil, collection.ConnectionLost(collection.ErrReadTimeout)
 		}
 		response = append(response, one[0])
 		if len(response) >= 2 && response[len(response)-2] == '\r' && response[len(response)-1] == '\n' {
@@ -357,10 +369,10 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		response, exchangeErr := c.exchange(ctx, runtime, request)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := modbus.ValidateASCIIWriteResponse(response, write); err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

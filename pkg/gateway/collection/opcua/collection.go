@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
 
 	"harns-platform/pkg/gateway/collection"
@@ -341,6 +342,9 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -348,10 +352,18 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.variable.Name, item.value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -360,8 +372,7 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -381,21 +392,25 @@ func (c *OpcUaCollection) poll(ctx context.Context) bool {
 func (c *OpcUaCollection) readBatch(ctx context.Context, batch *readBatch) ([]decodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("opcUa runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("opcUa runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
-			return nil, err
+			return nil, collection.ConnectionLost(err)
 		}
 		conn := client.(*uaClient)
 		response, err := conn.client.Read(ctx, batch.request)
-		runtime.pool.Put(client, err != nil)
 		if err != nil {
+			runtime.pool.Put(client, true)
+			if conn.client.State() == opcua.Closed || conn.client.State() == opcua.Disconnected {
+				err = collection.ConnectionLost(err)
+			}
 			lastErr = err
 			continue
 		}
+		runtime.pool.Put(client, false)
 		if response == nil || len(response.Results) != len(batch.variables) {
 			lastErr = fmt.Errorf("opcUa response length mismatch")
 			continue

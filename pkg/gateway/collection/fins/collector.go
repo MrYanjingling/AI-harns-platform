@@ -197,6 +197,9 @@ func (c *Collection) poll(ctx context.Context) bool {
 	close(results)
 
 	failed := false
+	succeeded := 0
+	connectionFailures := 0
+	protocolFailure := false
 	var cycleErr error
 	for result := range results {
 		for _, item := range result.values {
@@ -204,10 +207,18 @@ func (c *Collection) poll(ctx context.Context) bool {
 				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
 			}
 		}
+		if result.err == nil || len(result.values) > 0 {
+			succeeded++
+		}
 		if result.err != nil {
 			failed = true
 			if cycleErr == nil {
 				cycleErr = result.err
+			}
+			if collection.IsConnectionLost(result.err) {
+				connectionFailures++
+			} else {
+				protocolFailure = true
 			}
 		}
 	}
@@ -216,8 +227,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 	}
 	if failed {
 		c.GetCollectionMeta().ReportError(cycleErr)
-		c.SetCollectStatus(collection.CollectStatusCollectingError)
-		return true
+		return collection.ApplyCycleFailure(c, cycleErr, succeeded, connectionFailures, protocolFailure)
 	}
 	c.SetCollectStatus(collection.CollectStatusCollecting)
 	if runtime.calcErr != nil {
@@ -237,7 +247,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 func (c *Collection) readFrame(ctx context.Context, frame *readFrame) ([]decodedValue, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
-		return nil, fmt.Errorf("fins runtime is not connected")
+		return nil, collection.ConnectionLost(fmt.Errorf("fins runtime is not connected"))
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
@@ -319,12 +329,12 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		}
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		conn, ok := client.(connpool.Transport)
 		if !ok {
 			runtime.pool.Put(client, true)
-			return fmt.Errorf("invalid fins transport type")
+			return collection.DeviceActionError(action, fmt.Errorf("invalid fins transport type"))
 		}
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
@@ -332,10 +342,10 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		runtime.pool.Put(client, exchangeErr != nil)
 		if exchangeErr != nil {
-			return exchangeErr
+			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := validateWriteResponse(response); err != nil {
-			return err
+			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}
