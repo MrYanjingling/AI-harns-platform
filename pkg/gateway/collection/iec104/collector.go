@@ -59,9 +59,8 @@ func (c *Collection) Connect(ctx context.Context) error {
 	if c.Timeout <= 0 {
 		c.Timeout = 5
 	}
-	address := fmt.Sprintf("%s:%d", c.Location, c.Port)
 	dialer := net.Dialer{Timeout: time.Duration(c.Timeout) * time.Second}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
+	conn, err := dialer.DialContext(ctx, "tcp", c.Location)
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err

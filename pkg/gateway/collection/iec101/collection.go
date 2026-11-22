@@ -11,7 +11,6 @@ const (
 type ProtocolConfig struct {
 	Location  string `json:"location"`
 	Host      string `json:"host"`
-	Port      int    `json:"port"`
 	Link      int    `json:"link"`
 	CA        int    `json:"ca"`
 	CALength  int    `json:"caLength"`
@@ -77,7 +76,6 @@ type Collection struct {
 	collection.CollectionMeta
 
 	Location  string `json:"location"`
-	Port      int    `json:"port"`
 	Link      int    `json:"link"`
 	CA        int    `json:"ca"`
 	CALength  int    `json:"caLength"`
@@ -109,8 +107,8 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
 		},
-		Location: req.ProtocolConfig.Location, Port: req.ProtocolConfig.Port,
-		Link: req.ProtocolConfig.Link, CA: req.ProtocolConfig.CA,
+		Location: req.ProtocolConfig.Location,
+		Link:     req.ProtocolConfig.Link, CA: req.ProtocolConfig.CA,
 		CALength: req.ProtocolConfig.CALength, COTLength: req.ProtocolConfig.COTLength,
 		IOALength: req.ProtocolConfig.IOALength, Interval: req.ProtocolConfig.Interval,
 		Timeout: req.ProtocolConfig.Timeout, Device: req.ProtocolConfig.Device,
@@ -124,7 +122,6 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	c.Name = req.Name
 	c.CollectorCycleMs = req.CollectorCycleMs
 	c.Location = req.ProtocolConfig.Location
-	c.Port = req.ProtocolConfig.Port
 	c.Link = req.ProtocolConfig.Link
 	c.CA = req.ProtocolConfig.CA
 	c.CALength = req.ProtocolConfig.CALength

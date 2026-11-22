@@ -34,6 +34,29 @@ export interface CollectionFormValues {
   variables: VariableFormValues[]
 }
 
+export interface ResolvedDriverField {
+  labelZh: string
+  labelEn: string
+  regex: string
+  placeholderZh?: string
+  placeholderEn?: string
+}
+
+/** 按同组字段的当前值选择 variant,用于动态标签、占位符和校验规则。 */
+export function resolveField(
+  field: DriverField,
+  values: Record<string, string>,
+): ResolvedDriverField {
+  const variant = field.variants?.find((item) => values[item.when.field] === item.when.equals)
+  return {
+    labelZh: variant?.labelZh ?? field.labelZh,
+    labelEn: variant?.labelEn ?? field.labelEn,
+    regex: variant?.regex ?? field.regex,
+    placeholderZh: variant?.placeholderZh,
+    placeholderEn: variant?.placeholderEn,
+  }
+}
+
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const POSITIVE_INT = /^\d+$/
 
@@ -246,7 +269,8 @@ export function validateCollectionForm(
       setError(path, t('gateway.form.validation.protocolInvalid'))
       continue
     }
-    if (field.regex && !safeRegExp(field.regex)?.test(value)) {
+    const pattern = resolveField(field, values.protocol).regex
+    if (pattern && !safeRegExp(pattern)?.test(value)) {
       setError(path, t('gateway.form.validation.protocolInvalid'))
     }
   }

@@ -10,7 +10,6 @@ const (
 
 type ProtocolConfig struct {
 	Location            string `json:"location"`
-	Port                int    `json:"port"`
 	CA                  int    `json:"ca"`
 	Interval            int    `json:"interval"`
 	SyncTimeInterval    int    `json:"syncTimeInterval"`
@@ -25,9 +24,6 @@ type ProtocolConfig struct {
 }
 
 func (c *ProtocolConfig) Normalize() {
-	if c.Port == 0 {
-		c.Port = 2404
-	}
 	if c.CA == 0 {
 		c.CA = 1
 	}
@@ -71,7 +67,6 @@ type Collection struct {
 	collection.CollectionMeta
 
 	Location            string `json:"location"`
-	Port                int    `json:"port"`
 	CA                  int    `json:"ca"`
 	Interval            int    `json:"interval"`
 	SyncTimeInterval    int    `json:"syncTimeInterval"`
@@ -102,8 +97,8 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
 		},
-		Location: req.ProtocolConfig.Location, Port: req.ProtocolConfig.Port,
-		CA: req.ProtocolConfig.CA, Interval: req.ProtocolConfig.Interval,
+		Location: req.ProtocolConfig.Location,
+		CA:       req.ProtocolConfig.CA, Interval: req.ProtocolConfig.Interval,
 		SyncTimeInterval:    req.ProtocolConfig.SyncTimeInterval,
 		RemotePulseInterval: req.ProtocolConfig.RemotePulseInterval,
 		T0:                  req.ProtocolConfig.T0, T1: req.ProtocolConfig.T1, T2: req.ProtocolConfig.T2, T3: req.ProtocolConfig.T3,
@@ -116,7 +111,6 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	c.Name = req.Name
 	c.CollectorCycleMs = req.CollectorCycleMs
 	c.Location = req.ProtocolConfig.Location
-	c.Port = req.ProtocolConfig.Port
 	c.CA = req.ProtocolConfig.CA
 	c.Interval = req.ProtocolConfig.Interval
 	c.SyncTimeInterval = req.ProtocolConfig.SyncTimeInterval

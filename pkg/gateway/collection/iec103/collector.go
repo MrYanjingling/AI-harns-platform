@@ -3,7 +3,6 @@ package iec103
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -49,7 +48,7 @@ func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, configJ
 func (c *Collection) Connect(ctx context.Context) error {
 	var port transport
 	if c.Link == 1 {
-		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Location, c.Port), time.Duration(c.Timeout)*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", c.Location, time.Duration(c.Timeout)*time.Millisecond)
 		if err != nil {
 			c.SetCollectStatus(collection.CollectStatusUnconnected)
 			return err
@@ -136,7 +135,7 @@ func (c *Collection) poll(ctx context.Context, port transport) bool {
 	if err := port.SetReadTimeout(200 * time.Millisecond); err != nil {
 		return c.failConnection(err)
 	}
-	if _, err := port.Write(buildFixedFrame(0x5B, uint8(c.Port))); err != nil {
+	if _, err := port.Write(buildFixedFrame(0x5B, defaultLinkAddress)); err != nil {
 		return c.failConnection(err)
 	}
 	for {

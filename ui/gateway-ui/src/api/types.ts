@@ -94,6 +94,20 @@ export interface DriverFieldOption {
   labelEn: string
 }
 
+export interface DriverFieldCondition {
+  field: string
+  equals: string
+}
+
+export interface DriverFieldVariant {
+  when: DriverFieldCondition
+  labelZh: string
+  labelEn: string
+  regex?: string
+  placeholderZh?: string
+  placeholderEn?: string
+}
+
 export interface DriverField {
   name: string
   labelZh: string
@@ -103,6 +117,7 @@ export interface DriverField {
   type: 'input' | 'select'
   required?: boolean
   options?: DriverFieldOption[]
+  variants?: DriverFieldVariant[]
 }
 
 export interface VariableAddressSchema {

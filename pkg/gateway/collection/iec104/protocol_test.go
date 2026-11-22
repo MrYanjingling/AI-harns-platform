@@ -1,8 +1,10 @@
 package iec104
 
 import (
+	"encoding/json"
 	"math"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -110,4 +112,23 @@ func TestInterrogateSkipsSupervisoryFrames(t *testing.T) {
 	}
 	_ = client.close()
 	<-done
+}
+
+func TestConfigKeepsCombinedAddress(t *testing.T) {
+	raw := []byte(`{"location":"127.0.0.1:2404"}`)
+	var config ProtocolConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	config.Normalize()
+	if config.Location != "127.0.0.1:2404" {
+		t.Fatalf("unexpected location %q", config.Location)
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"location":"127.0.0.1:2404"`) {
+		t.Fatalf("unexpected encoded config %s", encoded)
+	}
 }

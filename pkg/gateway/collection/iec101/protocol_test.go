@@ -2,7 +2,9 @@ package iec101
 
 import (
 	"bytes"
+	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -35,5 +37,24 @@ func TestParseFloatASDU(t *testing.T) {
 	}
 	if value, ok := values[1].(float32); !ok || value != 3.5 {
 		t.Fatalf("unexpected values %+v", values)
+	}
+}
+
+func TestConfigKeepsCombinedAddress(t *testing.T) {
+	raw := []byte(`{"location":"127.0.0.1:2404"}`)
+	var config ProtocolConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	config.Normalize()
+	if config.Location != "127.0.0.1:2404" {
+		t.Fatalf("unexpected location %q", config.Location)
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"location":"127.0.0.1:2404"`) {
+		t.Fatalf("unexpected encoded config %s", encoded)
 	}
 }

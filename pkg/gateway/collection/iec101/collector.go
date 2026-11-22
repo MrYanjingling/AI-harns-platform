@@ -59,8 +59,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 	}
 	var port transport
 	if c.Link == 1 {
-		address := fmt.Sprintf("%s:%d", c.Location, c.Port)
-		conn, dialErr := net.DialTimeout("tcp", address, time.Duration(c.Timeout)*time.Millisecond)
+		conn, dialErr := net.DialTimeout("tcp", c.Location, time.Duration(c.Timeout)*time.Millisecond)
 		if dialErr != nil {
 			c.SetCollectStatus(collection.CollectStatusUnconnected)
 			return dialErr

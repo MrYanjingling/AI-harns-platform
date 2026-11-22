@@ -3,7 +3,6 @@ package iec102
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -53,7 +52,7 @@ func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, configJ
 func (c *Collection) Connect(ctx context.Context) error {
 	var port transport
 	if c.Link == 1 {
-		conn, dialErr := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.Location, c.Port), time.Duration(c.Timeout)*time.Millisecond)
+		conn, dialErr := net.DialTimeout("tcp", c.Location, time.Duration(c.Timeout)*time.Millisecond)
 		if dialErr != nil {
 			c.SetCollectStatus(collection.CollectStatusUnconnected)
 			return dialErr

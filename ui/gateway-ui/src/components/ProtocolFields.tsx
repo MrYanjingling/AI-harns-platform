@@ -1,6 +1,6 @@
 import { Field, Input, SearchSelect, type SearchSelectOption, useI18n } from '@harns/core'
 import type { DriverSchema } from '@/api/types'
-import { sortedFields } from '@/lib/collection-form'
+import { resolveField, sortedFields } from '@/lib/collection-form'
 import { localized } from '@/lib/labels'
 
 interface ProtocolFieldsProps {
@@ -30,8 +30,14 @@ export function ProtocolFields({
       }
     >
       {sortedFields(schema).map((field) => {
-        const label = localized(field.labelZh, field.labelEn, locale)
+        const resolved = resolveField(field, values)
+        const label = localized(resolved.labelZh, resolved.labelEn, locale)
         const error = errors[`protocol.${field.name}`]
+        const placeholder = resolved.placeholderZh || resolved.placeholderEn
+          ? localized(resolved.placeholderZh ?? '', resolved.placeholderEn ?? '', locale)
+          : field.name === 'location'
+            ? t('gateway.form.locationPlaceholder')
+            : ''
         return (
           <Field
             key={field.name}
@@ -62,7 +68,7 @@ export function ProtocolFields({
                 <Input
                   id={`protocol-${field.name}`}
                   value={values[field.name] ?? ''}
-                  placeholder={field.name === 'location' ? t('gateway.form.locationPlaceholder') : ''}
+                  placeholder={placeholder}
                   aria-invalid={Boolean(error)}
                   autoComplete="off"
                   onChange={(event) => onChange(field.name, event.target.value)}

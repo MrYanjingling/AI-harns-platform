@@ -62,6 +62,7 @@ import { VariablesEditor } from './VariablesEditor'
 import { CollectionEditDialog } from './CollectionEditDialog'
 import {
   createEmptyVariable,
+  resolveField,
   sortedFields,
   toVariableInputs,
   validateVariableRows,
@@ -613,11 +614,18 @@ function ProtocolReadonly({
   locale: 'zh-CN' | 'en-US'
 }) {
   const { t } = useI18n()
+  const values = Object.fromEntries(
+    Object.entries(config ?? {}).map(([key, value]) => [
+      key,
+      value === undefined || value === null ? '' : String(value),
+    ]),
+  )
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {sortedFields(schema).map((field) => {
+        const resolved = resolveField(field, values)
         const value = config?.[field.name]
-        const label = localized(field.labelZh, field.labelEn, locale)
+        const label = localized(resolved.labelZh, resolved.labelEn, locale)
         const sensitive = /password|secret/i.test(field.name) && value
         return (
           <InfoItem key={field.name} label={label}>

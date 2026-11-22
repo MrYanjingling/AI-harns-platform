@@ -52,16 +52,35 @@ type VariableDataType struct {
 
 // Field describes one driver config field.
 type Field struct {
-	Name     string    `json:"name"`
-	LabelZh  string    `json:"labelZh"`
-	LabelEn  string    `json:"labelEn"`
-	Regex    string    `json:"regex"`
-	Sort     int       `json:"sort"`
-	Type     FieldType `json:"type"`
-	Required bool      `json:"required,omitempty"`
-	Options  []*Option `json:"options,omitempty"`
+	Name     string          `json:"name"`
+	LabelZh  string          `json:"labelZh"`
+	LabelEn  string          `json:"labelEn"`
+	Regex    string          `json:"regex"`
+	Sort     int             `json:"sort"`
+	Type     FieldType       `json:"type"`
+	Required bool            `json:"required,omitempty"`
+	Options  []*Option       `json:"options,omitempty"`
+	Variants []*FieldVariant `json:"variants,omitempty"`
 
 	compiled *regexp.Regexp
+}
+
+// FieldVariant overrides a field's presentation and regex when another field matches a value.
+type FieldVariant struct {
+	When          FieldCondition `json:"when"`
+	LabelZh       string         `json:"labelZh"`
+	LabelEn       string         `json:"labelEn"`
+	Regex         string         `json:"regex,omitempty"`
+	PlaceholderZh string         `json:"placeholderZh,omitempty"`
+	PlaceholderEn string         `json:"placeholderEn,omitempty"`
+
+	compiled *regexp.Regexp
+}
+
+// FieldCondition selects a variant based on a sibling protocol field value.
+type FieldCondition struct {
+	Field  string `json:"field"`
+	Equals string `json:"equals"`
 }
 
 // Option is one select option.
@@ -181,6 +200,42 @@ func (s *Schema) Validate() error {
 				values[option.Value] = struct{}{}
 			}
 		}
+		conditions := make(map[string]struct{}, len(field.Variants))
+		for j, variant := range field.Variants {
+			if variant == nil {
+				return fmt.Errorf("field %s variants[%d] is null", field.Name, j)
+			}
+			variant.When.Field = strings.TrimSpace(variant.When.Field)
+			variant.When.Equals = strings.TrimSpace(variant.When.Equals)
+			variant.LabelZh = strings.TrimSpace(variant.LabelZh)
+			variant.LabelEn = strings.TrimSpace(variant.LabelEn)
+			variant.Regex = strings.TrimSpace(variant.Regex)
+			if variant.When.Field == "" || variant.When.Equals == "" {
+				return fmt.Errorf("field %s variants[%d].when is required", field.Name, j)
+			}
+			if variant.LabelZh == "" || variant.LabelEn == "" {
+				return fmt.Errorf("field %s variants[%d] labels are required", field.Name, j)
+			}
+			key := variant.When.Field + "=" + variant.When.Equals
+			if _, exists := conditions[key]; exists {
+				return fmt.Errorf("field %s has duplicate variant condition %s", field.Name, key)
+			}
+			conditions[key] = struct{}{}
+			if variant.Regex != "" {
+				re, err := regexp.Compile(variant.Regex)
+				if err != nil {
+					return fmt.Errorf("field %s variants[%d] regex is invalid: %w", field.Name, j, err)
+				}
+				variant.compiled = re
+			}
+		}
+	}
+	for _, field := range s.Fields {
+		for j, variant := range field.Variants {
+			if _, exists := names[variant.When.Field]; !exists {
+				return fmt.Errorf("field %s variants[%d] references unknown field %s", field.Name, j, variant.When.Field)
+			}
+		}
 	}
 	return nil
 }
@@ -201,6 +256,12 @@ func (s *Schema) ValidateBody(body []byte) error {
 	if len(bytes.TrimSpace(payload.ProtocolConfig)) > 0 {
 		if err := json.Unmarshal(payload.ProtocolConfig, &values); err != nil {
 			return err
+		}
+	}
+	stringValues := make(map[string]string, len(values))
+	for name, raw := range values {
+		if value, err := rawString(raw); err == nil {
+			stringValues[name] = value
 		}
 	}
 	issues := make([]validation.FieldIssue, 0)
@@ -234,7 +295,11 @@ func (s *Schema) ValidateBody(body []byte) error {
 			})
 			continue
 		}
-		if field.compiled != nil && !field.compiled.MatchString(value) {
+		re := field.compiled
+		if variant := field.matchVariant(stringValues); variant != nil && variant.compiled != nil {
+			re = variant.compiled
+		}
+		if re != nil && !re.MatchString(value) {
 			issues = append(issues, validation.FieldIssue{
 				Field: issueField,
 				MsgID: "validate.collection_field_invalid",
@@ -355,6 +420,18 @@ func (f *Field) hasOption(value string) bool {
 		}
 	}
 	return false
+}
+
+func (f *Field) matchVariant(values map[string]string) *FieldVariant {
+	if f == nil || len(f.Variants) == 0 {
+		return nil
+	}
+	for _, variant := range f.Variants {
+		if variant != nil && values[variant.When.Field] == variant.When.Equals {
+			return variant
+		}
+	}
+	return nil
 }
 
 func rawString(raw json.RawMessage) (string, error) {

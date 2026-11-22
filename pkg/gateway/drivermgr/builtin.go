@@ -882,12 +882,11 @@ const omronCipSchema = `{
 
 const iec104Schema = `{
   "fields": [
-    {"name":"location","labelZh":"PLC 地址","labelEn":"PLC Address","regex":"^[A-Za-z0-9.-]+$","sort":1,"type":"input","required":true},
-    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
-    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
-    {"name":"interval","labelZh":"总招周期(s)","labelEn":"Interrogation Interval (s)","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
-    {"name":"timeout","labelZh":"超时(s)","labelEn":"Timeout (s)","regex":"^[1-9][0-9]{0,3}$","sort":5,"type":"input"},
-    {"name":"active","labelZh":"主动总召","labelEn":"Active Interrogation","regex":"^(true|false)$","sort":6,"type":"select","options":[{"value":"true","labelZh":"是","labelEn":"Yes"},{"value":"false","labelZh":"否","labelEn":"No"}]}
+    {"name":"location","labelZh":"IP:PORT","labelEn":"IP:PORT","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$","placeholderZh":"127.0.0.1:2404","placeholderEn":"127.0.0.1:2404","sort":1,"type":"input","required":true},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"interval","labelZh":"总招周期(s)","labelEn":"Interrogation Interval (s)","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"timeout","labelZh":"超时(s)","labelEn":"Timeout (s)","regex":"^[1-9][0-9]{0,3}$","sort":4,"type":"input"},
+    {"name":"active","labelZh":"主动总召","labelEn":"Active Interrogation","regex":"^(true|false)$","sort":5,"type":"select","options":[{"value":"true","labelZh":"是","labelEn":"Yes"},{"value":"false","labelZh":"否","labelEn":"No"}]}
   ],
   "variableAddress": {"labelZh":"信息对象地址 IOA","labelEn":"Information Object Address","placeholderZh":"1","placeholderEn":"1","descriptionZh":"十进制 IOA","descriptionEn":"Decimal IOA"},
   "variableDataTypes": [
@@ -904,18 +903,20 @@ const iec104Schema = `{
 
 const iec101Schema = `{
   "fields": [
-    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
-    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
-    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
-    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
-    {"name":"caLength","labelZh":"CA 长度","labelEn":"CA Length","regex":"^[12]$","sort":5,"type":"input"},
-    {"name":"cotLength","labelZh":"COT 长度","labelEn":"COT Length","regex":"^[12]$","sort":6,"type":"input"},
-    {"name":"ioaLength","labelZh":"IOA 长度","labelEn":"IOA Length","regex":"^[123]$","sort":7,"type":"input"},
-    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":8,"type":"input"},
-    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":9,"type":"input"},
-    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":10,"type":"input"},
-    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":11,"type":"input"},
-    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":12,"type":"input"}
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"地址","labelEn":"Address","regex":"^[^\\s]+$","sort":2,"type":"input","required":true,"variants":[
+      {"when":{"field":"link","equals":"1"},"labelZh":"IP:PORT","labelEn":"IP:PORT","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$","placeholderZh":"127.0.0.1:2404","placeholderEn":"127.0.0.1:2404"},
+      {"when":{"field":"link","equals":"0"},"labelZh":"设备地址","labelEn":"Device Address","regex":"^[^\\s]+$","placeholderZh":"/dev/ttyS0","placeholderEn":"/dev/ttyS0"}
+    ]},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"caLength","labelZh":"CA 长度","labelEn":"CA Length","regex":"^[12]$","sort":4,"type":"input"},
+    {"name":"cotLength","labelZh":"COT 长度","labelEn":"COT Length","regex":"^[12]$","sort":5,"type":"input"},
+    {"name":"ioaLength","labelZh":"IOA 长度","labelEn":"IOA Length","regex":"^[123]$","sort":6,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":7,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":8,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":9,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":10,"type":"input"},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":11,"type":"input"}
   ],
   "variableAddress": {"labelZh":"信息对象地址 IOA","labelEn":"Information Object Address","placeholderZh":"100 / 2000","placeholderEn":"100 / 2000","descriptionZh":"十进制 IOA","descriptionEn":"Decimal IOA"},
   "variableDataTypes": [
@@ -932,16 +933,18 @@ const iec101Schema = `{
 
 const iec102Schema = `{
   "fields": [
-    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
-    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
-    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
-    {"name":"la","labelZh":"链路地址","labelEn":"Link Address","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
-    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":5,"type":"input"},
-    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":6,"type":"input"},
-    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":7,"type":"input"},
-    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":8,"type":"input"},
-    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":9,"type":"input"},
-    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":10,"type":"input"}
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"地址","labelEn":"Address","regex":"^[^\\s]+$","sort":2,"type":"input","required":true,"variants":[
+      {"when":{"field":"link","equals":"1"},"labelZh":"IP:PORT","labelEn":"IP:PORT","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$","placeholderZh":"127.0.0.1:2404","placeholderEn":"127.0.0.1:2404"},
+      {"when":{"field":"link","equals":"0"},"labelZh":"设备地址","labelEn":"Device Address","regex":"^[^\\s]+$","placeholderZh":"/dev/ttyS0","placeholderEn":"/dev/ttyS0"}
+    ]},
+    {"name":"la","labelZh":"链路地址","labelEn":"Link Address","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"ca","labelZh":"公共地址","labelEn":"Common Address","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":5,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":6,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":7,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":8,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":9,"type":"input"}
   ],
   "variableAddress": {"labelZh":"记录地址.IOA","labelEn":"RA.IOA","placeholderZh":"1.0","placeholderEn":"1.0","descriptionZh":"格式 RA.IOA，范围 0..255","descriptionEn":"RA.IOA, 0..255"},
   "variableDataTypes": [
@@ -957,14 +960,16 @@ const iec102Schema = `{
 
 const iec103Schema = `{
   "fields": [
-    {"name":"location","labelZh":"串口/TCP 地址","labelEn":"Serial/TCP Address","regex":"^[^\\s]+$","sort":1,"type":"input","required":true},
-    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
-    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
-    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":4,"type":"input"},
-    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":5,"type":"input"},
-    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":6,"type":"input"},
-    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":7,"type":"input"},
-    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":8,"type":"input"}
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"地址","labelEn":"Address","regex":"^[^\\s]+$","sort":2,"type":"input","required":true,"variants":[
+      {"when":{"field":"link","equals":"1"},"labelZh":"IP:PORT","labelEn":"IP:PORT","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$","placeholderZh":"127.0.0.1:2404","placeholderEn":"127.0.0.1:2404"},
+      {"when":{"field":"link","equals":"0"},"labelZh":"设备地址","labelEn":"Device Address","regex":"^[^\\s]+$","placeholderZh":"/dev/ttyS0","placeholderEn":"/dev/ttyS0"}
+    ]},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","sort":3,"type":"input"},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^[0-9]{4,6}$","sort":4,"type":"input"},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":5,"type":"input"},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":6,"type":"input"},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[01]$","sort":7,"type":"input"}
   ],
   "variableAddress": {"labelZh":"CA.FUN.NUM","labelEn":"CA.FUN.NUM","placeholderZh":"1.16.1","placeholderEn":"1.16.1","descriptionZh":"CA、FUN、NUM 范围 0..255","descriptionEn":"CA, FUN, NUM 0..255"},
   "variableDataTypes": [

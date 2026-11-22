@@ -174,6 +174,23 @@ func TestModbusSchemaTypeAddressRules(t *testing.T) {
 	}}))
 }
 
+func TestSchemaFieldVariantsSelectRegex(t *testing.T) {
+	schema, err := ParseSchema(json.RawMessage(iec101Schema))
+	require.NoError(t, err)
+
+	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"1","location":"127.0.0.1:2404"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"1","location":"127.0.0.1"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"1","location":"/dev/ttyS0"}}`)))
+
+	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"/dev/ttyS0"}}`)))
+	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"/dev/tty S0"}}`)))
+
+	iec104, err := ParseSchema(json.RawMessage(iec104Schema))
+	require.NoError(t, err)
+	require.NoError(t, iec104.ValidateBody([]byte(`{"protocolConfig":{"location":"127.0.0.1:2404"}}`)))
+	require.Error(t, iec104.ValidateBody([]byte(`{"protocolConfig":{"location":"127.0.0.1"}}`)))
+}
+
 func TestBuiltinDataTypeLabelsUseCanonicalEnglish(t *testing.T) {
 	for _, builtin := range BuiltinDrivers {
 		schema, err := ParseSchema(json.RawMessage(builtin.Schema))

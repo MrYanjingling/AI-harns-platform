@@ -4,7 +4,7 @@ import "encoding/json"
 
 func (c *Collection) ConfigJSON() ([]byte, error) {
 	config := ProtocolConfig{
-		Location: c.Location, Host: c.Location, Port: c.Port, Link: c.Link,
+		Location: c.Location, Host: c.Location, Link: c.Link,
 		CA: c.CA, CALength: c.CALength, COTLength: c.COTLength, IOALength: c.IOALength,
 		Interval: c.Interval, Timeout: c.Timeout, Device: c.Device,
 		Baud: c.Baud, Parity: c.Parity, Data: c.Data, StopBits: c.StopBits,
@@ -20,7 +20,6 @@ func (c *Collection) ApplyConfig(raw []byte) error {
 	}
 	config.Normalize()
 	c.Location = config.Location
-	c.Port = config.Port
 	c.Link = config.Link
 	c.CA = config.CA
 	c.CALength = config.CALength

@@ -4,14 +4,14 @@ package iec103
 import "harns-platform/pkg/gateway/collection"
 
 const (
-	DriverType  = "IEC"
-	DriverModel = "IEC103"
+	DriverType         = "IEC"
+	DriverModel        = "IEC103"
+	defaultLinkAddress = uint8(0)
 )
 
 type ProtocolConfig struct {
 	Location string `json:"location"`
 	Host     string `json:"host"`
-	Port     int    `json:"port"`
 	Link     int    `json:"link"`
 	Interval int    `json:"interval"`
 	Timeout  int    `json:"timeout"`
@@ -60,7 +60,6 @@ type UpdateReq struct {
 type Collection struct {
 	collection.CollectionMeta
 	Location    string `json:"location"`
-	Port        int    `json:"port"`
 	Link        int    `json:"link"`
 	Interval    int    `json:"interval"`
 	Timeout     int    `json:"timeout"`
@@ -84,7 +83,7 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 			CollectStatus: collection.CollectStatusStopped, CollectorCycleMs: req.CollectorCycleMs,
 			Variables: req.Variables,
 		},
-		Location: req.ProtocolConfig.Location, Port: req.ProtocolConfig.Port, Link: req.ProtocolConfig.Link,
+		Location: req.ProtocolConfig.Location, Link: req.ProtocolConfig.Link,
 		Interval: req.ProtocolConfig.Interval, Timeout: req.ProtocolConfig.Timeout,
 		Device: req.ProtocolConfig.Device, Baud: req.ProtocolConfig.Baud, Parity: req.ProtocolConfig.Parity,
 		Data: req.ProtocolConfig.Data, StopBits: req.ProtocolConfig.StopBits,
@@ -95,7 +94,7 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	req.ProtocolConfig.Normalize()
 	c.Name = req.Name
 	c.CollectorCycleMs = req.CollectorCycleMs
-	c.Location, c.Port, c.Link = req.ProtocolConfig.Location, req.ProtocolConfig.Port, req.ProtocolConfig.Link
+	c.Location, c.Link = req.ProtocolConfig.Location, req.ProtocolConfig.Link
 	c.Interval, c.Timeout = req.ProtocolConfig.Interval, req.ProtocolConfig.Timeout
 	c.Device, c.Baud, c.Parity = req.ProtocolConfig.Device, req.ProtocolConfig.Baud, req.ProtocolConfig.Parity
 	c.Data, c.StopBits = req.ProtocolConfig.Data, req.ProtocolConfig.StopBits
