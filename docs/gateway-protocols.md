@@ -36,6 +36,7 @@
 | EtherNet/IP MicroLogix 1400（`ethernetIp` / `ethernetIp1400`） | 已完成 | 未验证 | 罗克韦尔 MicroLogix 1400 |
 | EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证 | 倍福 TwinCAT / EtherCAT 设备 |
 | PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证 | 西门子 PROFINET PLC |
+| DNP 3.0（`dnp3` / `dnp3`） | 已完成 | 未验证 | 电力/水务/能源 DNP3 从站 |
 
 ## 推送协议
 

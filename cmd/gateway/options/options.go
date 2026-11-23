@@ -13,6 +13,7 @@ import (
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collection/custom"
+	"harns-platform/pkg/gateway/collection/dnp3"
 	"harns-platform/pkg/gateway/collection/ethercat"
 	"harns-platform/pkg/gateway/collection/ethernetip"
 	"harns-platform/pkg/gateway/collection/ethernetip1400"
@@ -232,6 +233,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&ethernetip1400.CreateHandler{},
 		&ethercat.CreateHandler{},
 		profinet.NewCreateHandler(),
+		&dnp3.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -257,6 +259,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&ethernetip1400.CollectorFactory{},
 		&ethercat.CollectorFactory{},
 		profinet.NewCollectorFactory(),
+		&dnp3.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

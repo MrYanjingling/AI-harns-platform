@@ -10,6 +10,7 @@ const (
 	DriverTypeEthernetIP = "ethernetIp"
 	DriverTypeEtherCAT   = "ethercat"
 	DriverTypeProfinet   = "profinet"
+	DriverTypeDNP3       = "dnp3"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
@@ -30,6 +31,7 @@ const (
 	ModelEthernetIP1400   = "ethernetIp1400"
 	ModelEtherCAT         = "ethercat"
 	ModelProfinet         = "profinet"
+	ModelDNP3             = "dnp3"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -50,6 +52,7 @@ const (
 	DriverEthernetIP1400   = "ethernet-ip-1400"
 	DriverEtherCAT         = "ethercat"
 	DriverProfinet         = "profinet"
+	DriverDNP3             = "dnp3"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -70,6 +73,7 @@ const (
 	BuiltinEthernetIP1400ID   = "01M7Z9X3Q8KY52DPGDWG9KEX09"
 	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
 	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
+	BuiltinDNP3ID             = "01M7Z9X3Q8KY52DPGDWG9KEX10"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1275,6 +1279,36 @@ const ethernetIP1400Schema = `{
   ]
 }`
 
+const dnp3Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"从站 IP","labelEn":"Outstation IP","regex":"^[A-Za-z0-9.-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"masterId","labelZh":"主站地址","labelEn":"Master ID","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"slaveId","labelZh":"从站地址","labelEn":"Slave ID","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"class0123Interval","labelZh":"Class0123 周期(ms)","labelEn":"Class0123 Interval (ms)","regex":"^[0-9]{1,8}$","sort":5,"type":"input"},
+    {"name":"class123Interval","labelZh":"Class123 周期(ms)","labelEn":"Class123 Interval (ms)","regex":"^[0-9]{1,8}$","sort":6,"type":"input"},
+    {"name":"timeSync","labelZh":"时间同步","labelEn":"Time Sync","regex":"^[01]$","sort":7,"type":"select","options":[{"value":"0","labelZh":"否","labelEn":"No"},{"value":"1","labelZh":"是","labelEn":"Yes"}]}
+  ],
+  "variableAddress": {
+    "labelZh": "DNP3 地址",
+    "labelEn": "DNP3 Address",
+    "placeholderZh": "30.1.5.value / CROB.0:1:1000:0",
+    "placeholderEn": "30.1.5.value / CROB.0:1:1000:0",
+    "descriptionZh": "格式 group.variation.index[.value]；CROB 控制点使用 CROB.index:counter:on-time:off-time",
+    "descriptionEn": "Format group.variation.index[.value]; CROB points use CROB.index:counter:on-time:off-time"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1307,4 +1341,5 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinEthernetIP1400ID, DriverTypeEthernetIP, ModelEthernetIP1400, DriverEthernetIP1400, ethernetIP1400Schema},
 	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
 	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
+	{BuiltinDNP3ID, DriverDNP3, ModelDNP3, DriverDNP3, dnp3Schema},
 }

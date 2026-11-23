@@ -87,12 +87,18 @@ function defaultProtocolValue(field: DriverField, model: string): string {
       : model === 'fins' ? '9600'
       : model === 'ethercat' ? '48898'
       : model === 'profinet' ? '102'
+      : model === 'dnp3' ? '20000'
       : '102',
   }
   if (model === 'ethernetIp5500' && field.name === 'slot') return '0'
   if (model === 'ethernetIp5500' && field.name === 'interval') return '20'
   if (model === 'ethernetIp1400' && field.name === 'cipSize') return '500'
   if (model === 'ethernetIp1400' && field.name === 'logixArraySize') return '120'
+  if (model === 'dnp3' && field.name === 'masterId') return '1'
+  if (model === 'dnp3' && field.name === 'slaveId') return '2'
+  if (model === 'dnp3' && field.name === 'class0123Interval') return '20000'
+  if (model === 'dnp3' && field.name === 'class123Interval') return '1000'
+  if (model === 'dnp3' && field.name === 'timeSync') return '0'
   if (defaults[field.name] !== undefined) return defaults[field.name]
   if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode')) return '/dev/dev'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''

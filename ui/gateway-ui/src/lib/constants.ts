@@ -105,6 +105,7 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   ethernetIp: 'EtherNet/IP',
   ethercat: 'EtherCAT',
   profinet: 'PROFINET',
+  dnp3: 'DNP3',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -122,6 +123,7 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   ethernetIp1400: 'EtherNet/IP 1400 (MicroLogix)',
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
+  dnp3: 'DNP3',
 }
 
 export function driverTypeLabel(type: string): string {
@@ -156,6 +158,11 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'interval',
   'cipSize',
   'logixArraySize',
+  'masterId',
+  'slaveId',
+  'class0123Interval',
+  'class123Interval',
+  'timeSync',
   'maxReadWords',
   'amsPort',
   'localAmsPort',

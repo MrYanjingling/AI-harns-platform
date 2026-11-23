@@ -225,6 +225,7 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `ethernetIp1400`（`driverType=ethernetIp`）：MicroLogix 1400 PCCC over CIP，`0x4B` Execute PCCC 读写 N/F/B/T/C/I/O/S 文件；T/C 支持 .PRE/.ACC 读写，ACC 写入使用 read-modify-write
 - `ethercat`（`driverType=ethercat`）：经 Beckhoff TwinCAT ADS（TCP 48898）读写 EtherCAT 过程映像符号，支持 AMS Net ID/端口配置、符号句柄缓存与直接索引组地址
 - `profinet`（`driverType=profinet`）：通过 Siemens S7 通信（ISO-on-TCP 102）访问 PROFINET CPU 过程数据，复用 S7 地址、PDU 分帧与 `concurrency`
+- `dnp3`（`driverType=dnp3`）：DNP 3.0 TCP 主站，链路复位 + Class 0/1/2/3 轮询，支持二进制、计数器、模拟量对象解析，断线后走统一指数退避重连
 
 Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp、ModbusRtuOverTcp、OPC UA、S7、FINS 和 Omron CIP 的 `protocolConfig` 支持 `concurrency`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
 
