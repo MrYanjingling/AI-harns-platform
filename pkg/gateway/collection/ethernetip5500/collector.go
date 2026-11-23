@@ -178,7 +178,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 	protocolFailure := false
 	var cycleErr error
 	interval := time.Duration(c.Interval) * time.Millisecond
-	for index, frame := range runtime.frames {
+	for _, frame := range runtime.frames {
 		if ctx.Err() != nil {
 			return false
 		}
@@ -203,7 +203,7 @@ func (c *Collection) poll(ctx context.Context) bool {
 			}
 			protocolFailure = true
 		}
-		if interval > 0 && index+1 < len(runtime.frames) {
+		if interval > 0 {
 			timer := time.NewTimer(interval)
 			select {
 			case <-ctx.Done():

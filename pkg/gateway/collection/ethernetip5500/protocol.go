@@ -27,7 +27,6 @@ type parsedAddress struct {
 //	Tag.SubTag
 //	Tag[3]
 //	Program:MainProgram.Tag
-//	Tag.3 (BOOL/BIT only, bit number of a DINT)
 func parseAddress(value, dataType string) (parsedAddress, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -61,18 +60,6 @@ func parseAddress(value, dataType string) (parsedAddress, error) {
 	}
 	result := parsedAddress{segments: segments}
 	dataType = normalizeDataType(dataType)
-	if dataType == "bit" || dataType == "bool" {
-		last := segments[len(segments)-1]
-		if len(segments) > 1 && !last.hasIndex && isDigits(last.symbol) {
-			bit, err := strconv.Atoi(last.symbol)
-			if err != nil || bit < 0 || bit > 31 {
-				return parsedAddress{}, fmt.Errorf("invalid ethernet/ip bit %q", last.symbol)
-			}
-			result.bit = uint8(bit)
-			result.bitSet = true
-			result.segments = segments[:len(segments)-1]
-		}
-	}
 	code, err := cipTypeCode(dataType)
 	if err != nil {
 		return parsedAddress{}, err

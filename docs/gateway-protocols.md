@@ -33,6 +33,7 @@
 | Omron EtherNet/IP CIP（`omron` / `omronCip`） | 已完成 | 已验证 | 欧姆龙 PLC |
 | EtherNet/IP CIP（`ethernetIp` / `ethernetIp`） | 已完成 | 已验证 | 罗克韦尔 PLC / 通用 EtherNet/IP 设备 |
 | EtherNet/IP ControlLogix 5500（`ethernetIp` / `ethernetIp5500`） | 已完成 | 未验证 | 罗克韦尔 ControlLogix / CompactLogix |
+| EtherNet/IP MicroLogix 1400（`ethernetIp` / `ethernetIp1400`） | 已完成 | 未验证 | 罗克韦尔 MicroLogix 1400 |
 | EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证 | 倍福 TwinCAT / EtherCAT 设备 |
 | PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证 | 西门子 PROFINET PLC |
 

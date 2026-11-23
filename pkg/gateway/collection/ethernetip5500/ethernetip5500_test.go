@@ -25,7 +25,7 @@ func TestParseAddressAndRequest(t *testing.T) {
 		{"Tag", "int16", []string{"Tag"}, 0, 0, false, 0xC3},
 		{"Program:MainProgram.Counter", "DINT", []string{"Program:MainProgram", "Counter"}, 0, 0, false, 0xC4},
 		{"MyArray[3]", "INT16", []string{"MyArray"}, 3, 0, false, 0xC3},
-		{"Flags.5", "BOOL", []string{"Flags"}, 0, 5, true, 0xC1},
+		{"Flags.5", "BOOL", []string{"Flags", "5"}, 0, 0, false, 0xC1},
 		{"Analog", "REAL", []string{"Analog"}, 0, 0, false, 0xCA},
 	}
 	for _, tc := range cases {

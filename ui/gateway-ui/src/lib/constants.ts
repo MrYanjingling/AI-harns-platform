@@ -119,6 +119,7 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   omronCip: 'Omron EtherNet/IP CIP',
   ethernetIp: 'EtherNet/IP',
   ethernetIp5500: 'EtherNet/IP 5500 (ControlLogix)',
+  ethernetIp1400: 'EtherNet/IP 1400 (MicroLogix)',
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
 }
@@ -153,6 +154,8 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'timeoutMs',
   'intervalMs',
   'interval',
+  'cipSize',
+  'logixArraySize',
   'maxReadWords',
   'amsPort',
   'localAmsPort',

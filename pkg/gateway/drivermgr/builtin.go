@@ -27,6 +27,7 @@ const (
 	ModelIEC104           = "IEC104"
 	ModelEthernetIP       = "ethernetIp"
 	ModelEthernetIP5500   = "ethernetIp5500"
+	ModelEthernetIP1400   = "ethernetIp1400"
 	ModelEtherCAT         = "ethercat"
 	ModelProfinet         = "profinet"
 
@@ -46,6 +47,7 @@ const (
 	DriverIEC104           = "iec104"
 	DriverEthernetIP       = "ethernet-ip"
 	DriverEthernetIP5500   = "ethernet-ip-5500"
+	DriverEthernetIP1400   = "ethernet-ip-1400"
 	DriverEtherCAT         = "ethercat"
 	DriverProfinet         = "profinet"
 
@@ -65,6 +67,7 @@ const (
 	BuiltinIEC104ID           = "01M7Z9X3Q8KY52DPGDWG9KEX04"
 	BuiltinEthernetIPID       = "01M7Z9X3Q8KY52DPGDWG9KEX05"
 	BuiltinEthernetIP5500ID   = "01M7Z9X3Q8KY52DPGDWG9KEX08"
+	BuiltinEthernetIP1400ID   = "01M7Z9X3Q8KY52DPGDWG9KEX09"
 	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
 	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
 )
@@ -1193,8 +1196,8 @@ const ethernetIP5500Schema = `{
     "labelEn": "Variable Address",
     "placeholderZh": "Tag / Program:MainProgram.Tag / Tag[3]",
     "placeholderEn": "Tag / Program:MainProgram.Tag / Tag[3]",
-    "descriptionZh": "CIP 标签名；支持点号结构、数组 [n]、程序域 Program:MainProgram.Tag；BOOL/BIT 可在末尾写位号",
-    "descriptionEn": "CIP tag name; supports dot members, arrays [n], Program:MainProgram.Tag; BOOL/BIT may use a trailing bit number"
+    "descriptionZh": "CIP 标签名；支持点号成员、数组 [n]、程序域 Program:MainProgram.Tag；BIT/BOOL 按 BOOL 处理，整型位请使用位成员或设备侧映射",
+    "descriptionEn": "CIP tag name; supports dot members, arrays [n], Program:MainProgram.Tag; BIT/BOOL is treated as BOOL, use a bit member or device mapping for integer bits"
   },
   "variableDataTypes": [
     {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
@@ -1210,7 +1213,65 @@ const ethernetIP5500Schema = `{
     {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
     {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
     {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
-    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"},
+    {"value":"WORD","labelZh":"word","labelEn":"word","addressRegex":"^.+$"},
+    {"value":"DWORD","labelZh":"dword","labelEn":"dword","addressRegex":"^.+$"},
+    {"value":"LWORD","labelZh":"lword","labelEn":"lword","addressRegex":"^.+$"}
+  ]
+}`
+
+const ethernetIP1400Schema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "PLC IP 地址",
+      "labelEn": "PLC IP Address",
+      "regex": "^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$",
+      "sort": 1,
+      "type": "input",
+      "required": true
+    },
+    {
+      "name": "port",
+      "labelZh": "端口",
+      "labelEn": "Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 2,
+      "type": "input"
+    },
+    {
+      "name": "cipSize",
+      "labelZh": "CIP 大小",
+      "labelEn": "CIP Size",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 3,
+      "type": "input"
+    },
+    {
+      "name": "logixArraySize",
+      "labelZh": "Logix 数组大小",
+      "labelEn": "Logix Array Size",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 4,
+      "type": "input"
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "PCCC 地址",
+    "labelEn": "PCCC Address",
+    "placeholderZh": "N7:0 / F8:0 / B3:0/0 / T4:0",
+    "placeholderEn": "N7:0 / F8:0 / B3:0/0 / T4:0",
+    "descriptionZh": "PCCC 文件地址：N/F/B/T/C/I/O/S；位地址使用 /位号；T/C 支持 .PRE/.ACC 读写，ACC 写入使用 read-modify-write",
+    "descriptionEn": "PCCC file address: N/F/B/T/C/I/O/S; use /bit for bit files; T/C supports .PRE/.ACC reads and writes, ACC writes use read-modify-write"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"}
   ]
 }`
 
@@ -1243,6 +1304,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
 	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
 	{BuiltinEthernetIP5500ID, DriverTypeEthernetIP, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},
+	{BuiltinEthernetIP1400ID, DriverTypeEthernetIP, ModelEthernetIP1400, DriverEthernetIP1400, ethernetIP1400Schema},
 	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
 	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
 }
