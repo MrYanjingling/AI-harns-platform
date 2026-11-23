@@ -15,33 +15,33 @@
 
 ## 采集协议
 
-| 协议 | 完成状态 | 验证状态 |
-|---|---|------|
-| Modbus TCP（`modbus` / `modbusTcp`） | 已完成 | 已验证  |
-| Modbus RTU（`modbus` / `modbusRtu`） | 已完成 | 已验证  |
-| Modbus RTU over TCP（`modbus` / `modbusRtuOverTcp`） | 已完成 | 已验证  |
-| Modbus ASCII（`modbus` / `Modbus Ascii`） | 已完成 | 已验证  |
-| IEC 60870-5-101（`IEC` / `IEC101`） | 已完成 | 未验证  |
-| IEC 60870-5-102（`IEC` / `IEC102`） | 已完成 | 未验证  |
-| IEC 60870-5-103（`IEC` / `IEC103`） | 已完成 | 未验证  |
-| IEC 60870-5-104（`IEC` / `IEC104`） | 已完成 | 已验证  |
-| Siemens S7-1500（`s7` / `s71500`） | 已完成 | 已验证  |
-| Siemens S7-200（`s7` / `s7-200`） | 已完成 | 已验证  |
-| OPC UA（`opcUa` / `opcUa`） | 已完成 | 已验证  |
-| Omron FINS（`omron` / `fins`） | 已完成 | 已验证  |
-| Omron HostLink C-Mode（`omron` / `hostlinkCmode`） | 已完成 | 未验证  |
-| Omron EtherNet/IP CIP（`omron` / `omronCip`） | 已完成 | 已验证  |
-| EtherNet/IP CIP（`ethernetIp` / `ethernetIp`） | 已完成 | 已验证  |
-| EtherNet/IP ControlLogix 5500（`ethernetIp` / `ethernetIp5500`） | 已完成 | 未验证 |
-| EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证  |
-| PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证  |
+| 协议 | 完成状态 | 验证状态 | 适用于 |
+|---|---|---|---|
+| Modbus TCP（`modbus` / `modbusTcp`） | 已完成 | 已验证 | 通用 Modbus 设备 |
+| Modbus RTU（`modbus` / `modbusRtu`） | 已完成 | 已验证 | 通用 Modbus 设备 |
+| Modbus RTU over TCP（`modbus` / `modbusRtuOverTcp`） | 已完成 | 已验证 | 通用 Modbus 设备 |
+| Modbus ASCII（`modbus` / `Modbus Ascii`） | 已完成 | 已验证 | 通用 Modbus 设备 |
+| IEC 60870-5-101（`IEC` / `IEC101`） | 已完成 | 未验证 | 电力 IEC 60870-5-101 设备 |
+| IEC 60870-5-102（`IEC` / `IEC102`） | 已完成 | 未验证 | 电能计量 IEC 60870-5-102 设备 |
+| IEC 60870-5-103（`IEC` / `IEC103`） | 已完成 | 未验证 | 保护装置 IEC 60870-5-103 设备 |
+| IEC 60870-5-104（`IEC` / `IEC104`） | 已完成 | 已验证 | 电力调度 IEC 60870-5-104 设备 |
+| Siemens S7-1500（`s7` / `s71500`） | 已完成 | 已验证 | 西门子 S7-1500 PLC |
+| Siemens S7-200（`s7` / `s7-200`） | 已完成 | 已验证 | 西门子 S7-200 PLC |
+| OPC UA（`opcUa` / `opcUa`） | 已完成 | 已验证 | 支持 OPC UA 的 PLC / 系统 |
+| Omron FINS（`omron` / `fins`） | 已完成 | 已验证 | 欧姆龙 PLC |
+| Omron HostLink C-Mode（`omron` / `hostlinkCmode`） | 已完成 | 未验证 | 欧姆龙 PLC |
+| Omron EtherNet/IP CIP（`omron` / `omronCip`） | 已完成 | 已验证 | 欧姆龙 PLC |
+| EtherNet/IP CIP（`ethernetIp` / `ethernetIp`） | 已完成 | 已验证 | 罗克韦尔 PLC / 通用 EtherNet/IP 设备 |
+| EtherNet/IP ControlLogix 5500（`ethernetIp` / `ethernetIp5500`） | 已完成 | 未验证 | 罗克韦尔 ControlLogix / CompactLogix |
+| EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证 | 倍福 TwinCAT / EtherCAT 设备 |
+| PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证 | 西门子 PROFINET PLC |
 
 ## 推送协议
 
-| 协议 | 完成状态 | 验证状态 |
-|---|---|---|
-| MQTT（发布 + 命令订阅） | 已完成 | 已验证 |
-| Kafka（发布 + 命令消费） | 已完成 | 未验证 |
+| 协议 | 完成状态 | 验证状态 | 适用于 |
+|---|---|---|---|
+| MQTT（发布 + 命令订阅） | 已完成 | 已验证 | MQTT Broker / 消息平台 |
+| Kafka（发布 + 命令消费） | 已完成 | 未验证 | Kafka 集群 / 消息平台 |
 
 > 报告按仓库约定不自动提交；需要时由维护者单独归档。
 
