@@ -65,8 +65,8 @@ func (r *CreateReq) Validate() error {
 	if r.ProtocolConfig.Port != 0 && (r.ProtocolConfig.Port < 1 || r.ProtocolConfig.Port > 65535) {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.port", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.port"}})
 	}
-	if r.ProtocolConfig.Concurrency != 0 && (r.ProtocolConfig.Concurrency < 1 || r.ProtocolConfig.Concurrency > MaxConcurrency) {
-		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.concurrency", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.concurrency"}})
+	if r.ProtocolConfig.Slot < 0 || r.ProtocolConfig.Slot > 255 {
+		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.slot", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.slot"}})
 	}
 	if err := collection.NormalizeVariables(r.Variables); err != nil {
 		var validationErr *validation.ValidationError

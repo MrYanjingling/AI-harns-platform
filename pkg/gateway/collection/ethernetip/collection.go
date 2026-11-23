@@ -1,4 +1,9 @@
 // Package ethernetip implements EtherNet/IP CIP collection.
+//
+// The driver follows the Neuron EtherNet/IP plugin: it registers an
+// encapsulation session, opens a class-3 connection with Forward Open and
+// exchanges each tag over connected SendUnitData messaging. Tag addresses are
+// CIP symbolic paths, one ANSI extended-symbol segment per dot-separated name.
 package ethernetip
 
 import (
@@ -11,23 +16,21 @@ const (
 	DriverType  = "ethernetIp"
 	DriverModel = "ethernetIp"
 
-	DefaultPort        = 44818
-	DefaultConcurrency = 1
-	MaxConcurrency     = 3
+	DefaultPort = 44818
 )
 
 type ProtocolConfig struct {
-	Location    string `json:"location"`
-	Port        int    `json:"port"`
-	Concurrency int    `json:"concurrency"`
+	Location string `json:"location"`
+	Port     int    `json:"port"`
+	// Slot is kept for compatibility with Neuron's EtherNet/IP driver
+	// configuration. The generic Forward Open used here does not carry a slot;
+	// 5500-style Large Forward Open is a separate plugin in Neuron.
+	Slot int `json:"slot"`
 }
 
 func (c *ProtocolConfig) Normalize() {
 	if c.Port == 0 {
 		c.Port = DefaultPort
-	}
-	if c.Concurrency == 0 {
-		c.Concurrency = DefaultConcurrency
 	}
 }
 
@@ -47,9 +50,9 @@ type UpdateReq struct {
 type Collection struct {
 	collection.CollectionMeta
 
-	Location    string `json:"location"`
-	Port        int    `json:"port"`
-	Concurrency int    `json:"concurrency"`
+	Location string `json:"location"`
+	Port     int    `json:"port"`
+	Slot     int    `json:"slot"`
 
 	runtime     *collectorRuntime
 	frameTracer collection.FrameTracer
@@ -69,9 +72,9 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
 		},
-		Location:    req.ProtocolConfig.Location,
-		Port:        req.ProtocolConfig.Port,
-		Concurrency: req.ProtocolConfig.Concurrency,
+		Location: req.ProtocolConfig.Location,
+		Port:     req.ProtocolConfig.Port,
+		Slot:     req.ProtocolConfig.Slot,
 	}, nil
 }
 
@@ -81,11 +84,11 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	c.CollectorCycleMs = req.CollectorCycleMs
 	c.Location = req.ProtocolConfig.Location
 	c.Port = req.ProtocolConfig.Port
-	c.Concurrency = req.ProtocolConfig.Concurrency
+	c.Slot = req.ProtocolConfig.Slot
 }
 
 func (c *Collection) ConfigJSON() ([]byte, error) {
-	config := ProtocolConfig{Location: c.Location, Port: c.Port, Concurrency: c.Concurrency}
+	config := ProtocolConfig{Location: c.Location, Port: c.Port, Slot: c.Slot}
 	config.Normalize()
 	return json.Marshal(config)
 }
@@ -98,7 +101,7 @@ func (c *Collection) ApplyConfig(raw []byte) error {
 	config.Normalize()
 	c.Location = config.Location
 	c.Port = config.Port
-	c.Concurrency = config.Concurrency
+	c.Slot = config.Slot
 	return nil
 }
 

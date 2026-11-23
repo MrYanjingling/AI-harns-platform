@@ -65,10 +65,10 @@ func (r *CreateReq) Validate() error {
 	if r.ProtocolConfig.Port != 0 && (r.ProtocolConfig.Port < 1 || r.ProtocolConfig.Port > 65535) {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.port", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.port"}})
 	}
-	if r.ProtocolConfig.AMSPort != 0 && (r.ProtocolConfig.AMSPort < 1 || r.ProtocolConfig.AMSPort > 65535) {
+	if r.ProtocolConfig.AMSPort != 0 && (r.ProtocolConfig.AMSPort < MinADSPort || r.ProtocolConfig.AMSPort > MaxADSPort) {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.amsPort", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.amsPort"}})
 	}
-	if r.ProtocolConfig.LocalAMSPort != 0 && (r.ProtocolConfig.LocalAMSPort < 1 || r.ProtocolConfig.LocalAMSPort > 65535) {
+	if r.ProtocolConfig.LocalAMSPort != 0 && (r.ProtocolConfig.LocalAMSPort < MinADSPort || r.ProtocolConfig.LocalAMSPort > MaxADSPort) {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.localAmsPort", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.localAmsPort"}})
 	}
 	if r.ProtocolConfig.AMSNetID != "" {
@@ -81,9 +81,6 @@ func (r *CreateReq) Validate() error {
 			issues = append(issues, validation.FieldIssue{Field: "protocolConfig.localAmsNetId", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.localAmsNetId"}})
 		}
 	}
-	if r.ProtocolConfig.StringLength < 0 || r.ProtocolConfig.StringLength > 65000 {
-		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.stringLength", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.stringLength"}})
-	}
 	if r.ProtocolConfig.TimeoutMs < 0 {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.timeoutMs", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.timeoutMs"}})
 	}
@@ -93,15 +90,12 @@ func (r *CreateReq) Validate() error {
 			issues = append(issues, validationErr.Issues...)
 		}
 	}
-	stringLength := r.ProtocolConfig.StringLength
-	if stringLength <= 0 {
-		stringLength = DefaultStringLength
-	}
 	for index, variable := range r.Variables {
 		if variable == nil || variable.IsCalculated {
 			continue
 		}
-		if _, err := parseAddress(variable.Address); err != nil {
+		address, err := parseAddress(variable.Address, variable.DataType)
+		if err != nil {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].address", index),
 				MsgID: "validate.variable_address_invalid",
@@ -109,10 +103,26 @@ func (r *CreateReq) Validate() error {
 			})
 			continue
 		}
-		if _, err := typeSize(variable.DataType, stringLength); err != nil {
+		if address.ReadOnly && variable.AccessMode != collection.AccessModeRead {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("variables[%d].accessMode", index),
+				MsgID: "validate.variable_address_read_only",
+				Args:  []interface{}{variable.Address},
+			})
+			continue
+		}
+		if address.WriteOnly && variable.AccessMode != collection.AccessModeWrite {
+			issues = append(issues, validation.FieldIssue{
+				Field: fmt.Sprintf("variables[%d].accessMode", index),
+				MsgID: "validate.variable_address_write_only",
+				Args:  []interface{}{variable.Address},
+			})
+			continue
+		}
+		if _, err := typeSize(variable.DataType, address); err != nil {
 			issues = append(issues, validation.FieldIssue{
 				Field: fmt.Sprintf("variables[%d].dataType", index),
-				MsgID: "validate.variable_data_type_invalid",
+				MsgID: "validate.variable_data_type_unsupported",
 				Args:  []interface{}{variable.DataType},
 			})
 		}

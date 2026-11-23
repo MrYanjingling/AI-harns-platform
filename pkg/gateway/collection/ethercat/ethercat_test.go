@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"harns-platform/pkg/gateway/collection"
 )
 
 func TestParseAMSNetID(t *testing.T) {
@@ -52,29 +54,64 @@ func TestResolveTargetNetID(t *testing.T) {
 }
 
 func TestParseAddress(t *testing.T) {
-	symbol, err := parseAddress("MAIN.nCounter")
+	direct, err := parseAddress("0xF020,0x10", "int16")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if symbol.Direct || symbol.Symbol != "MAIN.nCounter" {
-		t.Fatalf("unexpected symbol %+v", symbol)
+	if direct.IndexGroup != 0xF020 || direct.IndexOffset != 16 {
+		t.Fatalf("unexpected address %+v", direct)
 	}
-	direct, err := parseAddress("0xF020:0x10")
+	direct, err = parseAddress("0xF020:16", "int16")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !direct.Direct || direct.IndexGroup != 0xF020 || direct.IndexOffset != 16 {
-		t.Fatalf("unexpected direct address %+v", direct)
-	}
-	direct, err = parseAddress("0xF020:16")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !direct.Direct || direct.IndexOffset != 16 {
+	if direct.IndexOffset != 16 {
 		t.Fatalf("unexpected decimal offset %+v", direct)
 	}
-	if _, err := parseAddress(""); err == nil {
-		t.Fatal("empty address should be rejected")
+	text, err := parseAddress("0x4020,0.80", "STRING")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text.StringLength != 80 {
+		t.Fatalf("unexpected string length %+v", text)
+	}
+	if text.ReadOnly {
+		t.Fatalf("0x4020 should be writable %+v", text)
+	}
+	readOnly, err := parseAddress("0x4025,0", "int16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !readOnly.ReadOnly {
+		t.Fatalf("0x4025 should be read-only %+v", readOnly)
+	}
+	writeOnly, err := parseAddress("0xF006,0", "int16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !writeOnly.WriteOnly {
+		t.Fatalf("0xF006 should be write-only %+v", writeOnly)
+	}
+}
+
+func TestParseAddressRejectsInvalid(t *testing.T) {
+	cases := []struct {
+		address  string
+		dataType string
+	}{
+		{"", "int16"},
+		{"MAIN.nCounter", "int16"},
+		{"0x9999,0", "int16"},
+		{"0x4020,0x10000", "int16"},
+		{"0x4025,1", "int16"},
+		{"0x4020,0.80", "int16"},
+		{"0x4020,0", "STRING"},
+		{"0x4020,0.300", "STRING"},
+	}
+	for _, tc := range cases {
+		if _, err := parseAddress(tc.address, tc.dataType); err == nil {
+			t.Fatalf("%q (%s) should be rejected", tc.address, tc.dataType)
+		}
 	}
 }
 
@@ -93,7 +130,8 @@ func TestTypeCodec(t *testing.T) {
 		{"string", "ab", 4, []byte{'a', 'b', 0, 0}},
 	}
 	for _, tc := range cases {
-		size, err := typeSize(tc.dataType, 80)
+		address := parsedAddress{StringLength: tc.length}
+		size, err := typeSize(tc.dataType, address)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.dataType, err)
 		}
@@ -117,7 +155,7 @@ func TestTypeCodec(t *testing.T) {
 	}
 }
 
-func TestADSClientSymbolReadWrite(t *testing.T) {
+func TestADSClientDirectReadWrite(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -131,7 +169,6 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		handle := uint32(0x11223344)
 		for {
 			request, err := readAMSPacket(conn)
 			if err != nil {
@@ -145,17 +182,10 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 			command := binary.LittleEndian.Uint16(request[16:])
 			var data []byte
 			switch command {
-			case adsCommandReadWrite:
-				if !strings.Contains(string(request[32:]), "MAIN.nCounter") {
-					serverErr <- errUnexpectedSymbol
-					return
-				}
-				data = make([]byte, 12)
-				binary.LittleEndian.PutUint32(data[4:], 4)
-				binary.LittleEndian.PutUint32(data[8:], handle)
 			case adsCommandRead:
-				if binary.LittleEndian.Uint32(request[32:]) != adsIGSymbolValueByHandle ||
-					binary.LittleEndian.Uint32(request[36:]) != handle {
+				if binary.LittleEndian.Uint32(request[32:]) != 0xF020 ||
+					binary.LittleEndian.Uint32(request[36:]) != 16 ||
+					binary.LittleEndian.Uint32(request[40:]) != 2 {
 					serverErr <- errUnexpectedRead
 					return
 				}
@@ -163,8 +193,10 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 				binary.LittleEndian.PutUint32(data[4:], 2)
 				binary.LittleEndian.PutUint16(data[8:], 42)
 			case adsCommandWrite:
-				if binary.LittleEndian.Uint32(request[32:]) != adsIGSymbolValueByHandle ||
-					binary.LittleEndian.Uint32(request[36:]) != handle {
+				if binary.LittleEndian.Uint32(request[32:]) != 0xF020 ||
+					binary.LittleEndian.Uint32(request[36:]) != 16 ||
+					binary.LittleEndian.Uint32(request[40:]) != 2 ||
+					binary.LittleEndian.Uint16(request[44:]) != 7 {
 					serverErr <- errUnexpectedWrite
 					return
 				}
@@ -182,18 +214,11 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 
 	client, err := newADSClient(context.Background(), listener.Addr().String(),
 		[6]byte{192, 168, 1, 10, 1, 1}, 851,
-		[6]byte{127, 0, 0, 1, 1, 1}, 32768, time.Second)
+		[6]byte{127, 0, 0, 1, 1, 1}, 851, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handle, err := client.resolveSymbol(context.Background(), "MAIN.nCounter")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if handle != 0x11223344 {
-		t.Fatalf("unexpected handle %X", handle)
-	}
-	data, _, _, err := client.read(context.Background(), adsIGSymbolValueByHandle, handle, 2)
+	data, _, _, err := client.read(context.Background(), 0xF020, 16, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +229,7 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 	if value != int16(42) {
 		t.Fatalf("unexpected value %v", value)
 	}
-	if _, _, _, err := client.write(context.Background(), adsIGSymbolValueByHandle, handle, le16(7)); err != nil {
+	if _, _, _, err := client.write(context.Background(), 0xF020, 16, le16(7)); err != nil {
 		t.Fatal(err)
 	}
 	if err := client.Close(); err != nil {
@@ -216,7 +241,6 @@ func TestADSClientSymbolReadWrite(t *testing.T) {
 }
 
 var (
-	errUnexpectedSymbol  = &testError{"unexpected symbol request"}
 	errUnexpectedRead    = &testError{"unexpected read request"}
 	errUnexpectedWrite   = &testError{"unexpected write request"}
 	errUnexpectedCommand = &testError{"unexpected command"}
@@ -265,26 +289,33 @@ func TestConfigDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if item.Port != DefaultPort || item.AMSPort != DefaultAMSPort ||
-		item.LocalAMSPort != DefaultLocalAMSPort ||
-		item.StringLength != DefaultStringLength ||
-		item.TimeoutMs != DefaultTimeoutMs {
+		item.LocalAMSPort != DefaultLocalAMSPort || item.TimeoutMs != DefaultTimeoutMs {
 		t.Fatalf("unexpected defaults %+v", item)
 	}
 	raw, err := item.ConfigJSON()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(raw), `"port":48898`) || !strings.Contains(string(raw), `"amsPort":851`) {
+	if !strings.Contains(string(raw), `"port":48898`) || !strings.Contains(string(raw), `"amsPort":851`) ||
+		strings.Contains(string(raw), "stringLength") {
 		t.Fatalf("unexpected config %s", raw)
 	}
 }
 
 func TestBuildReadFrames(t *testing.T) {
-	frames, err := buildReadFrames(nil, 80)
+	frames, err := buildReadFrames([]*collection.Variable{
+		{Name: "counter", DataType: "int16", Address: "0xF020,0", AccessMode: collection.AccessModeRead},
+		{Name: "text", DataType: "STRING", Address: "0x4020,0.8", AccessMode: collection.AccessModeRead},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(frames) != 0 {
-		t.Fatalf("unexpected frames %d", len(frames))
+	if len(frames) != 2 || frames[0].Length != 2 || frames[1].Length != 8 {
+		t.Fatalf("unexpected frames %+v", frames)
+	}
+	if _, err := buildReadFrames([]*collection.Variable{
+		{Name: "release", DataType: "int16", Address: "0xF006,0", AccessMode: collection.AccessModeRead},
+	}); err == nil {
+		t.Fatal("write-only group should not be readable")
 	}
 }

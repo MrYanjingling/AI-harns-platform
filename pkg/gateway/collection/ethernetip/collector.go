@@ -12,7 +12,10 @@ import (
 	"harns-platform/pkg/gateway/validation"
 )
 
-const frameRetryCount = 3
+type cipFrame struct {
+	Variable *collection.Variable
+	Address  parsedAddress
+}
 
 type collectorRuntime struct {
 	mu      sync.Mutex
@@ -37,12 +40,13 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: location is required", collection.ErrInvalidConfig)
 	}
-	if c.Concurrency == 0 {
-		c.Concurrency = DefaultConcurrency
-	}
-	if c.Concurrency < 1 || c.Concurrency > MaxConcurrency {
+	if c.Port < 1 || c.Port > 65535 {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: concurrency must be between 1 and %d", collection.ErrInvalidConfig, MaxConcurrency)
+		return fmt.Errorf("%w: port is invalid", collection.ErrInvalidConfig)
+	}
+	if c.Slot < 0 || c.Slot > 255 {
+		c.SetCollectStatus(collection.CollectStatusError)
+		return fmt.Errorf("%w: slot must be between 0 and 255", collection.ErrInvalidConfig)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	frames, err := buildReadFrames(variables)
@@ -57,7 +61,10 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
+	// Neuron keeps one class-3 connection per driver and pipelines requests on
+	// it. A pool of one preserves that model while reconnecting after a lost
+	// session.
+	pool, err := connpool.NewPool(ctx, 1, func(ctx context.Context) (connpool.Client, error) {
 		return newCIPClient(ctx, c.endpoint(), cipTimeout)
 	})
 	if err != nil {
@@ -155,54 +162,32 @@ func (c *Collection) loop(ctx context.Context) {
 	}
 }
 
-type frameResult struct {
-	values []decodedValue
-	err    error
-}
-
 func (c *Collection) poll(ctx context.Context) bool {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
 		return false
 	}
-	results := make(chan frameResult, len(runtime.frames))
-	var wait sync.WaitGroup
-	for _, frame := range runtime.frames {
-		wait.Add(1)
-		go func(item *cipFrame) {
-			defer wait.Done()
-			values, err := c.readFrame(ctx, item)
-			results <- frameResult{values: values, err: err}
-		}(frame)
-	}
-	wait.Wait()
-	close(results)
-
 	failed := false
 	succeeded := 0
 	connectionFailures := 0
 	protocolFailure := false
 	var cycleErr error
-	for result := range results {
-		for _, item := range result.values {
-			if item.Variable != nil {
-				c.GetCollectionMeta().SetVariableValue(item.Variable.Name, item.Value)
-			}
-		}
-		if result.err == nil || len(result.values) > 0 {
-			succeeded++
-		}
-		if result.err != nil {
+	for _, frame := range runtime.frames {
+		value, err := c.readFrame(ctx, frame)
+		if err != nil {
 			failed = true
 			if cycleErr == nil {
-				cycleErr = result.err
+				cycleErr = err
 			}
-			if collection.IsConnectionLost(result.err) {
+			if collection.IsConnectionLost(err) {
 				connectionFailures++
 			} else {
 				protocolFailure = true
 			}
+			continue
 		}
+		succeeded++
+		c.GetCollectionMeta().SetVariableValue(frame.Variable.Name, value)
 	}
 	if ctx.Err() != nil {
 		return false
@@ -226,40 +211,35 @@ func (c *Collection) poll(ctx context.Context) bool {
 	return true
 }
 
-func (c *Collection) readFrame(ctx context.Context, frame *cipFrame) ([]decodedValue, error) {
+func (c *Collection) readFrame(ctx context.Context, frame *cipFrame) (any, error) {
 	runtime := c.runtime
 	if runtime == nil || runtime.pool == nil {
 		return nil, collection.ConnectionLost(fmt.Errorf("ethernet/ip runtime is not connected"))
 	}
-	var lastErr error
-	for attempt := 0; attempt < frameRetryCount; attempt++ {
-		client, err := runtime.pool.Get(ctx)
-		if err != nil {
-			return nil, err
-		}
-		session, ok := client.(*cipClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return nil, fmt.Errorf("invalid ethernet/ip client type")
-		}
-		response, wireRequest, wireResponse, err := session.Exchange(ctx, frame.Request)
-		traceID := c.traceRequest("read", wireRequest)
-		c.traceResponse(traceID, "read", wireResponse, err)
-		runtime.pool.Put(client, err != nil)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		values, err := decodeFrame(frame, response)
-		if err != nil {
-			return values, err
-		}
-		return values, nil
+	client, err := runtime.pool.Get(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("ethernet/ip frame failed")
+	session, ok := client.(*cipClient)
+	if !ok {
+		runtime.pool.Put(client, true)
+		return nil, fmt.Errorf("invalid ethernet/ip client type")
 	}
-	return nil, lastErr
+	data, wireRequest, wireResponse, err := session.ReadTag(ctx, frame.Address)
+	traceID := c.traceRequest("read", wireRequest)
+	c.traceResponse(traceID, "read", wireResponse, err)
+	runtime.pool.Put(client, err != nil && collection.IsConnectionLost(err))
+	if err != nil {
+		if collection.IsConnectionLost(err) {
+			return nil, collection.ConnectionLost(err)
+		}
+		return nil, fmt.Errorf("variable %s: %w", frame.Variable.Name, err)
+	}
+	value, err := decodeValue(data, frame.Variable.DataType)
+	if err != nil {
+		return nil, fmt.Errorf("variable %s: %w", frame.Variable.Name, err)
+	}
+	return collection.ApplyTransform(value, frame.Variable), nil
 }
 
 func (c *Collection) endpoint() string {
@@ -303,17 +283,13 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		data, err := encodeValue(action.Value, action.Variable.DataType, address)
+		data, err := encodeValue(action.Value, action.Variable.DataType)
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{
 				Field: fmt.Sprintf("actions[%d].name", action.Index),
 				MsgID: "validate.action_variable_not_writable",
 				Args:  []interface{}{action.Variable.Name},
 			}})
-		}
-		request, err := writeRequest(address, data)
-		if err != nil {
-			return collection.DeviceActionError(action, err)
 		}
 		client, err := runtime.pool.Get(ctx)
 		if err != nil {
@@ -324,19 +300,31 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 			runtime.pool.Put(client, true)
 			return collection.DeviceActionError(action, fmt.Errorf("invalid ethernet/ip client type"))
 		}
-		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
+		wireRequest, wireResponse, writeErr := session.WriteTag(ctx, address, data)
 		traceID := c.traceRequest("write", wireRequest)
-		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
-		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
-		}
-		if err := parseWriteResponse(response); err != nil {
-			return collection.DeviceActionError(action, err)
+		c.traceResponse(traceID, "write", wireResponse, writeErr)
+		runtime.pool.Put(client, writeErr != nil && collection.IsConnectionLost(writeErr))
+		if writeErr != nil {
+			return collection.DeviceActionError(action, writeErr)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}
 	return nil
+}
+
+func buildReadFrames(variables []*collection.Variable) ([]*cipFrame, error) {
+	frames := make([]*cipFrame, 0, len(variables))
+	for _, variable := range variables {
+		if variable == nil || variable.IsCalculated || variable.AccessMode == collection.AccessModeWrite {
+			continue
+		}
+		address, err := parseAddress(variable.Address, variable.DataType)
+		if err != nil {
+			return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
+		}
+		frames = append(frames, &cipFrame{Variable: variable, Address: address})
+	}
+	return frames, nil
 }
 
 var _ collection.Collector = (*Collection)(nil)

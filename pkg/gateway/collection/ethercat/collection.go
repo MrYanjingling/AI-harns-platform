@@ -1,7 +1,8 @@
 // Package ethercat implements EtherCAT process-data collection through a
 // Beckhoff TwinCAT ADS gateway. EtherCAT itself is not an IP protocol; TwinCAT
-// exposes the mapped process image as ADS symbols, which this driver reads and
-// writes.
+// exposes the mapped process image through ADS index groups, which this driver
+// reads and writes. Addressing, index-group validation and data types follow
+// Neuron's ADS plugin.
 package ethercat
 
 import (
@@ -16,9 +17,11 @@ const (
 
 	DefaultPort         = 48898
 	DefaultAMSPort      = 851
-	DefaultLocalAMSPort = 32768
-	DefaultStringLength = 80
+	DefaultLocalAMSPort = 851
 	DefaultTimeoutMs    = 3000
+
+	MinADSPort = 800
+	MaxADSPort = 899
 )
 
 type ProtocolConfig struct {
@@ -28,7 +31,6 @@ type ProtocolConfig struct {
 	AMSPort       int    `json:"amsPort"`
 	LocalAMSNetID string `json:"localAmsNetId"`
 	LocalAMSPort  int    `json:"localAmsPort"`
-	StringLength  int    `json:"stringLength"`
 	TimeoutMs     int    `json:"timeoutMs"`
 }
 
@@ -41,9 +43,6 @@ func (c *ProtocolConfig) Normalize() {
 	}
 	if c.LocalAMSPort == 0 {
 		c.LocalAMSPort = DefaultLocalAMSPort
-	}
-	if c.StringLength == 0 {
-		c.StringLength = DefaultStringLength
 	}
 	if c.TimeoutMs == 0 {
 		c.TimeoutMs = DefaultTimeoutMs
@@ -72,7 +71,6 @@ type Collection struct {
 	AMSPort       int    `json:"amsPort"`
 	LocalAMSNetID string `json:"localAmsNetId"`
 	LocalAMSPort  int    `json:"localAmsPort"`
-	StringLength  int    `json:"stringLength"`
 	TimeoutMs     int    `json:"timeoutMs"`
 
 	runtime     *collectorRuntime
@@ -99,7 +97,6 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 		AMSPort:       req.ProtocolConfig.AMSPort,
 		LocalAMSNetID: req.ProtocolConfig.LocalAMSNetID,
 		LocalAMSPort:  req.ProtocolConfig.LocalAMSPort,
-		StringLength:  req.ProtocolConfig.StringLength,
 		TimeoutMs:     req.ProtocolConfig.TimeoutMs,
 	}, nil
 }
@@ -114,7 +111,6 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	c.AMSPort = req.ProtocolConfig.AMSPort
 	c.LocalAMSNetID = req.ProtocolConfig.LocalAMSNetID
 	c.LocalAMSPort = req.ProtocolConfig.LocalAMSPort
-	c.StringLength = req.ProtocolConfig.StringLength
 	c.TimeoutMs = req.ProtocolConfig.TimeoutMs
 }
 
@@ -126,7 +122,6 @@ func (c *Collection) ConfigJSON() ([]byte, error) {
 		AMSPort:       c.AMSPort,
 		LocalAMSNetID: c.LocalAMSNetID,
 		LocalAMSPort:  c.LocalAMSPort,
-		StringLength:  c.StringLength,
 		TimeoutMs:     c.TimeoutMs,
 	}
 	config.Normalize()
@@ -145,7 +140,6 @@ func (c *Collection) ApplyConfig(raw []byte) error {
 	c.AMSPort = config.AMSPort
 	c.LocalAMSNetID = config.LocalAMSNetID
 	c.LocalAMSPort = config.LocalAMSPort
-	c.StringLength = config.StringLength
 	c.TimeoutMs = config.TimeoutMs
 	return nil
 }

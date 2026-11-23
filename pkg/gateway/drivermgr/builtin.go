@@ -1026,26 +1026,21 @@ const ethernetIPSchema = `{
       "type": "input"
     },
     {
-      "name": "concurrency",
-      "labelZh": "并发数",
-      "labelEn": "Concurrency",
-      "regex": "^[1-3]$",
+      "name": "slot",
+      "labelZh": "槽号",
+      "labelEn": "Slot",
+      "regex": "^[0-9]{1,3}$",
       "sort": 3,
-      "type": "select",
-      "options": [
-        {"value":"1","labelZh":"1","labelEn":"1"},
-        {"value":"2","labelZh":"2","labelEn":"2"},
-        {"value":"3","labelZh":"3","labelEn":"3"}
-      ]
+      "type": "input"
     }
   ],
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "placeholderZh": "Tag / Program:MainProgram.Tag / Tag[3]",
-    "placeholderEn": "Tag / Program:MainProgram.Tag / Tag[3]",
-    "descriptionZh": "CIP 标签名；支持点号结构、数组 [n]、程序域 Program:MainProgram.Tag；BOOL/BIT 可在末尾写位号",
-    "descriptionEn": "CIP tag name; supports dot members, arrays [n], Program:MainProgram.Tag; BOOL/BIT may use a trailing bit number"
+    "placeholderZh": "Tag / Program:MainProgram.Tag",
+    "placeholderEn": "Tag / Program:MainProgram.Tag",
+    "descriptionZh": "CIP 符号标签，点号分隔层级，例如 Program:MainProgram.Counter；不支持数组下标或末尾位号",
+    "descriptionEn": "CIP symbolic tag with dot-separated members, for example Program:MainProgram.Counter; array indexes and trailing bit numbers are not supported"
   },
   "variableDataTypes": [
     {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
@@ -1060,8 +1055,7 @@ const ethernetIPSchema = `{
     {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
     {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
     {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
-    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
-    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
   ]
 }`
 
@@ -1078,8 +1072,8 @@ const etherCATSchema = `{
     },
     {
       "name": "port",
-      "labelZh": "ADS 端口",
-      "labelEn": "ADS Port",
+      "labelZh": "TCP 端口",
+      "labelEn": "TCP Port",
       "regex": "^[0-9]{1,5}$",
       "sort": 2,
       "type": "input"
@@ -1094,9 +1088,9 @@ const etherCATSchema = `{
     },
     {
       "name": "amsPort",
-      "labelZh": "目标 AMS Port",
-      "labelEn": "Target AMS Port",
-      "regex": "^[0-9]{1,5}$",
+      "labelZh": "目标 ADS 端口",
+      "labelEn": "Target ADS Port",
+      "regex": "^8[0-9]{2}$",
       "sort": 4,
       "type": "input"
     },
@@ -1110,18 +1104,10 @@ const etherCATSchema = `{
     },
     {
       "name": "localAmsPort",
-      "labelZh": "本地 AMS Port",
-      "labelEn": "Local AMS Port",
-      "regex": "^[0-9]{1,5}$",
+      "labelZh": "本地 ADS 端口",
+      "labelEn": "Local ADS Port",
+      "regex": "^8[0-9]{2}$",
       "sort": 6,
-      "type": "input"
-    },
-    {
-      "name": "stringLength",
-      "labelZh": "字符串长度",
-      "labelEn": "String Length",
-      "regex": "^[1-9][0-9]{0,4}$",
-      "sort": 7,
       "type": "input"
     },
     {
@@ -1129,21 +1115,20 @@ const etherCATSchema = `{
       "labelZh": "超时(ms)",
       "labelEn": "Timeout (ms)",
       "regex": "^[1-9][0-9]{0,5}$",
-      "sort": 8,
+      "sort": 7,
       "type": "input"
     }
   ],
   "variableAddress": {
     "labelZh": "变量地址",
     "labelEn": "Variable Address",
-    "placeholderZh": "MAIN.nCounter / 0xF020:0",
-    "placeholderEn": "MAIN.nCounter / 0xF020:0",
-    "descriptionZh": "ADS 符号名；或直接索引组:索引偏移（0x 前缀），例如 0xF020:0",
-    "descriptionEn": "ADS symbol name; or direct index group:index offset with 0x prefix, for example 0xF020:0"
+    "placeholderZh": "0xF020,0 / 0x4020,0.80",
+    "placeholderEn": "0xF020,0 / 0x4020,0.80",
+    "descriptionZh": "ADS 索引组,索引偏移，支持十进制或 0x 前缀；STRING 必须追加 .长度，例如 0x4020,0.80",
+    "descriptionEn": "ADS index group,index offset in decimal or 0x form; STRING requires a .length suffix, for example 0x4020,0.80"
   },
   "variableDataTypes": [
     {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
-    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
     {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
     {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
     {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
@@ -1154,8 +1139,7 @@ const etherCATSchema = `{
     {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
     {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
     {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
-    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
-    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
   ]
 }`
 

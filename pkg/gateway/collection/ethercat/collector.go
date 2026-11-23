@@ -17,18 +17,12 @@ type adsFrame struct {
 	Length   int
 }
 
-type decodedValue struct {
-	Variable *collection.Variable
-	Value    any
-}
-
 type collectorRuntime struct {
 	mu      sync.Mutex
 	frames  []*adsFrame
 	calcs   []*collection.Calculation
 	calcErr error
 	client  *adsClient
-	handles map[string]uint32
 
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -57,13 +51,13 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: port is invalid", collection.ErrInvalidConfig)
 	}
-	if c.AMSPort < 1 || c.AMSPort > 65535 || c.LocalAMSPort < 1 || c.LocalAMSPort > 65535 {
+	if c.AMSPort < MinADSPort || c.AMSPort > MaxADSPort {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: ams port is invalid", collection.ErrInvalidConfig)
+		return fmt.Errorf("%w: amsPort must be between %d and %d", collection.ErrInvalidConfig, MinADSPort, MaxADSPort)
 	}
-	if c.StringLength <= 0 || c.StringLength > 65000 {
+	if c.LocalAMSPort < MinADSPort || c.LocalAMSPort > MaxADSPort {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: stringLength must be between 1 and 65000", collection.ErrInvalidConfig)
+		return fmt.Errorf("%w: localAmsPort must be between %d and %d", collection.ErrInvalidConfig, MinADSPort, MaxADSPort)
 	}
 	if c.TimeoutMs <= 0 {
 		c.TimeoutMs = DefaultTimeoutMs
@@ -79,7 +73,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
 	variables := c.GetCollectionMeta().GetVariables()
-	frames, err := buildReadFrames(variables, c.StringLength)
+	frames, err := buildReadFrames(variables)
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
@@ -89,7 +83,6 @@ func (c *Collection) Connect(ctx context.Context) error {
 		frames:     frames,
 		calcs:      calculations,
 		calcErr:    calcErr,
-		handles:    make(map[string]uint32),
 		endpoint:   fmt.Sprintf("%s:%d", c.Location, c.Port),
 		target:     target,
 		source:     source,
@@ -153,17 +146,12 @@ func (c *Collection) Stop(ctx context.Context) error {
 	runtime.cancel = nil
 	runtime.started = false
 	client := runtime.client
-	handles := runtime.handles
-	runtime.handles = make(map[string]uint32)
 	runtime.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
 	runtime.wg.Wait()
 	if client != nil {
-		for _, handle := range handles {
-			_ = client.releaseSymbol(ctx, handle)
-		}
 		_ = client.Close()
 	}
 	runtime.mu.Lock()
@@ -223,7 +211,6 @@ func (c *Collection) poll(ctx context.Context) bool {
 			}
 			if collection.IsConnectionLost(err) {
 				connectionFailures++
-				c.clearHandles()
 			} else {
 				protocolFailure = true
 			}
@@ -260,23 +247,9 @@ func (c *Collection) readFrame(ctx context.Context, frame *adsFrame) (any, error
 		return nil, collection.ConnectionLost(fmt.Errorf("ethercat runtime is not connected"))
 	}
 	client := runtime.client
-	var (
-		data        []byte
-		wireRequest []byte
-		wireResp    []byte
-		err         error
-	)
-	if frame.Address.Direct {
-		data, wireRequest, wireResp, err = client.read(ctx, frame.Address.IndexGroup, frame.Address.IndexOffset, frame.Length)
-	} else {
-		var handle uint32
-		handle, err = c.resolveHandle(ctx, frame.Address.Symbol)
-		if err == nil {
-			data, wireRequest, wireResp, err = client.read(ctx, adsIGSymbolValueByHandle, handle, frame.Length)
-		}
-	}
+	data, wireRequest, wireResponse, err := client.read(ctx, frame.Address.IndexGroup, frame.Address.IndexOffset, frame.Length)
 	traceID := c.traceRequest("read", wireRequest)
-	c.traceResponse(traceID, wireResp, err)
+	c.traceResponse(traceID, wireResponse, err)
 	if err != nil {
 		if collection.IsConnectionLost(err) {
 			return nil, collection.ConnectionLost(err)
@@ -288,39 +261,6 @@ func (c *Collection) readFrame(ctx context.Context, frame *adsFrame) (any, error
 		return nil, fmt.Errorf("variable %s: %w", frame.Variable.Name, err)
 	}
 	return collection.ApplyTransform(value, frame.Variable), nil
-}
-
-func (c *Collection) resolveHandle(ctx context.Context, symbol string) (uint32, error) {
-	runtime := c.runtime
-	if runtime == nil || runtime.client == nil {
-		return 0, collection.ConnectionLost(fmt.Errorf("ethercat runtime is not connected"))
-	}
-	runtime.mu.Lock()
-	if handle, ok := runtime.handles[symbol]; ok {
-		runtime.mu.Unlock()
-		return handle, nil
-	}
-	client := runtime.client
-	runtime.mu.Unlock()
-
-	handle, err := client.resolveSymbol(ctx, symbol)
-	if err != nil {
-		return 0, err
-	}
-	runtime.mu.Lock()
-	runtime.handles[symbol] = handle
-	runtime.mu.Unlock()
-	return handle, nil
-}
-
-func (c *Collection) clearHandles() {
-	runtime := c.runtime
-	if runtime == nil {
-		return
-	}
-	runtime.mu.Lock()
-	runtime.handles = make(map[string]uint32)
-	runtime.mu.Unlock()
 }
 
 func (c *Collection) SetFrameTracer(tracer collection.FrameTracer) {
@@ -352,7 +292,7 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
 	for _, action := range actions {
-		address, err := parseAddress(action.Variable.Address)
+		address, err := parseAddress(action.Variable.Address, action.Variable.DataType)
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{
 				Field: fmt.Sprintf("actions[%d].name", action.Index),
@@ -360,7 +300,14 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		length, err := typeSize(action.Variable.DataType, c.StringLength)
+		if address.ReadOnly {
+			return validation.New([]validation.FieldIssue{{
+				Field: fmt.Sprintf("actions[%d].name", action.Index),
+				MsgID: "validate.action_variable_not_writable",
+				Args:  []interface{}{action.Variable.Name},
+			}})
+		}
+		length, err := typeSize(action.Variable.DataType, address)
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{
 				Field: fmt.Sprintf("actions[%d].name", action.Index),
@@ -376,17 +323,7 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		client := runtime.client
-		var wireRequest, wireResp []byte
-		if address.Direct {
-			_, wireRequest, wireResp, err = client.write(ctx, address.IndexGroup, address.IndexOffset, value)
-		} else {
-			var handle uint32
-			handle, err = c.resolveHandle(ctx, address.Symbol)
-			if err == nil {
-				_, wireRequest, wireResp, err = client.write(ctx, adsIGSymbolValueByHandle, handle, value)
-			}
-		}
+		_, wireRequest, wireResp, err := runtime.client.write(ctx, address.IndexGroup, address.IndexOffset, value)
 		traceID := c.traceRequest("write", wireRequest)
 		if c.frameTracer != nil && traceID != 0 {
 			if err != nil {
@@ -402,17 +339,20 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 	return nil
 }
 
-func buildReadFrames(variables []*collection.Variable, stringLength int) ([]*adsFrame, error) {
+func buildReadFrames(variables []*collection.Variable) ([]*adsFrame, error) {
 	frames := make([]*adsFrame, 0, len(variables))
 	for _, variable := range variables {
 		if variable == nil || variable.IsCalculated || variable.AccessMode == collection.AccessModeWrite {
 			continue
 		}
-		address, err := parseAddress(variable.Address)
+		address, err := parseAddress(variable.Address, variable.DataType)
 		if err != nil {
 			return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
 		}
-		length, err := typeSize(variable.DataType, stringLength)
+		if address.WriteOnly {
+			return nil, fmt.Errorf("variable %s: ads index group 0x%X is not readable", variable.Name, address.IndexGroup)
+		}
+		length, err := typeSize(variable.DataType, address)
 		if err != nil {
 			return nil, fmt.Errorf("variable %s: %w", variable.Name, err)
 		}

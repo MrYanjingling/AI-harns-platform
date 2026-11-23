@@ -166,7 +166,6 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'maxReadWords',
   'amsPort',
   'localAmsPort',
-  'stringLength',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

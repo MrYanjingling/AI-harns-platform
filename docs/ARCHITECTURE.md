@@ -223,7 +223,8 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `ethernetIp`（`driverType=ethernetIp`）：EtherNet/IP CIP 标签地址，支持点号成员、数组 `[n]`、`Program:MainProgram.Tag`，`concurrency` 多 session 并发读帧
 - `ethernetIp5500`（`driverType=ethernetIp`）：ControlLogix/CompactLogix 5500 CIP 显式消息，`slot` 写入 Forward Open 连接路径，读走 SendUnitData 连接报文，支持数组 `[n]`、`Program:MainProgram.Tag` 和指令间隔 `interval`
 - `ethernetIp1400`（`driverType=ethernetIp`）：MicroLogix 1400 PCCC over CIP，`0x4B` Execute PCCC 读写 N/F/B/T/C/I/O/S 文件；T/C 支持 .PRE/.ACC 读写，ACC 写入使用 read-modify-write
-- `ethercat`（`driverType=ethercat`）：经 Beckhoff TwinCAT ADS（TCP 48898）读写 EtherCAT 过程映像符号，支持 AMS Net ID/端口配置、符号句柄缓存与直接索引组地址
+- `ethernetIp`（`driverType=ethernetIp`）：参照 Neuron C 插件实现的 EtherNet/IP CIP 标签采集，点号符号路径，RegisterSession → Forward Open → 连接型 SendUnitData 逐标签读写
+- `ethercat`（`driverType=ethercat`）：参照 Neuron ADS C 插件实现，经 Beckhoff TwinCAT ADS（TCP 48898）按 `索引组,索引偏移[.长度]` 直接读写 EtherCAT 过程映像，校验 ADS 索引组白名单与 800–899 端口
 - `profinet`（`driverType=profinet`）：通过 Siemens S7 通信（ISO-on-TCP 102）访问 PROFINET CPU 过程数据，复用 S7 地址、PDU 分帧与 `concurrency`
 - `dnp3`（`driverType=dnp3`）：DNP 3.0 TCP 主站，链路复位 + Class 0/1/2/3 轮询，支持二进制、计数器、模拟量对象解析，断线后走统一指数退避重连
 

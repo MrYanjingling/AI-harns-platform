@@ -4,48 +4,85 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"net"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-var directAddressPattern = regexp.MustCompile(`^(?:0[xX][0-9a-fA-F]+):(?:0[xX][0-9a-fA-F]+|[0-9]+)$`)
-
+// parsedAddress is one ADS direct address: index group, index offset and,
+// for STRING tags, the configured character count.
 type parsedAddress struct {
-	Symbol      string
-	IndexGroup  uint32
-	IndexOffset uint32
-	Direct      bool
+	IndexGroup   uint32
+	IndexOffset  uint32
+	StringLength int
+	ReadOnly     bool
+	WriteOnly    bool
 }
 
-// parseAddress parses an ADS symbol name or a direct index-group/index-offset
-// pair. Direct addresses use the form 0x1F020:0x0 or 0x1F020:16.
-func parseAddress(value string) (parsedAddress, error) {
+// parseAddress parses Neuron's ADS address form:
+//
+//	group,offset
+//	group,offset.length   (STRING only)
+//
+// Both group and offset accept decimal or 0x-prefixed hexadecimal values. A
+// colon is also accepted in place of the comma for compatibility with earlier
+// gateway configurations. Symbol names are not supported, matching Neuron.
+func parseAddress(value, dataType string) (parsedAddress, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return parsedAddress{}, fmt.Errorf("ads address is empty")
 	}
-	if !directAddressPattern.MatchString(value) {
-		if len(value) > 1024 {
-			return parsedAddress{}, fmt.Errorf("ads symbol name is too long")
+	separator := strings.IndexAny(value, ",:")
+	if separator < 0 {
+		return parsedAddress{}, fmt.Errorf("ads address %q must be group,offset", value)
+	}
+	groupText := strings.TrimSpace(value[:separator])
+	offsetText := strings.TrimSpace(value[separator+1:])
+	if groupText == "" || offsetText == "" {
+		return parsedAddress{}, fmt.Errorf("ads address %q must be group,offset", value)
+	}
+	group, err := parseUint32(groupText)
+	if err != nil {
+		return parsedAddress{}, fmt.Errorf("invalid ads index group %q", groupText)
+	}
+	offsetPart := offsetText
+	stringLength := 0
+	if dot := strings.IndexByte(offsetText, '.'); dot >= 0 {
+		offsetPart = offsetText[:dot]
+		lengthText := offsetText[dot+1:]
+		if lengthText == "" {
+			return parsedAddress{}, fmt.Errorf("invalid ads string length %q", offsetText)
 		}
-		return parsedAddress{Symbol: value}, nil
+		stringLength, err = strconv.Atoi(lengthText)
+		if err != nil || stringLength < 1 || stringLength > 255 {
+			return parsedAddress{}, fmt.Errorf("invalid ads string length %q", offsetText)
+		}
 	}
-	parts := strings.SplitN(value, ":", 2)
-	group, err := parseUint32(parts[0])
+	offset, err := parseUint32(offsetPart)
 	if err != nil {
-		return parsedAddress{}, fmt.Errorf("invalid ads index group %q", parts[0])
+		return parsedAddress{}, fmt.Errorf("invalid ads index offset %q", offsetPart)
 	}
-	offsetText := parts[1]
-	offset, err := parseUint32(offsetText)
+	dataType = normalizeDataType(dataType)
+	if dataType != "string" && stringLength != 0 {
+		return parsedAddress{}, fmt.Errorf("ads address %q has a string length but data type is %s", value, dataType)
+	}
+	if dataType == "string" && stringLength == 0 {
+		return parsedAddress{}, fmt.Errorf("ads STRING address %q requires .length", value)
+	}
+	readOnly, writeOnly, err := validateIndexAddress(group, offset)
 	if err != nil {
-		return parsedAddress{}, fmt.Errorf("invalid ads index offset %q", offsetText)
+		return parsedAddress{}, err
 	}
-	return parsedAddress{IndexGroup: group, IndexOffset: offset, Direct: true}, nil
+	return parsedAddress{
+		IndexGroup:   group,
+		IndexOffset:  offset,
+		StringLength: stringLength,
+		ReadOnly:     readOnly,
+		WriteOnly:    writeOnly,
+	}, nil
 }
 
 func parseUint32(value string) (uint32, error) {
+	value = strings.TrimSpace(value)
 	if strings.HasPrefix(strings.ToLower(value), "0x") {
 		parsed, err := strconv.ParseUint(value[2:], 16, 32)
 		return uint32(parsed), err
@@ -54,27 +91,56 @@ func parseUint32(value string) (uint32, error) {
 	return uint32(parsed), err
 }
 
+// validateIndexAddress applies the index-group whitelist and offset rules from
+// Neuron's ads_tag_addr_parse.
+func validateIndexAddress(group, offset uint32) (readOnly, writeOnly bool, err error) {
+	switch group {
+	case 0x4020:
+		if offset > 0xFFFF {
+			return false, false, fmt.Errorf("ads index offset 0x%X exceeds 0xFFFF for group 0x4020", offset)
+		}
+	case 0x4021, 0x4030, 0x4040, 0xF005:
+	case 0x4025, 0x4035, 0x4045, 0xF025, 0xF035:
+		if offset != 0 {
+			return false, false, fmt.Errorf("ads index offset must be zero for group 0x%X", group)
+		}
+		readOnly = true
+	case 0xF003:
+		if offset != 0 {
+			return false, false, fmt.Errorf("ads index offset must be zero for group 0xF003")
+		}
+	case 0xF006:
+		if offset != 0 {
+			return false, false, fmt.Errorf("ads index offset must be zero for group 0xF006")
+		}
+		writeOnly = true
+	case 0xF020, 0xF021, 0xF022, 0xF023, 0xF024, 0xF026, 0xF027, 0xF028, 0xF029, 0xF02A,
+		0xF02B, 0xF02C, 0xF02D, 0xF02E, 0xF02F, 0xF030, 0xF031, 0xF080, 0xF081, 0xF082:
+	default:
+		return false, false, fmt.Errorf("ads index group 0x%X is not supported", group)
+	}
+	return readOnly, writeOnly, nil
+}
+
 func normalizeDataType(dataType string) string {
 	switch strings.ToLower(strings.TrimSpace(dataType)) {
 	case "bool", "boolean":
 		return "bool"
-	case "bit":
-		return "bit"
 	case "int8", "sint":
 		return "int8"
 	case "uint8", "usint", "byte":
 		return "uint8"
 	case "int16", "int":
 		return "int16"
-	case "uint16", "uint", "word":
+	case "uint16", "uint":
 		return "uint16"
 	case "int32", "dint":
 		return "int32"
-	case "uint32", "udint", "dword":
+	case "uint32", "udint":
 		return "uint32"
 	case "int64", "lint":
 		return "int64"
-	case "uint64", "ulint", "lword":
+	case "uint64", "ulint":
 		return "uint64"
 	case "float32", "real":
 		return "float32"
@@ -82,19 +148,14 @@ func normalizeDataType(dataType string) string {
 		return "float64"
 	case "string":
 		return "string"
-	case "byte_array":
-		return "byte_array"
 	default:
 		return strings.ToLower(strings.TrimSpace(dataType))
 	}
 }
 
-func typeSize(dataType string, stringLength int) (int, error) {
-	if stringLength <= 0 {
-		stringLength = DefaultStringLength
-	}
+func typeSize(dataType string, address parsedAddress) (int, error) {
 	switch normalizeDataType(dataType) {
-	case "bool", "bit", "int8", "uint8":
+	case "bool", "int8", "uint8":
 		return 1, nil
 	case "int16", "uint16":
 		return 2, nil
@@ -102,8 +163,11 @@ func typeSize(dataType string, stringLength int) (int, error) {
 		return 4, nil
 	case "int64", "uint64", "float64":
 		return 8, nil
-	case "string", "byte_array":
-		return stringLength, nil
+	case "string":
+		if address.StringLength < 1 || address.StringLength > 255 {
+			return 0, fmt.Errorf("ads STRING address requires a length between 1 and 255")
+		}
+		return address.StringLength, nil
 	default:
 		return 0, fmt.Errorf("unsupported ads data type %q", dataType)
 	}
@@ -116,11 +180,6 @@ func decodeValue(data []byte, dataType string) (any, error) {
 			return nil, fmt.Errorf("ads bool response is too short")
 		}
 		return data[0] != 0, nil
-	case "bit":
-		if len(data) < 1 {
-			return nil, fmt.Errorf("ads bit response is too short")
-		}
-		return int(data[0] & 1), nil
 	case "int8":
 		if len(data) < 1 {
 			return nil, fmt.Errorf("ads int8 response is too short")
@@ -183,12 +242,6 @@ func decodeValue(data []byte, dataType string) (any, error) {
 			}
 		}
 		return string(data[:end]), nil
-	case "byte_array":
-		values := make([]int, 0, len(data))
-		for _, item := range data {
-			values = append(values, int(item))
-		}
-		return values, nil
 	default:
 		return nil, fmt.Errorf("unsupported ads data type %q", dataType)
 	}
@@ -205,12 +258,6 @@ func encodeValue(value any, dataType string, length int) ([]byte, error) {
 			return []byte{1}, nil
 		}
 		return []byte{0}, nil
-	case "bit":
-		v, ok := value.(int)
-		if !ok || (v != 0 && v != 1) {
-			return nil, fmt.Errorf("value is not bit 0/1")
-		}
-		return []byte{byte(v)}, nil
 	case "int8":
 		v, ok := value.(int8)
 		if !ok {
@@ -277,23 +324,13 @@ func encodeValue(value any, dataType string, length int) ([]byte, error) {
 			return nil, fmt.Errorf("value is not string")
 		}
 		if length <= 0 {
-			length = DefaultStringLength
+			return nil, fmt.Errorf("string length is not configured")
 		}
 		if len(v) > length {
 			return nil, fmt.Errorf("string value is longer than %d bytes", length)
 		}
 		data := make([]byte, length)
 		copy(data, v)
-		return data, nil
-	case "byte_array":
-		values, ok := value.([]int)
-		if !ok {
-			return nil, fmt.Errorf("value is not byte array")
-		}
-		data := make([]byte, 0, len(values))
-		for _, item := range values {
-			data = append(data, byte(item))
-		}
 		return data, nil
 	default:
 		return nil, fmt.Errorf("data type %q is not writable", dataType)
@@ -303,9 +340,11 @@ func encodeValue(value any, dataType string, length int) ([]byte, error) {
 func le16(value uint16) []byte {
 	return []byte{byte(value), byte(value >> 8)}
 }
+
 func le32(value uint32) []byte {
 	return []byte{byte(value), byte(value >> 8), byte(value >> 16), byte(value >> 24)}
 }
+
 func le64(value uint64) []byte {
 	return append(le32(uint32(value)), le32(uint32(value>>32))...)
 }
@@ -341,7 +380,7 @@ func resolveTargetNetID(location, configured string) ([6]byte, error) {
 		return parseAMSNetID(configured)
 	}
 	host := strings.TrimSpace(location)
-	if parsed := net.ParseIP(host); parsed != nil && parsed.To4() != nil {
+	if isIPv4(host) {
 		return parseAMSNetID(host + ".1.1")
 	}
 	return [6]byte{}, fmt.Errorf("ads net id is required when location is not an IPv4 address")
@@ -352,4 +391,18 @@ func resolveLocalNetID(configured string) ([6]byte, error) {
 		configured = "127.0.0.1.1.1"
 	}
 	return parseAMSNetID(configured)
+}
+
+func isIPv4(value string) bool {
+	parts := strings.Split(value, ".")
+	if len(parts) != 4 {
+		return false
+	}
+	for _, part := range parts {
+		number, err := strconv.Atoi(part)
+		if err != nil || number < 0 || number > 255 {
+			return false
+		}
+	}
+	return true
 }

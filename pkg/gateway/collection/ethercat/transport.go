@@ -11,15 +11,10 @@ import (
 )
 
 const (
-	adsCommandRead      = 0x0002
-	adsCommandWrite     = 0x0003
-	adsCommandReadWrite = 0x0009
+	adsCommandRead  = 0x0002
+	adsCommandWrite = 0x0003
 
 	adsStateFlagRequest = 0x0004
-
-	adsIGSymbolHandleByName  = 0xF003
-	adsIGSymbolValueByHandle = 0xF005
-	adsIGSymbolReleaseHandle = 0xF006
 
 	amsHeaderSize = 32
 	amsTCPHeader  = 6
@@ -81,31 +76,6 @@ func newADSClient(ctx context.Context, endpoint string, target [6]byte, targetPo
 	}, nil
 }
 
-// resolveSymbol returns the target handle for a symbol name.
-func (c *adsClient) resolveSymbol(ctx context.Context, name string) (uint32, error) {
-	if len(name) == 0 {
-		return 0, fmt.Errorf("ads symbol name is empty")
-	}
-	payload := append([]byte(name), 0)
-	data, _, _, err := c.readWrite(ctx, adsIGSymbolHandleByName, 0, 4, payload)
-	if err != nil {
-		return 0, err
-	}
-	if len(data) < 4 {
-		return 0, fmt.Errorf("ads symbol handle response is too short")
-	}
-	handle := binary.LittleEndian.Uint32(data)
-	if handle == 0 {
-		return 0, fmt.Errorf("ads symbol handle is zero")
-	}
-	return handle, nil
-}
-
-func (c *adsClient) releaseSymbol(ctx context.Context, handle uint32) error {
-	_, _, _, err := c.write(ctx, adsIGSymbolReleaseHandle, handle, nil)
-	return err
-}
-
 func (c *adsClient) read(ctx context.Context, indexGroup, indexOffset uint32, length int) ([]byte, []byte, []byte, error) {
 	if length < 0 {
 		return nil, nil, nil, fmt.Errorf("ads read length is negative")
@@ -145,30 +115,6 @@ func (c *adsClient) write(ctx context.Context, indexGroup, indexOffset uint32, v
 		return nil, wireRequest, wireResponse, err
 	}
 	return response, wireRequest, wireResponse, nil
-}
-
-func (c *adsClient) readWrite(ctx context.Context, indexGroup, indexOffset uint32, readLength int, value []byte) ([]byte, []byte, []byte, error) {
-	data := make([]byte, 16+len(value))
-	binary.LittleEndian.PutUint32(data[0:], indexGroup)
-	binary.LittleEndian.PutUint32(data[4:], indexOffset)
-	binary.LittleEndian.PutUint32(data[8:], uint32(readLength))
-	binary.LittleEndian.PutUint32(data[12:], uint32(len(value)))
-	copy(data[16:], value)
-	response, wireRequest, wireResponse, err := c.request(ctx, adsCommandReadWrite, data)
-	if err != nil {
-		return nil, wireRequest, wireResponse, err
-	}
-	if len(response) < 8 {
-		return nil, wireRequest, wireResponse, fmt.Errorf("ads readwrite response is too short")
-	}
-	if err := adsResultError("readwrite", response); err != nil {
-		return nil, wireRequest, wireResponse, err
-	}
-	responseLength := int(binary.LittleEndian.Uint32(response[4:]))
-	if responseLength < 0 || 8+responseLength > len(response) {
-		return nil, wireRequest, wireResponse, fmt.Errorf("ads readwrite response length is invalid")
-	}
-	return response[8 : 8+responseLength], wireRequest, wireResponse, nil
 }
 
 func (c *adsClient) request(ctx context.Context, command uint16, data []byte) ([]byte, []byte, []byte, error) {

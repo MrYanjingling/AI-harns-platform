@@ -4,30 +4,39 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 )
 
-type cipSegment struct {
-	symbol   string
-	index    byte
-	hasIndex bool
-}
+const (
+	cipServiceRead        = 0x4C
+	cipServiceWrite       = 0x4D
+	cipServiceForwardOpen = 0x54
 
+	cipTypeBool   = 0xC1
+	cipTypeSInt   = 0xC2
+	cipTypeInt    = 0xC3
+	cipTypeDInt   = 0xC4
+	cipTypeLInt   = 0xC5
+	cipTypeUSInt  = 0xC6
+	cipTypeUInt   = 0xC7
+	cipTypeUDInt  = 0xC8
+	cipTypeULInt  = 0xC9
+	cipTypeReal   = 0xCA
+	cipTypeLReal  = 0xCB
+	cipTypeString = 0xD0
+	cipTypeWord   = 0xD2
+	cipTypeDWord  = 0xD3
+	cipTypeLWord  = 0xD4
+)
+
+// parsedAddress is one CIP symbolic path and its declared CIP data type.
 type parsedAddress struct {
-	segments []cipSegment
-	bit      uint8
-	bitSet   bool
+	segments []string
 	typeCode uint16
 }
 
-// parseAddress parses an EtherNet/IP tag path. Supported forms:
-//
-//	Tag
-//	Tag.SubTag
-//	Tag[3]
-//	Program:MainProgram.Tag
-//	Tag.3 (BOOL/BIT only, bit number of a DINT)
+// parseAddress parses a CIP tag path. Neuron supports one ANSI symbol segment
+// per dot-separated name: "Tag", "Tag.Member", "Program:MainProgram.Tag".
 func parseAddress(value, dataType string) (parsedAddress, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -36,61 +45,28 @@ func parseAddress(value, dataType string) (parsedAddress, error) {
 	if strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
 		return parsedAddress{}, fmt.Errorf("invalid ethernet/ip address %q", value)
 	}
-	parts := strings.Split(value, ".")
-	segments := make([]cipSegment, 0, len(parts))
-	for _, part := range parts {
-		if part == "" {
+	segments := strings.Split(value, ".")
+	pathBytes := 0
+	for _, segment := range segments {
+		if segment == "" {
 			return parsedAddress{}, fmt.Errorf("invalid ethernet/ip address %q", value)
 		}
-		segment := cipSegment{}
-		if index := strings.Index(part, "["); index >= 0 {
-			if !strings.HasSuffix(part, "]") || index == 0 {
-				return parsedAddress{}, fmt.Errorf("invalid ethernet/ip array segment %q", part)
-			}
-			segment.symbol = part[:index]
-			indexValue, err := strconv.Atoi(part[index+1 : len(part)-1])
-			if err != nil || indexValue < 0 || indexValue > 255 {
-				return parsedAddress{}, fmt.Errorf("invalid ethernet/ip array index %q", part)
-			}
-			segment.index = byte(indexValue)
-			segment.hasIndex = true
-		} else {
-			segment.symbol = part
+		if len(segment) > 255 {
+			return parsedAddress{}, fmt.Errorf("ethernet/ip symbol %q is too long", segment)
 		}
-		segments = append(segments, segment)
+		pathBytes += 2 + len(segment)
+		if len(segment)%2 != 0 {
+			pathBytes++
+		}
 	}
-	result := parsedAddress{segments: segments}
-	dataType = normalizeDataType(dataType)
-	if dataType == "bit" || dataType == "bool" {
-		last := segments[len(segments)-1]
-		if len(segments) > 1 && !last.hasIndex && isDigits(last.symbol) {
-			bit, err := strconv.Atoi(last.symbol)
-			if err != nil || bit < 0 || bit > 31 {
-				return parsedAddress{}, fmt.Errorf("invalid ethernet/ip bit %q", last.symbol)
-			}
-			result.bit = uint8(bit)
-			result.bitSet = true
-			result.segments = segments[:len(segments)-1]
-		}
+	if pathBytes/2 > 255 {
+		return parsedAddress{}, fmt.Errorf("ethernet/ip address %q is too long", value)
 	}
 	code, err := cipTypeCode(dataType)
 	if err != nil {
 		return parsedAddress{}, err
 	}
-	result.typeCode = code
-	return result, nil
-}
-
-func isDigits(value string) bool {
-	if value == "" {
-		return false
-	}
-	for _, char := range value {
-		if char < '0' || char > '9' {
-			return false
-		}
-	}
-	return true
+	return parsedAddress{segments: segments, typeCode: code}, nil
 }
 
 func normalizeDataType(dataType string) string {
@@ -123,169 +99,206 @@ func normalizeDataType(dataType string) string {
 func cipTypeCode(dataType string) (uint16, error) {
 	switch normalizeDataType(dataType) {
 	case "bool", "bit":
-		return 0xC1, nil
+		return cipTypeBool, nil
 	case "int8":
-		return 0xC2, nil
-	case "int16":
-		return 0xC3, nil
-	case "int32":
-		return 0xC4, nil
-	case "int64":
-		return 0xC5, nil
+		return cipTypeSInt, nil
 	case "uint8":
-		return 0xC6, nil
+		return cipTypeUSInt, nil
+	case "int16":
+		return cipTypeInt, nil
 	case "uint16":
-		return 0xC7, nil
+		return cipTypeUInt, nil
+	case "int32":
+		return cipTypeDInt, nil
 	case "uint32":
-		return 0xC8, nil
+		return cipTypeUDInt, nil
+	case "int64":
+		return cipTypeLInt, nil
 	case "uint64":
-		return 0xC9, nil
+		return cipTypeULInt, nil
 	case "float32":
-		return 0xCA, nil
+		return cipTypeReal, nil
 	case "float64":
-		return 0xCB, nil
+		return cipTypeLReal, nil
 	case "string":
-		return 0xD0, nil
+		return cipTypeString, nil
 	case "word":
-		return 0xD2, nil
+		return cipTypeWord, nil
 	case "dword":
-		return 0xD3, nil
+		return cipTypeDWord, nil
 	case "lword":
-		return 0xD4, nil
-	case "byte_array":
-		return 0xC2, nil
+		return cipTypeLWord, nil
 	default:
 		return 0, fmt.Errorf("unsupported ethernet/ip data type %q", dataType)
 	}
 }
 
-func buildPath(address parsedAddress) ([]byte, error) {
-	path := make([]byte, 0, len(address.segments)*4)
-	for _, segment := range address.segments {
-		if segment.symbol == "" {
-			return nil, fmt.Errorf("empty ethernet/ip symbol")
-		}
-		if len(segment.symbol) > 255 {
-			return nil, fmt.Errorf("ethernet/ip symbol %q is too long", segment.symbol)
-		}
-		path = append(path, 0x91, byte(len(segment.symbol)))
-		path = append(path, []byte(segment.symbol)...)
-		if len(segment.symbol)%2 != 0 {
-			path = append(path, 0)
-		}
-		if segment.hasIndex {
-			path = append(path, 0x28, segment.index)
-		}
+// checkType mirrors Neuron's check_type: a response type is accepted when it
+// belongs to the same CIP family as the configured type.
+func checkType(ctype, expected uint16) bool {
+	switch ctype {
+	case cipTypeBool, cipTypeSInt, cipTypeUSInt, 0xD1: // 0xD1 is CIP BYTE
+		return expected == cipTypeBool || expected == cipTypeSInt || expected == cipTypeUSInt
+	case cipTypeInt, cipTypeUInt, cipTypeWord:
+		return expected == cipTypeInt || expected == cipTypeUInt || expected == cipTypeWord
+	case cipTypeDInt, cipTypeUDInt, cipTypeReal, cipTypeDWord:
+		return expected == cipTypeDInt || expected == cipTypeUDInt || expected == cipTypeReal || expected == cipTypeDWord
+	case cipTypeLInt, cipTypeULInt, cipTypeLReal, cipTypeLWord:
+		return expected == cipTypeLInt || expected == cipTypeULInt || expected == cipTypeLReal || expected == cipTypeLWord
+	case cipTypeString:
+		return expected == cipTypeString
+	default:
+		return false
 	}
-	if len(path)%2 != 0 {
-		path = append(path, 0)
-	}
-	return path, nil
-}
-
-func readRequest(address parsedAddress) ([]byte, error) {
-	path, err := buildPath(address)
-	if err != nil {
-		return nil, err
-	}
-	request := []byte{0x4C, byte(len(path) / 2)}
-	request = append(request, path...)
-	request = append(request, 1, 0)
-	return request, nil
-}
-
-func writeRequest(address parsedAddress, data []byte) ([]byte, error) {
-	path, err := buildPath(address)
-	if err != nil {
-		return nil, err
-	}
-	request := []byte{0x4D, byte(len(path) / 2)}
-	request = append(request, path...)
-	request = append(request, byte(address.typeCode), byte(address.typeCode>>8), 1, 0)
-	request = append(request, data...)
-	return request, nil
-}
-
-func parseReadResponse(response []byte) ([]byte, uint16, error) {
-	if len(response) < 4 {
-		return nil, 0, fmt.Errorf("ethernet/ip response is too short")
-	}
-	if response[0] != 0xCC {
-		if response[2] != 0 {
-			return nil, 0, fmt.Errorf("ethernet/ip read status %d", response[2])
-		}
-		return nil, 0, fmt.Errorf("ethernet/ip read response service is %02X", response[0])
-	}
-	if response[2] != 0 {
-		return nil, 0, fmt.Errorf("ethernet/ip read status %d", response[2])
-	}
-	additional := int(response[3])
-	offset := 4 + additional
-	if offset+2 > len(response) {
-		return nil, 0, fmt.Errorf("ethernet/ip read response is too short")
-	}
-	dataType := binary.LittleEndian.Uint16(response[offset:])
-	rest := response[offset+2:]
-	data := rest
-	if size := cipTypeSize(dataType); size > 0 && len(rest) >= 2 {
-		count := int(binary.LittleEndian.Uint16(rest))
-		if count > 0 && len(rest) == 2+count*size {
-			data = rest[2:]
-		}
-	}
-	return data, dataType, nil
 }
 
 func cipTypeSize(dataType uint16) int {
 	switch dataType {
-	case 0xC1, 0xC2, 0xC6:
+	case cipTypeBool, cipTypeSInt, cipTypeUSInt:
 		return 1
-	case 0xC3, 0xC7, 0xD2:
+	case cipTypeInt, cipTypeUInt, cipTypeWord:
 		return 2
-	case 0xC4, 0xC8, 0xCA, 0xD3:
+	case cipTypeDInt, cipTypeUDInt, cipTypeReal, cipTypeDWord:
 		return 4
-	case 0xC5, 0xC9, 0xCB, 0xD4:
+	case cipTypeLInt, cipTypeULInt, cipTypeLReal, cipTypeLWord:
 		return 8
 	default:
 		return 0
 	}
 }
 
-func parseWriteResponse(response []byte) error {
-	if len(response) < 4 {
-		return fmt.Errorf("ethernet/ip write response is too short")
-	}
-	if response[0] != 0xCD {
-		if response[2] != 0 {
-			return fmt.Errorf("ethernet/ip write status %d", response[2])
+func buildPath(address parsedAddress) ([]byte, byte, error) {
+	path := make([]byte, 0, len(address.segments)*8)
+	for _, segment := range address.segments {
+		path = append(path, 0x91, byte(len(segment)))
+		path = append(path, []byte(segment)...)
+		if len(segment)%2 != 0 {
+			path = append(path, 0)
 		}
-		return fmt.Errorf("ethernet/ip write response service is %02X", response[0])
 	}
-	if response[2] != 0 {
-		return fmt.Errorf("ethernet/ip write status %d", response[2])
-	}
-	return nil
+	return path, byte(len(path) / 2), nil
 }
 
-func decodeValue(data []byte, dataType string, address parsedAddress) (any, error) {
+func readRequest(sequence uint16, address parsedAddress) ([]byte, error) {
+	path, words, err := buildPath(address)
+	if err != nil {
+		return nil, err
+	}
+	request := make([]byte, 0, 4+len(path)+2)
+	request = append(request, byte(sequence), byte(sequence>>8))
+	request = append(request, cipServiceRead, words)
+	request = append(request, path...)
+	request = append(request, 1, 0)
+	return request, nil
+}
+
+func writeRequest(sequence uint16, address parsedAddress, data []byte) ([]byte, error) {
+	path, words, err := buildPath(address)
+	if err != nil {
+		return nil, err
+	}
+	request := make([]byte, 0, 6+len(path)+4+len(data)+2)
+	request = append(request, byte(sequence), byte(sequence>>8))
+	request = append(request, cipServiceWrite, words)
+	request = append(request, path...)
+	request = append(request, byte(address.typeCode), byte(address.typeCode>>8), 1, 0)
+	if address.typeCode == cipTypeString {
+		length := len(data)
+		if length%2 != 0 {
+			length++
+		}
+		request = append(request, byte(length), byte(length>>8))
+	}
+	request = append(request, data...)
+	if writeNeedsPad(address.typeCode, len(data)) {
+		request = append(request, 0)
+	}
+	return request, nil
+}
+
+// writeNeedsPad reports whether Neuron's CIP write payload appends an
+// alignment byte. BOOL, SINT, USINT and odd-length STRING values are padded.
+func writeNeedsPad(dataType uint16, length int) bool {
+	switch dataType {
+	case cipTypeBool, cipTypeSInt, cipTypeUSInt:
+		return true
+	case cipTypeString:
+		return length%2 != 0
+	default:
+		return false
+	}
+}
+
+// parseReadResponse validates a connected Read Tag reply and returns the raw
+// tag bytes without the CIP type word.
+func parseReadResponse(response []byte, address parsedAddress) ([]byte, error) {
+	body, err := parseCIPReply(response, cipServiceRead)
+	if err != nil {
+		return nil, err
+	}
+	if len(body) < 2 {
+		return nil, fmt.Errorf("ethernet/ip read response is too short")
+	}
+	dataType := binary.LittleEndian.Uint16(body)
+	if !checkType(dataType, address.typeCode) {
+		return nil, fmt.Errorf("ethernet/ip read data type %02X does not match %02X", dataType, address.typeCode)
+	}
+	rest := body[2:]
+	if dataType == cipTypeString {
+		if len(rest) < 2 {
+			return nil, fmt.Errorf("ethernet/ip string response is too short")
+		}
+		return rest, nil
+	}
+	size := cipTypeSize(dataType)
+	if size == 0 {
+		return nil, fmt.Errorf("unsupported ethernet/ip response type %02X", dataType)
+	}
+	if len(rest) < size {
+		return nil, fmt.Errorf("ethernet/ip read response is too short")
+	}
+	return rest[:size], nil
+}
+
+// parseWriteResponse validates a connected Write Tag reply.
+func parseWriteResponse(response []byte) error {
+	_, err := parseCIPReply(response, cipServiceWrite)
+	return err
+}
+
+// parseCIPReply returns the payload after service, path size and status.
+func parseCIPReply(response []byte, service byte) ([]byte, error) {
+	if len(response) < 4 {
+		return nil, fmt.Errorf("ethernet/ip response is too short")
+	}
+	if response[0] != service|0x80 {
+		return nil, fmt.Errorf("ethernet/ip response service is %02X", response[0])
+	}
+	if response[1] != 0 {
+		return nil, fmt.Errorf("ethernet/ip response path size is %d", response[1])
+	}
+	status := response[2]
+	additionalWords := int(response[3])
+	if status != 0 {
+		return nil, fmt.Errorf("ethernet/ip CIP status 0x%02X", status)
+	}
+	offset := 4 + additionalWords*2
+	if offset > len(response) {
+		return nil, fmt.Errorf("ethernet/ip response status is truncated")
+	}
+	return response[offset:], nil
+}
+
+func decodeValue(data []byte, dataType string) (any, error) {
 	switch normalizeDataType(dataType) {
 	case "bool":
-		if len(data) == 0 {
+		if len(data) < 1 {
 			return nil, fmt.Errorf("ethernet/ip bool response is empty")
-		}
-		if address.bitSet {
-			return bitValue(data, address.bit), nil
 		}
 		return data[0] != 0, nil
 	case "bit":
-		if len(data) == 0 {
+		if len(data) < 1 {
 			return nil, fmt.Errorf("ethernet/ip bit response is empty")
-		}
-		if address.bitSet {
-			if bitValue(data, address.bit) {
-				return 1, nil
-			}
-			return 0, nil
 		}
 		return int(data[0] & 1), nil
 	case "int8":
@@ -347,37 +360,17 @@ func decodeValue(data []byte, dataType string, address parsedAddress) (any, erro
 			length = len(data) - 2
 		}
 		return strings.TrimRight(string(data[2:2+length]), "\x00"), nil
-	case "byte_array":
-		values := make([]int, 0, len(data))
-		for _, item := range data {
-			values = append(values, int(item))
-		}
-		return values, nil
 	default:
 		return nil, fmt.Errorf("unsupported ethernet/ip data type %q", dataType)
 	}
 }
 
-func bitValue(data []byte, bit uint8) bool {
-	switch {
-	case len(data) >= 4:
-		return (binary.LittleEndian.Uint32(data)>>bit)&1 != 0
-	case len(data) >= 2:
-		return (binary.LittleEndian.Uint16(data)>>bit)&1 != 0
-	default:
-		return (data[0]>>bit)&1 != 0
-	}
-}
-
-func encodeValue(value any, dataType string, address parsedAddress) ([]byte, error) {
+func encodeValue(value any, dataType string) ([]byte, error) {
 	switch normalizeDataType(dataType) {
 	case "bool":
 		v, ok := value.(bool)
 		if !ok {
 			return nil, fmt.Errorf("value is not bool")
-		}
-		if address.bitSet {
-			return nil, fmt.Errorf("bool bit writes require read-modify-write")
 		}
 		if v {
 			return []byte{1}, nil
@@ -387,9 +380,6 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 		v, ok := value.(int)
 		if !ok || (v != 0 && v != 1) {
 			return nil, fmt.Errorf("value is not bit 0/1")
-		}
-		if address.bitSet {
-			return nil, fmt.Errorf("bit writes require read-modify-write")
 		}
 		return []byte{byte(v)}, nil
 	case "int8":
@@ -410,7 +400,7 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 			return nil, fmt.Errorf("value is not int16")
 		}
 		return le16(uint16(v)), nil
-	case "uint16":
+	case "uint16", "word":
 		v, ok := value.(uint16)
 		if !ok {
 			return nil, fmt.Errorf("value is not uint16")
@@ -422,7 +412,7 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 			return nil, fmt.Errorf("value is not int32")
 		}
 		return le32(uint32(v)), nil
-	case "uint32":
+	case "uint32", "dword":
 		v, ok := value.(uint32)
 		if !ok {
 			return nil, fmt.Errorf("value is not uint32")
@@ -440,7 +430,7 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 			return nil, fmt.Errorf("value is not int64")
 		}
 		return le64(uint64(v)), nil
-	case "uint64":
+	case "uint64", "lword":
 		v, ok := value.(uint64)
 		if !ok {
 			return nil, fmt.Errorf("value is not uint64")
@@ -457,24 +447,7 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 		if !ok {
 			return nil, fmt.Errorf("value is not string")
 		}
-		length := len(v)
-		if length%2 != 0 {
-			length++
-		}
-		data := make([]byte, 2+length)
-		binary.LittleEndian.PutUint16(data, uint16(length))
-		copy(data[2:], v)
-		return data, nil
-	case "byte_array":
-		values, ok := value.([]int)
-		if !ok {
-			return nil, fmt.Errorf("value is not byte array")
-		}
-		data := make([]byte, 0, len(values))
-		for _, item := range values {
-			data = append(data, byte(item))
-		}
-		return data, nil
+		return []byte(v), nil
 	default:
 		return nil, fmt.Errorf("data type %q is not writable", dataType)
 	}
@@ -483,73 +456,11 @@ func encodeValue(value any, dataType string, address parsedAddress) ([]byte, err
 func le16(value uint16) []byte {
 	return []byte{byte(value), byte(value >> 8)}
 }
+
 func le32(value uint32) []byte {
 	return []byte{byte(value), byte(value >> 8), byte(value >> 16), byte(value >> 24)}
 }
+
 func le64(value uint64) []byte {
 	return append(le32(uint32(value)), le32(uint32(value>>32))...)
-}
-
-const (
-	maxBatchTags  = 50
-	maxBatchBytes = 0x400
-)
-
-func buildMultipleRequest(requests [][]byte) ([]byte, error) {
-	count := len(requests)
-	if count == 0 {
-		return nil, fmt.Errorf("ethernet/ip multiple request is empty")
-	}
-	if count > 255 {
-		return nil, fmt.Errorf("ethernet/ip multiple request has too many services")
-	}
-	request := []byte{0x0A, 0x02, 0x20, 0x02, 0x24, 0x01, byte(count), byte(count >> 8)}
-	offset := (count + 1) * 2
-	for _, item := range requests {
-		request = append(request, byte(offset), byte(offset>>8))
-		offset += len(item)
-	}
-	for _, item := range requests {
-		request = append(request, item...)
-	}
-	return request, nil
-}
-
-func parseMultipleResponse(response []byte) ([][]byte, error) {
-	if len(response) < 4 {
-		return nil, fmt.Errorf("ethernet/ip multiple response is too short")
-	}
-	if response[0] != 0x8A {
-		return nil, fmt.Errorf("ethernet/ip multiple response service is %02X", response[0])
-	}
-	if response[2] != 0 {
-		return nil, fmt.Errorf("ethernet/ip multiple status %d", response[2])
-	}
-	offset := 4 + int(response[3])
-	if offset+2 > len(response) {
-		return nil, fmt.Errorf("ethernet/ip multiple response is too short")
-	}
-	data := response[offset:]
-	count := int(binary.LittleEndian.Uint16(data))
-	if count <= 0 || count > 255 {
-		return nil, fmt.Errorf("ethernet/ip multiple response count %d", count)
-	}
-	if len(data) < 2+count*2 {
-		return nil, fmt.Errorf("ethernet/ip multiple response offsets are too short")
-	}
-	items := make([][]byte, 0, count)
-	for i := 0; i < count; i++ {
-		start := int(binary.LittleEndian.Uint16(data[2+i*2:]))
-		var end int
-		if i+1 < count {
-			end = int(binary.LittleEndian.Uint16(data[2+(i+1)*2:]))
-		} else {
-			end = len(data)
-		}
-		if start < 0 || end < start || end > len(data) {
-			return nil, fmt.Errorf("ethernet/ip multiple response offset is invalid")
-		}
-		items = append(items, data[start:end])
-	}
-	return items, nil
 }

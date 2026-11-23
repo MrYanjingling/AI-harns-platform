@@ -79,6 +79,8 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     expires: '500',
     maxSize: '64',
     timeoutMs: '3000',
+    amsPort: '851',
+    localAmsPort: '851',
     intervalMs: '20',
     transport: 'tcp',
     maxReadWords: '30',
