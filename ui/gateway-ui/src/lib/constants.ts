@@ -118,6 +118,7 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
   ethernetIp: 'EtherNet/IP',
+  ethernetIp5500: 'EtherNet/IP 5500 (ControlLogix)',
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
 }
@@ -151,6 +152,7 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'maxSize',
   'timeoutMs',
   'intervalMs',
+  'interval',
   'maxReadWords',
   'amsPort',
   'localAmsPort',

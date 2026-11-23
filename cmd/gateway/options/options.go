@@ -15,6 +15,7 @@ import (
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/ethercat"
 	"harns-platform/pkg/gateway/collection/ethernetip"
+	"harns-platform/pkg/gateway/collection/ethernetip5500"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
@@ -226,6 +227,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&hostlinkcmode.CreateHandler{},
 		&omroncip.CreateHandler{},
 		&ethernetip.CreateHandler{},
+		&ethernetip5500.CreateHandler{},
 		&ethercat.CreateHandler{},
 		profinet.NewCreateHandler(),
 	)
@@ -249,6 +251,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&hostlinkcmode.CollectorFactory{},
 		&omroncip.CollectorFactory{},
 		&ethernetip.CollectorFactory{},
+		&ethernetip5500.CollectorFactory{},
 		&ethercat.CollectorFactory{},
 		profinet.NewCollectorFactory(),
 	)

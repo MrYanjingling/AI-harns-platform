@@ -83,12 +83,14 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     transport: 'tcp',
     maxReadWords: '30',
     port: model === 'opcUa' ? '4840'
-      : model === 'omronCip' || model === 'ethernetIp' ? '44818'
+      : model === 'omronCip' || model === 'ethernetIp' || model === 'ethernetIp5500' ? '44818'
       : model === 'fins' ? '9600'
       : model === 'ethercat' ? '48898'
       : model === 'profinet' ? '102'
       : '102',
   }
+  if (model === 'ethernetIp5500' && field.name === 'slot') return '0'
+  if (model === 'ethernetIp5500' && field.name === 'interval') return '20'
   if (defaults[field.name] !== undefined) return defaults[field.name]
   if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode')) return '/dev/dev'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''

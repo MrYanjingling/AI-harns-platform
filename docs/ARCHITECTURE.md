@@ -221,6 +221,7 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `hostlinkCmode`（`driverType=omron`）：HostLink C-Mode 串口，固定单连接
 - `omronCip`（`driverType=omron`）：EtherNet/IP CIP 符号地址，支持 `concurrency` 多 session 并发读帧
 - `ethernetIp`（`driverType=ethernetIp`）：EtherNet/IP CIP 标签地址，支持点号成员、数组 `[n]`、`Program:MainProgram.Tag`，`concurrency` 多 session 并发读帧
+- `ethernetIp5500`（`driverType=ethernetIp`）：ControlLogix/CompactLogix 5500 CIP 显式消息，`slot` 写入 Forward Open 连接路径，读走 SendUnitData 连接报文，支持数组 `[n]`、`Program:MainProgram.Tag` 和指令间隔 `interval`
 - `ethercat`（`driverType=ethercat`）：经 Beckhoff TwinCAT ADS（TCP 48898）读写 EtherCAT 过程映像符号，支持 AMS Net ID/端口配置、符号句柄缓存与直接索引组地址
 - `profinet`（`driverType=profinet`）：通过 Siemens S7 通信（ISO-on-TCP 102）访问 PROFINET CPU 过程数据，复用 S7 地址、PDU 分帧与 `concurrency`
 

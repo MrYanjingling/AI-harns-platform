@@ -26,6 +26,7 @@ const (
 	ModelIEC103           = "IEC103"
 	ModelIEC104           = "IEC104"
 	ModelEthernetIP       = "ethernetIp"
+	ModelEthernetIP5500   = "ethernetIp5500"
 	ModelEtherCAT         = "ethercat"
 	ModelProfinet         = "profinet"
 
@@ -44,6 +45,7 @@ const (
 	DriverIEC103           = "iec103"
 	DriverIEC104           = "iec104"
 	DriverEthernetIP       = "ethernet-ip"
+	DriverEthernetIP5500   = "ethernet-ip-5500"
 	DriverEtherCAT         = "ethercat"
 	DriverProfinet         = "profinet"
 
@@ -62,6 +64,7 @@ const (
 	BuiltinIEC103ID           = "01M7Z9X3Q8KY52DPGDWG9KEX03"
 	BuiltinIEC104ID           = "01M7Z9X3Q8KY52DPGDWG9KEX04"
 	BuiltinEthernetIPID       = "01M7Z9X3Q8KY52DPGDWG9KEX05"
+	BuiltinEthernetIP5500ID   = "01M7Z9X3Q8KY52DPGDWG9KEX08"
 	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
 	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
 )
@@ -1149,6 +1152,68 @@ const etherCATSchema = `{
   ]
 }`
 
+const ethernetIP5500Schema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "PLC IP 地址",
+      "labelEn": "PLC IP Address",
+      "regex": "^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$",
+      "sort": 1,
+      "type": "input",
+      "required": true
+    },
+    {
+      "name": "port",
+      "labelZh": "端口",
+      "labelEn": "Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 2,
+      "type": "input"
+    },
+    {
+      "name": "slot",
+      "labelZh": "CPU 槽号",
+      "labelEn": "CPU Slot",
+      "regex": "^[0-9]{1,3}$",
+      "sort": 3,
+      "type": "input"
+    },
+    {
+      "name": "interval",
+      "labelZh": "指令间隔(ms)",
+      "labelEn": "Request Interval (ms)",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 4,
+      "type": "input"
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Variable Address",
+    "placeholderZh": "Tag / Program:MainProgram.Tag / Tag[3]",
+    "placeholderEn": "Tag / Program:MainProgram.Tag / Tag[3]",
+    "descriptionZh": "CIP 标签名；支持点号结构、数组 [n]、程序域 Program:MainProgram.Tag；BOOL/BIT 可在末尾写位号",
+    "descriptionEn": "CIP tag name; supports dot members, arrays [n], Program:MainProgram.Tag; BOOL/BIT may use a trailing bit number"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1177,6 +1242,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
 	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
+	{BuiltinEthernetIP5500ID, DriverTypeEthernetIP, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},
 	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
 	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
 }
