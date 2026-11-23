@@ -1,13 +1,7 @@
 import { cn } from '../../lib/cn'
 
-export function Copyright({
-  brand = 'AI-harns',
-  year = new Date().getFullYear(),
-  className,
-}: {
-  brand?: string
-  year?: number
-  className?: string
-}) {
-  return <span className={cn(className)}>© {year} {brand}</span>
+const COPYRIGHT_TEXT = 'Copyright © 2026-2027 成都尤利卡科技有限公司版权'
+
+export function Copyright({ className }: { className?: string }) {
+  return <span className={cn(className)}>{COPYRIGHT_TEXT}</span>
 }
