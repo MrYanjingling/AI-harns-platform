@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	DriverType       = "s7"
-	DriverModel      = "s71500"
+	DriverType       = "siemens"
+	DriverModel      = "s7-1500"
 	DriverModelS7200 = "s7-200"
 	DriverS7200      = "s7-200"
 

@@ -215,8 +215,10 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `modbusRtu`：串口 RTU，固定单连接
 - `modbusRtuOverTcp`：RTU 报文经 TCP 透传，支持主备和 `concurrency`
 - `opcUa`：完整 NodeID 地址、批量 Read、`concurrency`，详情响应密码脱敏
-- `s71500`（`driverType=s7`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`concurrency`；支持 `BIT`（读取返回 0/1，反控接受 0/1）、`BOOL`（返回 true/false）、`STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持 `STRING`/`BYTE_ARRAY` 写入
-- `s7-200`（`driverType=s7`）：复用 S7 读写、PDU 分帧、`concurrency` 和变量类型；不使用 `rack`/`slot`/`connectionType`，改用十六进制字符串 `localTsap`/`remoteTsap`（默认 `0x1000`/`0x1000`）；支持 `V0.0`、`VB0`、`VW0`、`VD0`，其中 V 区映射到 DB1
+- `s7-1500`（`driverType=siemens`）：S7 地址、PDU 分帧、`pduSize`（480/960）、`connectionType`（PG/OP/PC）、`concurrency`；支持 `BIT`（读取返回 0/1，反控接受 0/1）、`BOOL`（返回 true/false）、`STRING`/`BYTE_ARRAY` 读取（`DB1.DBW0.10` 表示 10 字节），暂不支持 `STRING`/`BYTE_ARRAY` 写入
+- `ppi`（`driverType=siemens`）：S7-200 PPI 串口/串口服务器主站，默认 9600/8/even/1，支持 V/I/Q/M/SM/AI/AQ/DB 地址
+- `mpi`（`driverType=siemens`）：MPI 串口主站，S7 PDU 封装在 MPI 链路帧中，支持 S/SM/AI/AQ/C/T/IECC/IECT/IECHC/P/I/Q/M/DI/DB 地址
+- `s7-200`（`driverType=siemens`）：复用 S7 读写、PDU 分帧、`concurrency` 和变量类型；不使用 `rack`/`slot`/`connectionType`，改用十六进制字符串 `localTsap`/`remoteTsap`（默认 `0x1000`/`0x1000`）；支持 `V0.0`、`VB0`、`VW0`、`VD0`，其中 V 区映射到 DB1
 - `fins`（`driverType=omron`）：FINS/TCP 或 FINS/UDP 地址，支持 `concurrency` 多连接并发读帧
 - `hostlinkCmode`（`driverType=omron`）：HostLink C-Mode 串口，固定单连接
 - `omronCip`（`driverType=omron`）：EtherNet/IP CIP 符号地址，支持 `concurrency` 多 session 并发读帧

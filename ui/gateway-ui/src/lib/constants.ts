@@ -100,12 +100,16 @@ export const ACCESS_MODES: Array<{ value: AccessMode; labelKey: MessageKey }> = 
 const DRIVER_TYPE_LABELS: Record<string, string> = {
   modbus: 'Modbus',
   s7: 'S7',
+  siemens: 'Siemens',
   opcUa: 'OPC UA',
   omron: 'Omron',
   ethernetIp: 'EtherNet/IP',
   ethercat: 'EtherCAT',
   profinet: 'PROFINET',
   dnp3: 'DNP3',
+  dlt645: 'DL/T 645',
+  cjt188: 'CJ/T 188',
+  dlt698: 'DL/T 698',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -113,8 +117,11 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   modbusRtu: 'Modbus RTU',
   modbusRtuOverTcp: 'Modbus RTU over TCP',
   opcUa: 'OPC UA',
+  's7-1500': 'S7-1500',
   s71500: 'S7-1500',
   's7-200': 'S7-200',
+  mpi: 'MPI',
+  ppi: 'PPI',
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
@@ -124,6 +131,11 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
   dnp3: 'DNP3',
+  dlt645_2007: 'DL/T 645-2007',
+  dlt645_1997: 'DL/T 645-1997',
+  cjt188_2004: 'CJ/T 188-2004',
+  cjt188_2018: 'CJ/T 188-2018',
+  dlt698_45: 'DL/T 698.45',
 }
 
 export function driverTypeLabel(type: string): string {
@@ -139,6 +151,7 @@ export function driverModelLabel(model: string): string {
  * 这些字段在提交前转换为数字;localTsap/remoteTsap 支持 0x 前缀。
  */
 export const NUMERIC_PROTOCOL_FIELDS = new Set([
+  'link',
   'positionAddress',
   'concurrency',
   'baudRate',

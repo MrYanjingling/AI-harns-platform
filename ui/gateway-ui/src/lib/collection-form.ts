@@ -64,6 +64,7 @@ const POSITIVE_INT = /^\d+$/
 function defaultProtocolValue(field: DriverField, model: string): string {
   const defaults: Record<string, string> = {
     baudRate: '9600',
+    link: '0',
     dataBits: '8',
     parity: 'noParity',
     stopBits: '1',
@@ -90,6 +91,10 @@ function defaultProtocolValue(field: DriverField, model: string): string {
       : model === 'ethercat' ? '48898'
       : model === 'profinet' ? '102'
       : model === 'dnp3' ? '20000'
+      : model === 'cjt188_2004' || model === 'cjt188_2018' ? '37121'
+      : model === 'dlt645_2007' || model === 'dlt645_1997' ? '2010'
+      : model === 'dlt698_45' ? '0'
+      : model === 'ppi' ? '32502'
       : '102',
   }
   if (model === 'ethernetIp5500' && field.name === 'slot') return '0'
@@ -101,8 +106,18 @@ function defaultProtocolValue(field: DriverField, model: string): string {
   if (model === 'dnp3' && field.name === 'class0123Interval') return '20000'
   if (model === 'dnp3' && field.name === 'class123Interval') return '1000'
   if (model === 'dnp3' && field.name === 'timeSync') return '0'
+  if (model === 'mpi' && field.name === 'baudRate') return '38400'
+  if (model === 'mpi' && field.name === 'parity') return 'oddParity'
+  if (model === 'mpi' && field.name === 'station') return '2'
+  if (model === 'ppi' && field.name === 'baudRate') return '9600'
+  if (model === 'ppi' && field.name === 'parity') return 'evenParity'
+  if (model === 'ppi' && field.name === 'station') return '2'
+  if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt698_45') && field.name === 'baudRate') return '2400'
+  if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45') && field.name === 'parity') return 'evenParity'
+  if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45') && field.name === 'intervalMs') return '30'
   if (defaults[field.name] !== undefined) return defaults[field.name]
-  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode')) return '/dev/dev'
+  if (model === 'dlt698_45' && field.name === 'clientAddress') return '0'
+  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode' || model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45' || model === 'mpi' || model === 'ppi')) return '/dev/ttyUSB0'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''
   return ''
 }

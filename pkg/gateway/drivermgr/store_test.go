@@ -172,12 +172,12 @@ func TestListFiltersByDriverType(t *testing.T) {
 	service, _ := newTestService(t)
 	items, err := service.List(context.Background(), DriverTypeS7)
 	require.NoError(t, err)
-	require.Len(t, items, 2)
+	require.Len(t, items, 4)
 	models := make([]string, 0, len(items))
 	for _, item := range items {
 		models = append(models, item.Model)
 	}
-	assert.ElementsMatch(t, []string{ModelS71500, ModelS7200}, models)
+	assert.ElementsMatch(t, []string{ModelS71500, ModelS7200, ModelMPI, ModelPPI}, models)
 }
 
 func TestListGroupedAndFuzzyDriverType(t *testing.T) {

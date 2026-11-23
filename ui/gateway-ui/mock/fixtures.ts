@@ -458,7 +458,7 @@ function builtin(
     model,
     builtinDriver: true,
     schema,
-    pluginName: `builtin-${driverType}`,
+    pluginName: `builtin-${driverType}-${model}`,
     createdTime: iso(minutesAgo),
   }
 }
@@ -469,8 +469,8 @@ export const drivers: Driver[] = [
   builtin('modbus', 'modbusRtuOverTcp', MODBUS_RTU_TCP_SCHEMA, 60 * 24 * 30),
   builtin('modbus', 'myModbusTcp', { ...MODBUS_TCP_SCHEMA }, 60 * 24 * 2),
   builtin('opcUa', 'opcUa', OPCUA_SCHEMA, 60 * 24 * 30),
-  builtin('s7', 's71500', S71500_SCHEMA, 60 * 24 * 30),
-  builtin('s7', 's7-200', S7200_SCHEMA, 60 * 24 * 30),
+  builtin('siemens', 's7-1500', S71500_SCHEMA, 60 * 24 * 30),
+  builtin('siemens', 's7-200', S7200_SCHEMA, 60 * 24 * 30),
 ]
 
 drivers[3].builtinDriver = false
@@ -546,8 +546,8 @@ export const collections: CollectionDetail[] = [
     id: 'd4e5f60718293a4b5c6d7e8f90a1b2c3',
     name: '包装线 S7',
     version: '3',
-    driverType: 's7',
-    driverModel: 's71500',
+    driverType: 'siemens',
+    driverModel: 's7-1500',
     collectStatus: 'collectingError',
     lastError: '读取保持寄存器 40001 超时',
     enable: true,
@@ -612,7 +612,7 @@ export const collections: CollectionDetail[] = [
     id: '0718293a4b5c6d7e8f90a1b2c3d4e5f6',
     name: '包装线 S7-200',
     version: '1',
-    driverType: 's7',
+    driverType: 'siemens',
     driverModel: 's7-200',
     collectStatus: 'emptyVariable',
     enable: true,

@@ -12,7 +12,10 @@ import (
 	"harns-platform/pkg/gateway/ai/assistant"
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
+	"harns-platform/pkg/gateway/collection/cjt188"
 	"harns-platform/pkg/gateway/collection/custom"
+	"harns-platform/pkg/gateway/collection/dlt645"
+	"harns-platform/pkg/gateway/collection/dlt698"
 	"harns-platform/pkg/gateway/collection/dnp3"
 	"harns-platform/pkg/gateway/collection/ethercat"
 	"harns-platform/pkg/gateway/collection/ethernetip"
@@ -28,8 +31,10 @@ import (
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
+	"harns-platform/pkg/gateway/collection/mpi"
 	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
+	"harns-platform/pkg/gateway/collection/ppi"
 	"harns-platform/pkg/gateway/collection/profinet"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
@@ -221,6 +226,8 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&opcua.CreateHandler{},
 		&s7.CreateHandler{},
 		s7.NewS7200CreateHandler(),
+		&mpi.CreateHandler{},
+		&ppi.CreateHandler{},
 		&fins.CreateHandler{},
 		&iec101.CreateHandler{},
 		&iec102.CreateHandler{},
@@ -234,6 +241,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&ethercat.CreateHandler{},
 		profinet.NewCreateHandler(),
 		&dnp3.CreateHandler{},
+		dlt645.NewCreateHandler(drivermgr.ModelDLT6452007),
+		dlt645.NewCreateHandler(drivermgr.ModelDLT6451997),
+		cjt188.NewCreateHandler(drivermgr.ModelCJT1882004),
+		cjt188.NewCreateHandler(drivermgr.ModelCJT1882018),
+		&dlt698.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -247,6 +259,8 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&opcua.CollectorFactory{},
 		&s7.CollectorFactory{},
 		s7.NewS7200CollectorFactory(),
+		&mpi.CollectorFactory{},
+		&ppi.CollectorFactory{},
 		&fins.CollectorFactory{},
 		&iec101.CollectorFactory{},
 		&iec102.CollectorFactory{},
@@ -260,6 +274,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&ethercat.CollectorFactory{},
 		profinet.NewCollectorFactory(),
 		&dnp3.CollectorFactory{},
+		dlt645.NewCollectorFactory(drivermgr.ModelDLT6452007),
+		dlt645.NewCollectorFactory(drivermgr.ModelDLT6451997),
+		cjt188.NewCollectorFactory(drivermgr.ModelCJT1882004),
+		cjt188.NewCollectorFactory(drivermgr.ModelCJT1882018),
+		&dlt698.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

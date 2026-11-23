@@ -2,7 +2,7 @@ package drivermgr
 
 const (
 	DriverTypeModbus = "modbus"
-	DriverTypeS7     = "s7"
+	DriverTypeS7     = "siemens"
 	DriverTypeOpcUa  = "opcUa"
 	DriverTypeOmron  = "omron"
 	DriverTypeIEC    = "IEC"
@@ -11,12 +11,15 @@ const (
 	DriverTypeEtherCAT   = "ethercat"
 	DriverTypeProfinet   = "profinet"
 	DriverTypeDNP3       = "dnp3"
+	DriverTypeDLT645     = "dlt645"
+	DriverTypeCJT188     = "cjt188"
+	DriverTypeDLT698     = "dlt698"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
 	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
 	ModelModbusASCII      = "Modbus Ascii"
-	ModelS71500           = "s71500"
+	ModelS71500           = "s7-1500"
 	ModelS7200            = "s7-200"
 	ModelOpcUa            = "opcUa"
 	ModelFins             = "fins"
@@ -32,6 +35,13 @@ const (
 	ModelEtherCAT         = "ethercat"
 	ModelProfinet         = "profinet"
 	ModelDNP3             = "dnp3"
+	ModelDLT6452007       = "dlt645_2007"
+	ModelDLT6451997       = "dlt645_1997"
+	ModelCJT1882004       = "cjt188_2004"
+	ModelCJT1882018       = "cjt188_2018"
+	ModelDLT69845         = "dlt698_45"
+	ModelMPI              = "mpi"
+	ModelPPI              = "ppi"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -53,6 +63,13 @@ const (
 	DriverEtherCAT         = "ethercat"
 	DriverProfinet         = "profinet"
 	DriverDNP3             = "dnp3"
+	DriverDLT6452007       = "dlt645-2007"
+	DriverDLT6451997       = "dlt645-1997"
+	DriverCJT1882004       = "cjt188-2004"
+	DriverCJT1882018       = "cjt188-2018"
+	DriverDLT69845         = "dlt698-45"
+	DriverMPI              = "mpi"
+	DriverPPI              = "ppi"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -74,6 +91,13 @@ const (
 	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
 	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
 	BuiltinDNP3ID             = "01M7Z9X3Q8KY52DPGDWG9KEX10"
+	BuiltinDLT6452007ID       = "01M7Z9X3Q8KY52DPGDWG9KEX11"
+	BuiltinDLT6451997ID       = "01M7Z9X3Q8KY52DPGDWG9KEX12"
+	BuiltinCJT1882004ID       = "01M7Z9X3Q8KY52DPGDWG9KEX13"
+	BuiltinCJT1882018ID       = "01M7Z9X3Q8KY52DPGDWG9KEX14"
+	BuiltinDLT69845ID         = "01M7Z9X3Q8KY52DPGDWG9KEX15"
+	BuiltinMPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX16"
+	BuiltinPPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX17"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1293,6 +1317,170 @@ const dnp3Schema = `{
   ]
 }`
 
+const dlt645Schema = `{
+  "fields": [
+    {"name":"link","labelZh":"连接方式","labelEn":"Link","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"串口设备 / IP","labelEn":"Serial Port / IP","regex":"^[A-Za-z0-9._:/-]+$","sort":2,"type":"input","required":true,"variants":[{"when":{"field":"link","equals":"1"},"labelZh":"IP 地址","labelEn":"IP Address","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10"},{"when":{"field":"link","equals":"0"},"labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","placeholderZh":"/dev/ttyUSB0","placeholderEn":"/dev/ttyUSB0"}]},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":4,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":5,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity|none|odd|even|0|1|2)$","sort":6,"type":"select","options":[{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":7,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":9,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "DL/T 645 地址",
+    "labelEn": "DL/T 645 Address",
+    "placeholderZh": "000000000001#00-00-00-00",
+    "placeholderEn": "000000000001#00-00-00-00",
+    "descriptionZh": "格式：表号#DI。2007 使用 DI3-DI2-DI1-DI0，1997 使用 DI1-DI0",
+    "descriptionEn": "Format: meter#DI. 2007 uses DI3-DI2-DI1-DI0; 1997 uses DI1-DI0"
+  },
+  "variableDataTypes": [
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[0-9]{1,12}#[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){0,3}$"}
+  ]
+}`
+
+const cjt188Schema = `{
+  "fields": [
+    {"name":"link","labelZh":"连接方式","labelEn":"Link","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"串口设备 / IP","labelEn":"Serial Port / IP","regex":"^[A-Za-z0-9._:/-]+$","sort":2,"type":"input","required":true,"variants":[{"when":{"field":"link","equals":"1"},"labelZh":"IP 地址","labelEn":"IP Address","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10"},{"when":{"field":"link","equals":"0"},"labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","placeholderZh":"/dev/ttyUSB0","placeholderEn":"/dev/ttyUSB0"}]},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":4,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":5,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity|none|odd|even|0|1|2)$","sort":6,"type":"select","options":[{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":7,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":9,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "CJ/T 188 地址",
+    "labelEn": "CJ/T 188 Address",
+    "placeholderZh": "10#0000000001#901F",
+    "placeholderEn": "10#0000000001#901F",
+    "descriptionZh": "格式：仪表类型#表号#DI，仪表类型与 DI 使用十六进制；表号 14 位十进制",
+    "descriptionEn": "Format: meter type#meter number#DI; type and DI are hexadecimal; meter number has 14 decimal digits"
+  },
+  "variableDataTypes": [
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[0-9A-Fa-f]{1,2}#[0-9]{1,14}#[0-9A-Fa-f]{4}$"}
+  ]
+}`
+
+const dlt698Schema = `{
+  "fields": [
+    {"name":"link","labelZh":"连接方式","labelEn":"Link","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"串口设备 / IP","labelEn":"Serial Port / IP","regex":"^[A-Za-z0-9._:/-]+$","sort":2,"type":"input","required":true,"variants":[{"when":{"field":"link","equals":"1"},"labelZh":"IP 地址","labelEn":"IP Address","regex":"^[A-Za-z0-9.-]+$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10"},{"when":{"field":"link","equals":"0"},"labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","placeholderZh":"/dev/ttyUSB0","placeholderEn":"/dev/ttyUSB0"}]},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"meterAddress","labelZh":"表地址","labelEn":"Meter Address","regex":"^[0-9A-Fa-f]{2,16}$","sort":4,"type":"input","required":true},
+    {"name":"clientAddress","labelZh":"客户机地址","labelEn":"Client Address","regex":"^[0-9]{1,3}$","sort":5,"type":"input"},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":6,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":7,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity|none|odd|even|0|1|2)$","sort":8,"type":"select","options":[{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":9,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":10,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":11,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "OAD 地址",
+    "labelEn": "OAD Address",
+    "placeholderZh": "00000200",
+    "placeholderEn": "00000200",
+    "descriptionZh": "4 字节 OAD 十六进制，例如 00000200",
+    "descriptionEn": "4-byte OAD in hexadecimal, for example 00000200"
+  },
+  "variableDataTypes": [
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9A-Fa-f]{8}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9A-Fa-f]{8}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9A-Fa-f]{8}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[0-9A-Fa-f]{8}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9A-Fa-f]{8}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9A-Fa-f]{8}$"}
+  ]
+}`
+
+const mpiSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","sort":1,"type":"input","required":true},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":2,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":3,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity)$","sort":4,"type":"select","options":[{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":5,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"station","labelZh":"MPI 站号","labelEn":"MPI Station","regex":"^[0-9]{1,3}$","sort":6,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":7,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "MPI 地址",
+    "labelEn": "MPI Address",
+    "placeholderZh": "DB1.DBB0 / M0.0 / I0",
+    "placeholderEn": "DB1.DBB0 / M0.0 / I0",
+    "descriptionZh": "支持 DB、I、Q、M、S、SM、AI、AQ、C、T、IECC、IECT、IECHC、P、DI 区域；位地址加 .0-.7，字符串/字节数组加长度后缀",
+    "descriptionEn": "Supports DB, I, Q, M, S, SM, AI, AQ, C, T, IECC, IECT, IECHC, P and DI areas; add .0-.7 for bits and a length suffix for string/byte_array"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}|(SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}\\.[0-9]{1,5})$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^(DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}|(SM|S|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI)[0-9]{1,5}\\.[0-9]{1,5})$"}
+  ]
+}`
+
+const ppiSchema = `{
+  "fields": [
+    {"name":"link","labelZh":"连接方式","labelEn":"Link","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"串口设备 / IP","labelEn":"Serial Port / IP","regex":"^[A-Za-z0-9._:/-]+$","sort":2,"type":"input","required":true,"variants":[{"when":{"field":"link","equals":"1"},"labelZh":"IP 地址","labelEn":"IP Address","regex":"^[A-Za-z0-9.-]+$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10"},{"when":{"field":"link","equals":"0"},"labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","placeholderZh":"/dev/ttyUSB0","placeholderEn":"/dev/ttyUSB0"}]},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":4,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":5,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity)$","sort":6,"type":"select","options":[{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":7,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"station","labelZh":"PPI 站号","labelEn":"PPI Station","regex":"^[0-9]{1,3}$","sort":8,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":9,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":10,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "PPI 地址",
+    "labelEn": "PPI Address",
+    "placeholderZh": "DB1.DBB0 / VW0 / M0.0 / I0.0",
+    "placeholderEn": "DB1.DBB0 / VW0 / M0.0 / I0.0",
+    "descriptionZh": "支持 DB、V、I、Q、M、S、SM、AI、AQ、AIW、AQW、C、T、IECC、IECT、IECHC、P、DI；位地址加 .0-.7，字符串/字节数组加长度后缀",
+    "descriptionEn": "Supports DB, V, I, Q, M, S, SM, AI, AQ, AIW, AQW, C, T, IECC, IECT, IECHC, P and DI; add .0-.7 for bits and a length suffix for string/byte_array"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^((DB[0-9]{1,5}\\.DBX[0-9]{1,5}\\.[0-7])|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}\\.[0-7]))$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^((DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5})|((SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}))$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}|(SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}\\.[0-9]{1,5})$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^(DB[0-9]{1,5}\\.(DBB|DBW|DBD)[0-9]{1,5}\\.[0-9]{1,5}|(SM|S|AIW|AQW|AI|AQ|C|T|IECC|IECT|IECHC|P|I|Q|M|DI|V|VB|VW|VD)[0-9]{1,5}\\.[0-9]{1,5})$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1316,6 +1504,8 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinIEC103ID, DriverTypeIEC, ModelIEC103, DriverIEC103, iec103Schema},
 	{BuiltinS71500ID, DriverTypeS7, ModelS71500, DriverS71500, s71500Schema},
 	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
+	{BuiltinMPIID, DriverTypeS7, ModelMPI, DriverMPI, mpiSchema},
+	{BuiltinPPIID, DriverTypeS7, ModelPPI, DriverPPI, ppiSchema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
@@ -1326,4 +1516,9 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
 	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
 	{BuiltinDNP3ID, DriverDNP3, ModelDNP3, DriverDNP3, dnp3Schema},
+	{BuiltinDLT6452007ID, DriverTypeDLT645, ModelDLT6452007, DriverDLT6452007, dlt645Schema},
+	{BuiltinDLT6451997ID, DriverTypeDLT645, ModelDLT6451997, DriverDLT6451997, dlt645Schema},
+	{BuiltinCJT1882004ID, DriverTypeCJT188, ModelCJT1882004, DriverCJT1882004, cjt188Schema},
+	{BuiltinCJT1882018ID, DriverTypeCJT188, ModelCJT1882018, DriverCJT1882018, cjt188Schema},
+	{BuiltinDLT69845ID, DriverTypeDLT698, ModelDLT69845, DriverDLT69845, dlt698Schema},
 }
