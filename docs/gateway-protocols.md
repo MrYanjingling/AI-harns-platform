@@ -31,6 +31,9 @@
 | Omron FINS（`omron` / `fins`） | 已完成 | 已验证  |
 | Omron HostLink C-Mode（`omron` / `hostlinkCmode`） | 已完成 | 未验证  |
 | Omron EtherNet/IP CIP（`omron` / `omronCip`） | 已完成 | 已验证  |
+| EtherNet/IP CIP（`ethernetIp` / `ethernetIp`） | 已完成 | 已验证  |
+| EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证  |
+| PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证  |
 
 ## 推送协议
 
@@ -38,6 +41,8 @@
 |---|---|---|
 | MQTT（发布 + 命令订阅） | 已完成 | 已验证 |
 | Kafka（发布 + 命令消费） | 已完成 | 未验证 |
+
+> 报告按仓库约定不自动提交；需要时由维护者单独归档。
 
 ## 维护约定
 

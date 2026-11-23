@@ -102,6 +102,9 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   s7: 'S7',
   opcUa: 'OPC UA',
   omron: 'Omron',
+  ethernetIp: 'EtherNet/IP',
+  ethercat: 'EtherCAT',
+  profinet: 'PROFINET',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -114,6 +117,9 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
+  ethernetIp: 'EtherNet/IP',
+  ethercat: 'EtherCAT (TwinCAT ADS)',
+  profinet: 'PROFINET',
 }
 
 export function driverTypeLabel(type: string): string {
@@ -146,6 +152,9 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'timeoutMs',
   'intervalMs',
   'maxReadWords',
+  'amsPort',
+  'localAmsPort',
+  'stringLength',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

@@ -13,6 +13,8 @@ import (
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collection/custom"
+	"harns-platform/pkg/gateway/collection/ethercat"
+	"harns-platform/pkg/gateway/collection/ethernetip"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
@@ -25,6 +27,7 @@ import (
 	"harns-platform/pkg/gateway/collection/modbustcp"
 	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
+	"harns-platform/pkg/gateway/collection/profinet"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -222,6 +225,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&iec104.CreateHandler{},
 		&hostlinkcmode.CreateHandler{},
 		&omroncip.CreateHandler{},
+		&ethernetip.CreateHandler{},
+		&ethercat.CreateHandler{},
+		profinet.NewCreateHandler(),
 	)
 	if err != nil {
 		_ = db.Close()
@@ -242,6 +248,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&iec104.CollectorFactory{},
 		&hostlinkcmode.CollectorFactory{},
 		&omroncip.CollectorFactory{},
+		&ethernetip.CollectorFactory{},
+		&ethercat.CollectorFactory{},
+		profinet.NewCollectorFactory(),
 	)
 	if err != nil {
 		_ = db.Close()

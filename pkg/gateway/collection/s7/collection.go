@@ -155,14 +155,21 @@ type S7Collection struct {
 }
 
 func NewCollection(req *CreateReq) (*S7Collection, error) {
-	return newCollection(req, DriverModel)
+	return newCollectionWithDriver(DriverType, DriverModel, req)
 }
 
 func NewS7200Collection(req *CreateReq) (*S7Collection, error) {
-	return newCollection(req, DriverModelS7200)
+	return newCollectionWithDriver(DriverType, DriverModelS7200, req)
 }
 
-func newCollection(req *CreateReq, model string) (*S7Collection, error) {
+// NewCollectionFor builds an S7 collection under an alternate driver identity.
+// It lets protocol drivers that reuse S7 communication (for example PROFINET)
+// keep their own driverType/driverModel while sharing the S7 transport.
+func NewCollectionFor(driverType, model string, req *CreateReq) (*S7Collection, error) {
+	return newCollectionWithDriver(driverType, model, req)
+}
+
+func newCollectionWithDriver(driverType, model string, req *CreateReq) (*S7Collection, error) {
 	if err := collection.NormalizeVariables(req.Variables); err != nil {
 		return nil, err
 	}
@@ -170,7 +177,7 @@ func newCollection(req *CreateReq, model string) (*S7Collection, error) {
 	return &S7Collection{
 		CollectionMeta: collection.CollectionMeta{
 			Meta:             collection.Meta{Name: req.Name},
-			DriverType:       DriverType,
+			DriverType:       driverType,
 			DriverModel:      model,
 			CollectStatus:    collection.CollectStatusStopped,
 			CollectorCycleMs: req.CollectorCycleMs,

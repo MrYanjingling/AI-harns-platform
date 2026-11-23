@@ -7,6 +7,10 @@ const (
 	DriverTypeOmron  = "omron"
 	DriverTypeIEC    = "IEC"
 
+	DriverTypeEthernetIP = "ethernetIp"
+	DriverTypeEtherCAT   = "ethercat"
+	DriverTypeProfinet   = "profinet"
+
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
 	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
@@ -21,6 +25,9 @@ const (
 	ModelIEC102           = "IEC102"
 	ModelIEC103           = "IEC103"
 	ModelIEC104           = "IEC104"
+	ModelEthernetIP       = "ethernetIp"
+	ModelEtherCAT         = "ethercat"
+	ModelProfinet         = "profinet"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -36,6 +43,9 @@ const (
 	DriverIEC102           = "iec102"
 	DriverIEC103           = "iec103"
 	DriverIEC104           = "iec104"
+	DriverEthernetIP       = "ethernet-ip"
+	DriverEtherCAT         = "ethercat"
+	DriverProfinet         = "profinet"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -51,6 +61,9 @@ const (
 	BuiltinIEC102ID           = "01M7Z9X3Q8KY52DPGDWG9KEX02"
 	BuiltinIEC103ID           = "01M7Z9X3Q8KY52DPGDWG9KEX03"
 	BuiltinIEC104ID           = "01M7Z9X3Q8KY52DPGDWG9KEX04"
+	BuiltinEthernetIPID       = "01M7Z9X3Q8KY52DPGDWG9KEX05"
+	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
+	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -983,6 +996,161 @@ const iec103Schema = `{
   ]
 }`
 
+const ethernetIPSchema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "PLC 地址",
+      "labelEn": "PLC Address",
+      "regex": "^[A-Za-z0-9.-]+$",
+      "sort": 1,
+      "type": "input",
+      "required": true
+    },
+    {
+      "name": "port",
+      "labelZh": "端口",
+      "labelEn": "Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 2,
+      "type": "input"
+    },
+    {
+      "name": "concurrency",
+      "labelZh": "并发数",
+      "labelEn": "Concurrency",
+      "regex": "^[1-3]$",
+      "sort": 3,
+      "type": "select",
+      "options": [
+        {"value":"1","labelZh":"1","labelEn":"1"},
+        {"value":"2","labelZh":"2","labelEn":"2"},
+        {"value":"3","labelZh":"3","labelEn":"3"}
+      ]
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Variable Address",
+    "placeholderZh": "Tag / Program:MainProgram.Tag / Tag[3]",
+    "placeholderEn": "Tag / Program:MainProgram.Tag / Tag[3]",
+    "descriptionZh": "CIP 标签名；支持点号结构、数组 [n]、程序域 Program:MainProgram.Tag；BOOL/BIT 可在末尾写位号",
+    "descriptionEn": "CIP tag name; supports dot members, arrays [n], Program:MainProgram.Tag; BOOL/BIT may use a trailing bit number"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+  ]
+}`
+
+const etherCATSchema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "TwinCAT 地址",
+      "labelEn": "TwinCAT Address",
+      "regex": "^[A-Za-z0-9.-]+$",
+      "sort": 1,
+      "type": "input",
+      "required": true
+    },
+    {
+      "name": "port",
+      "labelZh": "ADS 端口",
+      "labelEn": "ADS Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 2,
+      "type": "input"
+    },
+    {
+      "name": "amsNetId",
+      "labelZh": "目标 AMS Net ID",
+      "labelEn": "Target AMS Net ID",
+      "regex": "^([0-9]{1,3}\\.){5}[0-9]{1,3}$",
+      "sort": 3,
+      "type": "input"
+    },
+    {
+      "name": "amsPort",
+      "labelZh": "目标 AMS Port",
+      "labelEn": "Target AMS Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 4,
+      "type": "input"
+    },
+    {
+      "name": "localAmsNetId",
+      "labelZh": "本地 AMS Net ID",
+      "labelEn": "Local AMS Net ID",
+      "regex": "^([0-9]{1,3}\\.){5}[0-9]{1,3}$",
+      "sort": 5,
+      "type": "input"
+    },
+    {
+      "name": "localAmsPort",
+      "labelZh": "本地 AMS Port",
+      "labelEn": "Local AMS Port",
+      "regex": "^[0-9]{1,5}$",
+      "sort": 6,
+      "type": "input"
+    },
+    {
+      "name": "stringLength",
+      "labelZh": "字符串长度",
+      "labelEn": "String Length",
+      "regex": "^[1-9][0-9]{0,4}$",
+      "sort": 7,
+      "type": "input"
+    },
+    {
+      "name": "timeoutMs",
+      "labelZh": "超时(ms)",
+      "labelEn": "Timeout (ms)",
+      "regex": "^[1-9][0-9]{0,5}$",
+      "sort": 8,
+      "type": "input"
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Variable Address",
+    "placeholderZh": "MAIN.nCounter / 0xF020:0",
+    "placeholderEn": "MAIN.nCounter / 0xF020:0",
+    "descriptionZh": "ADS 符号名；或直接索引组:索引偏移（0x 前缀），例如 0xF020:0",
+    "descriptionEn": "ADS symbol name; or direct index group:index offset with 0x prefix, for example 0xF020:0"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^.+$"}
+  ]
+}`
+
+const profinetSchema = s71500Schema
+
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
 	ID         string
@@ -1008,4 +1176,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
+	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
+	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
+	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
 }

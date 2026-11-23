@@ -27,10 +27,16 @@ type collectorRuntime struct {
 }
 
 type CollectorFactory struct {
-	model string
+	driverType string
+	model      string
 }
 
-func (f *CollectorFactory) DriverType() string { return DriverType }
+func (f *CollectorFactory) DriverType() string {
+	if f == nil || f.driverType == "" {
+		return DriverType
+	}
+	return f.driverType
+}
 func (f *CollectorFactory) DriverModel() string {
 	if f == nil || f.model == "" {
 		return DriverModel
@@ -39,7 +45,12 @@ func (f *CollectorFactory) DriverModel() string {
 }
 
 func NewS7200CollectorFactory() *CollectorFactory {
-	return &CollectorFactory{model: DriverModelS7200}
+	return &CollectorFactory{driverType: DriverType, model: DriverModelS7200}
+}
+
+// NewCollectorFactoryFor builds a collector factory under an alternate driver identity.
+func NewCollectorFactoryFor(driverType, model string) *CollectorFactory {
+	return &CollectorFactory{driverType: driverType, model: model}
 }
 
 func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config json.RawMessage) (collection.Collector, error) {

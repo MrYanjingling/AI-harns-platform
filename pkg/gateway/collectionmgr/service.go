@@ -15,6 +15,8 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/ethercat"
+	"harns-platform/pkg/gateway/collection/ethernetip"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
@@ -27,6 +29,7 @@ import (
 	"harns-platform/pkg/gateway/collection/modbustcp"
 	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
+	"harns-platform/pkg/gateway/collection/profinet"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr/v1"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -488,6 +491,44 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 			return nil, err
 		}
 		item := &omroncip.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == ethernetip.DriverType && record.DriverModel == ethernetip.DriverModel:
+		var req ethernetip.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &ethernetip.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == ethercat.DriverType && record.DriverModel == ethercat.DriverModel:
+		var req ethercat.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &ethercat.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == profinet.DriverType && record.DriverModel == profinet.DriverModel:
+		var req profinet.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &profinet.Collection{}
+		item.SetDriverType(profinet.DriverType)
+		item.SetDriverModel(profinet.DriverModel)
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}

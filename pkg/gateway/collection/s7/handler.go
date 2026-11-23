@@ -11,14 +11,25 @@ import (
 )
 
 type CreateHandler struct {
-	model string
+	driverType string
+	model      string
 }
 
 func NewS7200CreateHandler() *CreateHandler {
-	return &CreateHandler{model: DriverModelS7200}
+	return &CreateHandler{driverType: DriverType, model: DriverModelS7200}
 }
 
-func (h *CreateHandler) DriverType() string { return DriverType }
+// NewCreateHandlerFor builds a create handler under an alternate driver identity.
+func NewCreateHandlerFor(driverType, model string) *CreateHandler {
+	return &CreateHandler{driverType: driverType, model: model}
+}
+
+func (h *CreateHandler) DriverType() string {
+	if h == nil || h.driverType == "" {
+		return DriverType
+	}
+	return h.driverType
+}
 func (h *CreateHandler) DriverModel() string {
 	if h == nil || h.model == "" {
 		return DriverModel
@@ -39,7 +50,7 @@ func (h *CreateHandler) BuildCreate(raw collection.CreateRequest) (collection.Co
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid s7 create request")
 	}
-	item, err := newCollection(req, h.DriverModel())
+	item, err := newCollectionWithDriver(h.DriverType(), h.DriverModel(), req)
 	if err != nil {
 		return nil, nil, err
 	}
