@@ -3,6 +3,7 @@ package options
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	stdruntime "runtime"
 	"strings"
@@ -109,7 +110,7 @@ const (
 
 func NewDefaultOptions() *Options {
 	base := baseoptions.NewDefaultBaseOptions()
-	base.ConfigFile = _defaultConfigFile
+	base.ConfigFile = defaultGatewayConfigFile()
 	return &Options{
 		Port:         _defaultPort,
 		Wait:         _defaultWait,
@@ -124,6 +125,21 @@ func NewDefaultOptions() *Options {
 		License:      LicenseOptions{PublicKeyFile: _defaultLicensePublicKey},
 		// BaseOptions: logs.NewOptions(),
 	}
+}
+
+func defaultGatewayConfigFile() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return _defaultConfigFile
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	candidate := filepath.Join(filepath.Dir(exe), "..", "etc", "config.yaml")
+	if _, err := os.Stat(candidate); err == nil {
+		return filepath.Join("..", "etc", "config.yaml")
+	}
+	return _defaultConfigFile
 }
 
 func (o *Options) AddFlags(fs *pflag.FlagSet) {

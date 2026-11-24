@@ -41,6 +41,8 @@ make lint                 # gofmt -l + go vet（tsdb 排除）
 make fmt                  # gofmt -w cmd pkg migrations
 make package              # 二进制 + UI dist + etc 配置打包
 make package UI_BUILD=0   # 跳过前端构建
+make release              # Linux/macOS/Windows 多平台发布包到 _output/local/release
+make release UI_BUILD=0   # 复用现有 ui/*/dist 打发布包
 
 go build ./...            # 全量编译
 go run ./cmd/gateway      # 本地启动网关

@@ -300,7 +300,7 @@ gateway 启动参数与 platform 保持一致（`--port`、`--graceful-timeout`�
 构建与发布：
 
 - `make` → `_output/bin/{gateway,platform}`。
-- `make package` → `_output/release/AI-harns-platform-<version>-<os>_<arch>.zip`，内含 `gateway|platform|eam|ems` 的 `bin/etc/log` 与 `ui/host`（前端主应用）构建产物；`UI_MODULES` 可覆盖打包的前端模块。`ui/gateway-ui` 可由 `make gateway-ui` 单独构建，产物由 gateway 托管。
+- `make package` → `_output/release/AI-harns-platform-<version>-<os>_<arch>.zip`，内含 `gateway|platform|eam|ems` 的 `bin/etc/log`、`gateway/plugins` 与 `ui/host`（前端主应用）构建产物；`UI_MODULES` 可覆盖打包的前端模块。`ui/gateway-ui` 可由 `make gateway-ui` 单独构建，产物由 gateway 托管。
 - `Dockerfile` 通过 `ARG SERVICE` 选择 `./cmd/${SERVICE}` 构建，最终镜像仅含单个二进制。
 - `docker-compose.yml` 启动 MySQL、Redis、MinIO、platform。
 

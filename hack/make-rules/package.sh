@@ -12,7 +12,7 @@ PACKAGE_NAME="${PACKAGE_NAME:-AI-harns-platform}"
 GO_MODULES=("gateway" "platform" "eam" "ems")
 # 前端工作区以 host 为主应用发布；platform-ui / gateway-ui 如需单独打包，可用
 # UI_MODULES="platform-ui gateway-ui" 覆盖。
-UI_MODULES="${UI_MODULES:-host}"
+UI_MODULES="${UI_MODULES:-host gateway-ui}"
 UI_BUILD="${UI_BUILD:-1}"
 
 # Build the Go binaries first, reusing the standard build rules.
@@ -37,7 +37,11 @@ mkdir -p "${staging_dir}"
 
 # Go services keep the bin/etc/log layout.
 for module in "${GO_MODULES[@]}"; do
-  mkdir -p "${staging_dir}/${module}/bin" "${staging_dir}/${module}/etc" "${staging_dir}/${module}/log"
+  log_dir="log"
+  if [[ "${module}" == "gateway" ]]; then
+    log_dir="logs"
+  fi
+  mkdir -p "${staging_dir}/${module}/bin" "${staging_dir}/${module}/etc" "${staging_dir}/${module}/${log_dir}"
 
   if [[ -f "${bin_dir}/${module}" ]]; then
     cp -p "${bin_dir}/${module}" "${staging_dir}/${module}/bin/"
@@ -47,8 +51,22 @@ for module in "${GO_MODULES[@]}"; do
 
   if [[ -d "${HARNSGATEWAY_ROOT}/etc/${module}" ]]; then
     cp -Rp "${HARNSGATEWAY_ROOT}/etc/${module}/." "${staging_dir}/${module}/etc/"
+    if [[ "${module}" == "gateway" && -f "${HARNSGATEWAY_ROOT}/etc/gateway/config.package.yaml" ]]; then
+      cp -p "${HARNSGATEWAY_ROOT}/etc/gateway/config.package.yaml" "${staging_dir}/gateway/etc/config.yaml"
+      rm -f "${staging_dir}/gateway/etc/config.package.yaml"
+      mkdir -p "${staging_dir}/gateway/data" "${staging_dir}/gateway/ui"
+      cp -p "${HARNSGATEWAY_ROOT}/hack/install-gateway.sh" "${staging_dir}/gateway/install.sh"
+      chmod +x "${staging_dir}/gateway/install.sh"
+    fi
   fi
 done
+
+# Custom driver plugins are resolved relative to the gateway process working
+# directory (the default plugin-dir is "plugins").
+if [[ -d "${HARNSGATEWAY_ROOT}/plugins" ]]; then
+  mkdir -p "${staging_dir}/gateway/plugins"
+  cp -Rp "${HARNSGATEWAY_ROOT}/plugins/." "${staging_dir}/gateway/plugins/"
+fi
 
 # UI modules live under ui/<module>. Only modules with package.json are built;
 # the rest are kept as empty placeholders for the future layout.
@@ -56,7 +74,11 @@ IFS=" " read -ra ui_modules <<< "${UI_MODULES}"
 mkdir -p "${staging_dir}/ui"
 for module in "${ui_modules[@]}"; do
   ui_src="${HARNSGATEWAY_ROOT}/ui/${module}"
-  ui_dest="${staging_dir}/ui/${module}"
+  if [[ "${module}" == "gateway-ui" ]]; then
+    ui_dest="${staging_dir}/gateway/ui/gateway-ui"
+  else
+    ui_dest="${staging_dir}/ui/${module}"
+  fi
   mkdir -p "${ui_dest}"
 
   if [[ ! -f "${ui_src}/package.json" ]]; then

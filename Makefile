@@ -29,6 +29,7 @@ MAKEFLAGS += --no-builtin-rules
 OUT_DIR ?= _output
 BIN_DIR := $(OUT_DIR)/bin
 GOPATH?=$(shell go env GOPATH)
+RELEASE_PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
 # This controls the verbosity of the build.  Higher numbers mean more output.
 KUBE_VERBOSE ?= 1
@@ -88,6 +89,31 @@ package:
 else
 package: verify-golang
 	hack/make-rules/package.sh $(WHAT)
+endif
+
+define RELEASE_HELP_INFO
+# Build release archives for Linux, macOS and Windows.
+#
+# Args:
+#   WHAT: Directory names to build.
+#   RELEASE_PLATFORMS: Space-separated GOOS/GOARCH pairs. Default:
+#     linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+#   UI_BUILD: Set to 0 to reuse existing ui/<module>/dist. Default: 1.
+#   UI_MODULES: UI modules to include. Default: host.
+#
+# Example:
+#   make release
+#   make release RELEASE_PLATFORMS="linux/amd64 darwin/arm64 windows/amd64"
+#   make release UI_BUILD=0
+endef
+.PHONY: release
+ifeq ($(PRINT_HELP),y)
+release:
+	@echo "$$RELEASE_HELP_INFO"
+else
+release: export HARNSGATEWAY_BUILD_PLATFORMS := $(RELEASE_PLATFORMS)
+release: verify-golang
+	hack/make-rules/release.sh $(WHAT)
 endif
 
 define CHECK_TEST_HELP_INFO

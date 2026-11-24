@@ -122,9 +122,16 @@ make gateway-ui  # build gateway management UI
 make gateway     # build UI and run gateway
 make package # build binaries + UI + etc/ config, then zip
 make package UI_BUILD=0 # skip UI build (uses existing ui/*/dist if present)
+make release # build Linux/macOS/Windows release archives under _output/local/release
+make release UI_BUILD=0 # build release archives without rebuilding the UI
 ```
 
-The archive contains `gateway/`, `platform/`, `eam/`, `ems/` and `ui/`.
+`make release` defaults to `linux/amd64`, `linux/arm64`, `darwin/amd64`,
+`darwin/arm64`, and `windows/amd64`. Override the matrix with
+`RELEASE_PLATFORMS`, for example
+`make release RELEASE_PLATFORMS="linux/amd64 darwin/arm64 windows/amd64"`.
+
+The archive contains `gateway/` (including `gateway/plugins/`), `platform/`, `eam/`, `ems/` and `ui/`.
 `ui/platform-ui` (composed by `ui/host`) and `ui/gateway-ui` (standalone, served by
 `cmd/gateway`) are buildable today; `ui/eam-ui` and `ui/ems-ui` are kept as empty placeholders.
 
