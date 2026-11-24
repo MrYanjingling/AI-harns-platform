@@ -459,6 +459,7 @@ function builtin(
     builtinDriver: true,
     schema,
     pluginName: `builtin-${driverType}-${model}`,
+    remark: model === 's7-1500' ? 's7-300/400 slot 默认 2，s7-1500 slot 默认 1' : '',
     createdTime: iso(minutesAgo),
   }
 }

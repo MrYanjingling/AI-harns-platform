@@ -56,20 +56,24 @@ func TestCreateUpdateDeleteCustomDriver(t *testing.T) {
 		Model:      "customTcp",
 		Schema:     json.RawMessage(`{"type":"object","properties":{"host":{"type":"string"}}}`),
 		PluginName: "custom-tcp",
+		Remark:     "custom note",
 	})
 	require.NoError(t, err)
 	assert.False(t, created.BuiltinDriver)
 	assert.NotEmpty(t, created.ID)
+	assert.Equal(t, "custom note", created.Remark)
 
 	updated, err := service.Update(ctx, created.ID, &v1.UpdateDriverReq{
 		DriverType: "modbus",
 		Model:      "customTcpV2",
 		Schema:     json.RawMessage(`{"type":"object"}`),
 		PluginName: "custom-tcp-v2",
+		Remark:     "updated note",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "customTcpV2", updated.Model)
 	assert.Equal(t, "custom-tcp-v2", updated.PluginName)
+	assert.Equal(t, "updated note", updated.Remark)
 
 	require.NoError(t, service.Delete(ctx, created.ID))
 	_, err = service.Get(ctx, created.ID)

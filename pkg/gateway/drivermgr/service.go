@@ -139,6 +139,7 @@ func (s *Service) Create(ctx context.Context, req *v1.CreateDriverReq) (*v1.Driv
 		BuiltinDriver: false,
 		Schema:        normalizeSchema(req.Schema),
 		PluginName:    strings.TrimSpace(req.PluginName),
+		Remark:        strings.TrimSpace(req.Remark),
 		CreatedTime:   time.Now().UTC(),
 	}
 	if err := s.store.Create(ctx, item); err != nil {
@@ -171,6 +172,7 @@ func (s *Service) Update(ctx context.Context, id string, req *v1.UpdateDriverReq
 	item.Model = strings.TrimSpace(req.Model)
 	item.Schema = normalizeSchema(req.Schema)
 	item.PluginName = strings.TrimSpace(req.PluginName)
+	item.Remark = strings.TrimSpace(req.Remark)
 	if err := s.store.Update(ctx, item); err != nil {
 		return nil, mapServiceStoreError(err, item.PluginName)
 	}
@@ -372,6 +374,7 @@ func toVo(item *Driver) *v1.DriverVo {
 		BuiltinDriver: item.BuiltinDriver,
 		Schema:        item.Schema,
 		PluginName:    item.PluginName,
+		Remark:        item.Remark,
 		CreatedTime:   item.CreatedTime,
 	}
 }

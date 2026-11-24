@@ -66,6 +66,7 @@ export function DriverSchemaDialog({
           driverType: driver.driverType,
           model: driver.model,
           pluginName: driver.pluginName,
+          remark: driver.remark,
           schema: nextSchema,
         },
       })

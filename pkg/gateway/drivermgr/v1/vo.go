@@ -13,6 +13,7 @@ type DriverVo struct {
 	BuiltinDriver bool            `json:"builtinDriver"`
 	Schema        json.RawMessage `json:"schema"`
 	PluginName    string          `json:"pluginName"`
+	Remark        string          `json:"remark"`
 	CreatedTime   time.Time       `json:"createdTime"`
 }
 

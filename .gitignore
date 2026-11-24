@@ -11,4 +11,10 @@
 # Runtime data
 /data/
 /log/
-/plugins/
+/plugins/*
+!/plugins/dependencies/
+/plugins/dependencies/*
+!/plugins/dependencies/README.md
+!/plugins/dependencies/focas/
+/plugins/dependencies/focas/*
+!/plugins/dependencies/focas/README.md

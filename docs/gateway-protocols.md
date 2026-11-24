@@ -44,6 +44,10 @@
 | CJ/T 188-2004（`cjt188` / `cjt188_2004`） | 已完成 | 未验证 | 水表、热量表、燃气表、电表 |
 | CJ/T 188-2018（`cjt188` / `cjt188_2018`） | 已完成 | 已验证（TCP 读） | 水表、热量表、燃气表、电表 |
 | DL/T 698.45（`dlt698` / `dlt698_45`） | 已完成 | 未验证 | 支持 698.45 GET 单对象读的电表 |
+| KNXnet/IP（`KNX` / `KNXnet/IP`） | 已完成 | 未验证 | KNX 楼宇自动化网关 |
+| KND CNC（`CNC` / `KND`） | 已完成 | 未验证 | KND 数控系统 HTTP 接口 |
+| HEIDENHAIN LSV2（`CNC` / `heidenhain`） | 已完成 | 未验证 | HEIDENHAIN TNC 数控系统 |
+| Fanuc FOCAS（`CNC` / `fanuc focas`） | 框架已完成 | 未验证 | FANUC CNC，需 `libfocas32.so.1` |
 
 ## 推送协议
 
@@ -60,5 +64,9 @@
 - 协议实现并注册后，将完成状态改为 `已完成`。
 - 通过模拟器或真实设备完成端到端采集与反控验证后，再将验证状态改为 `已验证`，并在“现有验证记录”中补充报告路径和结论。
 
+- `CNC` / `fanuc focas`：FOCAS 驱动框架已注册，库路径预留为 `plugins/dependencies/focas/`，缺少 `libfocas32.so.1` 时连接保持未连接并重试
+- `CNC` / `heidenhain`：HEIDENHAIN LSV2 TCP 采集，登录后读取 PLC 区和 CNC 语义项；当前只读
+- `CNC` / `KND`：KND 数控系统 HTTP/JSON 采集与 R 区/变量写入，默认端口 8000；URL/JSON 字段随固件版本变化
+- `KNX` / `KNXnet/IP`：KNXnet/IP 组对象读写采集，UDP 3671，先发现网关再建立隧道；支持 1 位、1/2/4 字节整数和 4 字节浮点，读失败会断开并走统一重连指数退避
 - `siemens` / `ppi`：S7-200 PPI 主站，默认 9600/8/even/1、站号 2；支持串口和 TCP 透传、V/I/Q/M/SM/AI/AQ/DB 地址，读失败断开并走统一重连指数退避；当前仅实现读
 - `siemens` / `mpi`：西门子 MPI 串口主站，默认 38400/8/odd/1，站号 2；链路帧包含 S7 PDU、LRC 和 `10 10` 转义，读失败会断开串口并走统一重连指数退避；当前实现只读

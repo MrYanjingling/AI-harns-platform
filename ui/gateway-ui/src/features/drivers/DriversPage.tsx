@@ -60,11 +60,12 @@ export function DriversPage() {
   const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null)
   const { widths, totalWidth, resize } = useColumnResize({
     driverType: 140,
-    model: 240,
-    source: 100,
-    plugin: 220,
+    model: 220,
+    source: 90,
+    plugin: 200,
+    remark: 280,
     createdAt: 160,
-    actions: 140,
+    actions: 130,
   })
 
   const filteredDrivers = useMemo(() => {
@@ -159,7 +160,7 @@ export function DriversPage() {
         }
       >
           {drivers.isLoading ? (
-            <TableSkeleton rows={6} cols={6} />
+            <TableSkeleton rows={6} cols={7} />
           ) : drivers.isError ? (
             <div className="p-5">
               <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} compact />
@@ -176,6 +177,7 @@ export function DriversPage() {
                 <col style={{ width: widths.model }} />
                 <col style={{ width: widths.source }} />
                 <col style={{ width: widths.plugin }} />
+                <col style={{ width: widths.remark }} />
                 <col style={{ width: widths.createdAt }} />
                 <col style={{ width: widths.actions }} />
               </colgroup>
@@ -200,6 +202,14 @@ export function DriversPage() {
                   <DataTableHeadCell>
                     {t('gateway.drivers.columns.plugin')}
                     <ColumnResizeHandle column="plugin" width={widths.plugin} onResize={resize} />
+                  </DataTableHeadCell>
+                  <DataTableHeadCell>
+                    {t('gateway.drivers.columns.remark')}
+                    <ColumnResizeHandle
+                      column="remark"
+                      width={widths.remark}
+                      onResize={resize}
+                    />
                   </DataTableHeadCell>
                   <DataTableHeadCell>
                     {t('gateway.drivers.columns.createdAt')}
@@ -242,6 +252,11 @@ export function DriversPage() {
                     <DataTableCell>
                       <span className="block truncate">
                         {driver.pluginName || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <span className="block truncate" title={driver.remark}>
+                        {driver.remark || '—'}
                       </span>
                     </DataTableCell>
                     <DataTableCell className="whitespace-nowrap">

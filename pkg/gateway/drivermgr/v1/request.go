@@ -8,6 +8,7 @@ type CreateDriverReq struct {
 	Model      string          `json:"model"`
 	Schema     json.RawMessage `json:"schema"`
 	PluginName string          `json:"pluginName"`
+	Remark     string          `json:"remark"`
 }
 
 // UpdateDriverReq updates a custom driver.
@@ -16,6 +17,7 @@ type UpdateDriverReq struct {
 	Model      string          `json:"model"`
 	Schema     json.RawMessage `json:"schema"`
 	PluginName string          `json:"pluginName"`
+	Remark     string          `json:"remark"`
 }
 
 // DriverQuery filters driver records.

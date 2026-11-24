@@ -14,6 +14,8 @@ const (
 	DriverTypeDLT645     = "dlt645"
 	DriverTypeCJT188     = "cjt188"
 	DriverTypeDLT698     = "dlt698"
+	DriverTypeKNX        = "KNX"
+	DriverTypeCNC        = "CNC"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
@@ -42,6 +44,10 @@ const (
 	ModelDLT69845         = "dlt698_45"
 	ModelMPI              = "mpi"
 	ModelPPI              = "ppi"
+	ModelKNXnetIP         = "KNXnet/IP"
+	ModelKND              = "KND"
+	ModelHeidenhain       = "heidenhain"
+	ModelFanucFocas       = "fanuc focas"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -70,6 +76,10 @@ const (
 	DriverDLT69845         = "dlt698-45"
 	DriverMPI              = "mpi"
 	DriverPPI              = "ppi"
+	DriverKNXnetIP         = "knxnet-ip"
+	DriverKND              = "knd"
+	DriverHeidenhain       = "heidenhain"
+	DriverFanucFocas       = "fanuc-focas"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -98,6 +108,10 @@ const (
 	BuiltinDLT69845ID         = "01M7Z9X3Q8KY52DPGDWG9KEX15"
 	BuiltinMPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX16"
 	BuiltinPPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX17"
+	BuiltinKNXID              = "01M7Z9X3Q8KY52DPGDWG9KEX18"
+	BuiltinKNDID              = "01M7Z9X3Q8KY52DPGDWG9KEX19"
+	BuiltinHeidenhainID       = "01M7Z9X3Q8KY52DPGDWG9KEX20"
+	BuiltinFanucFocasID       = "01M7Z9X3Q8KY52DPGDWG9KEX21"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1481,6 +1495,130 @@ const ppiSchema = `{
   ]
 }`
 
+const knxSchema = `{
+  "fields": [
+    {"name":"discoveryIp","labelZh":"发现地址","labelEn":"Discovery IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"discoveryPort","labelZh":"发现端口","labelEn":"Discovery Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "KNX 地址",
+    "labelEn": "KNX Address",
+    "placeholderZh": "1/2/3,1.2.3 或 1/2/3,1.2.3,2",
+    "placeholderEn": "1/2/3,1.2.3 or 1/2/3,1.2.3,2",
+    "descriptionZh": "格式：组地址,个体地址[,nbit]；组地址 main/middle/sub，个体地址 area.line.device；nbit 仅用于 UINT8 的 2/4 位数据",
+    "descriptionEn": "Format: group address,individual address[,nbit]; group is main/middle/sub and individual is area.line.device; nbit is only for 2/4-bit UINT8 data"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}(,[24])?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{1,3},[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,3}$"}
+  ]
+}`
+
+const kndSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"CNC IP","labelEn":"CNC IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"HTTP 端口","labelEn":"HTTP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "KND 地址",
+    "labelEn": "KND Address",
+    "placeholderZh": "systemStatus.run-status / R100 / vars.0",
+    "placeholderEn": "systemStatus.run-status / R100 / vars.0",
+    "descriptionZh": "支持 PLC 区 X/Y/F/G/R/S/K/D、T/C.conf/cur、TL，以及 systemInfo/systemStatus/alarms/坐标/进给/倍率/变量等语义地址",
+    "descriptionEn": "Supports PLC X/Y/F/G/R/S/K/D, T/C.conf/cur, TL, and semantic systemInfo/systemStatus/alarms/coordinates/feed/override/vars addresses"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[A-Za-z0-9_./,:?&=-]+$"}
+  ]
+}`
+
+const heidenhainSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"CNC IP","labelEn":"CNC IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"LSV2 端口","labelEn":"LSV2 Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "LSV2 地址",
+    "labelEn": "LSV2 Address",
+    "placeholderZh": "W100 / B0 / S0.10 / machinePosition.X",
+    "placeholderEn": "W100 / B0 / S0.10 / machinePosition.X",
+    "descriptionZh": "支持 PLC B/W/D/N/U/M/I/O/T/C/S 地址，以及 runState、controlMode、programMain、programCurrent、programLineNo、倍率、刀具和 machinePosition 等语义地址",
+    "descriptionEn": "Supports PLC B/W/D/N/U/M/I/O/T/C/S addresses and semantic runState, controlMode, programs, overrides, spindle tool and machinePosition"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[A-Za-z0-9_./:-]+$"}
+  ]
+}`
+
+const focasSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"CNC IP","labelEn":"CNC IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"FOCAS 端口","labelEn":"FOCAS Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "FOCAS 地址",
+    "labelEn": "FOCAS Address",
+    "placeholderZh": "R100 / absolute.X / runState",
+    "placeholderEn": "R100 / absolute.X / runState",
+    "descriptionZh": "PMC 地址：A/C/D/E/F/G/K/M/N/R/T/X/Y；CNC 语义地址：absolute、machine、relative、runState、controlMode、program*、刀具和参数等",
+    "descriptionEn": "PMC addresses: A/C/D/E/F/G/K/M/N/R/T/X/Y; CNC semantic addresses include absolute, machine, relative, runState, controlMode, programs, tools and parameters"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^[A-Za-z0-9_./:-]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[A-Za-z0-9_./:-]+$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1506,6 +1644,10 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
 	{BuiltinMPIID, DriverTypeS7, ModelMPI, DriverMPI, mpiSchema},
 	{BuiltinPPIID, DriverTypeS7, ModelPPI, DriverPPI, ppiSchema},
+	{BuiltinKNXID, DriverTypeKNX, ModelKNXnetIP, DriverKNXnetIP, knxSchema},
+	{BuiltinKNDID, DriverTypeCNC, ModelKND, DriverKND, kndSchema},
+	{BuiltinHeidenhainID, DriverTypeCNC, ModelHeidenhain, DriverHeidenhain, heidenhainSchema},
+	{BuiltinFanucFocasID, DriverTypeCNC, ModelFanucFocas, DriverFanucFocas, focasSchema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},

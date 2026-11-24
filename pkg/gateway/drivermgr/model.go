@@ -13,5 +13,6 @@ type Driver struct {
 	BuiltinDriver bool
 	Schema        json.RawMessage
 	PluginName    string
+	Remark        string
 	CreatedTime   time.Time
 }

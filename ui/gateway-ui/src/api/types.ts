@@ -150,6 +150,7 @@ export interface Driver {
   builtinDriver: boolean
   schema: DriverSchema
   pluginName: string
+  remark: string
   createdTime: string
 }
 
@@ -169,6 +170,7 @@ export interface DriverPayload {
   model: string
   schema: DriverSchema
   pluginName: string
+  remark: string
 }
 
 /* ---------------- 推送 ---------------- */

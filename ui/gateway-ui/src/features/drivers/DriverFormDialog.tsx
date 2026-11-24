@@ -20,6 +20,7 @@ interface DriverForm {
   driverType: string
   model: string
   pluginName: string
+  remark: string
   schemaText: string
 }
 
@@ -27,6 +28,7 @@ const EMPTY_DRIVER: DriverForm = {
   driverType: '',
   model: '',
   pluginName: '',
+  remark: '',
   schemaText: EMPTY_DRIVER_SCHEMA_TEXT,
 }
 
@@ -62,6 +64,7 @@ export function DriverFormDialog({
         driverType: form.driverType.trim(),
         model: form.model.trim(),
         pluginName: form.pluginName.trim(),
+        remark: form.remark.trim(),
         schema,
       })
       toast.success(t('gateway.drivers.toast.created'))
@@ -142,6 +145,23 @@ export function DriverFormDialog({
               placeholder="my-driver-plugin"
               autoComplete="off"
               onChange={(event) => setForm({ ...form, pluginName: event.target.value })}
+            />
+          </Field>
+          <Field
+            label={t('gateway.drivers.field.remark')}
+            htmlFor="driver-create-remark"
+            labelClassName="text-sm"
+            labelWidthClassName="w-[96px]"
+            inline
+            className="sm:col-span-2"
+          >
+            <Input
+              id="driver-create-remark"
+              value={form.remark}
+              maxLength={255}
+              placeholder={t('gateway.drivers.field.remarkPlaceholder')}
+              autoComplete="off"
+              onChange={(event) => setForm({ ...form, remark: event.target.value })}
             />
           </Field>
         </CardContent>

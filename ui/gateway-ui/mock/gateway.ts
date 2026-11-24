@@ -868,6 +868,7 @@ export async function handleGateway(
         builtinDriver: false,
         schema: body.schema as unknown as Driver['schema'],
         pluginName: typeof body.pluginName === 'string' ? body.pluginName : '',
+        remark: typeof body.remark === 'string' ? body.remark : '',
         createdTime: nowIso(),
       }
       drivers.push(driver)

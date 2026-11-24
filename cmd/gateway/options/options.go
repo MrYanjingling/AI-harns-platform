@@ -22,11 +22,15 @@ import (
 	"harns-platform/pkg/gateway/collection/ethernetip1400"
 	"harns-platform/pkg/gateway/collection/ethernetip5500"
 	"harns-platform/pkg/gateway/collection/fins"
+	"harns-platform/pkg/gateway/collection/focas"
+	"harns-platform/pkg/gateway/collection/heidenhain"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
 	"harns-platform/pkg/gateway/collection/iec102"
 	"harns-platform/pkg/gateway/collection/iec103"
 	"harns-platform/pkg/gateway/collection/iec104"
+	"harns-platform/pkg/gateway/collection/knd"
+	"harns-platform/pkg/gateway/collection/knx"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
@@ -246,6 +250,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		cjt188.NewCreateHandler(drivermgr.ModelCJT1882004),
 		cjt188.NewCreateHandler(drivermgr.ModelCJT1882018),
 		&dlt698.CreateHandler{},
+		&knx.CreateHandler{},
+		&knd.CreateHandler{},
+		&heidenhain.CreateHandler{},
+		&focas.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -279,6 +287,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		cjt188.NewCollectorFactory(drivermgr.ModelCJT1882004),
 		cjt188.NewCollectorFactory(drivermgr.ModelCJT1882018),
 		&dlt698.CollectorFactory{},
+		&knx.CollectorFactory{},
+		&knd.CollectorFactory{},
+		&heidenhain.CollectorFactory{},
+		&focas.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

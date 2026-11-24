@@ -77,6 +77,10 @@ func DecodeActionValue(variable *Variable, text string) (any, error) {
 	rawRat := new(big.Rat).Quo(new(big.Rat).Sub(valueRat, offset), rate)
 
 	switch strings.ToLower(variable.DataType) {
+	case "int8":
+		return decodeIntAction(rawRat, "-128", "127", "int8")
+	case "uint8":
+		return decodeUint8Action(rawRat)
 	case "int16":
 		return decodeIntAction(rawRat, "-32768", "32767", "int16")
 	case "uint16":
@@ -85,7 +89,9 @@ func DecodeActionValue(variable *Variable, text string) (any, error) {
 		return decodeIntAction(rawRat, "-2147483648", "2147483647", "int32")
 	case "int64":
 		return decodeInt64Action(rawRat)
-	case "float32":
+	case "uint32":
+		return decodeUint32Action(rawRat)
+	case "float", "float32":
 		number, _ := rawRat.Float64()
 		if math.IsInf(number, 0) || math.IsNaN(number) {
 			return nil, fmt.Errorf("value cannot be represented as float32")
@@ -116,6 +122,8 @@ func decodeIntAction(value *big.Rat, min, max, name string) (any, error) {
 		return nil, fmt.Errorf("value is out of %s range", name)
 	}
 	switch name {
+	case "int8":
+		return int8(number.Int64()), nil
 	case "int16":
 		return int16(number.Int64()), nil
 	case "int32":
@@ -136,6 +144,29 @@ func decodeInt64Action(value *big.Rat) (any, error) {
 		return nil, fmt.Errorf("value is out of int64 range")
 	}
 	return number.Int64(), nil
+}
+
+func decodeUint8Action(value *big.Rat) (any, error) {
+	if !value.IsInt() {
+		return nil, fmt.Errorf("value does not resolve to an integer for uint8")
+	}
+	number := new(big.Int).Set(value.Num())
+	if number.Sign() < 0 || number.Cmp(big.NewInt(255)) > 0 {
+		return nil, fmt.Errorf("value is out of uint8 range")
+	}
+	return uint8(number.Int64()), nil
+}
+
+func decodeUint32Action(value *big.Rat) (any, error) {
+	if !value.IsInt() {
+		return nil, fmt.Errorf("value does not resolve to an integer for uint32")
+	}
+	number := new(big.Int).Set(value.Num())
+	maxValue, _ := new(big.Int).SetString("4294967295", 10)
+	if number.Sign() < 0 || number.Cmp(maxValue) > 0 {
+		return nil, fmt.Errorf("value is out of uint32 range")
+	}
+	return uint32(number.Int64()), nil
 }
 
 func decodeUintAction(value *big.Rat, max, name string) (any, error) {

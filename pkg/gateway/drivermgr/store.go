@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     builtin_driver  INTEGER NOT NULL DEFAULT 0,
     schema          TEXT NOT NULL DEFAULT '{}',
     plugin_name     TEXT NOT NULL,
+    remark          TEXT NOT NULL DEFAULT '',
     created_time    TEXT NOT NULL,
     UNIQUE (model),
     UNIQUE (plugin_name),
@@ -47,6 +48,9 @@ func (s *Store) Initialize(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, createTableSQL); err != nil {
 		return err
 	}
+	if err := s.ensureColumn(ctx, "drivers", "remark", "ALTER TABLE drivers ADD COLUMN remark TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -65,9 +69,9 @@ func (s *Store) Initialize(ctx context.Context) error {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO drivers (id, driver_type, model, builtin_driver, schema, plugin_name, created_time)
-				 VALUES (?, ?, ?, 1, ?, ?, ?)`,
-				builtin.ID, builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, now); err != nil {
+				`INSERT INTO drivers (id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time)
+				 VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
+				builtin.ID, builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtinRemark(builtin.Model), now); err != nil {
 				return err
 			}
 		case err != nil:
@@ -76,8 +80,8 @@ func (s *Store) Initialize(ctx context.Context) error {
 			return ErrConflict
 		default:
 			if _, err := tx.ExecContext(ctx,
-				`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ? WHERE id = ? AND builtin_driver = 1`,
-				builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtin.ID); err != nil {
+				`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ?, remark = ? WHERE id = ? AND builtin_driver = 1`,
+				builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtinRemark(builtin.Model), builtin.ID); err != nil {
 				return err
 			}
 		}
@@ -87,7 +91,7 @@ func (s *Store) Initialize(ctx context.Context) error {
 
 // List returns all drivers, optionally filtered by driver type.
 func (s *Store) List(ctx context.Context, driverType string) ([]*Driver, error) {
-	query := `SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time FROM drivers`
+	query := `SELECT id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time FROM drivers`
 	args := make([]interface{}, 0, 1)
 	if driverType = strings.TrimSpace(driverType); driverType != "" {
 		query += ` WHERE driver_type LIKE ? ESCAPE '\'`
@@ -115,21 +119,21 @@ func (s *Store) List(ctx context.Context, driverType string) ([]*Driver, error) 
 // Get returns one driver by ID.
 func (s *Store) Get(ctx context.Context, id string) (*Driver, error) {
 	return scanDriver(s.db.QueryRowContext(ctx,
-		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time
+		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time
 		 FROM drivers WHERE id = ?`, id))
 }
 
 // GetByModel returns one driver by model.
 func (s *Store) GetByModel(ctx context.Context, model string) (*Driver, error) {
 	return scanDriver(s.db.QueryRowContext(ctx,
-		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time
+		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time
 		 FROM drivers WHERE model = ? ORDER BY builtin_driver DESC, id ASC LIMIT 1`, model))
 }
 
 // GetByPluginName returns one driver by plugin name.
 func (s *Store) GetByPluginName(ctx context.Context, pluginName string) (*Driver, error) {
 	return scanDriver(s.db.QueryRowContext(ctx,
-		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, created_time
+		`SELECT id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time
 		 FROM drivers WHERE plugin_name = ? LIMIT 1`, pluginName))
 }
 
@@ -140,9 +144,9 @@ func (s *Store) Create(ctx context.Context, item *Driver) error {
 		return err
 	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO drivers (id, driver_type, model, builtin_driver, schema, plugin_name, created_time)
-		 VALUES (?, ?, ?, 0, ?, ?, ?)`,
-		item.ID, item.DriverType, item.Model, schema, item.PluginName, item.CreatedTime.UTC().Format(time.RFC3339Nano))
+		`INSERT INTO drivers (id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time)
+		 VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+		item.ID, item.DriverType, item.Model, schema, item.PluginName, item.Remark, item.CreatedTime.UTC().Format(time.RFC3339Nano))
 	return mapWriteError(err)
 }
 
@@ -153,9 +157,9 @@ func (s *Store) Update(ctx context.Context, item *Driver) error {
 		return err
 	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ?
+		`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ?, remark = ?
 		 WHERE id = ? AND builtin_driver = 0`,
-		item.DriverType, item.Model, schema, item.PluginName, item.ID)
+		item.DriverType, item.Model, schema, item.PluginName, item.Remark, item.ID)
 	if err != nil {
 		return mapWriteError(err)
 	}
@@ -197,7 +201,7 @@ func scanDriver(scanner rowScanner) (*Driver, error) {
 		createdTime   string
 	)
 	if err := scanner.Scan(
-		&item.ID, &item.DriverType, &item.Model, &builtinDriver, &schema, &item.PluginName, &createdTime,
+		&item.ID, &item.DriverType, &item.Model, &builtinDriver, &schema, &item.PluginName, &item.Remark, &createdTime,
 	); err != nil {
 		return nil, err
 	}
@@ -209,6 +213,51 @@ func scanDriver(scanner rowScanner) (*Driver, error) {
 	}
 	item.CreatedTime = parsed
 	return &item, nil
+}
+
+func builtinRemark(model string) string {
+	switch model {
+	case ModelS71500:
+		return "s7-300/400 slot 默认 2，s7-1500 slot 默认 1"
+	case ModelKND:
+		return "URL/JSON 字段随固件版本变化"
+	case ModelFanucFocas:
+		return "需将 libfocas32.so.1 放到 plugins/dependencies/focas/（当前仅完成框架）"
+	default:
+		return ""
+	}
+}
+
+func (s *Store) ensureColumn(ctx context.Context, table, column, ddl string) error {
+	rows, err := s.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			cid      int
+			name     string
+			typ      string
+			notNull  int
+			defaultV sql.NullString
+			primary  int
+		)
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultV, &primary); err != nil {
+			return err
+		}
+		if name == column {
+			return rows.Err()
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, ddl)
+	return err
 }
 
 func schemaText(schema json.RawMessage) (string, error) {

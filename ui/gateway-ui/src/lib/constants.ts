@@ -107,9 +107,11 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   ethercat: 'EtherCAT',
   profinet: 'PROFINET',
   dnp3: 'DNP3',
-  dlt645: 'DL/T 645',
-  cjt188: 'CJ/T 188',
-  dlt698: 'DL/T 698',
+  dlt645: 'DLT 645',
+  cjt188: 'CJT 188',
+  dlt698: 'DLT 698',
+  KNX: 'KNX',
+  CNC: 'CNC',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -122,6 +124,10 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   's7-200': 'S7-200',
   mpi: 'MPI',
   ppi: 'PPI',
+  'KNXnet/IP': 'KNXnet/IP',
+  KND: 'KND',
+  heidenhain: 'Heidenhain',
+  'fanuc focas': 'Fanuc FOCAS',
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
@@ -131,12 +137,13 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
   dnp3: 'DNP3',
-  dlt645_2007: 'DL/T 645-2007',
-  dlt645_1997: 'DL/T 645-1997',
-  cjt188_2004: 'CJ/T 188-2004',
-  cjt188_2018: 'CJ/T 188-2018',
-  dlt698_45: 'DL/T 698.45',
+  dlt645_2007: 'DLT 645-2007',
+  dlt645_1997: 'DLT 645-1997',
+  cjt188_2004: 'CJT 188-2004',
+  cjt188_2018: 'CJT 188-2018',
+  dlt698_45: 'DLT 698.45',
 }
+
 
 export function driverTypeLabel(type: string): string {
   return DRIVER_TYPE_LABELS[type] ?? type
