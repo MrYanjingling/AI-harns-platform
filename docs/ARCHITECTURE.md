@@ -229,6 +229,12 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `ethercat`（`driverType=ethercat`）：参照 Neuron ADS C 插件实现，经 Beckhoff TwinCAT ADS（TCP 48898）按 `索引组,索引偏移[.长度]` 直接读写 EtherCAT 过程映像，校验 ADS 索引组白名单与 800–899 端口
 - `DF1`（`driverType=Allen-Bradley`）：串口全双工 DF1 文件采集，支持 N/F/B/T/C/R/S/A/U/I/O；当前只读
 - `ab5000`（`driverType=Allen-Bradley`）：Logix 5000 CIP 标签采集，支持符号路径、数组和结构体成员；当前只读
+- `HJ212`（`driverType=HJ212`）：HJ 212-2017 ASCII 帧，串口/TCP 客户端，按 `RT!/MIN!/HOUR!/DAY!` 污染物地址读取；当前只读
+- `BACnet`（`driverType=BACnet`）：BACnet/IP UDP，按对象类型/实例/属性读取，支持 Present_Value 写；当前不支持分段和 COV
+- `Beckhoff ADS`（`driverType=TwinCAT`）：AMS/TCP 48898，按 ADS 索引组/偏移读写，支持字符串长度后缀；断线后统一指数退避
+- `SRTP`（`driverType=GE/Emerson`）：TCP 18245，按 1 基内存地址读写，支持 `%R/%I/%Q/%M/%AI` 等区域；内置握手与断线退避
+- `SNMP-V2`（`driverType=SNMP`）：UDP 161 SNMPv2c GetRequest，按 `community|OID` 读取 MIB 标量；当前只读
+- `IEC61850`（`driverType=IEC`）：TCP 102 MMS，按 `LD/LN.DO.DA[FC]` 读写，支持默认功能约束和断线退避
 - `codesys-v3`（`driverType=Codesys`）：CODESYS V3 CMP TCP 11740，通道/登录/变量路径读取；当前只读
 - `Kuka`（`driverType=Kuka`）：KUKA Ethernet KRL over TCP，Server/Client 模式，XPath 读取 EKI XML；当前只读
 - `MTConnect`（`driverType=CNC`）：MTConnect HTTP `/current` XML，XPath 标签读取；当前只读

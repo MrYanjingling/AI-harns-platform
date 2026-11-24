@@ -225,6 +225,20 @@ func builtinRemark(model string) string {
 		return "需将 libfocas32.so.1 放到 plugins/dependencies/focas/（当前仅完成框架）"
 	case ModelDF1:
 		return "Allen-Bradley/Rockwell 的串口全双工协议，面向 SLC 500、MicroLogix、PLC-5 等设备。"
+	case ModelSRTP:
+		return "适用于 Series 90-30/70、VersaMax、PACSystems。"
+	case ModelSNMPV2:
+		return "网络设备监控标准协议。"
+	case ModelCOMLI:
+		return "适用于用于 ABB AC 系列控制器/PLC。"
+	case ModelMCFX:
+		return "适用于三菱 FX 系列 PLC 编程口。"
+	case ModelMC1E:
+		return "适用于三菱 A 系列/Q 系列 MC 1E 协议。"
+	case ModelMC3E:
+		return "适用于三菱 Q/L 系列 MC 3E 协议。"
+	case ModelMC4E:
+		return "适用于三菱 Q/L 系列 MC 4E 协议。"
 	default:
 		return ""
 	}

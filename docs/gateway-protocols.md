@@ -53,6 +53,12 @@
 | CODESYS V3（`Codesys` / `codesys-v3`） | 已完成 | 未验证 | CODESYS V3 运行时 |
 | Allen-Bradley Logix 5000（`Allen-Bradley` / `ab5000`） | 已完成 | 未验证 | Rockwell ControlLogix / CompactLogix |
 | Allen-Bradley DF1（`Allen-Bradley` / `DF1`） | 已完成 | 未验证 | SLC 500、MicroLogix、PLC-5 |
+| HJ 212-2017（`HJ212` / `HJ212`） | 已完成 | 未验证 | 污染源在线监测设备/主站 |
+| BACnet/IP（`BACnet` / `BACnet`） | 已完成 | 未验证 | 楼宇控制器、暖通空调、照明门禁系统 |
+| Beckhoff ADS（`TwinCAT` / `Beckhoff ADS`） | 已完成 | 未验证 | TwinCAT 2/3 PLC |
+| GE SRTP（`GE/Emerson` / `SRTP`） | 已完成 | 未验证 | Series 90-30/70、VersaMax、PACSystems |
+| SNMP v2c（`SNMP` / `SNMP-V2`） | 已完成 | 未验证 | 网络设备、交换机、服务器 MIB |
+| IEC 61850 MMS（`IEC` / `IEC61850`） | 已完成 | 未验证 | 保护、测控、合并单元等 IED |
 
 ## 推送协议
 
@@ -70,6 +76,12 @@
 - 通过模拟器或真实设备完成端到端采集与反控验证后，再将验证状态改为 `已验证`，并在“现有验证记录”中补充报告路径和结论。
 
 - `Allen-Bradley` / `DF1`：串口全双工 DF1 文件读写，支持 N/F/B/T/C/R/S/A/U/I/O 文件；当前只读
+- `IEC` / `IEC61850`：TCP 102 MMS 客户端，按 `LD/LN.DO.DA[FC]` 读取和写入，未带 FC 时使用默认 FC；支持浏览/读/写/报告底层能力
+- `SNMP` / `SNMP-V2`：UDP 161，SNMPv2c GetRequest，地址 `community|OID`，支持布尔/整数/计数器/字符串/OID/IP 等 BER 值；只读
+- `GE/Emerson` / `SRTP`：TCP 18245，按 1 基内存地址读写 `%I/%Q/%M/%T/%SA/%SB/%SC/%S/%G/%AI/%AQ/%R`，支持 BIT、字/字节类型和 STRING；断线后走统一指数退避
+- `TwinCAT` / `Beckhoff ADS`：AMS/TCP 48898，按 `索引组,索引偏移[.字符串长度]` 读写，支持 BOOL/BIT/整数/浮点/字符串；断线后走统一指数退避
+- `BACnet` / `BACnet`：BACnet/IP UDP 47808，支持对象属性读取和 Present_Value 写入，断线后走统一指数退避；当前未实现分段和 COV
+- `HJ212` / `HJ212`：HJ 212-2017 ASCII 帧，串口/TCP 客户端；按 `RT!/MIN!/HOUR!/DAY!污染物编码-后缀` 读取实时/分钟/小时/日数据；请求采用标准 `QN=...;ST=...;CN=...;PW=...;MN=...;Flag=4;CP=&&&&` 格式，CRC 为 4 位十六进制大写，结束符 CRLF；当前只读
 - `Allen-Bradley` / `ab5000`：Logix 5000 CIP 标签采集，支持符号路径、数组和结构体成员；当前只读
 - `Codesys` / `codesys-v3`：CODESYS V3 CMP TCP 11740，登录后按变量路径读取；当前只读
 - `Kuka` / `Kuka`：KUKA Ethernet KRL over TCP，支持 Server/Client 模式、XPath 读取 EKI XML；当前只读

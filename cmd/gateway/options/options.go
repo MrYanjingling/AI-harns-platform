@@ -12,9 +12,13 @@ import (
 	"harns-platform/pkg/gateway/ai/assistant"
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
+	"harns-platform/pkg/gateway/collection/a1e"
 	"harns-platform/pkg/gateway/collection/ab5000"
+	"harns-platform/pkg/gateway/collection/ads"
+	"harns-platform/pkg/gateway/collection/bacnet"
 	"harns-platform/pkg/gateway/collection/cjt188"
 	"harns-platform/pkg/gateway/collection/codesys3"
+	"harns-platform/pkg/gateway/collection/comli"
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/df1"
 	"harns-platform/pkg/gateway/collection/dlt645"
@@ -26,15 +30,19 @@ import (
 	"harns-platform/pkg/gateway/collection/ethernetip5500"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/focas"
+	"harns-platform/pkg/gateway/collection/fx"
 	"harns-platform/pkg/gateway/collection/heidenhain"
+	"harns-platform/pkg/gateway/collection/hj212"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
 	"harns-platform/pkg/gateway/collection/iec102"
 	"harns-platform/pkg/gateway/collection/iec103"
 	"harns-platform/pkg/gateway/collection/iec104"
+	"harns-platform/pkg/gateway/collection/iec61850"
 	"harns-platform/pkg/gateway/collection/knd"
 	"harns-platform/pkg/gateway/collection/knx"
 	"harns-platform/pkg/gateway/collection/kuka"
+	"harns-platform/pkg/gateway/collection/mewtocol"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
@@ -45,7 +53,11 @@ import (
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/ppi"
 	"harns-platform/pkg/gateway/collection/profinet"
+	"harns-platform/pkg/gateway/collection/qna3e"
+	"harns-platform/pkg/gateway/collection/qna4e"
 	"harns-platform/pkg/gateway/collection/s7"
+	"harns-platform/pkg/gateway/collection/snmp"
+	"harns-platform/pkg/gateway/collection/srtp"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/gatewaymgr"
@@ -243,6 +255,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&iec103.CreateHandler{},
 		&iec104.CreateHandler{},
 		&hostlinkcmode.CreateHandler{},
+		&mewtocol.CreateHandler{},
 		&omroncip.CreateHandler{},
 		&ethernetip.CreateHandler{},
 		&ethernetip5500.CreateHandler{},
@@ -262,8 +275,19 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&mtconnect.CreateHandler{},
 		&kuka.CreateHandler{},
 		&codesys3.CreateHandler{},
+		&comli.CreateHandler{},
+		a1e.NewCreateHandler(),
+		qna3e.NewCreateHandler(),
+		qna4e.NewCreateHandler(),
+		&fx.CreateHandler{},
 		&ab5000.CreateHandler{},
 		&df1.CreateHandler{},
+		&hj212.CreateHandler{},
+		&bacnet.CreateHandler{},
+		&ads.CreateHandler{},
+		&srtp.CreateHandler{},
+		&snmp.CreateHandler{},
+		&iec61850.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -285,6 +309,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&iec103.CollectorFactory{},
 		&iec104.CollectorFactory{},
 		&hostlinkcmode.CollectorFactory{},
+		&mewtocol.CollectorFactory{},
 		&omroncip.CollectorFactory{},
 		&ethernetip.CollectorFactory{},
 		&ethernetip5500.CollectorFactory{},
@@ -304,8 +329,19 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&mtconnect.CollectorFactory{},
 		&kuka.CollectorFactory{},
 		&codesys3.CollectorFactory{},
+		&comli.CollectorFactory{},
+		a1e.NewCollectorFactory(),
+		qna3e.NewCollectorFactory(),
+		qna4e.NewCollectorFactory(),
+		&fx.CollectorFactory{},
 		&ab5000.CollectorFactory{},
 		&df1.CollectorFactory{},
+		&hj212.CollectorFactory{},
+		&bacnet.CollectorFactory{},
+		&ads.CollectorFactory{},
+		&srtp.CollectorFactory{},
+		&snmp.CollectorFactory{},
+		&iec61850.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

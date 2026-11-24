@@ -103,6 +103,7 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   siemens: 'Siemens',
   opcUa: 'OPC UA',
   omron: 'Omron',
+  Panasonic: 'Panasonic',
   ethernetIp: 'EtherNet/IP',
   ethercat: 'EtherCAT',
   profinet: 'PROFINET',
@@ -115,6 +116,14 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   Kuka: 'Kuka',
   Codesys: 'Codesys',
   'Allen-Bradley': 'Allen-Bradley',
+  HJ212: 'HJ212',
+  BACnet: 'BACnet',
+  TwinCAT: 'TwinCAT',
+  'GE/Emerson': 'GE/Emerson',
+  SNMP: 'SNMP',
+  IEC: 'IEC',
+  ABB: 'ABB',
+  Mitsubishi: 'Mitsubishi',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -136,9 +145,16 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   'codesys-v3': 'CODESYS V3',
   ab5000: 'AB5000',
   DF1: 'DF1',
+  HJ212: 'HJ212',
+  BACnet: 'BACnet',
+  'Beckhoff ADS': 'Beckhoff ADS',
+  SRTP: 'SRTP',
+  'SNMP-V2': 'SNMP-V2',
+  IEC61850: 'IEC 61850',
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
+  Mewtocol: 'Panasonic Mewtocol',
   ethernetIp: 'EtherNet/IP',
   'EtherNet/IP-ControlLogic 55xx': 'EtherNet/IP-ControlLogic 55xx',
   'EtherNet/IP-MicroLogix 1400': 'EtherNet/IP-MicroLogix 1400',
@@ -150,6 +166,11 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   cjt188_2004: 'CJT 188-2004',
   cjt188_2018: 'CJT 188-2018',
   dlt698_45: 'DLT 698.45',
+  COMLI: 'COMLI',
+  'MC-FX': 'MC-FX',
+  'MC-1E': 'MC-1E',
+  'MC-3E': 'MC-3E',
+  'MC-4E': 'MC-4E',
 }
 
 
@@ -192,8 +213,20 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'class123Interval',
   'timeSync',
   'maxReadWords',
+  'baud',
+  'data',
+  'parity',
+  'stop',
+  'retry',
+  'transport_mode',
+  'src-port',
   'amsPort',
   'localAmsPort',
+  'srcPort',
+  'bbmd',
+  'srcAdsPort',
+  'dstAdsPort',
+  'localPort',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

@@ -1,11 +1,14 @@
 package drivermgr
 
 const (
-	DriverTypeModbus = "modbus"
-	DriverTypeS7     = "siemens"
-	DriverTypeOpcUa  = "opcUa"
-	DriverTypeOmron  = "omron"
-	DriverTypeIEC    = "IEC"
+	DriverTypeModbus     = "modbus"
+	DriverTypeS7         = "siemens"
+	DriverTypeOpcUa      = "opcUa"
+	DriverTypeOmron      = "omron"
+	DriverTypePanasonic  = "Panasonic"
+	DriverTypeIEC        = "IEC"
+	DriverTypeABB        = "ABB"
+	DriverTypeMitsubishi = "Mitsubishi"
 
 	DriverTypeEthernetIP   = "ethernetIp"
 	DriverTypeAllenBradley = "Allen-Bradley"
@@ -20,6 +23,11 @@ const (
 	DriverTypeKuka         = "Kuka"
 	DriverTypeCodesys      = "Codesys"
 	DriverTypeAB5000       = "Allen-Bradley"
+	DriverTypeHJ212        = "HJ212"
+	DriverTypeBACnet       = "BACnet"
+	DriverTypeADS          = "TwinCAT"
+	DriverTypeSRTP         = "GE/Emerson"
+	DriverTypeSNMP         = "SNMP"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
@@ -31,10 +39,16 @@ const (
 	ModelFins             = "fins"
 	ModelHostlinkCmode    = "hostlinkCmode"
 	ModelOmronCip         = "omronCip"
+	ModelMewtocol         = "Mewtocol"
 	ModelIEC101           = "IEC101"
 	ModelIEC102           = "IEC102"
 	ModelIEC103           = "IEC103"
 	ModelIEC104           = "IEC104"
+	ModelCOMLI            = "COMLI"
+	ModelMCFX             = "MC-FX"
+	ModelMC1E             = "MC-1E"
+	ModelMC3E             = "MC-3E"
+	ModelMC4E             = "MC-4E"
 	ModelEthernetIP       = "ethernetIp"
 	ModelEthernetIP5500   = "EtherNet/IP-ControlLogic 55xx"
 	ModelEthernetIP1400   = "EtherNet/IP-MicroLogix 1400"
@@ -57,6 +71,12 @@ const (
 	ModelCodesysV3        = "codesys-v3"
 	ModelAB5000           = "ab5000"
 	ModelDF1              = "DF1"
+	ModelHJ212            = "HJ212"
+	ModelBACnet           = "BACnet"
+	ModelBeckhoffADS      = "Beckhoff ADS"
+	ModelSRTP             = "SRTP"
+	ModelSNMPV2           = "SNMP-V2"
+	ModelIEC61850         = "IEC61850"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -68,10 +88,16 @@ const (
 	DriverFins             = "omron-fins"
 	DriverHostlinkCmode    = "omron-hostlink-cmode"
 	DriverOmronCip         = "omron-cip"
+	DriverMewtocol         = "panasonic-mewtocol"
 	DriverIEC101           = "iec101"
 	DriverIEC102           = "iec102"
 	DriverIEC103           = "iec103"
 	DriverIEC104           = "iec104"
+	DriverCOMLI            = "comli"
+	DriverFX               = "fx"
+	DriverA1E              = "a1e"
+	DriverQnA3E            = "qna3e"
+	DriverQnA4E            = "qna4e"
 	DriverEthernetIP       = "ethernet-ip"
 	DriverEthernetIP5500   = "ethernet-ip-5500"
 	DriverEthernetIP1400   = "ethernet-ip-1400"
@@ -94,6 +120,12 @@ const (
 	DriverCodesysV3        = "codesys-v3"
 	DriverAB5000           = "ab5000"
 	DriverDF1              = "df1"
+	DriverHJ212            = "hj212"
+	DriverBACnet           = "bacnet"
+	DriverADS              = "ads"
+	DriverSRTP             = "srtp"
+	DriverSNMP             = "snmp"
+	DriverIEC61850         = "iec61850"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -104,6 +136,7 @@ const (
 	BuiltinOpcUaID            = "01M706HSSR3Q8KY52DPSV88HRY"
 	BuiltinFinsID             = "01M706HSSR3Q8KY52DPSV88HRZ"
 	BuiltinHostlinkCmodeID    = "01M706HSSR3Q8KY52DPSV88HS1"
+	BuiltinMewtocolID         = "01M8C0MEWT0C0L1A2B3C4D5E6F"
 	BuiltinOmronCipID         = "01M706HSSR3Q8KY52DPSV88HS2"
 	BuiltinIEC101ID           = "01M7Z9X3Q8KY52DPGDWG9KEX01"
 	BuiltinIEC102ID           = "01M7Z9X3Q8KY52DPGDWG9KEX02"
@@ -131,6 +164,17 @@ const (
 	BuiltinCodesysV3ID        = "01M7Z9X3Q8KY52DPGDWG9KEX24"
 	BuiltinAB5000ID           = "01M7Z9X3Q8KY52DPGDWG9KEX25"
 	BuiltinDF1ID              = "01M7Z9X3Q8KY52DPGDWG9KEX26"
+	BuiltinHJ212ID            = "01M7Z9X3Q8KY52DPGDWG9KEX27"
+	BuiltinBACnetID           = "01M7Z9X3Q8KY52DPGDWG9KEX28"
+	BuiltinADSID              = "01M7Z9X3Q8KY52DPGDWG9KEX29"
+	BuiltinSRTPID             = "01M7Z9X3Q8KY52DPGDWG9KEX30"
+	BuiltinSNMPID             = "01M7Z9X3Q8KY52DPGDWG9KEX31"
+	BuiltinIEC61850ID         = "01M7Z9X3Q8KY52DPGDWG9KEX37"
+	BuiltinCOMLIID            = "01M7Z9X3Q8KY52DPGDWG9KEX32"
+	BuiltinFXID               = "01M7Z9X3Q8KY52DPGDWG9KEX33"
+	BuiltinA1EID              = "01M7Z9X3Q8KY52DPGDWG9KEX34"
+	BuiltinQnA3EID            = "01M7Z9X3Q8KY52DPGDWG9KEX35"
+	BuiltinQnA4EID            = "01M7Z9X3Q8KY52DPGDWG9KEX36"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1798,7 +1842,301 @@ const df1Schema = `{
   ]
 }`
 
+const hj212Schema = `{
+  "fields": [
+    {"name":"link","labelZh":"链路类型","labelEn":"Link Type","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"0","labelZh":"串口","labelEn":"Serial"},{"value":"1","labelZh":"TCP","labelEn":"TCP"}]},
+    {"name":"location","labelZh":"串口设备/IP 地址","labelEn":"Serial Port / IP","regex":"^.+$","sort":2,"type":"input","required":true},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":4,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":5,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity|none|odd|even|0|1|2)$","sort":6,"type":"select","options":[{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":7,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":9,"type":"input"},
+    {"name":"ST","labelZh":"系统编码(ST)","labelEn":"System Code (ST)","regex":"^[0-9]{1,3}$","sort":10,"type":"input","required":true},
+    {"name":"PW","labelZh":"密码(PW)","labelEn":"Password (PW)","regex":"^[^;\\r\\n]{0,9}$","sort":11,"type":"input"},
+    {"name":"MN","labelZh":"设备编号(MN)","labelEn":"Device ID (MN)","regex":"^[^;\\r\\n]{1,27}$","sort":12,"type":"input","required":true}
+  ],
+  "variableAddress": {
+    "labelZh": "污染物变量地址",
+    "labelEn": "Pollutant Address",
+    "placeholderZh": "RT!a34013-Rtd / MIN!w01018-Avg / HOUR!w01018-Cou",
+    "placeholderEn": "RT!a34013-Rtd / MIN!w01018-Avg / HOUR!w01018-Cou",
+    "descriptionZh": "格式：RT!/MIN!/HOUR!/DAY! + 污染物编码 + 后缀。RT 支持 -Rtd、-ZsRtd、-Flag、-SampleTime、-EFlag；分钟/小时/日支持 -Cou、-Min、-Avg、-Max、-ZsMin、-ZsAvg、-ZsMax、-Flag",
+    "descriptionEn": "Format: RT!/MIN!/HOUR!/DAY! + pollutant code + suffix. RT supports -Rtd, -ZsRtd, -Flag, -SampleTime, -EFlag; period data supports -Cou, -Min, -Avg, -Max, -ZsMin, -ZsAvg, -ZsMax, -Flag"
+  },
+  "variableDataTypes": [
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^RT!.*-(Rtd|ZsRtd)$|^(MIN|HOUR|DAY)!.*-(Cou|Min|Avg|Max|ZsMin|ZsAvg|ZsMax)$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^RT!.*-(Flag|SampleTime|EFlag)$|^(MIN|HOUR|DAY)!.*-Flag$"}
+  ]
+}`
+
+const bacnetSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"设备/BBMD IP","labelEn":"Device / BBMD IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"BACnet 端口","labelEn":"BACnet Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"srcPort","labelZh":"本地端口","labelEn":"Source Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"bbmd","labelZh":"BBMD 注册","labelEn":"BBMD Register","regex":"^[01]$","sort":4,"type":"select","options":[{"value":"0","labelZh":"否","labelEn":"No"},{"value":"1","labelZh":"是","labelEn":"Yes"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":6,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "BACnet 对象地址",
+    "labelEn": "BACnet Object Address",
+    "placeholderZh": "AI0 / AI0.Present_Value / DEV0.Object_Name / AV1.custom.85",
+    "placeholderEn": "AI0 / AI0.Present_Value / DEV0.Object_Name / AV1.custom.85",
+    "descriptionZh": "格式：对象前缀+实例号[.属性名|custom.属性ID]。前缀支持 AI/AO/AV/BI/BO/BV/MSI/MSO/MSV/ACC/DEV；省略属性时默认 Present_Value，DEV 必须指定属性",
+    "descriptionEn": "Format: object prefix + instance [.property | custom.propertyId]. Prefixes: AI/AO/AV/BI/BO/BV/MSI/MSO/MSV/ACC/DEV; Present_Value is the default, DEV requires an explicit property"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(AI|AO|AV|BI|BO|BV|MSI|MSO|MSV|ACC|DEV)[0-9]{1,7}(\\.[A-Za-z_][A-Za-z0-9_]*|\\.[Cc]ustom\\.[0-9]{1,7})?$"}
+  ]
+}`
+
+const beckhoffADSSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"PLC IP","labelEn":"PLC IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"AMS/TCP 端口","labelEn":"AMS/TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"srcAmsNetId","labelZh":"源 AMS Net ID","labelEn":"Source AMS Net ID","regex":"^([0-9]{1,3}\\.){5}[0-9]{1,3}$","sort":3,"type":"input"},
+    {"name":"srcAdsPort","labelZh":"源 ADS 端口","labelEn":"Source ADS Port","regex":"^[0-9]{1,5}$","sort":4,"type":"input"},
+    {"name":"dstAmsNetId","labelZh":"目标 AMS Net ID","labelEn":"Target AMS Net ID","regex":"^([0-9]{1,3}\\.){5}[0-9]{1,3}$","sort":5,"type":"input"},
+    {"name":"dstAdsPort","labelZh":"目标 ADS 端口","labelEn":"Target ADS Port","regex":"^[0-9]{1,5}$","sort":6,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":7,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "ADS 索引地址",
+    "labelEn": "ADS Index Address",
+    "placeholderZh": "0xF020,0 / 0x4020,0.80",
+    "placeholderEn": "0xF020,0 / 0x4020,0.80",
+    "descriptionZh": "格式：索引组,索引偏移[.字符串长度]，group/offset 支持十进制或 0x 前缀；STRING 必须追加 .长度，例如 0x4020,0.80",
+    "descriptionEn": "Format: index group,index offset[.stringLength], group/offset accept decimal or 0x prefix; STRING requires .length, for example 0x4020,0.80"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+\\.[0-9]{1,3}$"}
+  ]
+}`
+
+const srtpSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"PLC IP","labelEn":"PLC IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"SRTP 端口","labelEn":"SRTP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "SRTP 内存地址",
+    "labelEn": "SRTP Memory Address",
+    "placeholderZh": "%R1 / %I1 / %AI1 / %R1.3 / %R1#8",
+    "placeholderEn": "%R1 / %I1 / %AI1 / %R1.3 / %R1#8",
+    "descriptionZh": "1 基地址：%I/%Q/%M/%T/%SA/%SB/%SC/%S/%G/%AI/%AQ/%R + 地址。BIT 可用 %R1.3 取字位；STRING 用 #长度，例如 %R1#8",
+    "descriptionEn": "1-based address: %I/%Q/%M/%T/%SA/%SB/%SC/%S/%G/%AI/%AQ/%R + address. BIT can use %R1.3 for a word bit; STRING uses #length, e.g. %R1#8"
+  },
+  "variableDataTypes": [
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^%[A-Za-z0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^%[A-Za-z0-9]+#[0-9]{1,3}$"}
+  ]
+}`
+
+const snmpSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"Agent IP","labelEn":"Agent IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"SNMP 端口","labelEn":"SNMP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"localPort","labelZh":"本地端口","labelEn":"Local Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "Community|OID",
+    "labelEn": "Community|OID",
+    "placeholderZh": "public|1.3.6.1.2.1.1.1.0",
+    "placeholderEn": "public|1.3.6.1.2.1.1.1.0",
+    "descriptionZh": "格式：community|OID，例如 public|1.3.6.1.2.1.1.1.0；只支持 SNMPv2c GetRequest，单标签单 OID",
+    "descriptionEn": "Format: community|OID, for example public|1.3.6.1.2.1.1.1.0; SNMPv2c GetRequest only, one OID per tag"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[^|\\r\\n]{1,64}\\|[0-9]{1,3}(\\.[0-9]{1,3}){1,31}$"}
+  ]
+}`
+
+const iec61850Schema = `{
+  "fields": [
+    {"name":"host","labelZh":"IED IP","labelEn":"IED IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"MMS 端口","labelEn":"MMS Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input"},
+    {"name":"defaultFC","labelZh":"默认功能约束","labelEn":"Default FC","regex":"^[A-Za-z0-9]{2}$","sort":3,"type":"select","options":[{"value":"ST","labelZh":"ST","labelEn":"ST"},{"value":"MX","labelZh":"MX","labelEn":"MX"},{"value":"SP","labelZh":"SP","labelEn":"SP"},{"value":"SV","labelZh":"SV","labelEn":"SV"},{"value":"CF","labelZh":"CF","labelEn":"CF"},{"value":"DC","labelZh":"DC","labelEn":"DC"},{"value":"CO","labelZh":"CO","labelEn":"CO"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "IEC 61850 对象引用",
+    "labelEn": "IEC 61850 Object Reference",
+    "placeholderZh": "LD0/LLN0.Health[ST] / LD0/GGIO1.AnIn1.mag.f[MX]",
+    "placeholderEn": "LD0/LLN0.Health[ST] / LD0/GGIO1.AnIn1.mag.f[MX]",
+    "descriptionZh": "格式：LD/LN.DO.DA[FC]；省略 [FC] 时使用默认功能约束。例如 LD0/LLN0.Health[ST]",
+    "descriptionEn": "Format: LD/LN.DO.DA[FC]; when [FC] is omitted the default functional constraint is used, e.g. LD0/LLN0.Health[ST]"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[A-Za-z0-9_]+/[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*(\\[[A-Za-z0-9]{2}\\])?$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
+
+const mcSchema = `{
+  "fields": [
+    {"name":"transport_mode","labelZh":"传输模式","labelEn":"Transport","regex":"^[01]$","sort":1,"type":"select","options":[{"value":"0","labelZh":"TCP","labelEn":"TCP"},{"value":"1","labelZh":"UDP","labelEn":"UDP"}]},
+    {"name":"host","labelZh":"PLC IP","labelEn":"PLC IP","regex":"^[^\\s]+$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10","sort":2,"type":"input","required":true},
+    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","placeholderZh":"2000","placeholderEn":"2000","sort":3,"type":"input"},
+    {"name":"src-port","labelZh":"本地端口","labelEn":"Source Port","regex":"^[0-9]{1,5}$","placeholderZh":"52001","placeholderEn":"52001","sort":4,"type":"input"},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"15000","placeholderEn":"15000","sort":5,"type":"input"},
+    {"name":"interval","labelZh":"采集间隔(ms)","labelEn":"Interval (ms)","regex":"^[0-9]{1,5}$","placeholderZh":"20","placeholderEn":"20","sort":6,"type":"input"},
+    {"name":"retry","labelZh":"重试次数","labelEn":"Retry Count","regex":"^([0-9]|10)$","sort":7,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"软元件地址","labelEn":"Device Address","placeholderZh":"D0 / M0 / X0 / D0.3","placeholderEn":"D0 / M0 / X0 / D0.3","descriptionZh":"三菱软元件地址，例如 D0、M0、X0；字内位写作 D0.3","descriptionEn":"Mitsubishi device address, for example D0, M0, X0; word bit uses D0.3"},
+  "variableDataTypes": [
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"}
+  ]
+}`
+
+const fxSchema = `{
+  "fields": [
+    {"name":"device","labelZh":"串口设备","labelEn":"Serial Port","regex":"^[^\\s]+$","placeholderZh":"/dev/ttyS0","placeholderEn":"/dev/ttyS0","sort":1,"type":"input","required":true},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(4800|9600|19200|38400)$","sort":2,"type":"select","options":[{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"}]},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[78]$","sort":3,"type":"select","options":[{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":4,"type":"select","options":[{"value":"2","labelZh":"偶校验","labelEn":"Even"},{"value":"0","labelZh":"无","labelEn":"None"},{"value":"1","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[12]$","sort":5,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":6,"type":"input"},
+    {"name":"interval","labelZh":"采集间隔(ms)","labelEn":"Interval (ms)","regex":"^[0-9]{1,5}$","placeholderZh":"20","placeholderEn":"20","sort":7,"type":"input"},
+    {"name":"retry","labelZh":"重试次数","labelEn":"Retry Count","regex":"^([0-9]|10)$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"软元件地址","labelEn":"Device Address","placeholderZh":"D0 / M0 / X0 / D0.3","placeholderEn":"D0 / M0 / X0 / D0.3","descriptionZh":"三菱 FX 软元件地址，例如 D0、M0、X0；字内位写作 D0.3","descriptionEn":"Mitsubishi FX device address, for example D0, M0, X0; word bit uses D0.3"},
+  "variableDataTypes": [
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[A-Za-z]+[0-9]+(\\.[0-9]{1,2})?$"}
+  ]
+}`
+
+const comliSchema = `{
+  "fields": [
+    {"name":"device","labelZh":"串口设备","labelEn":"Serial Port","regex":"^[^\\s]+$","placeholderZh":"/dev/ttyS0","placeholderEn":"/dev/ttyS0","sort":1,"type":"input","required":true},
+    {"name":"baud","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":2,"type":"select","options":[{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"data","labelZh":"数据位","labelEn":"Data Bits","regex":"^[5-8]$","sort":3,"type":"select","options":[{"value":"8","labelZh":"8","labelEn":"8"},{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^[012]$","sort":4,"type":"select","options":[{"value":"0","labelZh":"无","labelEn":"None"},{"value":"1","labelZh":"奇校验","labelEn":"Odd"},{"value":"2","labelZh":"偶校验","labelEn":"Even"}]},
+    {"name":"stop","labelZh":"停止位","labelEn":"Stop Bits","regex":"^[12]$","sort":5,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeout","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":6,"type":"input"},
+    {"name":"interval","labelZh":"采集间隔(ms)","labelEn":"Interval (ms)","regex":"^[0-9]{1,5}$","placeholderZh":"20","placeholderEn":"20","sort":7,"type":"input"},
+    {"name":"retry","labelZh":"重试次数","labelEn":"Retry Count","regex":"^([0-9]|10)$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"站号!区域.偏移","labelEn":"Identity!Area.Offset","placeholderZh":"1!1.0 / 1!0.3 / 1!1.0.3","placeholderEn":"1!1.0 / 1!0.3 / 1!1.0.3","descriptionZh":"站号 1-247；区域 0=位区，1=寄存器区；寄存器位地址写作 1!1.0.3（位 0-15）","descriptionEn":"Identity 1-247; area 0=bits, 1=registers; register bit address uses 1!1.0.3 (bit 0-15)"},
+  "variableDataTypes": [
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[0-9]{1,3}!(0\\.[0-9]{1,5}|1\\.[0-9]{1,4}\\.(?:[0-9]|1[0-5]))$"},
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[0-9]{1,3}!(0\\.[0-9]{1,5}|1\\.[0-9]{1,4}\\.(?:[0-9]|1[0-5]))$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[0-9]{1,3}!1\\.[0-9]{1,4}$"}
+  ]
+}`
+
+const mewtocolSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"PLC 地址","labelEn":"PLC Address","regex":"^[A-Za-z0-9.-]+$","placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","placeholderZh":"2000","placeholderEn":"2000","sort":2,"type":"input"},
+    {"name":"unit","labelZh":"站号","labelEn":"Unit","regex":"^[1-9][0-9]?$","placeholderZh":"1","placeholderEn":"1","sort":3,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"15000","placeholderEn":"15000","sort":4,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Variable Address",
+    "placeholderZh": "X0.0 / DT0 / DT0.10",
+    "placeholderEn": "X0.0 / DT0 / DT0.10",
+    "descriptionZh": "区域前缀 + 十进制地址；位地址用 X0.0，字符串用 DT0.10 表示字节长度",
+    "descriptionEn": "Area prefix + decimal address; bit address X0.0, string DT0.10 for byte length"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}(\\.[0-9]{1,2})?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}(\\.[0-9]{1,2})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(X|Y|R|L|LD|T|C|DT|FL|IX|IY|ID)[0-9]{1,5}$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(DT|LD|FL)[0-9]{1,5}\\.[0-9]{1,3}[HL]?$"}
+  ]
+}`
 
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
@@ -1832,9 +2170,21 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinCodesysV3ID, DriverTypeCodesys, ModelCodesysV3, DriverCodesysV3, codesysV3Schema},
 	{BuiltinAB5000ID, DriverTypeAB5000, ModelAB5000, DriverAB5000, ab5000Schema},
 	{BuiltinDF1ID, DriverTypeAB5000, ModelDF1, DriverDF1, df1Schema},
+	{BuiltinHJ212ID, DriverTypeHJ212, ModelHJ212, DriverHJ212, hj212Schema},
+	{BuiltinBACnetID, DriverTypeBACnet, ModelBACnet, DriverBACnet, bacnetSchema},
+	{BuiltinADSID, DriverTypeADS, ModelBeckhoffADS, DriverADS, beckhoffADSSchema},
+	{BuiltinSRTPID, DriverTypeSRTP, ModelSRTP, DriverSRTP, srtpSchema},
+	{BuiltinSNMPID, DriverTypeSNMP, ModelSNMPV2, DriverSNMP, snmpSchema},
+	{BuiltinIEC61850ID, DriverTypeIEC, ModelIEC61850, DriverIEC61850, iec61850Schema},
+	{BuiltinCOMLIID, DriverTypeABB, ModelCOMLI, DriverCOMLI, comliSchema},
+	{BuiltinFXID, DriverTypeMitsubishi, ModelMCFX, DriverFX, fxSchema},
+	{BuiltinA1EID, DriverTypeMitsubishi, ModelMC1E, DriverA1E, mcSchema},
+	{BuiltinQnA3EID, DriverTypeMitsubishi, ModelMC3E, DriverQnA3E, mcSchema},
+	{BuiltinQnA4EID, DriverTypeMitsubishi, ModelMC4E, DriverQnA4E, mcSchema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
+	{BuiltinMewtocolID, DriverTypePanasonic, ModelMewtocol, DriverMewtocol, mewtocolSchema},
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
 	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
 	{BuiltinEthernetIP5500ID, DriverTypeAllenBradley, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},

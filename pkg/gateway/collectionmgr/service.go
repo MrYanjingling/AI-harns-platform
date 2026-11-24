@@ -15,14 +15,18 @@ import (
 	"harns-platform/pkg/apis"
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/a1e"
+	"harns-platform/pkg/gateway/collection/comli"
 	"harns-platform/pkg/gateway/collection/ethercat"
 	"harns-platform/pkg/gateway/collection/ethernetip"
 	"harns-platform/pkg/gateway/collection/fins"
+	"harns-platform/pkg/gateway/collection/fx"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
 	"harns-platform/pkg/gateway/collection/iec101"
 	"harns-platform/pkg/gateway/collection/iec102"
 	"harns-platform/pkg/gateway/collection/iec103"
 	"harns-platform/pkg/gateway/collection/iec104"
+	"harns-platform/pkg/gateway/collection/mewtocol"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
@@ -30,6 +34,8 @@ import (
 	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/profinet"
+	"harns-platform/pkg/gateway/collection/qna3e"
+	"harns-platform/pkg/gateway/collection/qna4e"
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collectionmgr/v1"
 	"harns-platform/pkg/gateway/drivermgr"
@@ -473,6 +479,18 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		item.ApplyUpdate(&req)
 		name, cycle = item.Name, item.CollectorCycleMs
 		config, err = item.ConfigJSON()
+	case record.DriverType == mewtocol.DriverType && record.DriverModel == mewtocol.DriverModel:
+		var req mewtocol.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &mewtocol.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
 	case record.DriverType == hostlinkcmode.DriverType && record.DriverModel == hostlinkcmode.DriverModel:
 		var req hostlinkcmode.UpdateReq
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -529,6 +547,66 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 		item := &profinet.Collection{}
 		item.SetDriverType(profinet.DriverType)
 		item.SetDriverModel(profinet.DriverModel)
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == comli.DriverType && record.DriverModel == comli.DriverModel:
+		var req comli.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &comli.Collection{}
+		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == a1e.DriverType && record.DriverModel == a1e.DriverModel:
+		var req a1e.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item, err := a1e.NewCollectionFromConfig(record.ProtocolConfig)
+		if err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == qna3e.DriverType && record.DriverModel == qna3e.DriverModel:
+		var req qna3e.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item, err := qna3e.NewCollectionFromConfig(record.ProtocolConfig)
+		if err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == qna4e.DriverType && record.DriverModel == qna4e.DriverModel:
+		var req qna4e.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item, err := qna4e.NewCollectionFromConfig(record.ProtocolConfig)
+		if err != nil {
+			return nil, response.ErrInternal(err)
+		}
+		item.ApplyUpdate(&req)
+		name, cycle = item.Name, item.CollectorCycleMs
+		config, err = item.ConfigJSON()
+	case record.DriverType == fx.DriverType && record.DriverModel == fx.DriverModel:
+		var req fx.UpdateReq
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		item := &fx.Collection{}
 		if err := item.ApplyConfig(record.ProtocolConfig); err != nil {
 			return nil, response.ErrInternal(err)
 		}
