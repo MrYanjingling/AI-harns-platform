@@ -5,6 +5,7 @@ import (
 	"harns-platform/pkg/logging"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func packagedBinDir() (string, bool) {
 		exe = resolved
 	}
 	dir := filepath.Dir(exe)
-	if filepath.Base(dir) != "bin" {
+	if !strings.EqualFold(filepath.Base(dir), "bin") {
 		return "", false
 	}
 	if _, err := os.Stat(filepath.Join(dir, "..", "etc", "config.yaml")); err != nil {

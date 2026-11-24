@@ -137,7 +137,7 @@ func defaultGatewayConfigFile() string {
 	}
 	candidate := filepath.Join(filepath.Dir(exe), "..", "etc", "config.yaml")
 	if _, err := os.Stat(candidate); err == nil {
-		return filepath.Join("..", "etc", "config.yaml")
+		return candidate
 	}
 	return _defaultConfigFile
 }

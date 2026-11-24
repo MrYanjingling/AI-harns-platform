@@ -97,18 +97,20 @@ export function SearchSelect({
   useEffect(() => {
     if (!open) return
     setActiveIndex(options.findIndex((option) => option.value === value))
-    const handlePointerDown = (event: PointerEvent) => {
+    const handleClick = (event: MouseEvent) => {
       const target = event.target as Node
       if (!containerRef.current?.contains(target) && !panelRef.current?.contains(target)) {
         close()
       }
     }
-    const handleViewportChange = () => close()
-    document.addEventListener('pointerdown', handlePointerDown)
+    const handleViewportChange = () => {
+      window.requestAnimationFrame(placePanel)
+    }
+    document.addEventListener('click', handleClick)
     window.addEventListener('scroll', handleViewportChange, true)
     window.addEventListener('resize', handleViewportChange)
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('click', handleClick)
       window.removeEventListener('scroll', handleViewportChange, true)
       window.removeEventListener('resize', handleViewportChange)
     }

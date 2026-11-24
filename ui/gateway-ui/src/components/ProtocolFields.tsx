@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Field, Input, SearchSelect, type SearchSelectOption, useI18n } from '@harns/core'
 import type { DriverSchema } from '@/api/types'
 import { resolveField, sortedFields } from '@/lib/collection-form'
@@ -20,16 +21,39 @@ export function ProtocolFields({
   columns = 3,
 }: ProtocolFieldsProps) {
   const { locale, t } = useI18n()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [labelWidth, setLabelWidth] = useState(70)
+  const fields = sortedFields(schema)
+  const labelSignature = fields
+    .map((field) => {
+      const resolved = resolveField(field, values)
+      return localized(resolved.labelZh, resolved.labelEn, locale)
+    })
+    .join('\u0000')
+
+  useLayoutEffect(() => {
+    const labels = containerRef.current?.querySelectorAll<HTMLLabelElement>(
+      'label[for^="protocol-"]',
+    )
+    if (!labels?.length) return
+    let maxWidth = 0
+    labels.forEach((label) => {
+      maxWidth = Math.max(maxWidth, label.scrollWidth)
+    })
+    setLabelWidth(Math.min(240, Math.max(70, Math.ceil(maxWidth) + 8)))
+  }, [labelSignature])
 
   return (
     <div
+      ref={containerRef}
       className={
         columns === 2
           ? 'grid gap-x-8 gap-y-4 sm:grid-cols-2'
           : 'grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3'
       }
+      style={{ '--protocol-label-width': `${labelWidth}px` } as CSSProperties}
     >
-      {sortedFields(schema).map((field) => {
+      {fields.map((field) => {
         const resolved = resolveField(field, values)
         const label = localized(resolved.labelZh, resolved.labelEn, locale)
         const error = errors[`protocol.${field.name}`]
@@ -44,7 +68,7 @@ export function ProtocolFields({
             label={label}
             htmlFor={`protocol-${field.name}`}
             labelClassName="text-sm"
-            labelWidthClassName="w-[70px]"
+            labelWidthClassName="w-[var(--protocol-label-width)]"
             inline
             required={field.required}
             error={error}

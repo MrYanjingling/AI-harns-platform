@@ -48,7 +48,7 @@ export function ActionMenu({
 
   useEffect(() => {
     if (!open) return
-    const handlePointerDown = (event: PointerEvent) => {
+    const handleClick = (event: MouseEvent) => {
       const target = event.target as Node
       if (!menuRef.current?.contains(target) && !buttonRef.current?.contains(target)) {
         setOpen(false)
@@ -57,13 +57,13 @@ export function ActionMenu({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
-    const handleViewportChange = () => setOpen(false)
-    document.addEventListener('pointerdown', handlePointerDown)
+    const handleViewportChange = () => window.requestAnimationFrame(place)
+    document.addEventListener('click', handleClick)
     document.addEventListener('keydown', handleKeyDown)
     window.addEventListener('scroll', handleViewportChange, true)
     window.addEventListener('resize', handleViewportChange)
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('click', handleClick)
       document.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('scroll', handleViewportChange, true)
       window.removeEventListener('resize', handleViewportChange)
