@@ -10,6 +10,7 @@ import {
   SearchInput,
   Pagination,
   TableSkeleton,
+  Tooltip,
   formatDateTime,
   showErrorToast,
   useI18n,
@@ -38,6 +39,18 @@ import {
   useListPaginationClamp,
   usePersistedState,
 } from '@/lib/list-view-state'
+
+function TruncatedCell({ text }: { text?: string | null }) {
+  const value = (text ?? '').trim()
+  if (!value) {
+    return <span className="block truncate">—</span>
+  }
+  return (
+    <Tooltip content={value} className="block w-full">
+      <span className="block truncate">{value}</span>
+    </Tooltip>
+  )
+}
 
 export function DriversPage() {
   const { t } = useI18n()
@@ -233,14 +246,12 @@ export function DriversPage() {
                 {pageDrivers.map((driver) => (
                   <DataTableRow key={driver.id}>
                     <DataTableCell>
-                      <span className="block truncate">
-                        {driverTypeLabel(driver.driverType) || driver.driverType}
-                      </span>
+                      <TruncatedCell
+                        text={driverTypeLabel(driver.driverType) || driver.driverType}
+                      />
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="block truncate">
-                        {driverModelLabel(driver.model) || driver.model}
-                      </span>
+                      <TruncatedCell text={driverModelLabel(driver.model) || driver.model} />
                     </DataTableCell>
                     <DataTableCell>
                       {driver.builtinDriver ? (
@@ -250,14 +261,10 @@ export function DriversPage() {
                       )}
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="block truncate">
-                        {driver.pluginName || '—'}
-                      </span>
+                      <TruncatedCell text={driver.pluginName} />
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="block truncate" title={driver.remark}>
-                        {driver.remark || '—'}
-                      </span>
+                      <TruncatedCell text={driver.remark} />
                     </DataTableCell>
                     <DataTableCell className="whitespace-nowrap">
                       {formatDateTime(driver.createdTime)}

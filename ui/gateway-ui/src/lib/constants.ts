@@ -114,6 +114,7 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   CNC: 'CNC',
   Kuka: 'Kuka',
   Codesys: 'Codesys',
+  'Allen-Bradley': 'Allen-Bradley',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -133,12 +134,14 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   MTConnect: 'MTConnect',
   Kuka: 'Kuka',
   'codesys-v3': 'CODESYS V3',
+  ab5000: 'AB5000',
+  DF1: 'DF1',
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',
   ethernetIp: 'EtherNet/IP',
-  ethernetIp5500: 'EtherNet/IP 5500 (ControlLogix)',
-  ethernetIp1400: 'EtherNet/IP 1400 (MicroLogix)',
+  'EtherNet/IP-ControlLogic 55xx': 'EtherNet/IP-ControlLogic 55xx',
+  'EtherNet/IP-MicroLogix 1400': 'EtherNet/IP-MicroLogix 1400',
   ethercat: 'EtherCAT (TwinCAT ADS)',
   profinet: 'PROFINET',
   dnp3: 'DNP3',

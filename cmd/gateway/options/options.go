@@ -12,9 +12,11 @@ import (
 	"harns-platform/pkg/gateway/ai/assistant"
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
+	"harns-platform/pkg/gateway/collection/ab5000"
 	"harns-platform/pkg/gateway/collection/cjt188"
 	"harns-platform/pkg/gateway/collection/codesys3"
 	"harns-platform/pkg/gateway/collection/custom"
+	"harns-platform/pkg/gateway/collection/df1"
 	"harns-platform/pkg/gateway/collection/dlt645"
 	"harns-platform/pkg/gateway/collection/dlt698"
 	"harns-platform/pkg/gateway/collection/dnp3"
@@ -260,6 +262,8 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&mtconnect.CreateHandler{},
 		&kuka.CreateHandler{},
 		&codesys3.CreateHandler{},
+		&ab5000.CreateHandler{},
+		&df1.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -300,6 +304,8 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&mtconnect.CollectorFactory{},
 		&kuka.CollectorFactory{},
 		&codesys3.CollectorFactory{},
+		&ab5000.CollectorFactory{},
+		&df1.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

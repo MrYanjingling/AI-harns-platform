@@ -7,17 +7,19 @@ const (
 	DriverTypeOmron  = "omron"
 	DriverTypeIEC    = "IEC"
 
-	DriverTypeEthernetIP = "ethernetIp"
-	DriverTypeEtherCAT   = "ethercat"
-	DriverTypeProfinet   = "profinet"
-	DriverTypeDNP3       = "dnp3"
-	DriverTypeDLT645     = "dlt645"
-	DriverTypeCJT188     = "cjt188"
-	DriverTypeDLT698     = "dlt698"
-	DriverTypeKNX        = "KNX"
-	DriverTypeCNC        = "CNC"
-	DriverTypeKuka       = "Kuka"
-	DriverTypeCodesys    = "Codesys"
+	DriverTypeEthernetIP   = "ethernetIp"
+	DriverTypeAllenBradley = "Allen-Bradley"
+	DriverTypeEtherCAT     = "ethercat"
+	DriverTypeProfinet     = "profinet"
+	DriverTypeDNP3         = "dnp3"
+	DriverTypeDLT645       = "dlt645"
+	DriverTypeCJT188       = "cjt188"
+	DriverTypeDLT698       = "dlt698"
+	DriverTypeKNX          = "KNX"
+	DriverTypeCNC          = "CNC"
+	DriverTypeKuka         = "Kuka"
+	DriverTypeCodesys      = "Codesys"
+	DriverTypeAB5000       = "Allen-Bradley"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
@@ -34,8 +36,8 @@ const (
 	ModelIEC103           = "IEC103"
 	ModelIEC104           = "IEC104"
 	ModelEthernetIP       = "ethernetIp"
-	ModelEthernetIP5500   = "ethernetIp5500"
-	ModelEthernetIP1400   = "ethernetIp1400"
+	ModelEthernetIP5500   = "EtherNet/IP-ControlLogic 55xx"
+	ModelEthernetIP1400   = "EtherNet/IP-MicroLogix 1400"
 	ModelEtherCAT         = "ethercat"
 	ModelProfinet         = "profinet"
 	ModelDNP3             = "dnp3"
@@ -53,6 +55,8 @@ const (
 	ModelMTConnect        = "MTConnect"
 	ModelKuka             = "Kuka"
 	ModelCodesysV3        = "codesys-v3"
+	ModelAB5000           = "ab5000"
+	ModelDF1              = "DF1"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -88,6 +92,8 @@ const (
 	DriverMTConnect        = "mtconnect"
 	DriverKuka             = "kuka"
 	DriverCodesysV3        = "codesys-v3"
+	DriverAB5000           = "ab5000"
+	DriverDF1              = "df1"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -123,6 +129,8 @@ const (
 	BuiltinMTConnectID        = "01M7Z9X3Q8KY52DPGDWG9KEX22"
 	BuiltinKukaID             = "01M7Z9X3Q8KY52DPGDWG9KEX23"
 	BuiltinCodesysV3ID        = "01M7Z9X3Q8KY52DPGDWG9KEX24"
+	BuiltinAB5000ID           = "01M7Z9X3Q8KY52DPGDWG9KEX25"
+	BuiltinDF1ID              = "01M7Z9X3Q8KY52DPGDWG9KEX26"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1728,6 +1736,68 @@ const codesysV3Schema = `{
   ]
 }`
 
+const ab5000Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"PLC IP","labelEn":"PLC IP","regex":"^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"端口","labelEn":"Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"slot","labelZh":"Slot","labelEn":"Slot","regex":"^[0-9]{1,3}$","sort":3,"type":"input"},
+    {"name":"compatibilityMode","labelZh":"兼容模式","labelEn":"Compatibility Mode","regex":"^(true|false)$","sort":4,"type":"select","options":[{"value":"false","labelZh":"否","labelEn":"No"},{"value":"true","labelZh":"是","labelEn":"Yes"}]},
+    {"name":"interval","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "Logix 标签",
+    "labelEn": "Logix Tag",
+    "placeholderZh": "MyTag / Program:MainProgram.Counter / MyArray[0]",
+    "placeholderEn": "MyTag / Program:MainProgram.Counter / MyArray[0]",
+    "descriptionZh": "ControlLogix/CompactLogix 符号标签路径，支持结构体成员和数组下标",
+    "descriptionEn": "ControlLogix/CompactLogix symbolic tag path with struct members and array indexes"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"SINT","labelZh":"sint","labelEn":"sint","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^.+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
+  ]
+}`
+
+const df1Schema = `{
+  "fields": [
+    {"name":"location","labelZh":"串口设备","labelEn":"Serial Port","regex":"^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$","sort":1,"type":"input","required":true},
+    {"name":"baudRate","labelZh":"波特率","labelEn":"Baud Rate","regex":"^(1200|2400|4800|9600|19200|38400|57600|115200)$","sort":2,"type":"select","options":[{"value":"1200","labelZh":"1200","labelEn":"1200"},{"value":"2400","labelZh":"2400","labelEn":"2400"},{"value":"4800","labelZh":"4800","labelEn":"4800"},{"value":"9600","labelZh":"9600","labelEn":"9600"},{"value":"19200","labelZh":"19200","labelEn":"19200"},{"value":"38400","labelZh":"38400","labelEn":"38400"},{"value":"57600","labelZh":"57600","labelEn":"57600"},{"value":"115200","labelZh":"115200","labelEn":"115200"}]},
+    {"name":"dataBits","labelZh":"数据位","labelEn":"Data Bits","regex":"^(5|6|7|8)$","sort":3,"type":"select","options":[{"value":"5","labelZh":"5","labelEn":"5"},{"value":"6","labelZh":"6","labelEn":"6"},{"value":"7","labelZh":"7","labelEn":"7"},{"value":"8","labelZh":"8","labelEn":"8"}]},
+    {"name":"parity","labelZh":"校验位","labelEn":"Parity","regex":"^(noParity|oddParity|evenParity|none|odd|even|0|1|2)$","sort":4,"type":"select","options":[{"value":"evenParity","labelZh":"偶校验","labelEn":"Even"},{"value":"noParity","labelZh":"无校验","labelEn":"None"},{"value":"oddParity","labelZh":"奇校验","labelEn":"Odd"}]},
+    {"name":"stopBits","labelZh":"停止位","labelEn":"Stop Bits","regex":"^(1|1\\.5|2)$","sort":5,"type":"select","options":[{"value":"1","labelZh":"1","labelEn":"1"},{"value":"1.5","labelZh":"1.5","labelEn":"1.5"},{"value":"2","labelZh":"2","labelEn":"2"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":6,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":7,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "DF1 文件地址",
+    "labelEn": "DF1 File Address",
+    "placeholderZh": "N7:0 / B3:0/0 / T4:0.PRE",
+    "placeholderEn": "N7:0 / B3:0/0 / T4:0.PRE",
+    "descriptionZh": "格式：文件类型+文件号:元素号[/位号][.PRE|.ACC]，支持 N/F/B/T/C/R/S/A/U/I/O",
+    "descriptionEn": "Format: file type + file number:element[/bit][.PRE|.ACC], supporting N/F/B/T/C/R/S/A/U/I/O"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(/[0-9]{1,2})?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(/[0-9]{1,2})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[A-Za-z][0-9]{1,3}:[0-9]{1,3}(\\.[A-Za-z]+)?$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1760,13 +1830,15 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinMTConnectID, DriverTypeCNC, ModelMTConnect, DriverMTConnect, mtconnectSchema},
 	{BuiltinKukaID, DriverTypeKuka, ModelKuka, DriverKuka, kukaSchema},
 	{BuiltinCodesysV3ID, DriverTypeCodesys, ModelCodesysV3, DriverCodesysV3, codesysV3Schema},
+	{BuiltinAB5000ID, DriverTypeAB5000, ModelAB5000, DriverAB5000, ab5000Schema},
+	{BuiltinDF1ID, DriverTypeAB5000, ModelDF1, DriverDF1, df1Schema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
 	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
-	{BuiltinEthernetIP5500ID, DriverTypeEthernetIP, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},
-	{BuiltinEthernetIP1400ID, DriverTypeEthernetIP, ModelEthernetIP1400, DriverEthernetIP1400, ethernetIP1400Schema},
+	{BuiltinEthernetIP5500ID, DriverTypeAllenBradley, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},
+	{BuiltinEthernetIP1400ID, DriverTypeAllenBradley, ModelEthernetIP1400, DriverEthernetIP1400, ethernetIP1400Schema},
 	{BuiltinEtherCATID, DriverTypeEtherCAT, ModelEtherCAT, DriverEtherCAT, etherCATSchema},
 	{BuiltinProfinetID, DriverTypeProfinet, ModelProfinet, DriverProfinet, profinetSchema},
 	{BuiltinDNP3ID, DriverDNP3, ModelDNP3, DriverDNP3, dnp3Schema},

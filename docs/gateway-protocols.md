@@ -34,8 +34,8 @@
 | Omron HostLink C-Mode（`omron` / `hostlinkCmode`） | 已完成 | 未验证 | 欧姆龙 PLC |
 | Omron EtherNet/IP CIP（`omron` / `omronCip`） | 已完成 | 已验证 | 欧姆龙 PLC |
 | EtherNet/IP CIP（`ethernetIp` / `ethernetIp`） | 已完成 | 已验证 | 罗克韦尔 PLC / 通用 EtherNet/IP 设备 |
-| EtherNet/IP ControlLogix 5500（`ethernetIp` / `ethernetIp5500`） | 已完成 | 未验证 | 罗克韦尔 ControlLogix / CompactLogix |
-| EtherNet/IP MicroLogix 1400（`ethernetIp` / `ethernetIp1400`） | 已完成 | 未验证 | 罗克韦尔 MicroLogix 1400 |
+| EtherNet/IP ControlLogix 55xx（`Allen-Bradley` / `EtherNet/IP-ControlLogic 55xx`） | 已完成 | 未验证 | 罗克韦尔 ControlLogix / CompactLogix |
+| EtherNet/IP MicroLogix 1400（`Allen-Bradley` / `EtherNet/IP-MicroLogix 1400`） | 已完成 | 未验证 | 罗克韦尔 MicroLogix 1400 |
 | EtherCAT（`ethercat` / `ethercat`，经 TwinCAT ADS） | 已完成 | 已验证 | 倍福 TwinCAT / EtherCAT 设备 |
 | PROFINET（`profinet` / `profinet`，经 S7 通信） | 已完成 | 已验证 | 西门子 PROFINET PLC |
 | DNP 3.0（`dnp3` / `dnp3`） | 已完成 | 未验证 | 电力/水务/能源 DNP3 从站 |
@@ -51,6 +51,8 @@
 | MTConnect（`CNC` / `MTConnect`） | 已完成 | 未验证 | MTConnect Agent XML |
 | KUKA Ethernet KRL（`Kuka` / `Kuka`） | 已完成 | 未验证 | KUKA EKI 机器人控制器 |
 | CODESYS V3（`Codesys` / `codesys-v3`） | 已完成 | 未验证 | CODESYS V3 运行时 |
+| Allen-Bradley Logix 5000（`Allen-Bradley` / `ab5000`） | 已完成 | 未验证 | Rockwell ControlLogix / CompactLogix |
+| Allen-Bradley DF1（`Allen-Bradley` / `DF1`） | 已完成 | 未验证 | SLC 500、MicroLogix、PLC-5 |
 
 ## 推送协议
 
@@ -67,6 +69,8 @@
 - 协议实现并注册后，将完成状态改为 `已完成`。
 - 通过模拟器或真实设备完成端到端采集与反控验证后，再将验证状态改为 `已验证`，并在“现有验证记录”中补充报告路径和结论。
 
+- `Allen-Bradley` / `DF1`：串口全双工 DF1 文件读写，支持 N/F/B/T/C/R/S/A/U/I/O 文件；当前只读
+- `Allen-Bradley` / `ab5000`：Logix 5000 CIP 标签采集，支持符号路径、数组和结构体成员；当前只读
 - `Codesys` / `codesys-v3`：CODESYS V3 CMP TCP 11740，登录后按变量路径读取；当前只读
 - `Kuka` / `Kuka`：KUKA Ethernet KRL over TCP，支持 Server/Client 模式、XPath 读取 EKI XML；当前只读
 - `CNC` / `MTConnect`：MTConnect HTTP `/current` XML 采集，XPath 标签地址；当前只读

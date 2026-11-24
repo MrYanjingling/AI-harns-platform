@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	DriverType  = "ethernetIp"
+	DriverType  = "Allen-Bradley"
 	DriverModel = "ethernetIp5500"
 
 	DefaultPort     = 44818

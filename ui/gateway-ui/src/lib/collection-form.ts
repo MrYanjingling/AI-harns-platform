@@ -86,7 +86,7 @@ function defaultProtocolValue(field: DriverField, model: string): string {
     transport: 'tcp',
     maxReadWords: '30',
     port: model === 'opcUa' ? '4840'
-      : model === 'omronCip' || model === 'ethernetIp' || model === 'ethernetIp5500' || model === 'ethernetIp1400' ? '44818'
+      : model === 'omronCip' || model === 'ethernetIp' || model === 'EtherNet/IP-ControlLogic 55xx' || model === 'EtherNet/IP-MicroLogix 1400' ? '44818'
       : model === 'fins' ? '9600'
       : model === 'ethercat' ? '48898'
       : model === 'profinet' ? '102'
@@ -97,10 +97,10 @@ function defaultProtocolValue(field: DriverField, model: string): string {
       : model === 'ppi' ? '32502'
       : '102',
   }
-  if (model === 'ethernetIp5500' && field.name === 'slot') return '0'
-  if (model === 'ethernetIp5500' && field.name === 'interval') return '20'
-  if (model === 'ethernetIp1400' && field.name === 'cipSize') return '500'
-  if (model === 'ethernetIp1400' && field.name === 'logixArraySize') return '120'
+  if (model === 'EtherNet/IP-ControlLogic 55xx' && field.name === 'slot') return '0'
+  if (model === 'EtherNet/IP-ControlLogic 55xx' && field.name === 'interval') return '20'
+  if (model === 'EtherNet/IP-MicroLogix 1400' && field.name === 'cipSize') return '500'
+  if (model === 'EtherNet/IP-MicroLogix 1400' && field.name === 'logixArraySize') return '120'
   if (model === 'dnp3' && field.name === 'masterId') return '1'
   if (model === 'dnp3' && field.name === 'slaveId') return '2'
   if (model === 'dnp3' && field.name === 'class0123Interval') return '20000'
@@ -127,12 +127,20 @@ function defaultProtocolValue(field: DriverField, model: string): string {
   if (model === 'Kuka' && field.name === 'timeoutMs') return '3000'
   if (model === 'codesys-v3' && field.name === 'port') return '11740'
   if (model === 'codesys-v3' && field.name === 'timeoutMs') return '3000'
+  if (model === 'ab5000' && field.name === 'port') return '44818'
+  if (model === 'ab5000' && field.name === 'slot') return '0'
+  if (model === 'ab5000' && field.name === 'compatibilityMode') return 'false'
+  if (model === 'ab5000' && field.name === 'interval') return '20'
+  if (model === 'DF1' && field.name === 'baudRate') return '9600'
+  if (model === 'DF1' && field.name === 'parity') return 'evenParity'
+  if (model === 'DF1' && field.name === 'timeoutMs') return '3000'
+  if (model === 'DF1' && field.name === 'intervalMs') return '30'
   if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt698_45') && field.name === 'baudRate') return '2400'
   if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45') && field.name === 'parity') return 'evenParity'
   if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45') && field.name === 'intervalMs') return '30'
   if (defaults[field.name] !== undefined) return defaults[field.name]
   if (model === 'dlt698_45' && field.name === 'clientAddress') return '0'
-  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode' || model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45' || model === 'mpi' || model === 'ppi')) return '/dev/ttyUSB0'
+  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode' || model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45' || model === 'mpi' || model === 'ppi' || model === 'DF1')) return '/dev/ttyUSB0'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''
   return ''
 }

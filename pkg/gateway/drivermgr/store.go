@@ -223,6 +223,8 @@ func builtinRemark(model string) string {
 		return "URL/JSON 字段随固件版本变化"
 	case ModelFanucFocas:
 		return "需将 libfocas32.so.1 放到 plugins/dependencies/focas/（当前仅完成框架）"
+	case ModelDF1:
+		return "Allen-Bradley/Rockwell 的串口全双工协议，面向 SLC 500、MicroLogix、PLC-5 等设备。"
 	default:
 		return ""
 	}
