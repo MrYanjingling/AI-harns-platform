@@ -48,6 +48,9 @@
 | KND CNC（`CNC` / `KND`） | 已完成 | 未验证 | KND 数控系统 HTTP 接口 |
 | HEIDENHAIN LSV2（`CNC` / `heidenhain`） | 已完成 | 未验证 | HEIDENHAIN TNC 数控系统 |
 | Fanuc FOCAS（`CNC` / `fanuc focas`） | 框架已完成 | 未验证 | FANUC CNC，需 `libfocas32.so.1` |
+| MTConnect（`CNC` / `MTConnect`） | 已完成 | 未验证 | MTConnect Agent XML |
+| KUKA Ethernet KRL（`Kuka` / `Kuka`） | 已完成 | 未验证 | KUKA EKI 机器人控制器 |
+| CODESYS V3（`Codesys` / `codesys-v3`） | 已完成 | 未验证 | CODESYS V3 运行时 |
 
 ## 推送协议
 
@@ -64,6 +67,9 @@
 - 协议实现并注册后，将完成状态改为 `已完成`。
 - 通过模拟器或真实设备完成端到端采集与反控验证后，再将验证状态改为 `已验证`，并在“现有验证记录”中补充报告路径和结论。
 
+- `Codesys` / `codesys-v3`：CODESYS V3 CMP TCP 11740，登录后按变量路径读取；当前只读
+- `Kuka` / `Kuka`：KUKA Ethernet KRL over TCP，支持 Server/Client 模式、XPath 读取 EKI XML；当前只读
+- `CNC` / `MTConnect`：MTConnect HTTP `/current` XML 采集，XPath 标签地址；当前只读
 - `CNC` / `fanuc focas`：FOCAS 驱动框架已注册，库路径预留为 `plugins/dependencies/focas/`，缺少 `libfocas32.so.1` 时连接保持未连接并重试
 - `CNC` / `heidenhain`：HEIDENHAIN LSV2 TCP 采集，登录后读取 PLC 区和 CNC 语义项；当前只读
 - `CNC` / `KND`：KND 数控系统 HTTP/JSON 采集与 R 区/变量写入，默认端口 8000；URL/JSON 字段随固件版本变化

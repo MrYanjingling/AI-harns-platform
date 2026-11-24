@@ -16,6 +16,8 @@ const (
 	DriverTypeDLT698     = "dlt698"
 	DriverTypeKNX        = "KNX"
 	DriverTypeCNC        = "CNC"
+	DriverTypeKuka       = "Kuka"
+	DriverTypeCodesys    = "Codesys"
 
 	ModelModbusTCP        = "modbusTcp"
 	ModelModbusRTU        = "modbusRtu"
@@ -48,6 +50,9 @@ const (
 	ModelKND              = "KND"
 	ModelHeidenhain       = "heidenhain"
 	ModelFanucFocas       = "fanuc focas"
+	ModelMTConnect        = "MTConnect"
+	ModelKuka             = "Kuka"
+	ModelCodesysV3        = "codesys-v3"
 
 	DriverModbusTCP        = "modbus-tcp"
 	DriverModbusRTU        = "modbus-rtu"
@@ -80,6 +85,9 @@ const (
 	DriverKND              = "knd"
 	DriverHeidenhain       = "heidenhain"
 	DriverFanucFocas       = "fanuc-focas"
+	DriverMTConnect        = "mtconnect"
+	DriverKuka             = "kuka"
+	DriverCodesysV3        = "codesys-v3"
 
 	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -112,6 +120,9 @@ const (
 	BuiltinKNDID              = "01M7Z9X3Q8KY52DPGDWG9KEX19"
 	BuiltinHeidenhainID       = "01M7Z9X3Q8KY52DPGDWG9KEX20"
 	BuiltinFanucFocasID       = "01M7Z9X3Q8KY52DPGDWG9KEX21"
+	BuiltinMTConnectID        = "01M7Z9X3Q8KY52DPGDWG9KEX22"
+	BuiltinKukaID             = "01M7Z9X3Q8KY52DPGDWG9KEX23"
+	BuiltinCodesysV3ID        = "01M7Z9X3Q8KY52DPGDWG9KEX24"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -1619,6 +1630,104 @@ const focasSchema = `{
   ]
 }`
 
+const mtconnectSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"设备 IP","labelEn":"Device IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"HTTP 端口","labelEn":"HTTP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"nsPrefix","labelZh":"命名空间前缀","labelEn":"Namespace Prefix","regex":"^[A-Za-z_][A-Za-z0-9_-]*$","sort":3,"type":"input"},
+    {"name":"nsUri","labelZh":"命名空间 URI","labelEn":"Namespace URI","regex":"^[A-Za-z0-9._:/-]+$","sort":4,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":6,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "XPath 地址",
+    "labelEn": "XPath Address",
+    "placeholderZh": "//DeviceStream/ComponentStream/Samples/Position[@dataItemId=\"Xpos\"]",
+    "placeholderEn": "//DeviceStream/ComponentStream/Samples/Position[@dataItemId=\"Xpos\"]",
+    "descriptionZh": "MTConnect XML 的 XPath 表达式，常用格式为 //.../Element[@dataItemId=\"id\"]",
+    "descriptionEn": "XPath expression into MTConnect XML, commonly //.../Element[@dataItemId=\"id\"]"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^.+$"},
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
+  ]
+}`
+
+const kukaSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"地址","labelEn":"Host","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"connectionMode","labelZh":"连接模式","labelEn":"Connection Mode","regex":"^[01]$","sort":3,"type":"select","options":[{"value":"1","labelZh":"服务端","labelEn":"Server"},{"value":"0","labelZh":"客户端","labelEn":"Client"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "XPath 地址",
+    "labelEn": "XPath Address",
+    "placeholderZh": "//Robot/Axis / //EKI/Status",
+    "placeholderEn": "//Robot/Axis / //EKI/Status",
+    "descriptionZh": "EKI 响应 XML 的 XPath，按机器人 KRL 项目定义的 XML 结构填写",
+    "descriptionEn": "XPath into the EKI response XML, following the XML structure defined by the robot KRL project"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^.+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^.+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^.+$"},
+    {"value":"DOUBLE","labelZh":"double","labelEn":"double","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
+  ]
+}`
+
+const codesysV3Schema = `{
+  "fields": [
+    {"name":"host","labelZh":"PLC IP","labelEn":"PLC IP","regex":"^[A-Za-z0-9.:-]+$","sort":1,"type":"input","required":true},
+    {"name":"port","labelZh":"CMP 端口","labelEn":"CMP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":3,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"},
+    {"name":"username","labelZh":"用户名","labelEn":"Username","regex":"^[^\n\r]{0,64}$","sort":5,"type":"input"},
+    {"name":"password","labelZh":"密码","labelEn":"Password","regex":"^[^\n\r]{0,64}$","sort":6,"type":"input"}
+  ],
+  "variableAddress": {
+    "labelZh": "变量路径",
+    "labelEn": "Variable Path",
+    "placeholderZh": "PLC_PRG.MyVar / GVL.Array[0]",
+    "placeholderEn": "PLC_PRG.MyVar / GVL.Array[0]",
+    "descriptionZh": "CODESYS 全局变量或 PLC_PRG 变量路径，需与 PLC 符号完全一致",
+    "descriptionEn": "CODESYS global or PLC_PRG variable path; must match the PLC symbol exactly"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^.+$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^.+$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^.+$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^.+$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^.+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^.+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^.+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^.+$"},
+    {"value":"FLOAT","labelZh":"float","labelEn":"float","addressRegex":"^.+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^.+$"}
+  ]
+}`
+
 const profinetSchema = s71500Schema
 
 // BuiltinDriver is a driver shipped with the gateway binary.
@@ -1648,6 +1757,9 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinKNDID, DriverTypeCNC, ModelKND, DriverKND, kndSchema},
 	{BuiltinHeidenhainID, DriverTypeCNC, ModelHeidenhain, DriverHeidenhain, heidenhainSchema},
 	{BuiltinFanucFocasID, DriverTypeCNC, ModelFanucFocas, DriverFanucFocas, focasSchema},
+	{BuiltinMTConnectID, DriverTypeCNC, ModelMTConnect, DriverMTConnect, mtconnectSchema},
+	{BuiltinKukaID, DriverTypeKuka, ModelKuka, DriverKuka, kukaSchema},
+	{BuiltinCodesysV3ID, DriverTypeCodesys, ModelCodesysV3, DriverCodesysV3, codesysV3Schema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},

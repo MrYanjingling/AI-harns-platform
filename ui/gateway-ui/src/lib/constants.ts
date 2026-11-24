@@ -112,6 +112,8 @@ const DRIVER_TYPE_LABELS: Record<string, string> = {
   dlt698: 'DLT 698',
   KNX: 'KNX',
   CNC: 'CNC',
+  Kuka: 'Kuka',
+  Codesys: 'Codesys',
 }
 
 const DRIVER_MODEL_LABELS: Record<string, string> = {
@@ -128,6 +130,9 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   KND: 'KND',
   heidenhain: 'Heidenhain',
   'fanuc focas': 'Fanuc FOCAS',
+  MTConnect: 'MTConnect',
+  Kuka: 'Kuka',
+  'codesys-v3': 'CODESYS V3',
   fins: 'Omron FINS',
   hostlinkCmode: 'Omron HostLink C-Mode',
   omronCip: 'Omron EtherNet/IP CIP',

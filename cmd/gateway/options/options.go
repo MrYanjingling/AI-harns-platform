@@ -13,6 +13,7 @@ import (
 	"harns-platform/pkg/gateway/ai/tools"
 	"harns-platform/pkg/gateway/aimgr"
 	"harns-platform/pkg/gateway/collection/cjt188"
+	"harns-platform/pkg/gateway/collection/codesys3"
 	"harns-platform/pkg/gateway/collection/custom"
 	"harns-platform/pkg/gateway/collection/dlt645"
 	"harns-platform/pkg/gateway/collection/dlt698"
@@ -31,11 +32,13 @@ import (
 	"harns-platform/pkg/gateway/collection/iec104"
 	"harns-platform/pkg/gateway/collection/knd"
 	"harns-platform/pkg/gateway/collection/knx"
+	"harns-platform/pkg/gateway/collection/kuka"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
 	"harns-platform/pkg/gateway/collection/modbusrtuovertcp"
 	"harns-platform/pkg/gateway/collection/modbustcp"
 	"harns-platform/pkg/gateway/collection/mpi"
+	"harns-platform/pkg/gateway/collection/mtconnect"
 	"harns-platform/pkg/gateway/collection/omroncip"
 	"harns-platform/pkg/gateway/collection/opcua"
 	"harns-platform/pkg/gateway/collection/ppi"
@@ -254,6 +257,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&knd.CreateHandler{},
 		&heidenhain.CreateHandler{},
 		&focas.CreateHandler{},
+		&mtconnect.CreateHandler{},
+		&kuka.CreateHandler{},
+		&codesys3.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -291,6 +297,9 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&knd.CollectorFactory{},
 		&heidenhain.CollectorFactory{},
 		&focas.CollectorFactory{},
+		&mtconnect.CollectorFactory{},
+		&kuka.CollectorFactory{},
+		&codesys3.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

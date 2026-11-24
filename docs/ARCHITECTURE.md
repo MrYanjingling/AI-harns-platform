@@ -227,6 +227,9 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `ethernetIp1400`（`driverType=ethernetIp`）：MicroLogix 1400 PCCC over CIP，`0x4B` Execute PCCC 读写 N/F/B/T/C/I/O/S 文件；T/C 支持 .PRE/.ACC 读写，ACC 写入使用 read-modify-write
 - `ethernetIp`（`driverType=ethernetIp`）：参照 Neuron C 插件实现的 EtherNet/IP CIP 标签采集，点号符号路径，RegisterSession → Forward Open → 连接型 SendUnitData 逐标签读写
 - `ethercat`（`driverType=ethercat`）：参照 Neuron ADS C 插件实现，经 Beckhoff TwinCAT ADS（TCP 48898）按 `索引组,索引偏移[.长度]` 直接读写 EtherCAT 过程映像，校验 ADS 索引组白名单与 800–899 端口
+- `codesys-v3`（`driverType=Codesys`）：CODESYS V3 CMP TCP 11740，通道/登录/变量路径读取；当前只读
+- `Kuka`（`driverType=Kuka`）：KUKA Ethernet KRL over TCP，Server/Client 模式，XPath 读取 EKI XML；当前只读
+- `MTConnect`（`driverType=CNC`）：MTConnect HTTP `/current` XML，XPath 标签读取；当前只读
 - `fanuc focas`（`driverType=CNC`）：FOCAS 框架驱动，库路径预留 `plugins/dependencies/focas/`，待接入 `libfocas32`
 - `heidenhain`（`driverType=CNC`）：HEIDENHAIN LSV2 TCP，登录/系统参数/PLC 与 CNC 语义读取；当前只读
 - `KND`（`driverType=CNC`）：KND 数控 HTTP/JSON 接口，GET 读、R 区和 vars PUT 写；URL/JSON 字段随固件版本变化
