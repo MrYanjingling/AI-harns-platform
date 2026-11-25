@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Outlet, useLocation, useMatches } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, Search } from 'lucide-react'
 import { useI18n } from '../../i18n'
@@ -40,6 +40,8 @@ export interface AppShellProps {
   contentFooter?: ReactNode
   /** 是否允许拖动侧边栏调整宽度。 */
   sidebarResizable?: boolean
+  /** 打开右侧辅助面板时自动收起左侧菜单；关闭后恢复原状态。 */
+  autoCollapseSidebar?: boolean
   /** 顶栏视觉变体；surface 用于跟随内容区背景。 */
   headerVariant?: 'brand' | 'surface'
 }
@@ -74,6 +76,7 @@ export function AppShell({
   sidebarFooter,
   contentFooter,
   sidebarResizable = false,
+  autoCollapseSidebar = false,
   headerVariant = 'brand',
 }: AppShellProps) {
   const { t } = useI18n()
@@ -83,6 +86,7 @@ export function AppShell({
   )
   const [sidebarActualWidth, setSidebarActualWidth] = useState(sidebarWidth)
   const [sidebarResizing, setSidebarResizing] = useState(false)
+  const sidebarAutoCollapseRestoreRef = useRef(false)
   const { pathname } = useLocation()
   const matches = useMatches()
   const section = sectionForPath(pathname, sections)
@@ -103,6 +107,18 @@ export function AppShell({
     query.addEventListener('change', handleChange)
     return () => query.removeEventListener('change', handleChange)
   }, [])
+
+  useEffect(() => {
+    if (autoCollapseSidebar) {
+      sidebarAutoCollapseRestoreRef.current = !sidebarCollapsed
+      if (!sidebarCollapsed) setSidebarCollapsed(true)
+      return
+    }
+    if (sidebarAutoCollapseRestoreRef.current) {
+      sidebarAutoCollapseRestoreRef.current = false
+      setSidebarCollapsed(false)
+    }
+  }, [autoCollapseSidebar])
 
   useEffect(() => {
     if (!sidebarResizing) return

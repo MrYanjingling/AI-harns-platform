@@ -10,7 +10,6 @@ import {
   SearchInput,
   Pagination,
   TableSkeleton,
-  Tooltip,
   formatDateTime,
   showErrorToast,
   useI18n,
@@ -28,6 +27,7 @@ import {
 } from '@harns/core'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { TableActionButton } from '@harns/core'
+import { TruncatedCell } from '@/components/TruncatedCell'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { DriverFormDialog } from './DriverFormDialog'
 import { DriverPluginFileDialog } from './DriverPluginFileDialog'
@@ -39,18 +39,6 @@ import {
   useListPaginationClamp,
   usePersistedState,
 } from '@/lib/list-view-state'
-
-function TruncatedCell({ text }: { text?: string | null }) {
-  const value = (text ?? '').trim()
-  if (!value) {
-    return <span className="block truncate">—</span>
-  }
-  return (
-    <Tooltip content={value} className="block w-full">
-      <span className="block truncate">{value}</span>
-    </Tooltip>
-  )
-}
 
 export function DriversPage() {
   const { t } = useI18n()

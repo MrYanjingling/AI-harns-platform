@@ -29,6 +29,8 @@ import {
 } from '@/api/hooks'
 import type { AccessMode, CollectionVariable } from '@/api/types'
 import { CollectStatusBadge } from '@/components/StatusBadge'
+import { OverflowTooltip, TruncatedCell } from '@/components/TruncatedCell'
+import { useFrameAnalysis } from './frame-analysis-context'
 import { formatVariableValue } from '@/lib/format-value'
 import {
   DataTableBody,
@@ -130,6 +132,7 @@ function validateControlValue(
 
 export function MonitoringPointsPage() {
   const { t } = useI18n()
+  const frameAnalysis = useFrameAnalysis()
   const restore = useListViewRestore()
   const collections = useCollections({ page: 1, pageSize: 100 })
   const collectionList = collections.data?.list ?? []
@@ -200,6 +203,12 @@ export function MonitoringPointsPage() {
   }, [collectionList, collectionId, collections.isLoading, setCollectionId, setPage])
 
   useEffect(() => {
+    frameAnalysis.update(collectionId)
+  }, [collectionId, frameAnalysis])
+
+  useEffect(() => () => frameAnalysis.close(), [frameAnalysis.close])
+
+  useEffect(() => {
     const next = keywordInput.trim()
     if (next === keyword) return
     const timer = window.setTimeout(() => {
@@ -248,8 +257,7 @@ export function MonitoringPointsPage() {
 
   const openFrameAnalysis = () => {
     if (!currentCollection || !frameAnalysisReady) return
-    const params = new URLSearchParams({ collectionId: currentCollection.id })
-    window.open(`/monitoring/points/analysis?${params.toString()}`, '_blank', 'noopener,noreferrer')
+    frameAnalysis.open(currentCollection.id)
   }
 
   const runRuntimeAction = async (action: 'start' | 'restart') => {
@@ -518,23 +526,20 @@ export function MonitoringPointsPage() {
                       {(page - 1) * pageSize + index + 1}
                     </DataTableCell>
                     <DataTableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate">{variable.name}</span>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <OverflowTooltip text={variable.name} />
+                        </div>
                         {variable.isCalculated ? (
                           <Badge tone="info">{t('gateway.variable.calculated')}</Badge>
                         ) : null}
                       </div>
                     </DataTableCell>
                     <DataTableCell>
-                      <span>{variable.dataType}</span>
+                      <TruncatedCell text={variable.dataType} />
                     </DataTableCell>
                     <DataTableCell>
-                      <span
-                        className="block truncate"
-                        title={variableAddress(variable)}
-                      >
-                        {variableAddress(variable)}
-                      </span>
+                      <TruncatedCell text={variableAddress(variable)} />
                     </DataTableCell>
                     <DataTableCell>{displayNumber(variable.bits)}</DataTableCell>
                     <DataTableCell>{displayNumber(variable.precision)}</DataTableCell>
@@ -546,7 +551,7 @@ export function MonitoringPointsPage() {
                       </EnumBadge>
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="block truncate">{formatVariableValue(variable)}</span>
+                      <TruncatedCell text={formatVariableValue(variable)} />
                     </DataTableCell>
                     <DataTableCell>
                       {variable.accessMode === 'w' || variable.accessMode === 'rw' ? (

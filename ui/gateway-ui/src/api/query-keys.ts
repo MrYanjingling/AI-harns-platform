@@ -1,6 +1,7 @@
 export const queryKeys = {
   gateway: {
     collections: (params: object) => ['gateway', 'collections', params] as const,
+    collectionsAll: ['gateway', 'collections', 'all'] as const,
     collection: (id: string) => ['gateway', 'collections', id] as const,
     variables: (id: string, params: object) =>
       ['gateway', 'collections', id, 'variables', params] as const,

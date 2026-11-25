@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, FileSearch, Pause, Play, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef } from 'react'
+import { FileSearch } from 'lucide-react'
 import {
-  Badge,
-  Button,
   Card,
-  CardContent,
   CopyButton,
   EmptyState,
   ErrorState,
@@ -14,17 +10,10 @@ import {
   formatApiTimeMs,
   parseDate,
   useI18n,
-  type Translate,
 } from '@harns/core'
 import { useCollection } from '@/api/hooks'
 import type { CollectionDetail, FrameEvent } from '@/api/types'
-import { CollectStatusBadge } from '@/components/StatusBadge'
-import {
-  collectStatusMeta,
-  driverModelLabel,
-  driverTypeLabel,
-  formatCycle,
-} from '@/lib/constants'
+import { collectStatusMeta } from '@/lib/constants'
 import { useFrameStreams } from './useFrameStreams'
 
 const FRAME_STATUSES = new Set(['collecting', 'collectingError'])
@@ -38,25 +27,9 @@ function frameCapable(collection: CollectionDetail | undefined): boolean {
   return isFrameSupported(collection.driverType) && FRAME_STATUSES.has(collection.collectStatus)
 }
 
-function endpointOf(collection: CollectionDetail): string {
-  const location = collection.protocolConfig.location
-  const port = collection.protocolConfig.port
-  if (typeof location !== 'string' || !location) return '—'
-  return typeof port === 'number' || typeof port === 'string' ? `${location}:${port}` : location
-}
-
 function formatFrameTime(value: string): string {
   const date = parseDate(value)
   return date ? formatApiTimeMs(date) : '—'
-}
-
-function InfoItem({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 items-center gap-[5px]">
-      <p className="shrink-0 text-sm leading-5 font-medium text-muted">{label}</p>
-      <div className="min-w-0 flex-1 text-sm leading-5 text-fg">{children}</div>
-    </div>
-  )
 }
 
 interface FrameExchange {
@@ -140,20 +113,21 @@ function FrameConversation({
   exchanges,
   emptyText,
   error,
+  paused,
 }: {
   exchanges: FrameExchange[]
   emptyText: string
   error: boolean
+  paused: boolean
 }) {
   const { t } = useI18n()
   const boxRef = useRef<HTMLDivElement>(null)
-  const stickToBottom = useRef(true)
 
   useEffect(() => {
-    if (!stickToBottom.current) return
+    if (paused) return
     const box = boxRef.current
     if (box) box.scrollTop = box.scrollHeight
-  }, [exchanges])
+  }, [exchanges, paused])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border-[1.5px] border-border-strong/75 bg-surface shadow-[0_1px_3px_rgba(28,47,76,0.06)]">
@@ -161,12 +135,7 @@ function FrameConversation({
         ref={boxRef}
         role="log"
         aria-live="polite"
-        onScroll={() => {
-          const box = boxRef.current
-          if (!box) return
-          stickToBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < 24
-        }}
-        className="min-h-0 flex-1 space-y-4 overflow-auto p-3"
+        className="min-h-0 flex-1 space-y-4 overflow-y-scroll p-3"
       >
         {error && exchanges.length === 0 ? (
           <p className="text-xs text-danger">{t('gateway.frames.streamError')}</p>
@@ -189,55 +158,46 @@ function FrameConversation({
   )
 }
 
-function statusText(
-  t: Translate,
-  frameReady: boolean,
-  connected: boolean,
-  error: boolean,
-): string {
-  if (!frameReady) return t('gateway.frames.waitingForCollecting')
-  if (error) return t('gateway.frames.streamError')
-  if (!connected) return t('gateway.frames.connecting')
-  return t('gateway.frames.connected')
+export interface FrameAnalysisHeaderState {
+  paused: boolean
+  count: number
+  ready: boolean
+  setPaused: (paused: boolean) => void
+  clear: () => void
 }
 
-export function FrameAnalysisPage() {
+export function FrameAnalysisPanel({
+  collectionId,
+  active,
+  onHeaderStateChange,
+}: {
+  collectionId: string
+  active: boolean
+  onHeaderStateChange?: (state: FrameAnalysisHeaderState) => void
+}) {
   const { t } = useI18n()
-  const [searchParams] = useSearchParams()
-  const collectionId = searchParams.get('collectionId') ?? ''
-  const collection = useCollection(collectionId || undefined)
+  const collection = useCollection(active ? collectionId || undefined : undefined)
   const detail = collection.data
   const supported = Boolean(detail && isFrameSupported(detail.driverType))
   const frameReady = frameCapable(detail)
-  const { requests, responses, connected, error, paused, setPaused, clear } = useFrameStreams(
+  const { requests, responses, error, paused, setPaused, clear } = useFrameStreams(
     collectionId || undefined,
-    frameReady,
+    active && frameReady,
   )
   const exchanges = useMemo(
     () => buildExchanges(requests, responses),
     [requests, responses],
   )
 
-  if (!collectionId) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Card className="flex min-h-0 flex-1 items-center justify-center">
-          <EmptyState
-            icon={<FileSearch className="size-5" />}
-            title={t('gateway.frames.missingCollection')}
-            action={
-              <Link
-                to="/monitoring/points"
-                className="text-sm text-primary transition-colors hover:text-primary-hover"
-              >
-                {t('gateway.frames.backToMonitoring')}
-              </Link>
-            }
-          />
-        </Card>
-      </div>
-    )
-  }
+  useEffect(() => {
+    onHeaderStateChange?.({
+      paused,
+      count: requests.length + responses.length,
+      ready: frameReady,
+      setPaused,
+      clear,
+    })
+  }, [clear, frameReady, onHeaderStateChange, paused, requests.length, responses.length, setPaused])
 
   if (collection.isLoading) {
     return (
@@ -264,44 +224,6 @@ export function FrameAnalysisPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <Card className="shrink-0">
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
-            <InfoItem label={t('gateway.frames.info.collection')}>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="truncate text-sm leading-5 text-fg">{detail.name}</span>
-                <CollectStatusBadge status={detail.collectStatus} error={detail.lastError} />
-              </div>
-            </InfoItem>
-            <InfoItem label={t('gateway.frames.info.protocol')}>
-              <p
-                className="truncate text-sm leading-5 text-fg"
-                title={`${driverTypeLabel(detail.driverType) || '—'} / ${
-                  driverModelLabel(detail.driverModel) || '—'
-                }`}
-              >
-                {driverTypeLabel(detail.driverType) || '—'} /{' '}
-                {driverModelLabel(detail.driverModel) || '—'}
-              </p>
-            </InfoItem>
-            <InfoItem label={t('gateway.frames.info.cycle')}>
-              <span className="font-mono">{formatCycle(detail.collectorCycleMs)}</span>
-            </InfoItem>
-            <InfoItem label={t('gateway.frames.info.endpoint')}>
-              <span className="block max-w-[260px] truncate font-mono" title={endpointOf(detail)}>
-                {endpointOf(detail)}
-              </span>
-            </InfoItem>
-          </div>
-          {detail.lastError ? (
-            <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-danger">
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-              <span className="min-w-0 break-all">{detail.lastError}</span>
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-
       {!supported ? (
         <Card className="flex min-h-0 flex-1 items-center justify-center">
           <EmptyState
@@ -311,54 +233,12 @@ export function FrameAnalysisPage() {
           />
         </Card>
       ) : (
-        <>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted">
-              <span
-                className={cn(
-                  'size-2 rounded-full',
-                  frameReady
-                    ? error
-                      ? 'bg-danger'
-                      : connected
-                        ? 'bg-success'
-                        : 'bg-warning'
-                    : 'bg-border-strong',
-                )}
-              />
-              {statusText(t, frameReady, connected, error)}
-            </span>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="h-8"
-                disabled={!frameReady}
-                icon={paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-                onClick={() => setPaused(!paused)}
-              >
-                {paused ? t('gateway.frames.resume') : t('gateway.frames.pause')}
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-8"
-                disabled={requests.length + responses.length === 0}
-                icon={<Trash2 className="size-3.5" />}
-                onClick={clear}
-              >
-                {t('gateway.frames.clear')}
-              </Button>
-              <Badge tone="neutral" className="border-[1.5px] px-2 py-1">
-                {t('gateway.frames.items', { count: requests.length + responses.length })}
-              </Badge>
-            </div>
-          </div>
-
-          <FrameConversation
-            exchanges={exchanges}
-            emptyText={emptyText}
-            error={error}
-          />
-        </>
+        <FrameConversation
+          exchanges={exchanges}
+          emptyText={emptyText}
+          error={error}
+          paused={paused}
+        />
       )}
     </div>
   )

@@ -35,6 +35,7 @@ import {
   TableActionButton,
 } from '@harns/core'
 import { CollectStatusBadge } from '@/components/StatusBadge'
+import { TruncatedCell } from '@/components/TruncatedCell'
 import { canToggleCollectionEnable } from '@/lib/collection-actions'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
@@ -362,12 +363,14 @@ export function CollectionPage() {
                       {(page - 1) * pageSize + index + 1}
                     </DataTableCell>
                     <DataTableCell>
-                      <Link
-                        to={`/collections/${collection.id}`}
-                        className="transition-colors hover:text-primary"
-                      >
-                        {collection.name}
-                      </Link>
+                      <TruncatedCell text={collection.name}>
+                        <Link
+                          to={`/collections/${collection.id}`}
+                          className="transition-colors hover:text-primary"
+                        >
+                          {collection.name}
+                        </Link>
+                      </TruncatedCell>
                     </DataTableCell>
                     <DataTableCell>
                       <CollectStatusBadge
@@ -375,8 +378,16 @@ export function CollectionPage() {
                         error={collection.lastError}
                       />
                     </DataTableCell>
-                    <DataTableCell>{driverTypeLabel(collection.driverType) || '—'}</DataTableCell>
-                    <DataTableCell>{driverModelLabel(collection.driverModel) || '—'}</DataTableCell>
+                    <DataTableCell>
+                      <TruncatedCell
+                        text={driverTypeLabel(collection.driverType) || collection.driverType}
+                      />
+                    </DataTableCell>
+                    <DataTableCell>
+                      <TruncatedCell
+                        text={driverModelLabel(collection.driverModel) || collection.driverModel}
+                      />
+                    </DataTableCell>
                     <DataTableCell className="whitespace-nowrap">
                       {collection.collectorCycleMs > 0 ? collection.collectorCycleMs : '—'}
                     </DataTableCell>

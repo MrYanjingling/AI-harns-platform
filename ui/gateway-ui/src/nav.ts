@@ -13,11 +13,11 @@ import {
   Send,
   Settings,
   Settings2,
-  Sparkles,
   Terminal,
   Users,
   Boxes,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react'
 import type { NavSection } from '@harns/core'
 
@@ -121,7 +121,7 @@ export function createGatewayNav(base = ''): NavSection[] {
         },
         {
           labelKey: 'gateway.nav.ai',
-          icon: icon(Sparkles),
+          icon: createElement(Sparkles, { className: 'size-4 text-primary' }),
           items: [
             {
               to: `${base}/ai/models`,

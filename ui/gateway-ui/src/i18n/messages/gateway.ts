@@ -75,7 +75,6 @@ export const gateway = defineMessages({
     'gateway.title.simulatorModbus': 'Modbus 模拟',
     'gateway.title.users': '用户管理',
     'gateway.title.aiModels': '大模型配置',
-    'gateway.title.aiAssistant': 'AI 助手',
     'gateway.title.about': '系统关于',
     'gateway.title.performance': '性能监控',
 
@@ -93,6 +92,11 @@ export const gateway = defineMessages({
     'gateway.ai.field.endpointUrl': '请求地址',
 
     'gateway.ai.assistant.title': 'AI 助手',
+    'gateway.ai.assistant.resize': '调整对话面板宽度',
+    'gateway.ai.assistant.mentionTitle': '采集实例',
+    'gateway.ai.assistant.mentionLoading': '正在加载采集实例...',
+    'gateway.ai.assistant.mentionEmpty': '没有匹配的采集实例',
+    'gateway.ai.assistant.mentionPrompt': '请分析采集实例「{name}」（ID：{id}）',
     'gateway.ai.assistant.recommendCollections': '查看采集实例及状态',
     'gateway.ai.assistant.recommendConnectors': '查看连接实例',
     'gateway.ai.assistant.recommendErrors': '分析最近采集错误',
@@ -182,6 +186,7 @@ export const gateway = defineMessages({
     'gateway.monitoring.controlUnavailable': '采集状态下才可进行',
 
     /* ---------------- 报文分析 ---------------- */
+    'gateway.frames.resize': '调整报文分析面板宽度',
     'gateway.frames.request': '请求报文',
     'gateway.frames.response': '响应报文',
     'gateway.frames.items': '{count} 条',
@@ -572,6 +577,10 @@ export const gateway = defineMessages({
     'gateway.push.scope.select': '选择',
     'gateway.push.payload.title': '实时数据',
     'gateway.push.payload.view': '实时推送',
+    'gateway.push.payload.sentTitle': '推送',
+    'gateway.push.payload.receivedTitle': '接收',
+    'gateway.push.payload.resize': '调整实时推送面板宽度',
+    'gateway.push.payload.resizeSections': '调整推送与接收区域高度',
     'gateway.push.payload.lastPushTime': '最近推送',
     'gateway.push.error.push': '推送失败：{message}',
     'gateway.push.error.subscription': '订阅失败：{message}',
@@ -934,7 +943,6 @@ export const gateway = defineMessages({
     'gateway.title.simulatorModbus': 'Modbus simulation',
     'gateway.title.users': 'Users',
     'gateway.title.aiModels': 'Model configuration',
-    'gateway.title.aiAssistant': 'AI assistant',
     'gateway.title.about': 'About',
     'gateway.title.performance': 'Performance',
 
@@ -996,6 +1004,7 @@ export const gateway = defineMessages({
     'gateway.monitoring.controlUnavailable': 'Available only while collection is active.',
 
     /* ---------------- Frame analysis ---------------- */
+    'gateway.frames.resize': 'Resize frame analysis panel',
     'gateway.frames.request': 'Request frames',
     'gateway.frames.response': 'Response frames',
     'gateway.frames.items': '{count} items',
@@ -1416,6 +1425,10 @@ export const gateway = defineMessages({
     'gateway.push.scope.select': 'Select',
     'gateway.push.payload.title': 'Live data',
     'gateway.push.payload.view': 'Live push',
+    'gateway.push.payload.sentTitle': 'Sent',
+    'gateway.push.payload.receivedTitle': 'Received',
+    'gateway.push.payload.resize': 'Resize live push panel',
+    'gateway.push.payload.resizeSections': 'Resize sent and received sections',
     'gateway.push.payload.lastPushTime': 'Last push',
     'gateway.push.error.push': 'Push failed: {message}',
     'gateway.push.error.subscription': 'Subscription failed: {message}',
@@ -1680,6 +1693,11 @@ export const gateway = defineMessages({
     'gateway.ai.field.endpointUrl': 'Request URL',
 
     'gateway.ai.assistant.title': 'AI assistant',
+    'gateway.ai.assistant.resize': 'Resize assistant panel',
+    'gateway.ai.assistant.mentionTitle': 'Collections',
+    'gateway.ai.assistant.mentionLoading': 'Loading collections...',
+    'gateway.ai.assistant.mentionEmpty': 'No matching collections',
+    'gateway.ai.assistant.mentionPrompt': 'Please analyze collection \"{name}\" (ID: {id})',
     'gateway.ai.assistant.recommendCollections': 'View collections and status',
     'gateway.ai.assistant.recommendConnectors': 'View connection instances',
     'gateway.ai.assistant.recommendErrors': 'Analyze recent collection errors',

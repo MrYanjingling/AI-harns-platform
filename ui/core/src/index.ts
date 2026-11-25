@@ -73,6 +73,7 @@ export {
 export { ConfirmDialog, type ConfirmDialogProps } from './components/ui/ConfirmDialog'
 export { CopyButton } from './components/ui/CopyButton'
 export { Dialog, type DialogProps } from './components/ui/Dialog'
+export { RightDrawer, type RightDrawerProps } from './components/ui/RightDrawer'
 export { FormDialog, type FormDialogProps } from './components/ui/FormDialog'
 export { EmptyState } from './components/ui/EmptyState'
 export { Field, Input, Label, Select, Textarea, type FieldProps } from './components/ui/Field'

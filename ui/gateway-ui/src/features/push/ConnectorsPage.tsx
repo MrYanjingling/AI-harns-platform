@@ -31,6 +31,7 @@ import {
   DataTable,
 } from '@harns/core'
 import { ConnectorStatusBadge } from '@/components/StatusBadge'
+import { TruncatedCell } from '@/components/TruncatedCell'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { TableActionButton } from '@harns/core'
 import { ConnectorActionsMenu, type ConnectorOperation } from './ConnectorActionsMenu'
@@ -292,7 +293,7 @@ export function ConnectorsPage() {
                       {(page - 1) * pageSize + index + 1}
                     </DataTableCell>
                     <DataTableCell>
-                      <span className="truncate">{connector.name}</span>
+                      <TruncatedCell text={connector.name} />
                     </DataTableCell>
                     <DataTableCell>
                       <ConnectorStatusBadge
@@ -304,12 +305,7 @@ export function ConnectorsPage() {
                       {connector.type.toUpperCase()}
                     </DataTableCell>
                     <DataTableCell>
-                      <span
-                        className="block truncate"
-                        title={connector.pushConfig?.brokerUrl ?? undefined}
-                      >
-                        {connector.pushConfig?.brokerUrl || '—'}
-                      </span>
+                      <TruncatedCell text={connector.pushConfig?.brokerUrl} />
                     </DataTableCell>
                     <DataTableCell
                       role="button"

@@ -7,10 +7,8 @@ import { LogsPage } from '@/features/logs/LogsPage'
 import { OverviewBreadcrumbAction } from '@/features/overview/OverviewBreadcrumbAction'
 import { OverviewPage } from '@/features/overview/OverviewPage'
 import { MonitoringPointsPage } from '@/features/monitoring/MonitoringPointsPage'
-import { FrameAnalysisPage } from '@/features/monitoring/FrameAnalysisPage'
 import { ConnectorsPage } from '@/features/push/ConnectorsPage'
 import { PushGroupsPage } from '@/features/push/PushGroupsPage'
-import { AIAssistantPage } from '@/features/ai/AIAssistantPage'
 import { AIModelsPage } from '@/features/ai/AIModelsPage'
 import { AboutPage } from '@/features/system/AboutPage'
 import { SystemUpdatePage } from '@/features/system/SystemUpdatePage'
@@ -72,19 +70,9 @@ export const gatewayRoutes: RouteObject[] = [
         handle: { titleKey: 'gateway.title.monitorPoints' },
       },
       {
-        path: 'monitoring/points/analysis',
-        element: <FrameAnalysisPage />,
-        handle: { titleKey: 'gateway.title.frameAnalysis' },
-      },
-      {
         path: 'simulator/modbus',
         element: <ModbusSimulatorPage />,
         handle: { titleKey: 'gateway.title.simulatorModbus' },
-      },
-      {
-        path: 'ai/assistant',
-        element: <AIAssistantPage />,
-        handle: { titleKey: 'gateway.title.aiAssistant', hideBreadcrumb: true },
       },
       {
         path: 'ai/models',

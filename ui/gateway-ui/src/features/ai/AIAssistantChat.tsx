@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, type ClipboardEvent } from 'react'
-import { Paperclip, Send, Trash2, X } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState, type ClipboardEvent } from 'react'
+import { AtSign, Paperclip, Send, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
   Card,
   CopyButton,
   Textarea,
+  cn,
   showErrorToast,
   useI18n,
 } from '@harns/core'
 import { chatWithAssistant } from '@/api/gateway'
+import { useAllCollections } from '@/api/hooks'
 import { ASSISTANT_SESSION_KEY, clearAssistantSession } from '@/lib/assistant-session'
-import type { AIChatAttachment, AIChatMessage, AIChatResponse } from '@/api/types'
+import type { AIChatAttachment, AIChatMessage, AIChatResponse, Collection } from '@/api/types'
 import { AIMarkdown } from './AIMarkdown'
 
 const STORAGE_KEY = ASSISTANT_SESSION_KEY
@@ -49,7 +51,13 @@ function loadMessages(): UIMessage[] {
   }
 }
 
-export function AIAssistantPage() {
+export function AIAssistantChat({
+  active = true,
+  className,
+}: {
+  active?: boolean
+  className?: string
+}) {
   const { t } = useI18n()
   const [messages, setMessages] = useState<UIMessage[]>(loadMessages)
   const [input, setInput] = useState('')
@@ -57,6 +65,39 @@ export function AIAssistantPage() {
   const [sending, setSending] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const inputId = useId()
+  const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const collections = useAllCollections(Boolean(active) && mentionRange !== null)
+  const mentionItems = useMemo(() => {
+    const source = collections.data ?? []
+    const query = mentionRange
+      ? input.slice(mentionRange.start + 1, mentionRange.end).trim().toLowerCase()
+      : ''
+    if (!query) return source
+    return source.filter((item) =>
+      [item.name, item.id, item.driverType, item.driverModel]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    )
+  }, [collections.data, input, mentionRange])
+  const activeMentionIndex = Math.min(
+    mentionIndex,
+    Math.max(0, mentionItems.length - 1),
+  )
+
+  useEffect(() => {
+    if (!active) return
+    const timer = window.setTimeout(() => {
+      document.getElementById(inputId)?.focus()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [active, inputId])
+
+  useEffect(() => {
+    if (!active) setMentionRange(null)
+  }, [active])
 
   useEffect(() => {
     try {
@@ -117,6 +158,39 @@ export function AIAssistantPage() {
     void addFiles(files)
   }
 
+  const updateMention = (value: string, cursor: number) => {
+    const before = value.slice(0, cursor)
+    const match = /(^|[\s(])@([^\s@]*)$/.exec(before)
+    if (!match) {
+      setMentionRange(null)
+      return
+    }
+    const start = cursor - match[2].length - 1
+    setMentionRange({ start, end: cursor })
+    setMentionIndex(0)
+  }
+
+  const handleInputChange = (value: string, cursor: number) => {
+    setInput(value)
+    updateMention(value, cursor)
+  }
+
+  const selectMention = (item: Collection) => {
+    if (!mentionRange) return
+    const prompt = t('gateway.ai.assistant.mentionPrompt', {
+      name: item.name,
+      id: item.id,
+    })
+    const next = input.slice(0, mentionRange.start) + prompt + input.slice(mentionRange.end)
+    setInput(next)
+    setMentionRange(null)
+    window.requestAnimationFrame(() => {
+      const inputElement = document.getElementById(inputId) as HTMLTextAreaElement | null
+      inputElement?.focus()
+      inputElement?.setSelectionRange(next.length, next.length)
+    })
+  }
+
   const sendText = async (value: string) => {
     const content = value.trim()
     if ((!content && attachments.length === 0) || sending) return
@@ -157,7 +231,7 @@ export function AIAssistantPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-0 pb-4">
           {messages.length === 0 ? (
@@ -234,17 +308,88 @@ export function AIAssistantPage() {
             void sendText(input)
           }}
         >
-          <div className="rounded-xl border border-border-strong bg-surface-2 px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+          <div className="relative rounded-xl border border-border-strong bg-surface-2 px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+            {mentionRange ? (
+              <div
+                role="listbox"
+                aria-label={t('gateway.ai.assistant.mentionTitle')}
+                className="absolute right-0 bottom-full left-0 z-20 mb-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-surface p-1 shadow-2xl"
+              >
+                <div className="px-2 py-1.5 text-[11px] font-medium text-faint">
+                  {t('gateway.ai.assistant.mentionTitle')}
+                </div>
+                {collections.isLoading ? (
+                  <div className="px-2 py-2 text-[13px] text-muted">
+                    {t('gateway.ai.assistant.mentionLoading')}
+                  </div>
+                ) : mentionItems.length === 0 ? (
+                  <div className="px-2 py-2 text-[13px] text-muted">
+                    {t('gateway.ai.assistant.mentionEmpty')}
+                  </div>
+                ) : (
+                  mentionItems.map((item, index) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeMentionIndex}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setMentionIndex(index)}
+                      onClick={() => selectMention(item)}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm text-fg transition-colors',
+                        index === activeMentionIndex
+                          ? 'bg-surface-2'
+                          : 'hover:bg-surface-2',
+                      )}
+                    >
+                      <AtSign className="size-3.5 shrink-0 text-faint" />
+                      <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
+                      <span className="max-w-40 shrink-0 truncate text-[11px] text-faint">
+                        {item.driverType} · {item.driverModel}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
             <Textarea
-              autoFocus
+              id={inputId}
               value={input}
               placeholder={t('gateway.ai.assistant.placeholder')}
               disabled={sending}
               rows={3}
               className="min-h-[60px] resize-none border-0 bg-transparent px-0 py-0 text-sm focus:ring-0"
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) =>
+                handleInputChange(event.target.value, event.target.selectionStart ?? 0)
+              }
               onPaste={onPaste}
               onKeyDown={(event) => {
+                if (mentionRange && mentionItems.length > 0) {
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    setMentionIndex((current) => (current + 1) % mentionItems.length)
+                    return
+                  }
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    setMentionIndex(
+                      (current) => (current - 1 + mentionItems.length) % mentionItems.length,
+                    )
+                    return
+                  }
+                  if (event.key === 'Enter' || event.key === 'Tab') {
+                    event.preventDefault()
+                    selectMention(mentionItems[activeMentionIndex])
+                    return
+                  }
+                }
+                if (event.key === 'Escape' && mentionRange) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setMentionRange(null)
+                  return
+                }
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault()
                   void sendText(input)

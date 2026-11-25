@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { gatewayAuthHeaders, gatewayBaseUrl, handleGatewayAuthFailure } from '@/api/gateway'
 import type { PushCommandEvent } from '@/api/types'
 
@@ -66,11 +66,18 @@ export function usePushGroupCommandStream(groupId: string | undefined, enabled: 
   const [events, setEvents] = useState<PushCommandEvent[]>([])
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState(false)
+  const [paused, setPaused] = useState(false)
+  const pausedRef = useRef(false)
+
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
 
   useEffect(() => {
     setEvents([])
     setConnected(false)
     setError(false)
+    setPaused(false)
   }, [groupId])
 
   useEffect(() => {
@@ -105,7 +112,7 @@ export function usePushGroupCommandStream(groupId: string | undefined, enabled: 
         setConnected(true)
         setError(false)
         await consume(response.body, (event) => {
-          if (stopped) return
+          if (stopped || pausedRef.current) return
           setEvents((current) => [...current, event].slice(-MAX_EVENTS))
         })
       } catch (streamError) {
@@ -129,5 +136,7 @@ export function usePushGroupCommandStream(groupId: string | undefined, enabled: 
     }
   }, [enabled, groupId])
 
-  return { events, connected, error }
+  const clear = useCallback(() => setEvents([]), [])
+
+  return { events, connected, error, paused, setPaused, clear }
 }

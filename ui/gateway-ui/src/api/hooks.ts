@@ -113,6 +113,25 @@ export function useCollections(params: CollectionQueryParams) {
   })
 }
 
+export function useAllCollections(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.gateway.collectionsAll,
+    enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const pageSize = 100
+      const first = await listCollections({ page: 1, pageSize })
+      const list = [...first.list]
+      const pages = Math.ceil(first.total / pageSize)
+      for (let page = 2; page <= pages; page += 1) {
+        const next = await listCollections({ page, pageSize })
+        list.push(...next.list)
+      }
+      return list
+    },
+  })
+}
+
 export function useCollection(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.gateway.collection(id ?? ''),

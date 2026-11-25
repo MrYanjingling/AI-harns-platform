@@ -43,12 +43,13 @@ import {
   DataTable,
 } from '@harns/core'
 import { CollectStatusBadge, ConnectorStatusBadge } from '@/components/StatusBadge'
+import { TruncatedCell } from '@/components/TruncatedCell'
 import { ColumnResizeHandle, useColumnResize } from '@harns/core'
 import { driverModelLabel, driverTypeLabel } from '@/lib/constants'
 import { TableActionButton } from '@harns/core'
 import { PushGroupActionsMenu } from './PushGroupActionsMenu'
 import { PushGroupFormDialog } from './PushGroupFormDialog'
-import { PushGroupPayloadDialog } from './PushGroupPayloadDialog'
+import { usePushPayload } from './push-payload-context'
 import {
   listViewKeys,
   useListViewRestore,
@@ -61,6 +62,7 @@ type PendingAction = { kind: 'delete' | 'start' | 'stop' | 'restart'; group: Pus
 
 export function PushGroupsPage() {
   const { t } = useI18n()
+  const pushPayload = usePushPayload()
   const restore = useListViewRestore()
   const [searchParams, setSearchParams] = useSearchParams()
   const { page, pageSize, setPage, setPageSize } = useListPagination(
@@ -85,9 +87,10 @@ export function PushGroupsPage() {
   const focusedGroupId = searchParams.get('groupId') ?? ''
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<PushGroup | null>(null)
-  const [payloadGroup, setPayloadGroup] = useState<PushGroup | null>(null)
   const [scopeGroup, setScopeGroup] = useState<PushGroup | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
+
+  useEffect(() => () => pushPayload.close(), [pushPayload.close])
 
   const connectors = usePushConnectors({ page: 1, pageSize: 100 })
   const collections = useCollections({ page: 1, pageSize: 100 })
@@ -390,10 +393,10 @@ export function PushGroupsPage() {
                         {(page - 1) * pageSize + index + 1}
                       </DataTableCell>
                       <DataTableCell>
-                        {connectorById.get(group.connectorId)?.name ?? '—'}
+                        <TruncatedCell text={connectorById.get(group.connectorId)?.name} />
                       </DataTableCell>
                       <DataTableCell>
-                        <span className="truncate">{group.name}</span>
+                        <TruncatedCell text={group.name} />
                       </DataTableCell>
                       <DataTableCell>
                         <ConnectorStatusBadge
@@ -415,17 +418,10 @@ export function PushGroupsPage() {
                         />
                       </DataTableCell>
                       <DataTableCell>
-                        <span className="block truncate" title={group.dataTopic}>
-                          {group.dataTopic || '—'}
-                        </span>
+                        <TruncatedCell text={group.dataTopic} />
                       </DataTableCell>
                       <DataTableCell>
-                        <span
-                          className="block truncate"
-                          title={group.commandTopic}
-                        >
-                          {group.commandTopic || '—'}
-                        </span>
+                        <TruncatedCell text={group.commandTopic} />
                       </DataTableCell>
                       <DataTableCell className="whitespace-nowrap">
                         {group.pushIntervalMs}
@@ -493,7 +489,7 @@ export function PushGroupsPage() {
                             onStart={() => setPending({ kind: 'start', group })}
                             onStop={() => setPending({ kind: 'stop', group })}
                             onRestart={() => setPending({ kind: 'restart', group })}
-                            onViewPayloads={() => setPayloadGroup(group)}
+                            onViewPayloads={() => pushPayload.open(group.id)}
                           />
                         </TableActions>
                       </DataTableCell>
@@ -511,15 +507,6 @@ export function PushGroupsPage() {
         connectors={connectorList}
         defaultConnectorId={activeConnectorId || undefined}
         onClose={() => setFormOpen(false)}
-      />
-
-      <PushGroupPayloadDialog
-        open={Boolean(payloadGroup)}
-        group={payloadGroup}
-        connector={
-          payloadGroup ? connectorById.get(payloadGroup.connectorId) : undefined
-        }
-        onClose={() => setPayloadGroup(null)}
       />
 
       <Dialog
