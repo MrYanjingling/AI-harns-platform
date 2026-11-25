@@ -116,6 +116,8 @@ export interface DriverField {
   sort: number
   type: 'input' | 'select'
   required?: boolean
+  placeholderZh?: string
+  placeholderEn?: string
   options?: DriverFieldOption[]
   variants?: DriverFieldVariant[]
 }
@@ -273,6 +275,65 @@ export interface SystemInfoMeta {
   cpuModel: string
   osVersion: string
   kernelVersion: string
+  backendVersion?: string
+  frontendVersion?: string
+  releaseVersion?: string
+}
+
+export interface GatewayUpdateInstalled {
+  releaseVersion: string
+  backendVersion: string
+  backendSha256: string
+  frontendVersion: string
+  frontendSha256?: string
+}
+
+export type GatewayUpdateTaskState =
+  | 'received'
+  | 'downloading'
+  | 'ready'
+  | 'applying'
+  | 'restarting'
+  | 'succeeded'
+  | 'failed'
+  | 'rejected'
+  | 'ignored'
+
+export interface GatewayUpdateTask {
+  taskId: string
+  manifestUrl: string
+  state: GatewayUpdateTaskState | string
+  releaseVersion?: string
+  backendVersion?: string
+  frontendVersion?: string
+  backendSha256?: string
+  frontendSha256?: string
+  restartRequired: boolean
+  progress: number
+  errorCode?: string
+  message?: string
+  updatedAt: string
+}
+
+export interface GatewayUpdateSettings {
+  enabled: boolean
+  brokerUrl: string
+  username: string
+  hasPassword: boolean
+  updatedTime?: string
+}
+
+export interface GatewayUpdateSettingsPayload {
+  enabled: boolean
+  brokerUrl: string
+  username: string
+  password: string
+}
+
+export interface GatewayUpdateState {
+  installed: GatewayUpdateInstalled
+  task?: GatewayUpdateTask
+  settings: GatewayUpdateSettings
 }
 
 export interface LicenseInfo {

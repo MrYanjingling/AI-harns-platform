@@ -12,6 +12,7 @@ import (
 
 	"go.bug.st/serial"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/connpool"
 )
 
@@ -89,7 +90,7 @@ func Open(ctx context.Context, link int, location string, port int, timeout time
 	if mode == nil {
 		mode = &serial.Mode{BaudRate: 9600, DataBits: 8, Parity: serial.EvenParity, StopBits: serial.OneStopBit}
 	}
-	handle, err := serial.Open(location, mode)
+	handle, err := serial.Open(collection.NormalizeSerialPort(location), mode)
 	if err != nil {
 		return nil, err
 	}

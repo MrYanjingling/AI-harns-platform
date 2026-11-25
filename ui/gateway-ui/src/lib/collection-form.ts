@@ -52,8 +52,8 @@ export function resolveField(
     labelZh: variant?.labelZh ?? field.labelZh,
     labelEn: variant?.labelEn ?? field.labelEn,
     regex: variant?.regex ?? field.regex,
-    placeholderZh: variant?.placeholderZh,
-    placeholderEn: variant?.placeholderEn,
+    placeholderZh: variant?.placeholderZh ?? field.placeholderZh,
+    placeholderEn: variant?.placeholderEn ?? field.placeholderEn,
   }
 }
 
@@ -114,7 +114,6 @@ function defaultProtocolValue(field: DriverField, model: string): string {
   if (model === 'ppi' && field.name === 'station') return '2'
   if (model === 'KNXnet/IP' && field.name === 'discoveryIp') return '224.0.23.12'
   if (model === 'KNXnet/IP' && field.name === 'discoveryPort') return '3671'
-  if (model === 'KND' && field.name === 'port') return '8000'
   if (model === 'KND' && field.name === 'timeoutMs') return '5000'
   if (model === 'heidenhain' && field.name === 'port') return '19000'
   if (model === 'heidenhain' && field.name === 'timeoutMs') return '5000'
@@ -190,7 +189,6 @@ function defaultProtocolValue(field: DriverField, model: string): string {
   if ((model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45') && field.name === 'intervalMs') return '30'
   if (defaults[field.name] !== undefined) return defaults[field.name]
   if (model === 'dlt698_45' && field.name === 'clientAddress') return '0'
-  if (field.name === 'location' && (model === 'modbusRtu' || model === 'hostlinkCmode' || model === 'cjt188_2004' || model === 'cjt188_2018' || model === 'dlt645_2007' || model === 'dlt645_1997' || model === 'dlt698_45' || model === 'mpi' || model === 'ppi' || model === 'DF1' || model === 'HJ212')) return '/dev/ttyUSB0'
   if (field.type === 'select') return field.options?.[0]?.value ?? ''
   return ''
 }
@@ -241,6 +239,126 @@ export function isBlankVariable(variable: VariableFormValues): boolean {
   )
 }
 
+export const ENDPOINT_FIELD = '__endpoint'
+
+export interface EndpointPlan {
+  kind: 'host-port' | 'location-port'
+  serial: boolean
+  hostKey?: string
+  locationKey: string
+  portKey: string
+  linkKey?: string
+  field: DriverField
+  defaultPort: string
+}
+
+export function buildEndpointPlan(
+  schema: DriverSchema | undefined,
+  model: string,
+  values: Record<string, string>,
+): EndpointPlan | null {
+  if (!schema) return null
+  const fields = new Map(schema.fields.map((field) => [field.name, field]))
+  const port = fields.get('port')
+  const host = fields.get('host')
+  const location = fields.get('location')
+  const link = fields.get('link')
+  if (!port || (!host && !location)) return null
+  const base = host ?? location
+  if (!base) return null
+  const serial = Boolean(link && (values[link.name] ?? '0') === '0')
+  const locationKey = host ? host.name : location!.name
+  const portHint = (port.placeholderZh ?? '').trim()
+  const defaultPort = /^\d+$/.test(portHint)
+    ? portHint
+    : defaultProtocolValue(port, model) || port.placeholderZh || 'PORT'
+  const basePlaceholderZh = base.placeholderZh ?? ''
+  const basePlaceholderEn = base.placeholderEn ?? ''
+  const endpointPlaceholder = (zh: boolean) => {
+    if (serial) {
+      const fallback = zh ? '/dev/ttyUSB0' : '/dev/ttyUSB0'
+      return (zh ? location?.placeholderZh : location?.placeholderEn) ?? fallback
+    }
+    const source = zh ? basePlaceholderZh : basePlaceholderEn
+    if (!source) return `IP:${defaultPort}`
+    if (source.includes('://')) {
+      return source.includes(`:${defaultPort}`) ? source : `${source.replace(/\/$/, '')}:${defaultPort}`
+    }
+    return source.includes(':') ? source : `${source}:${defaultPort}`
+  }
+  return {
+    kind: host ? 'host-port' : 'location-port',
+    serial,
+    hostKey: host?.name,
+    locationKey,
+    portKey: port.name,
+    linkKey: link?.name,
+    defaultPort,
+    field: {
+      ...base,
+      name: ENDPOINT_FIELD,
+      labelZh: serial ? '串口设备' : '目标地址',
+      labelEn: serial ? 'Serial Port' : 'Target Address',
+      regex: '^.+$',
+      required: true,
+      placeholderZh: endpointPlaceholder(true),
+      placeholderEn: endpointPlaceholder(false),
+    },
+  }
+}
+
+export function endpointValue(
+  plan: EndpointPlan | null,
+  values: Record<string, string>,
+): string {
+  if (!plan) return ''
+  if (plan.serial) return values[plan.locationKey] ?? ''
+  const location = (values[plan.locationKey] ?? '').trim()
+  if (!location) return ''
+  const port = (values[plan.portKey] ?? '').trim() || plan.defaultPort
+  if (location.includes('://')) {
+    return location.includes(`:${port}`) ? location : `${location.replace(/\/$/, '')}:${port}`
+  }
+  return `${location}:${port}`
+}
+
+export function splitEndpoint(
+  plan: EndpointPlan | null,
+  value: string,
+  values: Record<string, string>,
+): Record<string, string> {
+  if (!plan) return { [ENDPOINT_FIELD]: value }
+  const next = value.trim()
+  if (plan.serial || !next) return { [plan.locationKey]: next }
+  let location = next
+  let port = (values[plan.portKey] ?? '').trim() || plan.defaultPort
+  if (next.includes('://')) {
+    const match = next.match(/:(\d+)\/?$/)
+    if (match?.[1]) port = match[1]
+    return { [plan.locationKey]: next, [plan.portKey]: port }
+  }
+  const separator = next.lastIndexOf(':')
+  if (separator > 0 && /^\d+$/.test(next.slice(separator + 1))) {
+    location = next.slice(0, separator)
+    port = next.slice(separator + 1)
+  }
+  return { [plan.locationKey]: location, [plan.portKey]: port }
+}
+
+export function protocolDisplayFields(
+  schema: DriverSchema | undefined,
+  model: string,
+  values: Record<string, string>,
+): DriverField[] {
+  const plan = buildEndpointPlan(schema, model, values)
+  const fields = sortedFields(schema)
+  if (!plan) return fields
+  return fields
+    .filter((field) => field.name !== plan.portKey && field.name !== plan.locationKey)
+    .concat(plan.field)
+    .sort((a, b) => a.sort - b.sort)
+}
+
 export function createFormValues(
   driverType: string,
   driverModel: string,
@@ -250,6 +368,8 @@ export function createFormValues(
   for (const field of sortedFields(schema)) {
     protocol[field.name] = defaultProtocolValue(field, driverModel)
   }
+  const endpointPlan = buildEndpointPlan(schema, driverModel, protocol)
+  if (endpointPlan) protocol[ENDPOINT_FIELD] = endpointValue(endpointPlan, protocol)
   return {
     driverType,
     driverModel,
@@ -273,6 +393,16 @@ export function detailToForm(
   for (const [key, value] of Object.entries(detail.protocolConfig ?? {})) {
     if (!(key in protocol)) protocol[key] = value === null ? '' : String(value)
   }
+  if (
+    !protocol.location &&
+    protocol.host &&
+    schema?.fields.some((field) => field.name === 'location') &&
+    !schema.fields.some((field) => field.name === 'port')
+  ) {
+    protocol.location = `${protocol.host}:${protocol.port || '8000'}`
+  }
+  const endpointPlan = buildEndpointPlan(schema, detail.driverModel, protocol)
+  if (endpointPlan) protocol[ENDPOINT_FIELD] = endpointValue(endpointPlan, protocol)
   return {
     driverType: detail.driverType,
     driverModel: detail.driverModel,
@@ -283,10 +413,14 @@ export function detailToForm(
   }
 }
 
-function protocolConfigFromForm(values: CollectionFormValues): Record<string, unknown> {
+function protocolConfigFromForm(
+  values: CollectionFormValues,
+  schema: DriverSchema | undefined,
+): Record<string, unknown> {
   const config: Record<string, unknown> = {}
+  const names = new Set(sortedFields(schema).map((field) => field.name))
   for (const [key, raw] of Object.entries(values.protocol)) {
-    if (raw.trim() === REDACTED_VALUE) continue
+    if (!names.has(key) || raw.trim() === REDACTED_VALUE) continue
     const parsed = toProtocolValue(key, raw)
     if (parsed !== undefined) config[key] = parsed
   }
@@ -363,7 +497,14 @@ export function validateCollectionForm(
     if (cycle < 1) setError('collectorCycleMs', t('gateway.form.validation.cycleInvalid'))
   }
 
+  const endpointPlan = buildEndpointPlan(schema, values.driverModel, values.protocol)
   for (const field of sortedFields(schema)) {
+    if (
+      endpointPlan &&
+      (field.name === endpointPlan.portKey || field.name === endpointPlan.locationKey)
+    ) {
+      continue
+    }
     const value = (values.protocol[field.name] ?? '').trim()
     const path = `protocol.${field.name}`
     if (!value) {
@@ -377,6 +518,14 @@ export function validateCollectionForm(
     const pattern = resolveField(field, values.protocol).regex
     if (pattern && !safeRegExp(pattern)?.test(value)) {
       setError(path, t('gateway.form.validation.protocolInvalid'))
+    }
+  }
+  if (endpointPlan) {
+    const value = endpointValue(endpointPlan, values.protocol).trim()
+    if (!value && endpointPlan.field.required) {
+      setError(`protocol.${ENDPOINT_FIELD}`, t('gateway.form.validation.protocolRequired'))
+    } else if (value && !safeRegExp(endpointPlan.field.regex)?.test(value)) {
+      setError(`protocol.${ENDPOINT_FIELD}`, t('gateway.form.validation.protocolInvalid'))
     }
   }
 
@@ -398,7 +547,7 @@ export function validateCollectionForm(
     driverModel: values.driverModel,
     name,
     collectorCycleMs: Number(values.collectorCycleMs),
-    protocolConfig: protocolConfigFromForm(values),
+    protocolConfig: protocolConfigFromForm(values, schema),
   }
   if (includeVariables) payload.variables = variableInputsFromForm(values)
   return { errors: {}, payload }

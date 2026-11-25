@@ -183,7 +183,7 @@ export function AIModelsPage() {
 
   if (settings.isLoading) {
     return (
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="mx-auto grid w-full max-w-[1600px] gap-4 xl:grid-cols-2">
         <Skeleton className="h-80 w-full" />
         <Skeleton className="h-28 w-full" />
       </div>
@@ -192,15 +192,15 @@ export function AIModelsPage() {
 
   if (settings.isError) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col">
         <ErrorState error={settings.error} onRetry={settings.refetch} compact />
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+    <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardContent className="space-y-4 p-4">
             <div className="flex items-center justify-between gap-4">

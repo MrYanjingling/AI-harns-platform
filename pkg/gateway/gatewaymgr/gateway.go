@@ -21,14 +21,20 @@ type GatewayMetaVo struct {
 }
 
 type SystemInfoMeta struct {
-	Version       string `json:"version"`
-	CommitID      string `json:"commitId"`
-	HardwareID    string `json:"hardwareId"`
-	Architecture  string `json:"architecture"`
-	CPUModel      string `json:"cpuModel"`
-	OSVersion     string `json:"osVersion"`
-	KernelVersion string `json:"kernelVersion"`
+	Version         string `json:"version"`
+	CommitID        string `json:"commitId"`
+	HardwareID      string `json:"hardwareId"`
+	Architecture    string `json:"architecture"`
+	CPUModel        string `json:"cpuModel"`
+	OSVersion       string `json:"osVersion"`
+	KernelVersion   string `json:"kernelVersion"`
+	ReleaseVersion  string `json:"releaseVersion,omitempty"`
+	BackendVersion  string `json:"backendVersion,omitempty"`
+	FrontendVersion string `json:"frontendVersion,omitempty"`
 }
+
+// UpdateVersionProvider exposes the currently installed OTA component versions.
+type UpdateVersionProvider func() (releaseVersion, backendVersion, frontendVersion string)
 
 // ToVo builds a response copy with uptime values at the given time.
 func (m *GatewayMeta) ToVo(now time.Time) *GatewayMetaVo {

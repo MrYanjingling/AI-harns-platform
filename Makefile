@@ -156,6 +156,10 @@ check: lint test
 fmt:
 	gofmt -w cmd pkg migrations
 
+
+.PHONY: ota
+ota: verify-golang
+	hack/make-rules/ota.sh $(WHAT)
 .PHONY: clean
 clean:
 	@chmod -R u+w $(OUT_DIR) 2>/dev/null || true

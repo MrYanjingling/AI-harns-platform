@@ -120,6 +120,14 @@ func (s *Service) GetStatus() *Status {
 	}
 }
 
+// IsAuthorized reports whether the current license status is authorized.
+func (s *Service) IsAuthorized() bool {
+	if s == nil {
+		return false
+	}
+	return s.GetStatus().Status == StatusAuthorized
+}
+
 // MaxVariable returns the current licensed collection-variable quota.
 func (s *Service) MaxVariable() int {
 	s.mu.RLock()

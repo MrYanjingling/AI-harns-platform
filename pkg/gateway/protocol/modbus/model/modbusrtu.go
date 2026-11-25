@@ -2,13 +2,16 @@ package model
 
 import (
 	"container/list"
+	"sync"
+
 	"go.bug.st/serial"
+
+	"harns-platform/pkg/gateway/collection"
 	modbus "harns-platform/pkg/gateway/protocol/modbus/runtime"
 	"harns-platform/pkg/gateway/runtime/constant"
 	"harns-platform/pkg/logging"
 	"harns-platform/pkg/utils/binutil"
 	"harns-platform/pkg/utils/crcutil"
-	"sync"
 )
 
 const RtuNonDataLength = 5
@@ -23,7 +26,7 @@ func (m *ModbusRtu) NewClients(address *modbus.Address, dataFrameCount int) (*mo
 		DataBits: address.Option.DataBits,
 		StopBits: modbus.StopBitsToStopBits[address.Option.StopBits],
 	}
-	port, err := serial.Open(address.Location, mode)
+	port, err := serial.Open(collection.NormalizeSerialPort(address.Location), mode)
 	if err != nil {
 		logging.V(2).InfoS("Failed to connect serial port", "address", address.Location)
 		return nil, err
@@ -43,7 +46,7 @@ func (m *ModbusRtu) NewClients(address *modbus.Address, dataFrameCount int) (*mo
 		NextRequest:  1,
 		ConnRequests: make(map[uint64]chan modbus.Messenger, 0),
 		NewMessenger: func() (modbus.Messenger, error) {
-			newPort, err := serial.Open(address.Location, mode)
+			newPort, err := serial.Open(collection.NormalizeSerialPort(address.Location), mode)
 			if err != nil {
 				logging.V(2).InfoS("Failed to connect serial port", "address", address.Location)
 				return nil, err

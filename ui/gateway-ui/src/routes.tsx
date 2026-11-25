@@ -13,6 +13,7 @@ import { PushGroupsPage } from '@/features/push/PushGroupsPage'
 import { AIAssistantPage } from '@/features/ai/AIAssistantPage'
 import { AIModelsPage } from '@/features/ai/AIModelsPage'
 import { AboutPage } from '@/features/system/AboutPage'
+import { SystemUpdatePage } from '@/features/system/SystemUpdatePage'
 import { ModbusSimulatorPage } from '@/features/simulator/ModbusSimulatorPage'
 import { UsersPage } from '@/features/system/UsersPage'
 
@@ -98,6 +99,11 @@ export const gatewayRoutes: RouteObject[] = [
         path: 'system/users',
         element: <UsersPage />,
         handle: { titleKey: 'gateway.title.users' },
+      },
+      {
+        path: 'system/update',
+        element: <SystemUpdatePage />,
+        handle: { titleKey: 'gateway.title.systemUpdate' },
       },
       {
         path: 'system/about',

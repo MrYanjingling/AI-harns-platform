@@ -60,18 +60,22 @@ func (s *Store) Initialize(ctx context.Context) error {
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, builtin := range BuiltinDrivers {
-		if _, err := ParseSchema(json.RawMessage(builtin.Schema)); err != nil {
+		schemaText, err := normalizeBuiltinSchema(builtin.Schema, builtin.Model)
+		if err != nil {
+			return fmt.Errorf("invalid builtin driver schema %s: %w", builtin.PluginName, err)
+		}
+		if _, err := ParseSchema(json.RawMessage(schemaText)); err != nil {
 			return fmt.Errorf("invalid builtin driver schema %s: %w", builtin.PluginName, err)
 		}
 		var builtinDriver int
-		err := tx.QueryRowContext(ctx,
+		err = tx.QueryRowContext(ctx,
 			`SELECT builtin_driver FROM drivers WHERE id = ?`, builtin.ID).Scan(&builtinDriver)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO drivers (id, driver_type, model, builtin_driver, schema, plugin_name, remark, created_time)
 				 VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
-				builtin.ID, builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtinRemark(builtin.Model), now); err != nil {
+				builtin.ID, builtin.DriverType, builtin.Model, schemaText, builtin.PluginName, builtinRemark(builtin.Model), now); err != nil {
 				return err
 			}
 		case err != nil:
@@ -81,7 +85,7 @@ func (s *Store) Initialize(ctx context.Context) error {
 		default:
 			if _, err := tx.ExecContext(ctx,
 				`UPDATE drivers SET driver_type = ?, model = ?, schema = ?, plugin_name = ?, remark = ? WHERE id = ? AND builtin_driver = 1`,
-				builtin.DriverType, builtin.Model, builtin.Schema, builtin.PluginName, builtinRemark(builtin.Model), builtin.ID); err != nil {
+				builtin.DriverType, builtin.Model, schemaText, builtin.PluginName, builtinRemark(builtin.Model), builtin.ID); err != nil {
 				return err
 			}
 		}
@@ -221,8 +225,6 @@ func builtinRemark(model string) string {
 		return "s7-300/400 slot 默认 2，s7-1500 slot 默认 1"
 	case ModelKND:
 		return "URL/JSON 字段随固件版本变化"
-	case ModelFanucFocas:
-		return "需将 libfocas32.so.1 放到 plugins/dependencies/focas/（当前仅完成框架）"
 	case ModelDF1:
 		return "Allen-Bradley/Rockwell 的串口全双工协议，面向 SLC 500、MicroLogix、PLC-5 等设备。"
 	case ModelSRTP:

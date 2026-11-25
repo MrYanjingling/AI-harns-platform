@@ -17,6 +17,7 @@ import {
   Terminal,
   Users,
   Boxes,
+  RefreshCw,
 } from 'lucide-react'
 import type { NavSection } from '@harns/core'
 
@@ -139,6 +140,12 @@ export function createGatewayNav(base = ''): NavSection[] {
               labelKey: 'gateway.nav.system.users',
               hintKey: 'gateway.nav.system.usersHint',
               icon: icon(Users),
+            },
+            {
+              to: `${base}/system/update`,
+              labelKey: 'gateway.nav.system.update',
+              hintKey: 'gateway.nav.system.updateHint',
+              icon: icon(RefreshCw),
             },
             {
               to: `${base}/system/about`,

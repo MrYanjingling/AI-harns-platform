@@ -22,7 +22,7 @@ type serialPort interface {
 }
 
 var openSerialPort = func(location string, mode *serial.Mode) (serialPort, error) {
-	return serial.Open(location, mode)
+	return serial.Open(collection.NormalizeSerialPort(location), mode)
 }
 
 type collectorRuntime struct {

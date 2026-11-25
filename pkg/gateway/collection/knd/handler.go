@@ -58,11 +58,8 @@ func (r *CreateReq) Validate() error {
 	if r.CollectorCycleMs == 0 {
 		issues = append(issues, validation.FieldIssue{Field: "collectorCycleMs", MsgID: "validate.collection_cycle_invalid"})
 	}
-	if strings.TrimSpace(r.ProtocolConfig.Host) == "" {
-		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.host", MsgID: "validate.collection_field_required", Args: []interface{}{"protocolConfig.host"}})
-	}
-	if r.ProtocolConfig.Port < 1 || r.ProtocolConfig.Port > 65535 {
-		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.port", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.port"}})
+	if _, _, _, err := r.ProtocolConfig.endpoint(); err != nil {
+		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.location", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.location"}})
 	}
 	if err := collection.NormalizeVariables(r.Variables); err != nil {
 		var validationErr *validation.ValidationError

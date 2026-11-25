@@ -16,6 +16,7 @@ import type {
   SimulatorMode,
   SimulatorPoint,
   SimulatorState,
+  GatewayUpdateState,
 } from '../src/api/types'
 import {
   collectionVariables,
@@ -26,6 +27,7 @@ import {
   gatewayUsers,
   license,
   systemInfo,
+  systemUpdate,
   pushGroups,
   ulid,
 } from './fixtures'
@@ -33,6 +35,12 @@ import { readJson, send } from './utils'
 
 function ok<T>(data: T): { code: number; message: string; data: T } {
   return { code: 200, message: 'success', data }
+}
+
+let systemUpdateState: GatewayUpdateState = {
+  ...systemUpdate,
+  task: systemUpdate.task ? { ...systemUpdate.task } : undefined,
+  settings: { ...systemUpdate.settings },
 }
 
 let aiSettings: AISettings = {
@@ -304,6 +312,78 @@ export async function handleGateway(
 
   if (method === 'GET' && pathname === '/systemInfo') {
     send(res, 200, ok(systemInfo))
+    return true
+  }
+
+  if (method === 'GET' && pathname === '/system/update') {
+    send(res, 200, ok(systemUpdateState))
+    return true
+  }
+
+  if (method === 'PUT' && pathname === '/system/update/settings') {
+    const body = await readObject(req)
+    if (!body) {
+      badRequest(res, 'invalid body')
+      return true
+    }
+    const enabled = Boolean(body.enabled)
+    const brokerUrl = typeof body.brokerUrl === 'string' ? body.brokerUrl.trim() : ''
+    if (enabled && !brokerUrl) {
+      badRequest(res, 'mqtt broker url is required')
+      return true
+    }
+    const password = typeof body.password === 'string' ? body.password : ''
+    systemUpdateState = {
+      ...systemUpdateState,
+      settings: {
+        enabled,
+        brokerUrl,
+        username: typeof body.username === 'string' ? body.username.trim() : '',
+        hasPassword: password !== '' || systemUpdateState.settings.hasPassword,
+        updatedTime: nowIso(),
+      },
+    }
+    send(res, 200, ok(systemUpdateState))
+    return true
+  }
+
+  if (method === 'POST' && pathname === '/system/update/apply') {
+    if (!systemUpdateState.task || systemUpdateState.task.state !== 'ready') {
+      badRequest(res, 'update task is not ready')
+      return true
+    }
+    systemUpdateState = {
+      ...systemUpdateState,
+      installed: {
+        ...systemUpdateState.installed,
+        releaseVersion: systemUpdateState.task.releaseVersion ?? systemUpdateState.installed.releaseVersion,
+        frontendVersion: systemUpdateState.task.frontendVersion ?? systemUpdateState.installed.frontendVersion,
+      },
+      task: {
+        ...systemUpdateState.task,
+        state: 'succeeded',
+        progress: 100,
+        updatedAt: nowIso(),
+      },
+    }
+    send(res, 200, ok(systemUpdateState))
+    return true
+  }
+
+  if (method === 'POST' && pathname === '/system/update/reject') {
+    if (!systemUpdateState.task || systemUpdateState.task.state !== 'ready') {
+      badRequest(res, 'update task is not ready')
+      return true
+    }
+    systemUpdateState = {
+      ...systemUpdateState,
+      task: {
+        ...systemUpdateState.task,
+        state: 'rejected',
+        updatedAt: nowIso(),
+      },
+    }
+    send(res, 200, ok(systemUpdateState))
     return true
   }
 

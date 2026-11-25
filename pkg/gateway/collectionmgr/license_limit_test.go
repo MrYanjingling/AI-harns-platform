@@ -1,6 +1,8 @@
 package collectionmgr
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,11 +11,46 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"harns-platform/pkg/gateway/validation"
 )
 
 type fixedVariableLimit int
 
 func (f fixedVariableLimit) MaxVariable() int { return int(f) }
+
+type fixedLicenseStatus bool
+
+func (f fixedLicenseStatus) IsAuthorized() bool { return bool(f) }
+
+func TestCreateCNCCollectionRequiresAuthorizedLicense(t *testing.T) {
+	service, _ := newTestService(t)
+	service.SetLicenseStatusProvider(fixedLicenseStatus(false))
+
+	_, err := service.Create(context.Background(), []byte(`{"driverType":"CNC","driverModel":"KND"}`))
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.True(t, errors.As(err, &validationErr))
+	require.Len(t, validationErr.Issues, 1)
+	assert.Equal(t, "driverType", validationErr.Issues[0].Field)
+	assert.Equal(t, "validate.collection_cnc_license_required", validationErr.Issues[0].MsgID)
+}
+
+func TestUnauthorizedCollectionLimit(t *testing.T) {
+	service, _ := newTestService(t)
+	for i := 0; i < unauthorizedCollectionLimit; i++ {
+		_, err := service.Create(context.Background(), []byte(collectionBody))
+		require.NoError(t, err)
+	}
+
+	_, err := service.Create(context.Background(), []byte(collectionBody))
+	require.Error(t, err)
+	var validationErr *validation.ValidationError
+	require.True(t, errors.As(err, &validationErr))
+	require.Len(t, validationErr.Issues, 1)
+	assert.Equal(t, "collection", validationErr.Issues[0].Field)
+	assert.Equal(t, "validate.collection_unauthorized_limit", validationErr.Issues[0].MsgID)
+}
 
 func TestCreateCollectionEnforcesLicenseVariableLimit(t *testing.T) {
 	service, _ := newTestService(t)

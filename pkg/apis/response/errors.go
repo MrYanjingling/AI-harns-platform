@@ -95,6 +95,11 @@ var messageIDs = map[ErrCode]string{
 	ErrCodeAITokenNotFound:             "error.ai_token_not_found",
 	ErrCodeAIBusy:                      "error.ai_busy",
 	ErrCodeDeviceResponse:              "error.device_response",
+	ErrCodeUpdateTaskNotFound:          "error.update_task_not_found",
+	ErrCodeUpdateInvalid:               "error.update_invalid",
+	ErrCodeUpdateBusy:                  "error.update_busy",
+	ErrCodeUpdateDisabled:              "error.update_disabled",
+	ErrCodeUpdateFailed:                "error.update_failed",
 }
 
 func messageID(code ErrCode) string {

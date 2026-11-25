@@ -24,9 +24,18 @@ type Schema struct {
 	Fields            []*Field               `json:"fields"`
 	VariableAddress   *VariableAddressSchema `json:"variableAddress,omitempty"`
 	VariableDataTypes []*VariableDataType    `json:"variableDataTypes,omitempty"`
+	Endpoint          *EndpointSchema        `json:"endpoint,omitempty"`
 
 	compiledVariableAddress *regexp.Regexp
 	dataTypes               map[string]*VariableDataType
+}
+
+// EndpointSchema records how a merged location field maps back to a driver
+// config that still consumes separate host/location and port fields.
+type EndpointSchema struct {
+	Source      string `json:"source"`
+	Link        string `json:"link,omitempty"`
+	DefaultPort int    `json:"defaultPort,omitempty"`
 }
 
 // VariableAddressSchema describes variable address labels for one driver.
@@ -52,15 +61,17 @@ type VariableDataType struct {
 
 // Field describes one driver config field.
 type Field struct {
-	Name     string          `json:"name"`
-	LabelZh  string          `json:"labelZh"`
-	LabelEn  string          `json:"labelEn"`
-	Regex    string          `json:"regex"`
-	Sort     int             `json:"sort"`
-	Type     FieldType       `json:"type"`
-	Required bool            `json:"required,omitempty"`
-	Options  []*Option       `json:"options,omitempty"`
-	Variants []*FieldVariant `json:"variants,omitempty"`
+	Name          string          `json:"name"`
+	LabelZh       string          `json:"labelZh"`
+	LabelEn       string          `json:"labelEn"`
+	Regex         string          `json:"regex"`
+	Sort          int             `json:"sort"`
+	Type          FieldType       `json:"type"`
+	Required      bool            `json:"required,omitempty"`
+	PlaceholderZh string          `json:"placeholderZh,omitempty"`
+	PlaceholderEn string          `json:"placeholderEn,omitempty"`
+	Options       []*Option       `json:"options,omitempty"`
+	Variants      []*FieldVariant `json:"variants,omitempty"`
 
 	compiled *regexp.Regexp
 }

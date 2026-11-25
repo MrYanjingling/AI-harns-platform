@@ -117,3 +117,34 @@ func TestEncodeWriteValue(t *testing.T) {
 		t.Fatalf("data=%v expected=%s", data, expected)
 	}
 }
+
+func TestEndpointConfiguration(t *testing.T) {
+	item, err := NewCollection(&CreateReq{
+		Name: "knd", CollectorCycleMs: 1000,
+		ProtocolConfig: ProtocolConfig{Location: "http://192.168.1.10:8000"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Host != "192.168.1.10" || item.Port != 8000 || item.Location != "http://192.168.1.10:8000" {
+		t.Fatalf("endpoint = %+v", item)
+	}
+	raw, err := item.ConfigJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != `{"location":"http://192.168.1.10:8000","timeoutMs":5000,"intervalMs":20}` {
+		t.Fatalf("config = %s", raw)
+	}
+
+	legacy := &Collection{}
+	if err := legacy.ApplyConfig([]byte(`{"host":"10.0.0.2","port":9000}`)); err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Host != "10.0.0.2" || legacy.Port != 9000 || legacy.Location != "http://10.0.0.2:9000" {
+		t.Fatalf("legacy endpoint = %+v", legacy)
+	}
+	if _, err := NewCollection(&CreateReq{Name: "bad", CollectorCycleMs: 1, ProtocolConfig: ProtocolConfig{Location: "https://10.0.0.2:8000"}}); err == nil {
+		t.Fatal("https endpoint should be rejected")
+	}
+}

@@ -99,6 +99,11 @@ const (
 	ErrCodeAITokenNotFound                     // 20031
 	ErrCodeAIBusy                              // 20032
 	ErrCodeDeviceResponse                      // 20033
+	ErrCodeUpdateTaskNotFound                  // 20034
+	ErrCodeUpdateInvalid                       // 20035
+	ErrCodeUpdateBusy                          // 20036
+	ErrCodeUpdateDisabled                      // 20037
+	ErrCodeUpdateFailed                        // 20038
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

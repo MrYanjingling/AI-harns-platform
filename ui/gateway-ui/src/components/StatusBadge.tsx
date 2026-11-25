@@ -6,10 +6,12 @@ import {
   CirclePause,
   CircleSlash,
   CircleX,
+  Download,
+  RefreshCw,
 } from 'lucide-react'
 import { StatusBadge, useI18n } from '@harns/core'
 import type { CollectStatus } from '@/api/types'
-import { collectStatusMeta, connectorStatusMeta } from '@/lib/constants'
+import { collectStatusMeta, connectorStatusMeta, otaStatusMeta } from '@/lib/constants'
 
 const STATUS_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   collecting: CircleCheck,
@@ -78,6 +80,42 @@ export function ConnectorStatusBadge({
   const tooltip = error?.trim() || t(meta.descriptionKey)
   const Icon = STATUS_ICONS[status] ?? CircleHelp
 
+  return (
+    <StatusBadge
+      label={t(meta.labelKey)}
+      tooltip={tooltip}
+      tone={meta.tone}
+      icon={<Icon />}
+      className={className}
+    />
+  )
+}
+
+const OTA_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  received: Download,
+  downloading: Download,
+  ready: Download,
+  applying: RefreshCw,
+  restarting: RefreshCw,
+  succeeded: CircleCheck,
+  failed: CircleX,
+  rejected: CircleSlash,
+  ignored: CircleSlash,
+}
+
+export function OtaStatusBadge({
+  status,
+  error,
+  className,
+}: {
+  status: string
+  error?: string
+  className?: string
+}) {
+  const { t } = useI18n()
+  const meta = otaStatusMeta(status)
+  const tooltip = error?.trim() || t(meta.descriptionKey)
+  const Icon = OTA_ICONS[status] ?? CircleHelp
   return (
     <StatusBadge
       label={t(meta.labelKey)}

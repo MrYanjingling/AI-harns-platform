@@ -25,12 +25,20 @@ type Manager struct {
 	service     *Service
 	stopCh      <-chan struct{}
 	storagePath string
+	versions    UpdateVersionProvider
 }
 
 // WithStoragePath sets the directory used for database and log disk usage.
 func WithStoragePath(path string) Option {
 	return func(m *Manager) {
 		m.storagePath = strings.TrimSpace(path)
+	}
+}
+
+// WithUpdateVersionProvider sets the provider for OTA component versions.
+func WithUpdateVersionProvider(provider UpdateVersionProvider) Option {
+	return func(m *Manager) {
+		m.versions = provider
 	}
 }
 
@@ -46,6 +54,13 @@ func NewGatewayManager(service *Service, stop <-chan struct{}, opts ...Option) *
 		opt(m)
 	}
 	return m
+}
+
+// SetUpdateVersionProvider sets the OTA version provider after construction.
+func (m *Manager) SetUpdateVersionProvider(provider UpdateVersionProvider) {
+	if m != nil {
+		m.versions = provider
+	}
 }
 
 func (m *Manager) Init(ctx context.Context) error {
@@ -97,7 +112,7 @@ func (m *Manager) GetGatewayMetaVo() (*GatewayMetaVo, error) {
 
 func (m *Manager) GetSystemInfoMeta(ctx context.Context) *SystemInfoMeta {
 	info := host.GetSystemInfo(ctx)
-	return &SystemInfoMeta{
+	meta := &SystemInfoMeta{
 		Version:       version.Version(),
 		CommitID:      version.CommitID(),
 		HardwareID:    info.HardwareID,
@@ -106,6 +121,10 @@ func (m *Manager) GetSystemInfoMeta(ctx context.Context) *SystemInfoMeta {
 		OSVersion:     info.OSVersion,
 		KernelVersion: info.KernelVersion,
 	}
+	if m != nil && m.versions != nil {
+		meta.ReleaseVersion, meta.BackendVersion, meta.FrontendVersion = m.versions()
+	}
+	return meta
 }
 
 func (m *Manager) UpdateGatewayName(ctx context.Context, name string) (*GatewayMetaVo, error) {

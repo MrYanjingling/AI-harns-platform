@@ -22,9 +22,11 @@ import (
 	"harns-platform/pkg/gateway/logmgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/simulatormgr"
+	"harns-platform/pkg/gateway/updatemgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	"harns-platform/pkg/logging"
+	"harns-platform/pkg/version"
 
 	"github.com/gin-gonic/gin"
 )
@@ -125,6 +127,13 @@ func (s *Server) serveUI(c *gin.Context) bool {
 
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
+	v1.GET("/health", func(c *gin.Context) {
+		response.WriteOK(c, gin.H{
+			"status":   "ok",
+			"version":  version.Version(),
+			"commitId": version.CommitID(),
+		})
+	})
 	v1.Use(generic.BodyLimit(s.Config.MaxBodyBytes))
 	usermgr.InstallPublicHandler(v1, s.Config.UserMgr)
 
@@ -142,6 +151,7 @@ func (s *Server) InstallHandlers() {
 		licensemgr.InstallHandler(authed, s.Config.LicenseMgr, s.Config.UserMgr.RequireAdmin())
 	}
 	usermgr.InstallHandler(authed, s.Config.UserMgr)
+	updatemgr.InstallHandler(authed, s.Config.UpdateMgr, s.Config.UserMgr.RequireAdmin())
 	if s.Config.AIMgr != nil {
 		aimgr.InstallHandler(authed, s.Config.AIMgr)
 	}
@@ -202,6 +212,9 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		}
 		if s.Config.PushMgr != nil {
 			s.Config.PushMgr.Close(ctx)
+		}
+		if s.Config.UpdateMgr != nil {
+			s.Config.UpdateMgr.Close(ctx)
 		}
 		if s.Config.SimulatorMgr != nil {
 			_, _ = s.Config.SimulatorMgr.Close(ctx)

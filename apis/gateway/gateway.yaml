@@ -10,6 +10,8 @@ tags:
     description: Get gateway metadata and system information.
   - name: License
     description: Import and query the gateway license.
+  - name: Update
+    description: Download and install gateway OTA packages.
 paths:
   /systemInfo:
     get:
@@ -107,6 +109,83 @@ paths:
         400:
           description: Invalid license, gateway mismatch, expired license, or unavailable public key
 
+  /health:
+    get:
+      tags:
+        - Gateway
+      summary: Gateway health check.
+      operationId: getHealth
+      responses:
+        200:
+          description: Gateway is running
+  /system/update:
+    get:
+      tags:
+        - Update
+      summary: Get the current OTA state.
+      operationId: getSystemUpdate
+      responses:
+        200:
+          description: Current installed versions and the single current update task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateState'
+  /system/update/settings:
+    put:
+      tags:
+        - Update
+      summary: Update OTA and management MQTT settings.
+      description: Only administrators may update OTA settings.
+      operationId: updateSystemUpdateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemUpdateSettingsRequest'
+      responses:
+        200:
+          description: Updated OTA state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateState'
+        400:
+          description: Invalid MQTT configuration
+  /system/update/apply:
+    post:
+      tags:
+        - Update
+      summary: Install the current update task.
+      description: Only administrators may install an update.
+      operationId: applySystemUpdate
+      responses:
+        200:
+          description: The update task was started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateState'
+        400:
+          description: Update is disabled, missing, or not ready
+  /system/update/reject:
+    post:
+      tags:
+        - Update
+      summary: Reject the current update task.
+      description: Only administrators may reject an update.
+      operationId: rejectSystemUpdate
+      responses:
+        200:
+          description: The update task was rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateState'
+        400:
+          description: Update is disabled, missing, or not ready
+
 components:
   schemas:
     UpdateGatewayMetaRequest:
@@ -126,6 +205,15 @@ components:
         version:
           type: string
           example: 3.0.0
+        releaseVersion:
+          type: string
+          example: 3.1.0
+        backendVersion:
+          type: string
+          example: 3.1.0
+        frontendVersion:
+          type: string
+          example: 3.1.1
         commitId:
           type: string
           example: 4a2931a74c24aeb64419d731f79ba64e1f34b817
@@ -163,6 +251,81 @@ components:
           pattern: '[a-z0-9]+'
           description: >-
             The object eTag string.
+    SystemUpdateSettingsRequest:
+      type: object
+      required: [enabled, brokerUrl]
+      properties:
+        enabled:
+          type: boolean
+        brokerUrl:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+    SystemUpdateSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        brokerUrl:
+          type: string
+        username:
+          type: string
+        hasPassword:
+          type: boolean
+        updatedTime:
+          type: string
+          format: date-time
+    SystemUpdateState:
+      type: object
+      properties:
+        installed:
+          $ref: '#/components/schemas/SystemUpdateInstalled'
+        task:
+          $ref: '#/components/schemas/SystemUpdateTask'
+        settings:
+          $ref: '#/components/schemas/SystemUpdateSettings'
+    SystemUpdateInstalled:
+      type: object
+      properties:
+        releaseVersion:
+          type: string
+        backendVersion:
+          type: string
+        backendSha256:
+          type: string
+        frontendVersion:
+          type: string
+        frontendSha256:
+          type: string
+    SystemUpdateTask:
+      type: object
+      properties:
+        taskId:
+          type: string
+        manifestUrl:
+          type: string
+        state:
+          type: string
+          enum: [received, downloading, ready, applying, restarting, succeeded, failed, rejected, ignored]
+        releaseVersion:
+          type: string
+        backendVersion:
+          type: string
+        frontendVersion:
+          type: string
+        restartRequired:
+          type: boolean
+        progress:
+          type: integer
+        errorCode:
+          type: string
+        message:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
     ImportLicenseRequest:
       type: object
       required: [data]

@@ -99,6 +99,9 @@ func run(o *options.Options) error {
 		}
 		return err
 	}
+	if c.UpdateMgr != nil {
+		c.UpdateMgr.MarkRunning()
+	}
 	logging.V(1).InfoS("Server started", "port", o.Port)
 	// Graceful shutdown
 	// Wait for interrupt signal to gracefully shutdown the server

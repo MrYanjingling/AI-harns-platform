@@ -7,6 +7,7 @@ import type {
   GatewayUser,
   LicenseStatus,
   SystemInfoMeta,
+  GatewayUpdateState,
   PushConnector,
   PushGroup,
 } from '../src/api/types'
@@ -14,11 +15,29 @@ import type {
 export const systemInfo: SystemInfoMeta = {
   version: '3.0.0',
   commitId: '4a2931a74c24aeb64419d731f79ba64e1f34b817',
+  releaseVersion: '3.0.0',
+  backendVersion: '3.0.0',
+  frontendVersion: '3.0.0',
   hardwareId: 'demo-hardware-id',
   architecture: 'x86_64',
   cpuModel: 'Intel(R) Xeon(R) Silver 4314 CPU @ 2.40GHz',
   osVersion: 'Ubuntu 22.04',
   kernelVersion: '5.15.0',
+}
+
+export const systemUpdate: GatewayUpdateState = {
+  installed: {
+    releaseVersion: '3.0.0',
+    backendVersion: '3.0.0',
+    backendSha256: 'a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8',
+    frontendVersion: '3.0.0',
+  },
+  settings: {
+    enabled: false,
+    brokerUrl: '',
+    username: '',
+    hasPassword: false,
+  },
 }
 
 export const license: LicenseStatus = {
@@ -409,7 +428,9 @@ const MODBUS_RTU_SCHEMA: DriverSchema = {
       ...LOCATION_FIELD,
       labelZh: '串口设备',
       labelEn: 'Serial port',
-      regex: '^(/dev/[A-Za-z0-9._/-]+|COM[0-9]{1,3})$',
+      regex: '^\\S+$',
+      placeholderZh: 'ttyUSB0',
+      placeholderEn: 'ttyUSB0',
     },
     ...SERIAL_FIELDS,
     SLAVE_FIELD,

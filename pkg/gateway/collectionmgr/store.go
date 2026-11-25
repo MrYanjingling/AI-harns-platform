@@ -480,6 +480,15 @@ func (s *Store) ListVariables(ctx context.Context, collectionID string, q apis.P
 }
 
 // CountCollectedVariables counts non-calculated variables across all collections.
+// CountCollections returns the number of persisted collection instances.
+func (s *Store) CountCollections(ctx context.Context) (int64, error) {
+	var total int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(1) FROM collections`).Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (s *Store) CountCollectedVariables(ctx context.Context) (int64, error) {
 	var total int64
 	if err := s.db.QueryRowContext(ctx,

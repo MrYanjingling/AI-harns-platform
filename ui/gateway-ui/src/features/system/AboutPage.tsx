@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { Server, ShieldCheck, Upload } from 'lucide-react'
+import { Server, ShieldCheck, Upload, RefreshCw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   Button,
@@ -16,7 +17,7 @@ import {
   formatDateTime,
   useI18n,
 } from '@harns/core'
-import { useImportLicense, useLicense, useSystemInfo } from '@/api/hooks'
+import { useImportLicense, useLicense, useSystemInfo, useSystemUpdate } from '@/api/hooks'
 
 const aboutCardClass = 'border-[1.5px] border-border-strong/75 shadow-[0_1px_3px_rgba(28,47,76,0.06)]'
 const descriptionGridClass =
@@ -58,7 +59,9 @@ function DescriptionSkeleton({ rows }: { rows: number }) {
 
 export function AboutPage() {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const systemInfo = useSystemInfo()
+  const systemUpdate = useSystemUpdate()
   const license = useLicense()
   const importMutation = useImportLicense()
   const [importOpen, setImportOpen] = useState(false)
@@ -90,7 +93,7 @@ export function AboutPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className={cn(aboutCardClass, 'flex h-full flex-col')}>
           <CardHeader className="pb-3">
@@ -98,6 +101,15 @@ export function AboutPage() {
               <Server className="size-4 text-faint" />
               {t('gateway.about.basic.title')}
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<RefreshCw className="size-3.5" />}
+              disabled={!systemUpdate.data?.task}
+              onClick={() => navigate('/system/update')}
+            >
+              {t('gateway.update.about.button')}
+            </Button>
           </CardHeader>
           <CardContent className="flex-1 p-0">
             {systemInfo.isError ? (
@@ -105,10 +117,13 @@ export function AboutPage() {
                 <ErrorState error={systemInfo.error} onRetry={() => void systemInfo.refetch()} compact />
               </div>
             ) : systemInfo.isLoading ? (
-              <DescriptionSkeleton rows={5} />
+              <DescriptionSkeleton rows={7} />
             ) : (
               <dl className={descriptionGridClass}>
-                <DescriptionRow label={t('gateway.about.field.version')} value={systemInfo.data?.version} />
+                <DescriptionRow
+                  label={t('gateway.about.field.releaseVersion')}
+                  value={systemInfo.data?.releaseVersion || systemInfo.data?.version}
+                />
                 <DescriptionRow
                   label={t('gateway.about.field.commitId')}
                   value={systemInfo.data?.commitId}

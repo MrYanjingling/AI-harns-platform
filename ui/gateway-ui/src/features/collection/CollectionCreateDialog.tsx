@@ -416,6 +416,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
               <p className="app-dialog-error mb-2">{errors.form}</p>
               <ProtocolFields
                 schema={driverSchema}
+                driverModel={form.driverModel}
                 values={form.protocol}
                 errors={errors}
                 onChange={updateProtocol}

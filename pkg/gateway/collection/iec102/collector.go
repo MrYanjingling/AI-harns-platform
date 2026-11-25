@@ -59,7 +59,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 		}
 		port = &tcpTransport{conn}
 	} else {
-		sp, openErr := serial.Open(c.Location, serialMode(c))
+		sp, openErr := serial.Open(collection.NormalizeSerialPort(c.Location), serialMode(c))
 		if openErr != nil {
 			c.SetCollectStatus(collection.CollectStatusUnconnected)
 			return openErr

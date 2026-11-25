@@ -70,7 +70,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 		if location == "" {
 			location = c.Device
 		}
-		sp, openErr := serial.Open(location, serialMode(c))
+		sp, openErr := serial.Open(collection.NormalizeSerialPort(location), serialMode(c))
 		if openErr != nil {
 			c.SetCollectStatus(collection.CollectStatusUnconnected)
 			return openErr

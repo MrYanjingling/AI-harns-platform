@@ -36,7 +36,7 @@ func publicKeyFile(t *testing.T) string {
 	t.Helper()
 	der, err := x509.MarshalPKIXPublicKey(&privateKey(t).PublicKey)
 	require.NoError(t, err)
-	path := filepath.Join(t.TempDir(), "license-public.pem")
+	path := filepath.Join(t.TempDir(), "gateway-public.pem")
 	require.NoError(t, os.WriteFile(path, pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: der,
@@ -136,7 +136,7 @@ func TestMatchGateway(t *testing.T) {
 
 func TestLoadPublicKeyPKCS1(t *testing.T) {
 	der := x509.MarshalPKCS1PublicKey(&privateKey(t).PublicKey)
-	path := filepath.Join(t.TempDir(), "license-public-rsa.pem")
+	path := filepath.Join(t.TempDir(), "gateway-public-rsa.pem")
 	require.NoError(t, os.WriteFile(path, pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
 		Bytes: der,

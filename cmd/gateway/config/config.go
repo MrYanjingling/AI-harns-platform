@@ -13,6 +13,7 @@ import (
 	"harns-platform/pkg/gateway/licensemgr"
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/simulatormgr"
+	"harns-platform/pkg/gateway/updatemgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 )
@@ -29,6 +30,7 @@ type Config struct {
 	SimulatorMgr  *simulatormgr.Service
 	UserMgr       *usermgr.Service
 	LicenseMgr    *licensemgr.Service
+	UpdateMgr     *updatemgr.Service
 	DB            *sql.DB
 	CertFile      string
 	KeyFile       string

@@ -42,6 +42,58 @@ export const COLLECT_STATUS: Record<CollectStatus, StatusMeta> = {
   },
 }
 
+export const UPDATE_STATUS: Record<string, StatusMeta> = {
+  received: {
+    labelKey: 'gateway.update.status.received',
+    descriptionKey: 'gateway.update.status.receivedHint',
+    tone: 'info',
+  },
+  downloading: {
+    labelKey: 'gateway.update.status.downloading',
+    descriptionKey: 'gateway.update.status.downloadingHint',
+    tone: 'warning',
+  },
+  ready: {
+    labelKey: 'gateway.update.status.ready',
+    descriptionKey: 'gateway.update.status.readyHint',
+    tone: 'info',
+  },
+  applying: {
+    labelKey: 'gateway.update.status.applying',
+    descriptionKey: 'gateway.update.status.applyingHint',
+    tone: 'warning',
+  },
+  restarting: {
+    labelKey: 'gateway.update.status.restarting',
+    descriptionKey: 'gateway.update.status.restartingHint',
+    tone: 'warning',
+  },
+  succeeded: {
+    labelKey: 'gateway.update.status.succeeded',
+    descriptionKey: 'gateway.update.status.succeededHint',
+    tone: 'success',
+  },
+  failed: {
+    labelKey: 'gateway.update.status.failed',
+    descriptionKey: 'gateway.update.status.failedHint',
+    tone: 'danger',
+  },
+  rejected: {
+    labelKey: 'gateway.update.status.rejected',
+    descriptionKey: 'gateway.update.status.rejectedHint',
+    tone: 'neutral',
+  },
+  ignored: {
+    labelKey: 'gateway.update.status.ignored',
+    descriptionKey: 'gateway.update.status.ignoredHint',
+    tone: 'neutral',
+  },
+}
+
+export function otaStatusMeta(status: string | undefined): StatusMeta {
+  return (status && UPDATE_STATUS[status]) || UNKNOWN_COLLECT_STATUS
+}
+
 export const UNKNOWN_COLLECT_STATUS: StatusMeta = {
   labelKey: 'common.state.unknown',
   descriptionKey: 'common.state.unknown',

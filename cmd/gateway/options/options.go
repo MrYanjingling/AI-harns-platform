@@ -67,6 +67,7 @@ import (
 	"harns-platform/pkg/gateway/pushmgr"
 	"harns-platform/pkg/gateway/simulatormgr"
 	"harns-platform/pkg/gateway/sqlite"
+	"harns-platform/pkg/gateway/updatemgr"
 	"harns-platform/pkg/gateway/usermgr"
 	"harns-platform/pkg/generic"
 	baseoptions "harns-platform/pkg/generic/options"
@@ -105,7 +106,7 @@ const (
 	_defaultSQLitePath             = "data/gateway.db"
 	_defaultPluginDir              = "plugins"
 	_defaultUIDir                  = "ui/gateway-ui/dist"
-	_defaultLicensePublicKey       = "etc/gateway/license-public.pem"
+	_defaultGatewayPublicKey       = "etc/gateway/gateway-public.pem"
 )
 
 func NewDefaultOptions() *Options {
@@ -122,7 +123,7 @@ func NewDefaultOptions() *Options {
 		CORS:         generic.DefaultCORSConfig(),
 		SQLite:       SQLiteOptions{Path: _defaultSQLitePath},
 		PluginDir:    _defaultPluginDir,
-		License:      LicenseOptions{PublicKeyFile: _defaultLicensePublicKey},
+		License:      LicenseOptions{PublicKeyFile: _defaultGatewayPublicKey},
 		// BaseOptions: logs.NewOptions(),
 	}
 }
@@ -148,7 +149,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	baseoptions.DurationVar(fs, &o.Wait, "graceful-timeout", "The duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
 	fs.StringVarP(&o.KeyFile, "key-file", "", o.KeyFile, "The Key file")
-	fs.StringVar(&o.License.PublicKeyFile, "license-public-key-file", o.License.PublicKeyFile, "License JWT verification public key PEM file")
+	fs.StringVar(&o.License.PublicKeyFile, "license-public-key-file", o.License.PublicKeyFile, "Gateway public key PEM file for license JWT and OTA manifest verification")
 	fs.StringVar(&o.PluginDir, "plugin-dir", o.PluginDir, "Custom driver plugin directory")
 }
 
@@ -365,6 +366,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	}
 	collectionMgr.SetRuntimeManager(runtimeManager)
 	collectionMgr.SetVariableLimitProvider(licenseService)
+	collectionMgr.SetLicenseStatusProvider(licenseService)
 	loadCustomDrivers(context.Background(), c.DriverMgr, pluginDir, collectionMgr, runtimeManager)
 	if err := collectionMgr.StartRuntime(context.Background()); err != nil {
 		_ = db.Close()
@@ -413,9 +415,37 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c.Assistant = assistant.NewService(c.AIMgr, toolRegistry)
 	startLicenseRunGuard(stopCh, licenseService, collectionMgr, pushService)
 
+	updateMgr, err := updatemgr.NewService(updatemgr.Options{
+		GatewayID:     meta.ID,
+		DB:            db,
+		Secret:        meta.Secret,
+		PublicKeyFile: o.License.PublicKeyFile,
+		StagingDir:    resolveOTAStagingDir(o.SQLite.Path),
+		UIDir:         c.UIDir,
+		ServiceName:   "harns-gateway",
+	})
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	updateMgr.Start()
+	c.UpdateMgr = updateMgr
+	gatewayMgr.SetUpdateVersionProvider(func() (string, string, string) {
+		state := updateMgr.Snapshot()
+		return state.Installed.ReleaseVersion, state.Installed.BackendVersion, state.Installed.FrontendVersion
+	})
+
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil
+}
+
+func resolveOTAStagingDir(sqlitePath string) string {
+	dir := filepath.Dir(strings.TrimSpace(sqlitePath))
+	if dir == "" || dir == "." {
+		return "data/updates"
+	}
+	return filepath.Join(dir, "updates")
 }
 
 func loadCustomDrivers(ctx context.Context, drivers *drivermgr.Service, pluginDir string, collections *collectionmgr.Service, runtime *collectionmgr.RuntimeManager) {

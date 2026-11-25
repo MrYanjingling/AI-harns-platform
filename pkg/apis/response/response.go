@@ -572,6 +572,26 @@ func ErrLicenseExpired() *responseError {
 	return generateError(ErrCodeLicenseExpired)
 }
 
+func ErrUpdateTaskNotFound() *responseError {
+	return generateError(ErrCodeUpdateTaskNotFound)
+}
+
+func ErrUpdateInvalid(reason string) *responseError {
+	return generateError(ErrCodeUpdateInvalid, reason)
+}
+
+func ErrUpdateBusy() *responseError {
+	return generateError(ErrCodeUpdateBusy)
+}
+
+func ErrUpdateDisabled() *responseError {
+	return generateError(ErrCodeUpdateDisabled)
+}
+
+func ErrUpdateFailed(reason string) *responseError {
+	return generateError(ErrCodeUpdateFailed, reason)
+}
+
 func ErrLicensePublicKeyUnavailable() *responseError {
 	return generateError(ErrCodeLicensePublicKeyUnavailable)
 }

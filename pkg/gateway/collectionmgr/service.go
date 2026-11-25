@@ -45,9 +45,16 @@ import (
 
 var ErrUnsupportedDriver = errors.New("unsupported driver")
 
+const unauthorizedCollectionLimit = 5
+
 // VariableLimitProvider returns the current licensed collection-variable quota.
 type VariableLimitProvider interface {
 	MaxVariable() int
+}
+
+// LicenseStatusProvider reports whether the gateway has an authorized license.
+type LicenseStatusProvider interface {
+	IsAuthorized() bool
 }
 
 type CollectionReferenceCleaner interface {
@@ -60,6 +67,7 @@ type Service struct {
 	registry         *createRegistry
 	runtime          *RuntimeManager
 	variableLimit    VariableLimitProvider
+	licenseStatus    LicenseStatusProvider
 	referenceCleaner CollectionReferenceCleaner
 }
 
@@ -88,6 +96,32 @@ func (s *Service) RegisterCreateHandler(handler collection.CreateHandler) error 
 // SetVariableLimitProvider injects the license variable quota provider.
 func (s *Service) SetVariableLimitProvider(provider VariableLimitProvider) {
 	s.variableLimit = provider
+}
+
+// SetLicenseStatusProvider injects the license authorization provider.
+func (s *Service) SetLicenseStatusProvider(provider LicenseStatusProvider) {
+	s.licenseStatus = provider
+}
+
+func (s *Service) licenseAuthorized() bool {
+	return s.licenseStatus != nil && s.licenseStatus.IsAuthorized()
+}
+
+func (s *Service) checkUnauthorizedCollectionLimit(ctx context.Context) error {
+	if s.licenseAuthorized() {
+		return nil
+	}
+	total, err := s.store.CountCollections(ctx)
+	if err != nil {
+		return response.ErrInternal(err)
+	}
+	if total >= unauthorizedCollectionLimit {
+		return validation.New([]validation.FieldIssue{{
+			Field: "collection",
+			MsgID: "validate.collection_unauthorized_limit",
+		}})
+	}
+	return nil
 }
 
 func (s *Service) SetReferenceCleaner(cleaner CollectionReferenceCleaner) {
@@ -192,6 +226,15 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 	if len(issues) > 0 {
 		return nil, validation.New(issues)
 	}
+	if strings.EqualFold(envelope.DriverType, drivermgr.DriverTypeCNC) && !s.licenseAuthorized() {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "driverType",
+			MsgID: "validate.collection_cnc_license_required",
+		}})
+	}
+	if err := s.checkUnauthorizedCollectionLimit(ctx); err != nil {
+		return nil, err
+	}
 
 	exists, err := s.store.DriverExists(ctx, envelope.DriverType, envelope.DriverModel)
 	if err != nil {
@@ -214,6 +257,14 @@ func (s *Service) Create(ctx context.Context, body []byte) (any, error) {
 	}
 	if err := schema.ValidateBody(body); err != nil {
 		return nil, err
+	}
+	body, err = schema.SplitEndpointBody(body)
+	if err != nil {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "protocolConfig.location",
+			MsgID: "validate.collection_field_invalid",
+			Args:  []interface{}{"protocolConfig.location"},
+		}})
 	}
 
 	handler, ok := s.registry.resolve(envelope.DriverType, envelope.DriverModel)
@@ -337,6 +388,14 @@ func (s *Service) Update(ctx context.Context, id string, body []byte) (any, erro
 	}
 	if err := schema.ValidateBody(body); err != nil {
 		return nil, err
+	}
+	body, err = schema.SplitEndpointBody(body)
+	if err != nil {
+		return nil, validation.New([]validation.FieldIssue{{
+			Field: "protocolConfig.location",
+			MsgID: "validate.collection_field_invalid",
+			Args:  []interface{}{"protocolConfig.location"},
+		}})
 	}
 
 	var (
@@ -1151,6 +1210,13 @@ func (s *Service) collectionDetail(ctx context.Context, record *CollectionRecord
 	if handler, ok := s.registry.resolve(record.DriverType, record.DriverModel); ok {
 		if redactor, ok := handler.(collection.ConfigRedactor); ok {
 			config = redactor.RedactConfig(config)
+		}
+	}
+	if rawSchema, err := s.store.DriverSchema(ctx, record.DriverType, record.DriverModel); err == nil {
+		if schema, err := drivermgr.ParseSchema(rawSchema); err == nil {
+			if merged, err := schema.MergeEndpointConfig(config); err == nil {
+				config = merged
+			}
 		}
 	}
 	return &v1.CollectionDetailVo{

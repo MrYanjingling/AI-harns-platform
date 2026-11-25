@@ -42,6 +42,8 @@ import type {
   SimulatorPoint,
   SimulatorState,
   SystemInfoMeta,
+  GatewayUpdateState,
+  GatewayUpdateSettingsPayload,
 } from './types'
 
 /** 网关与平台共用统一响应信封。 */
@@ -500,5 +502,28 @@ export function createSimulatorPoint(
 export function deleteSimulatorPoint(address: number): Promise<{ deleted: boolean }> {
   return gatewayData<{ deleted: boolean }>(`/simulator/points/${address}`, {
     method: 'DELETE',
+  })
+}
+
+/* ---------------- OTA ---------------- */
+
+export function getSystemUpdate(): Promise<GatewayUpdateState> {
+  return gatewayData<GatewayUpdateState>('/system/update')
+}
+
+export function applySystemUpdate(): Promise<GatewayUpdateState> {
+  return gatewayData<GatewayUpdateState>('/system/update/apply', { method: 'POST' })
+}
+
+export function rejectSystemUpdate(): Promise<GatewayUpdateState> {
+  return gatewayData<GatewayUpdateState>('/system/update/reject', { method: 'POST' })
+}
+
+export function updateSystemUpdateSettings(
+  payload: GatewayUpdateSettingsPayload,
+): Promise<GatewayUpdateState> {
+  return gatewayData<GatewayUpdateState>('/system/update/settings', {
+    method: 'PUT',
+    body: payload,
   })
 }

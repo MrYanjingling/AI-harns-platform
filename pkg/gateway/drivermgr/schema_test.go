@@ -183,12 +183,45 @@ func TestSchemaFieldVariantsSelectRegex(t *testing.T) {
 	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"1","location":"/dev/ttyS0"}}`)))
 
 	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"/dev/ttyS0"}}`)))
+	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"ttyS0"}}`)))
+	require.NoError(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"COM3"}}`)))
 	require.Error(t, schema.ValidateBody([]byte(`{"protocolConfig":{"link":"0","location":"/dev/tty S0"}}`)))
 
 	iec104, err := ParseSchema(json.RawMessage(iec104Schema))
 	require.NoError(t, err)
 	require.NoError(t, iec104.ValidateBody([]byte(`{"protocolConfig":{"location":"127.0.0.1:2404"}}`)))
 	require.Error(t, iec104.ValidateBody([]byte(`{"protocolConfig":{"location":"127.0.0.1"}}`)))
+}
+
+func TestBuiltinSerialFieldsAcceptPortableDeviceNames(t *testing.T) {
+	for _, builtin := range BuiltinDrivers {
+		schema, err := ParseSchema(json.RawMessage(builtin.Schema))
+		require.NoError(t, err, builtin.PluginName)
+		for _, field := range schema.Fields {
+			serial := isSerialLabel(field.LabelZh, field.LabelEn)
+			compiled := field.compiled
+			for _, variant := range field.Variants {
+				if isSerialLabel(variant.LabelZh, variant.LabelEn) {
+					serial = true
+					compiled = variant.compiled
+				}
+			}
+			if !serial {
+				continue
+			}
+			require.NotNil(t, compiled, "%s.%s", builtin.PluginName, field.Name)
+			for _, value := range []string{"/dev/ttyUSB0", "ttyUSB0", "COM3"} {
+				assert.True(t, compiled.MatchString(value), "%s.%s: %s", builtin.PluginName, field.Name, value)
+			}
+			assert.False(t, compiled.MatchString("/dev/tty USB0"), "%s.%s", builtin.PluginName, field.Name)
+		}
+	}
+}
+
+func isSerialLabel(zh, en string) bool {
+	zh = strings.ToLower(zh)
+	en = strings.ToLower(en)
+	return strings.Contains(zh, "串口") || strings.Contains(en, "serial") || strings.Contains(en, "device address")
 }
 
 func TestBuiltinDataTypeLabelsUseCanonicalEnglish(t *testing.T) {

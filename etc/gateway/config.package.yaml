@@ -24,10 +24,10 @@ sqlite:
 # beside the default data and log directories.
 plugin-dir: "../plugins"
 
-# License verification (RS256 JWT signed by the license issuer).
+# Gateway signing public key. Used to verify license JWTs and OTA manifests.
 license:
   # RSA public key PEM used to verify imported licenses (PKIX or PKCS1).
-  public-key-file: "../etc/license-public.pem"
+  public-key-file: "../etc/gateway-public.pem"
 
 # Gateway management UI static assets. Leave empty to disable UI hosting.
 ui-dir: "../ui/gateway-ui"

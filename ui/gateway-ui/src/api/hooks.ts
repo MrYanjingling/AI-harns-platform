@@ -27,6 +27,10 @@ import {
   getLicense,
   getSimulator,
   getSystemInfo,
+  getSystemUpdate,
+  applySystemUpdate,
+  rejectSystemUpdate,
+  updateSystemUpdateSettings,
   importLicense,
   listUsers,
   listCollectionVariables,
@@ -897,5 +901,56 @@ export function useUpdateAIModel() {
 export function useTestAIModel() {
   return useMutation({
     mutationFn: (payload: AIModelPayload) => testAIModel(payload),
+  })
+}
+
+/* ---------------- OTA ---------------- */
+
+export function useSystemUpdate() {
+  return useQuery({
+    queryKey: queryKeys.gateway.systemUpdate,
+    queryFn: getSystemUpdate,
+    refetchInterval: (query) => {
+      const state = query.state.data?.task?.state
+      return state === 'received' ||
+        state === 'downloading' ||
+        state === 'applying' ||
+        state === 'restarting'
+        ? 3000
+        : 15000
+    },
+  })
+}
+
+export function useApplySystemUpdate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: applySystemUpdate,
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.gateway.systemUpdate, state)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.gateway.systemUpdate })
+    },
+  })
+}
+
+export function useRejectSystemUpdate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: rejectSystemUpdate,
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.gateway.systemUpdate, state)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.gateway.systemUpdate })
+    },
+  })
+}
+
+export function useUpdateSystemUpdateSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: updateSystemUpdateSettings,
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.gateway.systemUpdate, state)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.gateway.systemUpdate })
+    },
   })
 }

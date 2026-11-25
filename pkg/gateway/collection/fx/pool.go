@@ -8,6 +8,7 @@ import (
 
 	"go.bug.st/serial"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/connpool"
 )
 
@@ -17,7 +18,7 @@ type serialPort interface {
 }
 
 var openSerialPort = func(device string, mode *serial.Mode) (serialPort, error) {
-	return serial.Open(device, mode)
+	return serial.Open(collection.NormalizeSerialPort(device), mode)
 }
 
 type serialClient struct {
