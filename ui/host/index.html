@@ -4,16 +4,14 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#121721" />
+    <meta name="theme-color" content="#070d18" />
     <title>AI-harns-platform · 管理后台</title>
     <script>
-      // 在首屏渲染前应用主题,避免暗色模式闪烁。
+      // 在首屏渲染前应用主题,默认暗黑工业大屏,避免闪烁。
       ;(() => {
         try {
           const saved = localStorage.getItem('harns-theme')
-          const dark =
-            saved === 'dark' ||
-            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          const dark = saved !== 'light'
           document.documentElement.classList.toggle('dark', dark)
           const locale = localStorage.getItem('harns-locale')
           if (locale === 'zh-CN' || locale === 'en-US') document.documentElement.lang = locale

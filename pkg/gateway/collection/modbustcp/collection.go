@@ -11,6 +11,7 @@ const (
 
 	DefaultConcurrency = 1
 	MaxConcurrency     = 3
+	DefaultTimeoutMs   = 3000
 )
 
 // ProtocolConfig contains Modbus TCP protocol fields.
@@ -20,12 +21,16 @@ type ProtocolConfig struct {
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
 	Concurrency     int    `json:"concurrency"`
+	TimeoutMs       int    `json:"timeoutMs"`
 }
 
-// Normalize applies the default concurrency.
+// Normalize applies default connection and timeout values.
 func (c *ProtocolConfig) Normalize() {
 	if c.Concurrency == 0 {
 		c.Concurrency = DefaultConcurrency
+	}
+	if c.TimeoutMs <= 0 {
+		c.TimeoutMs = DefaultTimeoutMs
 	}
 }
 
@@ -46,6 +51,7 @@ type ModbusTcpCollection struct {
 	MemoryLayout    string `json:"memoryLayout"`
 	PositionAddress uint   `json:"positionAddress"`
 	Concurrency     int    `json:"concurrency"`
+	TimeoutMs       int    `json:"timeoutMs"`
 
 	runtime      *collectorRuntime
 	activeBackup bool
@@ -76,5 +82,6 @@ func NewCollection(req *CreateReq) (*ModbusTcpCollection, error) {
 		MemoryLayout:    req.ProtocolConfig.MemoryLayout,
 		PositionAddress: req.ProtocolConfig.PositionAddress,
 		Concurrency:     req.ProtocolConfig.Concurrency,
+		TimeoutMs:       req.ProtocolConfig.TimeoutMs,
 	}, nil
 }

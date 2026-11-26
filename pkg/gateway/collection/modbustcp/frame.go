@@ -11,9 +11,8 @@ import (
 const tcpNonDataLength = 9
 
 type wireFrame struct {
-	frame       *modbus.Frame
-	request     []byte
-	responseLen int
+	frame   *modbus.Frame
+	request []byte
 }
 
 func buildWireFrames(variables []*collection.Variable, positionAddress uint) ([]*wireFrame, error) {
@@ -24,9 +23,8 @@ func buildWireFrames(variables []*collection.Variable, positionAddress uint) ([]
 	result := make([]*wireFrame, 0, len(frames))
 	for _, frame := range frames {
 		result = append(result, &wireFrame{
-			frame:       frame,
-			request:     buildTCPReadRequest(frame),
-			responseLen: tcpReadResponseLength(frame),
+			frame:   frame,
+			request: buildTCPReadRequest(frame),
 		})
 	}
 	return result, nil
@@ -41,13 +39,6 @@ func buildTCPReadRequest(frame *modbus.Frame) []byte {
 	binutil.WriteUint16BigEndian(message[8:], frame.Start)
 	binutil.WriteUint16BigEndian(message[10:], frame.Quantity)
 	return message
-}
-
-func tcpReadResponseLength(frame *modbus.Frame) int {
-	if frame.Function == modbus.FunctionReadCoils || frame.Function == modbus.FunctionReadDiscreteInputs {
-		return tcpNonDataLength + int((frame.Quantity+7)/8)
-	}
-	return tcpNonDataLength + int(frame.Quantity*2)
 }
 
 func validateTCPReadResponse(response []byte, frame *modbus.Frame, transaction uint16) ([]byte, error) {
@@ -68,7 +59,7 @@ func validateTCPReadResponse(response []byte, frame *modbus.Frame, transaction u
 		return nil, fmt.Errorf("modbusTcp slave mismatch")
 	}
 	if response[7]&0x80 != 0 {
-		return nil, fmt.Errorf("modbusTcp function error %d", response[7]&0x7f)
+		return nil, &modbus.ExceptionError{Function: response[7] & 0x7f, Code: response[8]}
 	}
 	if response[7] != frame.Function {
 		return nil, fmt.Errorf("modbusTcp function mismatch")

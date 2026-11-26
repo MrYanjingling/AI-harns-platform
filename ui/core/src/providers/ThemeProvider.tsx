@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 const STORAGE_KEY = 'harns-theme'
 
 function getInitialTheme(): Theme {
-  if (typeof document === 'undefined') return 'light'
+  if (typeof document === 'undefined') return 'dark'
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
 }
 
@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     const meta = document.querySelector('meta[name="theme-color"]')
-    meta?.setAttribute('content', theme === 'dark' ? '#121721' : '#f7f8fa')
+    meta?.setAttribute('content', theme === 'dark' ? '#070d18' : '#f3f5f8')
     try {
       localStorage.setItem(STORAGE_KEY, theme)
     } catch {

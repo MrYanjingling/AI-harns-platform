@@ -82,7 +82,7 @@ export function CalculatedVariablesEditor({
             {showValue ? <col style={{ width: widths.value }} /> : null}
             <col style={{ width: widths.actions }} />
           </colgroup>
-          <THead className="text-sm font-medium text-fg">
+          <THead>
             <TR>
               {selectable ? (
                 <TH className="text-center">

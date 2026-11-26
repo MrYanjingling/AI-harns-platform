@@ -16,14 +16,14 @@
 |---|---|
 | 区块标题 | `text-sm font-semibold` |
 | 表单标签 | `text-sm font-medium text-muted` |
-| 表格表头 | `text-sm font-medium text-fg` |
+| 表格表头 | `text-sm font-semibold text-fg` |
 | 菜单主列表表格数据 | `text-sm font-normal font-table text-table-fg` |
 | 普通弱文本 | `text-xs text-muted` |
 | 提示/辅助文本 | `text-[11px] text-faint` |
 | 非表格技术字段 | `font-mono` |
 | 状态指示 | 图标 `13px` + `13px/18px font-medium` |
 
-- 菜单主列表表格数据统一为 14px、字重 400，浅色主题 `#303133`，深色主题使用 `--fg`。
+- 菜单主列表表格数据统一为 `14px`、字重 `400`、行高 `45px`；表头统一为 `14px`、字重 `600`（`--fg`），通过字重与明暗对比形成层级梯度；浅色主题 `#303133`，深色主题 `#d2def0`。
 - 表格数据使用 `--font-table`：`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif`。
 - `DataTableCell` 内不得再覆盖字号、字重、颜色或 `font-mono`；序号、时间、类型、名称、地址、Topic、ID、数值全部继承统一数据样式。
 - 可点击计数列保持统一数据色，仅保留 `hover:text-primary`。
@@ -35,7 +35,7 @@
 
 ## 表格
 
-- 网关列表统一使用 core `DataTable`、`DataTableHead`、`DataTableHeadCell`、`DataTableBody`、`DataTableRow`、`DataTableCell`。
+- 网关列表统一使用 core `DataTable`、`DataTableHead`、`DataTableHeadCell`、`DataTableBody`、`DataTableRow`、`DataTableCell`（底层已与 `Table` / `THead` / `TH` / `TBody` / `TR` / `TD` 合并为同一套网关表格视觉规范）。
 - 菜单主列表的数据字体由 `DataTableCell` 默认提供，页面内不要重复声明数据字号、字重、颜色和等宽字体。
 - 固定布局：
   - `tableLayout: 'fixed'`

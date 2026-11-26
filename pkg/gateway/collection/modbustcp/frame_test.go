@@ -27,14 +27,12 @@ func TestBuildWireFrames(t *testing.T) {
 	assert.Equal(t, modbus.FunctionReadCoils, coilFrame.frame.Function)
 	assert.Equal(t, uint16(0), coilFrame.frame.Start)
 	assert.Equal(t, uint16(1), coilFrame.frame.Quantity)
-	assert.Equal(t, 10, coilFrame.responseLen)
 	assert.Equal(t, byte(1), coilFrame.request[7])
 
 	registerFrame := frames[1]
 	assert.Equal(t, modbus.FunctionReadInputRegisters, registerFrame.frame.Function)
 	assert.Equal(t, uint16(0), registerFrame.frame.Start)
 	assert.Equal(t, uint16(3), registerFrame.frame.Quantity)
-	assert.Equal(t, 15, registerFrame.responseLen)
 	require.Len(t, registerFrame.frame.Variables, 2)
 	assert.Equal(t, 0, registerFrame.frame.Variables[0].Offset)
 	assert.Equal(t, 4, registerFrame.frame.Variables[1].Offset)
@@ -57,4 +55,15 @@ func TestBuildWireFramesSplitsAtRegisterLimit(t *testing.T) {
 	require.Len(t, frames, 2)
 	assert.Equal(t, uint16(0), frames[0].frame.Start)
 	assert.Equal(t, uint16(124), frames[1].frame.Start)
+}
+
+func TestValidateTCPReadResponseReturnsException(t *testing.T) {
+	response := []byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x84, 0x02}
+	_, err := validateTCPReadResponse(response, &modbus.Frame{
+		Slave:    1,
+		Function: modbus.FunctionReadInputRegisters,
+	}, 1)
+	require.Error(t, err)
+	assert.True(t, modbus.IsException(err))
+	assert.Equal(t, "modbus exception: illegal data address (function 4, code 2)", err.Error())
 }

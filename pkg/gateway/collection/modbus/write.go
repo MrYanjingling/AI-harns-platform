@@ -191,7 +191,7 @@ func BuildTCPWriteRequest(slave uint8, transaction uint16, pdu []byte) []byte {
 
 // ValidateTCPWriteResponse validates a Modbus TCP write response.
 func ValidateTCPWriteResponse(response []byte, transaction uint16, slave, function uint8) error {
-	if len(response) < 12 {
+	if len(response) < 9 {
 		return fmt.Errorf("modbusTcp write response is too short")
 	}
 	if binutil.ParseUint16BigEndian(response) != transaction {
@@ -207,7 +207,7 @@ func ValidateTCPWriteResponse(response []byte, transaction uint16, slave, functi
 		return fmt.Errorf("modbusTcp write slave mismatch")
 	}
 	if response[7]&0x80 != 0 {
-		return fmt.Errorf("modbusTcp write function error %d", response[7]&0x7f)
+		return &ExceptionError{Function: response[7] & 0x7f, Code: response[8]}
 	}
 	if response[7] != function {
 		return fmt.Errorf("modbusTcp write function mismatch")

@@ -95,23 +95,65 @@ export function AIModelsPage() {
   const testModel = useTestAIModel()
   const [form, setForm] = useState<AIModelPayload>(EMPTY_FORM)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [editing, setEditing] = useState<boolean | null>(null)
+
+  const hasSavedModel = Boolean(
+    settings.data?.hasApiKey ||
+      settings.data?.name.trim() ||
+      settings.data?.model.trim() ||
+      settings.data?.endpointUrl.trim(),
+  )
+  const isEditing = editing ?? !hasSavedModel
 
   useEffect(() => {
     if (!settings.data) return
-    setForm({
-      name: settings.data.name,
-      remark: settings.data.remark,
-      model: settings.data.model,
-      endpointUrl: settings.data.endpointUrl,
-      apiKey: '',
-    })
-    setErrors({})
-  }, [settings.data])
+    if (editing === null) {
+      setEditing(!hasSavedModel)
+    }
+    if (editing !== true) {
+      setForm({
+        name: settings.data.name,
+        remark: settings.data.remark,
+        model: settings.data.model,
+        endpointUrl: settings.data.endpointUrl,
+        apiKey: '',
+      })
+      setErrors({})
+    }
+  }, [editing, hasSavedModel, settings.data])
 
   const assistantEnabled = settings.data?.assistantEnabled ?? false
   const mcpEnabled = settings.data?.mcpEnabled ?? false
   const token = settings.data?.mcpToken ?? ''
-  const apiKeyLocked = Boolean(settings.data?.hasApiKey)
+  const hasExistingApiKey = Boolean(settings.data?.hasApiKey)
+
+  const startEdit = () => {
+    if (settings.data) {
+      setForm({
+        name: settings.data.name,
+        remark: settings.data.remark,
+        model: settings.data.model,
+        endpointUrl: settings.data.endpointUrl,
+        apiKey: '',
+      })
+    }
+    setErrors({})
+    setEditing(true)
+  }
+
+  const cancelEdit = () => {
+    if (settings.data) {
+      setForm({
+        name: settings.data.name,
+        remark: settings.data.remark,
+        model: settings.data.model,
+        endpointUrl: settings.data.endpointUrl,
+        apiKey: '',
+      })
+    }
+    setErrors({})
+    setEditing(false)
+  }
 
   const updateSwitches = (next: { assistantEnabled: boolean; mcpEnabled: boolean }) => {
     updateSettings.mutate(next, {
@@ -140,12 +182,13 @@ export function AIModelsPage() {
     const name = form.name.trim()
     const model = form.model.trim()
     const endpointUrl = form.endpointUrl.trim()
+    const apiKey = form.apiKey?.trim() ?? ''
     if (!name) next.name = t('gateway.ai.validation.nameRequired')
     if (!model) next.model = t('gateway.ai.validation.modelRequired')
     if (!endpointUrl || !validEndpoint(endpointUrl)) {
       next.endpointUrl = t('gateway.ai.validation.endpointInvalid')
     }
-    if (!apiKeyLocked && !form.apiKey?.trim()) {
+    if (!hasExistingApiKey && !apiKey) {
       next.apiKey = t('gateway.ai.validation.apiKeyRequired')
     }
     setErrors(next)
@@ -155,17 +198,20 @@ export function AIModelsPage() {
       remark: form.remark.trim(),
       model,
       endpointUrl,
-      ...(!apiKeyLocked && form.apiKey?.trim() ? { apiKey: form.apiKey.trim() } : {}),
+      ...(apiKey ? { apiKey } : {}),
     }
   }
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!isEditing) return
     const payload = validate()
     if (!payload) return
     updateModel.mutate(payload, {
       onSuccess: () => {
         setForm((current) => ({ ...current, apiKey: '' }))
+        setErrors({})
+        setEditing(false)
         toast.success(t('gateway.ai.toast.updated'))
       },
       onError: showErrorToast,
@@ -234,6 +280,7 @@ export function AIModelsPage() {
                     id="gateway-ai-config-name"
                     value={form.name}
                     placeholder={t('gateway.ai.placeholder.name')}
+                    disabled={!isEditing}
                     onChange={(event) => setForm({ ...form, name: event.target.value })}
                   />
                 </Field>
@@ -247,6 +294,7 @@ export function AIModelsPage() {
                     value={form.remark}
                     rows={3}
                     className="min-h-20 resize-none"
+                    disabled={!isEditing}
                     onChange={(event) => setForm({ ...form, remark: event.target.value })}
                   />
                 </Field>
@@ -255,21 +303,29 @@ export function AIModelsPage() {
                   htmlFor="gateway-ai-model-key"
                   labelClassName="text-sm"
                   error={errors.apiKey}
-                  required={!apiKeyLocked}
+                  required={isEditing && !hasExistingApiKey}
                 >
-                  <Input
-                    id="gateway-ai-model-key"
-                    type={apiKeyLocked ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={
-                      apiKeyLocked
-                        ? (settings.data?.apiKey || '********')
-                        : (form.apiKey ?? '')
-                    }
-                    placeholder="sk-..."
-                    disabled={apiKeyLocked}
-                    onChange={(event) => setForm({ ...form, apiKey: event.target.value })}
-                  />
+                  {isEditing ? (
+                    <SecretInput
+                      id="gateway-ai-model-key"
+                      autoComplete="new-password"
+                      value={form.apiKey ?? ''}
+                      placeholder={
+                        hasExistingApiKey
+                          ? t('gateway.ai.placeholder.apiKeyKeep')
+                          : 'sk-...'
+                      }
+                      onChange={(event) => setForm({ ...form, apiKey: event.target.value })}
+                    />
+                  ) : (
+                    <Input
+                      id="gateway-ai-model-key"
+                      type="text"
+                      value={hasExistingApiKey ? (settings.data?.apiKey || '********') : ''}
+                      placeholder="sk-..."
+                      disabled
+                    />
+                  )}
                 </Field>
                 <Field
                   label={t('gateway.ai.field.model')}
@@ -282,6 +338,7 @@ export function AIModelsPage() {
                     id="gateway-ai-model-name"
                     value={form.model}
                     placeholder={t('gateway.ai.placeholder.model')}
+                    disabled={!isEditing}
                     onChange={(event) => setForm({ ...form, model: event.target.value })}
                   />
                 </Field>
@@ -296,28 +353,59 @@ export function AIModelsPage() {
                     id="gateway-ai-model-endpoint"
                     value={form.endpointUrl}
                     placeholder="https://api.openai.com/v1/chat/completions"
+                    disabled={!isEditing}
                     onChange={(event) =>
                       setForm({ ...form, endpointUrl: event.target.value })
                     }
                   />
                 </Field>
                 <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
-                  <Button
-                    variant="outline"
-                    loading={testModel.isPending}
-                    disabled={updateModel.isPending}
-                    onClick={test}
-                  >
-                    {t('gateway.ai.models.test')}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={updateModel.isPending}
-                    disabled={testModel.isPending}
-                  >
-                    {t('common.action.save')}
-                  </Button>
+                  {isEditing ? (
+                    <>
+                      {hasSavedModel ? (
+                        <Button
+                          variant="outline"
+                          disabled={updateModel.isPending || testModel.isPending}
+                          onClick={cancelEdit}
+                        >
+                          {t('common.action.cancel')}
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        loading={testModel.isPending}
+                        disabled={updateModel.isPending}
+                        onClick={test}
+                      >
+                        {t('gateway.ai.models.test')}
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        loading={updateModel.isPending}
+                        disabled={testModel.isPending}
+                      >
+                        {t('common.action.save')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        loading={testModel.isPending}
+                        onClick={test}
+                      >
+                        {t('gateway.ai.models.test')}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        disabled={testModel.isPending}
+                        onClick={startEdit}
+                      >
+                        {t('common.action.edit')}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </form>
             ) : null}

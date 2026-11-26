@@ -64,3 +64,11 @@ func TestBuildWriteAcceptsUppercaseDataType(t *testing.T) {
 	}, true, 1, "ABCD")
 	require.Error(t, err)
 }
+
+func TestValidateTCPWriteResponseReturnsException(t *testing.T) {
+	response := []byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x86, 0x02}
+	err := ValidateTCPWriteResponse(response, 1, 1, 6)
+	require.Error(t, err)
+	assert.True(t, IsException(err))
+	assert.Equal(t, "modbus exception: illegal data address (function 6, code 2)", err.Error())
+}

@@ -89,15 +89,15 @@ func (c *ModbusTcpCollection) Connect(ctx context.Context) error {
 	if c.activeBackup && c.BackupLocation != "" {
 		target = c.BackupLocation
 	}
-	pool, err := newNetPool(ctx, target, c.Concurrency)
+	pool, err := newNetPool(ctx, target, c.Concurrency, c.timeout())
 	if err != nil && target == c.Location && c.BackupLocation != "" {
-		pool, err = newNetPool(ctx, c.BackupLocation, c.Concurrency)
+		pool, err = newNetPool(ctx, c.BackupLocation, c.Concurrency, c.timeout())
 		if err == nil {
 			c.activeBackup = true
 		}
 	}
 	if err != nil && target == c.BackupLocation {
-		pool, err = newNetPool(ctx, c.Location, c.Concurrency)
+		pool, err = newNetPool(ctx, c.Location, c.Concurrency, c.timeout())
 		if err == nil {
 			c.activeBackup = false
 		}
@@ -291,6 +291,13 @@ func (c *ModbusTcpCollection) poll(ctx context.Context) bool {
 	return true
 }
 
+func (c *ModbusTcpCollection) timeout() time.Duration {
+	if c == nil || c.TimeoutMs <= 0 {
+		return time.Duration(DefaultTimeoutMs) * time.Millisecond
+	}
+	return time.Duration(c.TimeoutMs) * time.Millisecond
+}
+
 // SetFrameTracer injects live frame tracing.
 func (c *ModbusTcpCollection) SetFrameTracer(tracer collection.FrameTracer) {
 	c.frameTracer = tracer
@@ -307,9 +314,8 @@ func (c *ModbusTcpCollection) collectFrame(ctx context.Context, frame *wireFrame
 		request := append([]byte(nil), frame.request...)
 		binutil.WriteUint16BigEndian(request, transaction)
 		traceID := c.traceRequest("read", request)
-		response := make([]byte, frame.responseLen)
 		started := time.Now()
-		exchangeErr := exchange(ctx, runtime.pool, request, response)
+		response, exchangeErr := exchange(ctx, runtime.pool, request, c.timeout())
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
@@ -317,6 +323,9 @@ func (c *ModbusTcpCollection) collectFrame(ctx context.Context, frame *wireFrame
 		}
 		payload, err := validateTCPReadResponse(response, frame.frame, transaction)
 		if err != nil {
+			if modbus.IsException(err) {
+				return nil, err
+			}
 			lastErr = err
 			continue
 		}
@@ -360,7 +369,7 @@ func (c *ModbusTcpCollection) recordCycleFailure(ctx context.Context) bool {
 	runtime.mu.Lock()
 	runtime.failureStreak = 0
 	runtime.mu.Unlock()
-	newPool, err := newNetPool(ctx, c.BackupLocation, c.Concurrency)
+	newPool, err := newNetPool(ctx, c.BackupLocation, c.Concurrency, c.timeout())
 	if err != nil {
 		return false
 	}
@@ -412,7 +421,7 @@ func (c *ModbusTcpCollection) maybeFailback(ctx context.Context) {
 	if success < failbackSuccessCount {
 		return
 	}
-	newPool, err := newNetPool(ctx, c.Location, c.Concurrency)
+	newPool, err := newNetPool(ctx, c.Location, c.Concurrency, c.timeout())
 	if err == nil {
 		oldPool := runtime.pool
 		runtime.mu.Lock()
@@ -441,11 +450,11 @@ func (c *ModbusTcpCollection) probePrimary(ctx context.Context) bool {
 	transaction := c.nextTransactionID()
 	request := append([]byte(nil), frame.request...)
 	binutil.WriteUint16BigEndian(request, transaction)
-	response := make([]byte, frame.responseLen)
-	if err := probeTCP(ctx, c.Location, request, response); err != nil {
+	response, err := probeTCP(ctx, c.Location, request, c.timeout())
+	if err != nil {
 		return false
 	}
-	_, err := validateTCPReadResponse(response, frame.frame, transaction)
+	_, err = validateTCPReadResponse(response, frame.frame, transaction)
 	return err == nil
 }
 
@@ -467,9 +476,8 @@ func (c *ModbusTcpCollection) DeliverAction(ctx context.Context, actions []colle
 		transaction := c.nextTransactionID()
 		request := modbus.BuildTCPWriteRequest(write.Slave, transaction, write.PDU())
 		traceID := c.traceRequest("write", request)
-		response := make([]byte, 12)
 		started := time.Now()
-		exchangeErr := exchange(ctx, runtime.pool, request, response)
+		response, exchangeErr := exchange(ctx, runtime.pool, request, c.timeout())
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return collection.DeviceActionError(action, exchangeErr)

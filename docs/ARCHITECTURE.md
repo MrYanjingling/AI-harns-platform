@@ -245,7 +245,7 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `profinet`（`driverType=profinet`）：通过 Siemens S7 通信（ISO-on-TCP 102）访问 PROFINET CPU 过程数据，复用 S7 地址、PDU 分帧与 `concurrency`
 - `dnp3`（`driverType=dnp3`）：DNP 3.0 TCP 主站，链路复位 + Class 0/1/2/3 轮询，支持二进制、计数器、模拟量对象解析，断线后走统一指数退避重连
 
-Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp、ModbusRtuOverTcp、OPC UA、S7、FINS 和 Omron CIP 的 `protocolConfig` 支持 `concurrency`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
+Modbus 变量地址格式为 `slaveId!functionCodeAddress`，例如 `1!40001`；普通变量支持 `bits`（寄存器 BOOL 从 1 开始，范围 1~16），计算变量通过 `expression` 依赖其他变量。ModbusTcp 的 `protocolConfig` 支持 `concurrency`（1~3，默认 1）和 `timeoutMs`（默认 3000）；ModbusRtuOverTcp、OPC UA、S7、FINS 和 Omron CIP 支持 `concurrency`（1~3，默认 1）。OPC UA 变量地址必须为完整 NodeID，例如 `ns=2;s=Tag`。
 
 更新采集器配置、增加或删除变量不会自动重启运行时，必须显式调用 `POST /api/v1/collections/:id/restart` 或 `start` 后才会按最新配置重建 Collector。`stop` 只暂停当前运行时并关闭连接，不持久化停止状态；停止期间 SSE 保持连接，但反控会被拒绝。
 

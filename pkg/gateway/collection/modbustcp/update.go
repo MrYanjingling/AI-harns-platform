@@ -17,4 +17,5 @@ func (c *ModbusTcpCollection) ApplyUpdate(req *UpdateReq) {
 	c.MemoryLayout = req.ProtocolConfig.MemoryLayout
 	c.PositionAddress = req.ProtocolConfig.PositionAddress
 	c.Concurrency = req.ProtocolConfig.Concurrency
+	c.TimeoutMs = req.ProtocolConfig.TimeoutMs
 }

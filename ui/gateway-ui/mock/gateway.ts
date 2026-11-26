@@ -488,13 +488,15 @@ export async function handleGateway(
       badRequest(res, 'name, model, endpointUrl and apiKey are required')
       return true
     }
+    const hasApiKey = aiSettings.hasApiKey || Boolean(apiKey)
     aiSettings = {
       ...aiSettings,
       name,
       remark,
       model,
       endpointUrl,
-      hasApiKey: aiSettings.hasApiKey || Boolean(apiKey),
+      apiKey: hasApiKey ? '********' : '',
+      hasApiKey,
       updatedTime: nowIso(),
     }
     send(res, 200, ok(aiSettings))

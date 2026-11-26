@@ -55,9 +55,11 @@ func (s *closingModbusServer) Addr() string { return s.listener.Addr().String() 
 type fakeModbusServer struct {
 	listener net.Listener
 
-	mu        sync.Mutex
-	registers map[uint16]uint16
-	conns     []net.Conn
+	mu                sync.Mutex
+	registers         map[uint16]uint16
+	exceptionFunction uint8
+	exceptionCode     uint8
+	conns             []net.Conn
 }
 
 func newFakeModbusServer(t *testing.T) *fakeModbusServer {
@@ -79,6 +81,13 @@ func (s *fakeModbusServer) SetRegister(address uint16, value uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.registers[address] = value
+}
+
+func (s *fakeModbusServer) SetException(function, code uint8) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.exceptionFunction = function
+	s.exceptionCode = code
 }
 
 func (s *fakeModbusServer) Close() {
@@ -123,6 +132,20 @@ func (s *fakeModbusServer) response(request []byte) []byte {
 	function := request[7]
 	start := binutil.ParseUint16BigEndian(request[8:])
 	quantity := binutil.ParseUint16BigEndian(request[10:])
+
+	s.mu.Lock()
+	exceptionFunction := s.exceptionFunction
+	exceptionCode := s.exceptionCode
+	s.mu.Unlock()
+	if exceptionFunction != 0 && exceptionCode != 0 && function == exceptionFunction {
+		response := make([]byte, 9)
+		copy(response[0:2], request[0:2])
+		binutil.WriteUint16BigEndian(response[4:], 3)
+		response[6] = slave
+		response[7] = function | 0x80
+		response[8] = exceptionCode
+		return response
+	}
 
 	data := make([]byte, 0)
 	switch function {
@@ -243,7 +266,7 @@ func TestCollectorFailbackAfterProbeSuccess(t *testing.T) {
 		failbackProbeInterval = oldProbe
 	})
 
-	backupPool, err := newNetPool(context.Background(), backup.Addr(), 1)
+	backupPool, err := newNetPool(context.Background(), backup.Addr(), 1, time.Second)
 	require.NoError(t, err)
 	oldPool := created.runtime.pool
 	created.runtime.pool = backupPool
@@ -293,6 +316,53 @@ func TestInvalidCalculationKeepsCollectionRunning(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return created.GetCollectStatus() == collection.CollectStatusCollectingError
 	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func TestExceptionResponseKeepsCollectionConnected(t *testing.T) {
+	server := newFakeModbusServer(t)
+	server.SetException(modbus.FunctionReadInputRegisters, 2)
+
+	created, err := NewCollection(&CreateReq{
+		Name:             "modbus-tcp-exception",
+		CollectorCycleMs: 20,
+		ProtocolConfig: ProtocolConfig{
+			Location:        server.Addr(),
+			MemoryLayout:    "ABCD",
+			PositionAddress: 1,
+			Concurrency:     1,
+			TimeoutMs:       1000,
+		},
+		Variables: []*collection.Variable{
+			{Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = created.Stop(context.Background()) })
+
+	errors := make(chan error, 1)
+	created.SetErrorReporter(func(err error) {
+		if err == nil {
+			return
+		}
+		select {
+		case errors <- err:
+		default:
+		}
+	})
+	require.NoError(t, created.Connect(context.Background()))
+	require.NoError(t, created.Start(context.Background()))
+
+	select {
+	case err := <-errors:
+		assert.True(t, modbus.IsException(err), err.Error())
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected modbus exception")
+	}
+	require.Eventually(t, func() bool {
+		return created.GetCollectStatus() == collection.CollectStatusCollectingError
+	}, 2*time.Second, 10*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, collection.CollectStatusCollectingError, created.GetCollectStatus())
 }
 
 func TestCollectorMarksUnconnectedWhenLinkLostDuringCollection(t *testing.T) {

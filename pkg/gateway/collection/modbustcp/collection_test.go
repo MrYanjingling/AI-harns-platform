@@ -66,6 +66,7 @@ func TestNewCollection(t *testing.T) {
 	assert.Equal(t, "127.0.0.1:502", created.Location)
 	require.Len(t, created.Variables, 1)
 	assert.Equal(t, float64(1), created.Variables[0].RateValue())
+	assert.Equal(t, DefaultTimeoutMs, created.TimeoutMs)
 }
 
 func TestConfigJSONRoundTrip(t *testing.T) {
@@ -74,6 +75,7 @@ func TestConfigJSONRoundTrip(t *testing.T) {
 		BackupLocation:  "127.0.0.2:502",
 		MemoryLayout:    "ABCD",
 		PositionAddress: 10,
+		TimeoutMs:       5000,
 	}
 	data, err := original.ConfigJSON()
 	require.NoError(t, err)
@@ -85,6 +87,7 @@ func TestConfigJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original.BackupLocation, restored.BackupLocation)
 	assert.Equal(t, original.MemoryLayout, restored.MemoryLayout)
 	assert.Equal(t, original.PositionAddress, restored.PositionAddress)
+	assert.Equal(t, original.TimeoutMs, restored.TimeoutMs)
 }
 
 func TestConcurrencyDefaultsToOne(t *testing.T) {
@@ -103,4 +106,5 @@ func TestConcurrencyDefaultsToOne(t *testing.T) {
 	config, err := created.ConfigJSON()
 	require.NoError(t, err)
 	assert.Contains(t, string(config), `"concurrency":1`)
+	assert.Contains(t, string(config), `"timeoutMs":3000`)
 }

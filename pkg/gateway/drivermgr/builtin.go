@@ -252,6 +252,16 @@ const modbusTcpSchema = `{
         {"value": "2", "labelZh": "2", "labelEn": "2"},
         {"value": "3", "labelZh": "3", "labelEn": "3"}
       ]
+    },
+    {
+      "name": "timeoutMs",
+      "labelZh": "超时(ms)",
+      "labelEn": "Timeout (ms)",
+      "regex": "^[1-9][0-9]{0,5}$",
+      "placeholderZh": "3000",
+      "placeholderEn": "3000",
+      "sort": 6,
+      "type": "input"
     }
   ],
   "variableAddress": {
