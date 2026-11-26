@@ -22,9 +22,8 @@ const (
 )
 
 type wireFrame struct {
-	frame       *modbus.Frame
-	request     []byte
-	responseLen int
+	frame   *modbus.Frame
+	request []byte
 }
 
 type collectorRuntime struct {
@@ -248,10 +247,9 @@ func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
-		response := make([]byte, frame.responseLen)
 		traceID := c.traceRequest("read", frame.request)
 		started := time.Now()
-		exchangeErr := c.exchange(ctx, runtime, frame.request, response)
+		response, exchangeErr := c.exchange(ctx, runtime, frame.request, false)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
@@ -259,6 +257,9 @@ func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame
 		}
 		payload, err := modbus.ValidateRTUResponse(response, frame.frame)
 		if err != nil {
+			if modbus.IsException(err) {
+				return nil, err
+			}
 			lastErr = err
 			continue
 		}
@@ -274,31 +275,38 @@ func (c *ModbusRtuCollection) collectFrame(ctx context.Context, frame *wireFrame
 	return nil, lastErr
 }
 
-func (c *ModbusRtuCollection) exchange(ctx context.Context, runtime *collectorRuntime, request, response []byte) error {
+func (c *ModbusRtuCollection) exchange(ctx context.Context, runtime *collectorRuntime, request []byte, write bool) ([]byte, error) {
 	client, err := runtime.pool.Get(ctx)
 	if err != nil {
-		return collection.ConnectionLost(err)
+		return nil, collection.ConnectionLost(err)
 	}
 	serialConn := client.(*serialClient)
 	serialConn.mu.Lock()
+	var response []byte
 	_, err = serialConn.port.Write(request)
 	if err == nil {
 		if err = serialConn.port.SetReadTimeout(serialTimeout); err == nil {
-			err = collection.ReadFullWithTimeout(serialConn.port, response)
+			if write {
+				response, err = modbus.ReadRTUWriteResponse(serialConn.port)
+			} else {
+				response, err = modbus.ReadRTUReadResponse(serialConn.port)
+			}
 		}
 	}
 	serialConn.mu.Unlock()
 	runtime.pool.Put(client, err != nil)
-	return collection.ConnectionLost(err)
+	if err != nil {
+		return nil, collection.ConnectionLost(err)
+	}
+	return response, nil
 }
 
 func buildWireFrames(frames []*modbus.Frame) []*wireFrame {
 	result := make([]*wireFrame, 0, len(frames))
 	for _, frame := range frames {
 		result = append(result, &wireFrame{
-			frame:       frame,
-			request:     modbus.BuildRTURequest(frame),
-			responseLen: modbus.RTUResponseLength(frame),
+			frame:   frame,
+			request: modbus.BuildRTURequest(frame),
 		})
 	}
 	return result
@@ -343,9 +351,8 @@ func (c *ModbusRtuCollection) DeliverAction(ctx context.Context, actions []colle
 		}
 		request := modbus.BuildRTUWriteRequest(write)
 		traceID := c.traceRequest("write", request)
-		response := make([]byte, 8)
 		started := time.Now()
-		exchangeErr := c.exchange(ctx, runtime, request, response)
+		response, exchangeErr := c.exchange(ctx, runtime, request, true)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return collection.DeviceActionError(action, exchangeErr)

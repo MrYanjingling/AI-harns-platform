@@ -25,9 +25,8 @@ const (
 )
 
 type wireFrame struct {
-	frame       *modbus.Frame
-	request     []byte
-	responseLen int
+	frame   *modbus.Frame
+	request []byte
 }
 
 type collectorRuntime struct {
@@ -90,9 +89,8 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 	wireFrames := make([]*wireFrame, 0, len(frames))
 	for _, frame := range frames {
 		wireFrames = append(wireFrames, &wireFrame{
-			frame:       frame,
-			request:     modbus.BuildRTURequest(frame),
-			responseLen: modbus.RTUResponseLength(frame),
+			frame:   frame,
+			request: modbus.BuildRTURequest(frame),
 		})
 	}
 	runtime := &collectorRuntime{frames: wireFrames, calcs: calculations, calcErr: calcErr}
@@ -313,10 +311,9 @@ func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wi
 	}
 	var lastErr error
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
-		response := make([]byte, frame.responseLen)
 		traceID := c.traceRequest("read", frame.request)
 		started := time.Now()
-		exchangeErr := exchange(ctx, runtime.pool, frame.request, response)
+		response, exchangeErr := exchange(ctx, runtime.pool, frame.request, false)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
@@ -324,6 +321,9 @@ func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wi
 		}
 		payload, err := modbus.ValidateRTUResponse(response, frame.frame)
 		if err != nil {
+			if modbus.IsException(err) {
+				return nil, err
+			}
 			lastErr = err
 			continue
 		}
@@ -438,11 +438,11 @@ func (c *ModbusRtuOverTcpCollection) probePrimary(ctx context.Context) bool {
 		return false
 	}
 	frame := runtime.frames[0]
-	response := make([]byte, frame.responseLen)
-	if err := probeTCP(ctx, c.Location, frame.request, response); err != nil {
+	response, err := probeTCP(ctx, c.Location, frame.request)
+	if err != nil {
 		return false
 	}
-	_, err := modbus.ValidateRTUResponse(response, frame.frame)
+	_, err = modbus.ValidateRTUResponse(response, frame.frame)
 	return err == nil
 }
 
@@ -463,9 +463,8 @@ func (c *ModbusRtuOverTcpCollection) DeliverAction(ctx context.Context, actions 
 		}
 		request := modbus.BuildRTUWriteRequest(write)
 		traceID := c.traceRequest("write", request)
-		response := make([]byte, 8)
 		started := time.Now()
-		exchangeErr := exchange(ctx, runtime.pool, request, response)
+		response, exchangeErr := exchange(ctx, runtime.pool, request, true)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return collection.DeviceActionError(action, exchangeErr)

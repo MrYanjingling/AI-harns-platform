@@ -3,12 +3,12 @@ package modbusrtuovertcp
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
 	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/gateway/collection/connpool"
+	"harns-platform/pkg/gateway/collection/modbus"
 )
 
 const tcpConnectTimeout = time.Second
@@ -44,46 +44,49 @@ func newNetPool(ctx context.Context, address string, size int) (*connpool.Pool, 
 	return pool, nil
 }
 
-func exchange(ctx context.Context, pool *connpool.Pool, request, response []byte) error {
+func exchange(ctx context.Context, pool *connpool.Pool, request []byte, write bool) ([]byte, error) {
 	client, err := pool.Get(ctx)
 	if err != nil {
-		return collection.ConnectionLost(err)
+		return nil, collection.ConnectionLost(err)
 	}
 	netConn, ok := client.(*netClient)
 	if !ok {
 		pool.Put(client, true)
-		return fmt.Errorf("invalid modbusRtuOverTcp connection type")
+		return nil, fmt.Errorf("invalid modbusRtuOverTcp connection type")
 	}
-	err = exchangeConn(netConn.Conn, request, response)
+	response, err := exchangeConn(netConn.Conn, request, write)
 	pool.Put(client, err != nil)
-	return collection.ConnectionLost(err)
+	if err != nil {
+		return nil, collection.ConnectionLost(err)
+	}
+	return response, nil
 }
 
-func probeTCP(ctx context.Context, address string, request, response []byte) error {
+func probeTCP(ctx context.Context, address string, request []byte) ([]byte, error) {
 	if address == "" {
-		return fmt.Errorf("probe address is empty")
+		return nil, fmt.Errorf("probe address is empty")
 	}
 	dialer := net.Dialer{Timeout: tcpConnectTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn.Close()
-	return exchangeConn(conn, request, response)
+	return exchangeConn(conn, request, false)
 }
 
-func exchangeConn(conn net.Conn, request, response []byte) error {
+func exchangeConn(conn net.Conn, request []byte, write bool) ([]byte, error) {
 	if err := conn.SetWriteDeadline(time.Now().Add(tcpConnectTimeout)); err != nil {
-		return err
+		return nil, err
 	}
 	if _, err := conn.Write(request); err != nil {
-		return err
+		return nil, err
 	}
 	if err := conn.SetReadDeadline(time.Now().Add(tcpConnectTimeout)); err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := io.ReadFull(conn, response); err != nil {
-		return err
+	if write {
+		return modbus.ReadRTUWriteResponse(conn)
 	}
-	return nil
+	return modbus.ReadRTUReadResponse(conn)
 }

@@ -16,9 +16,10 @@ import (
 )
 
 type fakeRTUServer struct {
-	listener net.Listener
-	mu       sync.Mutex
-	values   map[uint16]uint16
+	listener  net.Listener
+	mu        sync.Mutex
+	values    map[uint16]uint16
+	exception bool
 }
 
 func newFakeRTUServer(t *testing.T) *fakeRTUServer {
@@ -32,6 +33,12 @@ func newFakeRTUServer(t *testing.T) *fakeRTUServer {
 }
 
 func (s *fakeRTUServer) Addr() string { return s.listener.Addr().String() }
+
+func (s *fakeRTUServer) SetException() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.exception = true
+}
 
 func (s *fakeRTUServer) accept() {
 	for {
@@ -53,6 +60,18 @@ func (s *fakeRTUServer) handle(conn net.Conn) {
 		function := request[1]
 		start := binutil.ParseUint16BigEndian(request[2:])
 		quantity := binutil.ParseUint16BigEndian(request[4:])
+		s.mu.Lock()
+		exception := s.exception
+		s.mu.Unlock()
+		if exception {
+			response := []byte{request[0], function | 0x80, 0x02}
+			crc := make([]byte, 2)
+			binutil.WriteUint16BigEndian(crc, crcutil.CheckCrc16sum(response))
+			if _, err := conn.Write(append(response, crc...)); err != nil {
+				return
+			}
+			continue
+		}
 		data := make([]byte, int(quantity)*2)
 		s.mu.Lock()
 		for i := uint16(0); i < quantity; i++ {
@@ -97,4 +116,51 @@ func TestCollectorReadsRTUOverTCP(t *testing.T) {
 		value, ok := created.GetVariableValue("temperature")
 		return ok && value == float32(1)
 	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func TestExceptionResponseKeepsRTUOverTCPConnected(t *testing.T) {
+	server := newFakeRTUServer(t)
+	server.SetException()
+
+	created, err := NewCollection(&CreateReq{
+		Name:             "rtu-over-tcp-exception",
+		CollectorCycleMs: 20,
+		ProtocolConfig: ProtocolConfig{
+			Location:        server.Addr(),
+			MemoryLayout:    "ABCD",
+			PositionAddress: 1,
+			Concurrency:     1,
+		},
+		Variables: []*collection.Variable{{
+			Name: "temperature", DataType: "float32", Address: "1!40001", AccessMode: collection.AccessModeRead,
+		}},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = created.Stop(context.Background()) })
+
+	errors := make(chan error, 1)
+	created.SetErrorReporter(func(err error) {
+		if err == nil {
+			return
+		}
+		select {
+		case errors <- err:
+		default:
+		}
+	})
+	require.NoError(t, created.Connect(context.Background()))
+	require.NoError(t, created.Start(context.Background()))
+
+	select {
+	case err := <-errors:
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "modbus exception")
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected modbus exception")
+	}
+	require.Eventually(t, func() bool {
+		return created.GetCollectStatus() == collection.CollectStatusCollectingError
+	}, 2*time.Second, 10*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	require.Equal(t, collection.CollectStatusCollectingError, created.GetCollectStatus())
 }

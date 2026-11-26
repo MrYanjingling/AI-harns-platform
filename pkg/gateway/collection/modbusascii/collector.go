@@ -258,6 +258,9 @@ func (c *Collection) collectFrame(ctx context.Context, frame *wireFrame) ([]modb
 		}
 		payload, err := modbus.ParseASCIIResponse(response, frame.frame)
 		if err != nil {
+			if modbus.IsException(err) {
+				return nil, err
+			}
 			lastErr = err
 			continue
 		}

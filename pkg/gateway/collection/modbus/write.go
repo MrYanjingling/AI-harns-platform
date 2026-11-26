@@ -228,8 +228,8 @@ func BuildRTUWriteRequest(write *WriteFrame) []byte {
 
 // ValidateRTUWriteResponse validates a Modbus RTU write response.
 func ValidateRTUWriteResponse(response []byte, slave, function uint8) error {
-	if len(response) != 8 {
-		return fmt.Errorf("modbusRtu write response length mismatch")
+	if len(response) < 5 {
+		return fmt.Errorf("modbusRtu write response is too short")
 	}
 	crc := binutil.ParseUint16BigEndian(response[len(response)-2:])
 	if crc != crcutil.CheckCrc16sum(response[:len(response)-2]) {
@@ -239,10 +239,13 @@ func ValidateRTUWriteResponse(response []byte, slave, function uint8) error {
 		return fmt.Errorf("modbusRtu write slave mismatch")
 	}
 	if response[1]&0x80 != 0 {
-		return fmt.Errorf("modbusRtu write function error %d", response[1]&0x7f)
+		return &ExceptionError{Function: response[1] & 0x7f, Code: response[2]}
 	}
 	if response[1] != function {
 		return fmt.Errorf("modbusRtu write function mismatch")
+	}
+	if len(response) != 8 {
+		return fmt.Errorf("modbusRtu write response length mismatch")
 	}
 	return nil
 }

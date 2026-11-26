@@ -43,7 +43,7 @@ func ParseASCIIResponse(raw []byte, frame *Frame) ([]byte, error) {
 		return nil, fmt.Errorf("modbusAscii response is too short")
 	}
 	if pdu[0]&0x80 != 0 {
-		return nil, fmt.Errorf("modbusAscii function error %d", pdu[1])
+		return nil, &ExceptionError{Function: pdu[0] & 0x7f, Code: pdu[1]}
 	}
 	if pdu[0] != frame.Function {
 		return nil, fmt.Errorf("modbusAscii function mismatch")
@@ -79,7 +79,7 @@ func ValidateASCIIWriteResponse(raw []byte, write *WriteFrame) error {
 		return fmt.Errorf("modbusAscii write response is too short")
 	}
 	if pdu[0]&0x80 != 0 {
-		return fmt.Errorf("modbusAscii write function error %d", pdu[1])
+		return &ExceptionError{Function: pdu[0] & 0x7f, Code: pdu[1]}
 	}
 	if pdu[0] != write.Function {
 		return fmt.Errorf("modbusAscii write function mismatch")

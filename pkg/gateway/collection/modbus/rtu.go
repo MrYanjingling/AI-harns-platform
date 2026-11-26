@@ -2,7 +2,9 @@ package modbus
 
 import (
 	"fmt"
+	"io"
 
+	"harns-platform/pkg/gateway/collection"
 	"harns-platform/pkg/utils/binutil"
 	"harns-platform/pkg/utils/crcutil"
 )
@@ -17,6 +19,42 @@ func BuildRTURequest(frame *Frame) []byte {
 	crc := make([]byte, 2)
 	binutil.WriteUint16BigEndian(crc, crcutil.CheckCrc16sum(message))
 	return append(message, crc...)
+}
+
+// ReadRTUReadResponse reads one Modbus RTU read response using its byte count.
+func ReadRTUReadResponse(r io.Reader) ([]byte, error) {
+	head := make([]byte, 3)
+	if err := collection.ReadFullWithTimeout(r, head); err != nil {
+		return nil, err
+	}
+	if head[1]&0x80 != 0 {
+		tail := make([]byte, 2)
+		if err := collection.ReadFullWithTimeout(r, tail); err != nil {
+			return nil, err
+		}
+		return append(head, tail...), nil
+	}
+	rest := make([]byte, int(head[2])+2)
+	if err := collection.ReadFullWithTimeout(r, rest); err != nil {
+		return nil, err
+	}
+	return append(head, rest...), nil
+}
+
+// ReadRTUWriteResponse reads one Modbus RTU write response or exception.
+func ReadRTUWriteResponse(r io.Reader) ([]byte, error) {
+	head := make([]byte, 3)
+	if err := collection.ReadFullWithTimeout(r, head); err != nil {
+		return nil, err
+	}
+	rest := make([]byte, 5)
+	if head[1]&0x80 != 0 {
+		rest = make([]byte, 2)
+	}
+	if err := collection.ReadFullWithTimeout(r, rest); err != nil {
+		return nil, err
+	}
+	return append(head, rest...), nil
 }
 
 // RTUResponseLength returns the expected RTU response length.
@@ -40,7 +78,7 @@ func ValidateRTUResponse(response []byte, frame *Frame) ([]byte, error) {
 		return nil, fmt.Errorf("modbusRtu slave mismatch")
 	}
 	if response[1]&0x80 != 0 {
-		return nil, fmt.Errorf("modbusRtu function error %d", response[1]&0x7f)
+		return nil, &ExceptionError{Function: response[1] & 0x7f, Code: response[2]}
 	}
 	if response[1] != frame.Function {
 		return nil, fmt.Errorf("modbusRtu function mismatch")
