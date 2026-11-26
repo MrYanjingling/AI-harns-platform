@@ -22,9 +22,11 @@ type chatMessage struct {
 }
 
 type toolCall struct {
-	ID        string
-	Name      string
-	Arguments json.RawMessage
+	ID          string
+	Name        string
+	Arguments   json.RawMessage
+	Risk        tool.Risk
+	Description string
 }
 
 type chatResult struct {

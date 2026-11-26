@@ -521,11 +521,38 @@ export interface AIChatMessage {
 }
 
 export interface AIChatAttachment {
+  id: string
   name: string
-  content: string
+  ext: string
+  size: number
+  textSize: number
+  chunkCount: number
+  createdTime: string
+}
+
+export interface AIPendingTool {
+  id: string
+  name: string
+  description?: string
+  risk: 'write' | 'action'
+  arguments: unknown
+}
+
+export interface AIToolApproval {
+  id: string
+  approved: boolean
+}
+
+export interface AIChatClarification {
+  question: string
+  options: string[]
+  allowCustom: boolean
 }
 
 export interface AIChatResponse {
   reply: string
   tools?: string[]
+  clarification?: AIChatClarification
+  pendingId?: string
+  pending?: AIPendingTool[]
 }

@@ -13,8 +13,8 @@ port: "32200"
 # before shutting down (e.g. 15s, 1m).
 graceful-timeout: 15s
 
-# Maximum request body size in bytes (10 MiB).
-max-body-bytes: 10485760
+# Maximum request body size in bytes (64 MiB). AI documents allow up to 50 MiB total.
+max-body-bytes: 67108864
 
 # Gateway metadata database (protocol management).
 sqlite:

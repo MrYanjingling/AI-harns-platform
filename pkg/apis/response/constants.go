@@ -104,6 +104,7 @@ const (
 	ErrCodeUpdateBusy                          // 20036
 	ErrCodeUpdateDisabled                      // 20037
 	ErrCodeUpdateFailed                        // 20038
+	ErrCodeAIDocumentInvalid                   // 20039
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

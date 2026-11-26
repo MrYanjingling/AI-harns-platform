@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,6 +16,9 @@ import (
 func InstallHandler(group *gin.RouterGroup, svc *Service, admin gin.HandlerFunc) {
 	g := group.Group("/ai")
 	g.POST("/chat", chat(svc))
+	g.POST("/documents", uploadDocuments(svc))
+	g.GET("/documents", listDocuments(svc))
+	g.DELETE("/documents/:id", deleteDocument(svc))
 	if admin != nil {
 		g.GET("/tools", admin, listTools(svc))
 	}
@@ -60,5 +64,83 @@ func listTools(svc *Service) gin.HandlerFunc {
 			}
 		}
 		response.WriteOK(c, gin.H{"tools": items})
+	}
+}
+
+func uploadDocuments(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := usermgr.CurrentSession(c)
+		if session == nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrLoginExpired())
+			return
+		}
+		if err := c.Request.ParseMultipartForm(8 << 20); err != nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrFileUploadFailed(err))
+			return
+		}
+		if c.Request.MultipartForm != nil {
+			defer func() { _ = c.Request.MultipartForm.RemoveAll() }()
+		}
+		files := c.Request.MultipartForm.File["files"]
+		if len(files) == 0 {
+			files = c.Request.MultipartForm.File["file"]
+		}
+		documents, err := svc.AddDocuments(c.Request.Context(), tool.Principal{
+			UserID:   session.UserID,
+			Username: session.Username,
+			IsAdmin:  session.IsAdmin,
+			Source:   "assistant",
+		}, files)
+		if err != nil {
+			response.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		response.WriteOK(c, gin.H{"documents": documents})
+	}
+}
+
+func listDocuments(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := usermgr.CurrentSession(c)
+		if session == nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrLoginExpired())
+			return
+		}
+		documents, err := svc.ListDocuments(c.Request.Context(), tool.Principal{
+			UserID:   session.UserID,
+			Username: session.Username,
+			IsAdmin:  session.IsAdmin,
+			Source:   "assistant",
+		})
+		if err != nil {
+			response.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		response.WriteOK(c, gin.H{"documents": documents})
+	}
+}
+
+func deleteDocument(svc *Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := usermgr.CurrentSession(c)
+		if session == nil {
+			response.WriteError(c, http.StatusBadRequest, response.ErrLoginExpired())
+			return
+		}
+		id := strings.TrimSpace(c.Param("id"))
+		if id == "" {
+			response.WriteError(c, http.StatusBadRequest, response.ErrResourceNotFound("document"))
+			return
+		}
+		if err := svc.DeleteDocument(c.Request.Context(), tool.Principal{
+			UserID:   session.UserID,
+			Username: session.Username,
+			IsAdmin:  session.IsAdmin,
+			Source:   "assistant",
+		}, id); err != nil {
+			response.WriteError(c, http.StatusBadRequest, err)
+			return
+		}
+		response.WriteOK(c, gin.H{})
 	}
 }

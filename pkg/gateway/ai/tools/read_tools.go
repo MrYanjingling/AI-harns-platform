@@ -56,7 +56,7 @@ func gatewayTools(deps Deps) []tool.Tool {
 		out = append(out,
 			&tool.Function{
 				ToolName:        "drivers.list",
-				ToolDescription: "List built-in and custom drivers grouped by driver type.",
+				ToolDescription: "List built-in and custom driver models grouped by driver type. This returns metadata only; call drivers.get_schema for a model schema.",
 				Schema:          json.RawMessage(`{"type":"object","properties":{"driverType":{"type":"string"}}}`),
 				RiskLevel:       tool.RiskRead,
 				Handler: func(ctx context.Context, _ tool.Principal, raw json.RawMessage) (any, error) {
@@ -66,7 +66,44 @@ func gatewayTools(deps Deps) []tool.Tool {
 					if err != nil {
 						return nil, err
 					}
-					return deps.Drivers.ListGrouped(ctx, input.DriverType)
+					groups, err := deps.Drivers.ListGrouped(ctx, input.DriverType)
+					if err != nil {
+						return nil, err
+					}
+					type driverSummary struct {
+						ID            string `json:"id"`
+						DriverType    string `json:"driverType"`
+						Model         string `json:"model"`
+						BuiltinDriver bool   `json:"builtinDriver"`
+						PluginName    string `json:"pluginName,omitempty"`
+						Remark        string `json:"remark,omitempty"`
+					}
+					type driverGroup struct {
+						DriverType string          `json:"driverType"`
+						Models     []driverSummary `json:"models"`
+					}
+					out := make([]driverGroup, 0, len(groups))
+					for _, group := range groups {
+						if group == nil {
+							continue
+						}
+						item := driverGroup{DriverType: group.DriverType, Models: make([]driverSummary, 0, len(group.Models))}
+						for _, model := range group.Models {
+							if model == nil {
+								continue
+							}
+							item.Models = append(item.Models, driverSummary{
+								ID:            model.ID,
+								DriverType:    model.DriverType,
+								Model:         model.Model,
+								BuiltinDriver: model.BuiltinDriver,
+								PluginName:    model.PluginName,
+								Remark:        model.Remark,
+							})
+						}
+						out = append(out, item)
+					}
+					return map[string]any{"groups": out}, nil
 				},
 			},
 			&tool.Function{

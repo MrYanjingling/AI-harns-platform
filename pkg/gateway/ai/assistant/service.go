@@ -2,9 +2,13 @@ package assistant
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"harns-platform/pkg/apis/response"
 	"harns-platform/pkg/gateway/ai/tool"
@@ -13,12 +17,13 @@ import (
 )
 
 const (
-	maxToolRounds      = 4
+	maxToolRounds      = 6
 	maxMessages        = 20
 	maxToolResultLen   = 32 << 10
 	maxAttachments     = 5
 	maxAttachmentBytes = 256 << 10
 	maxAttachmentTotal = 512 << 10
+	pendingTTL         = 10 * time.Minute
 )
 
 // Message is one public chat message.
@@ -33,27 +38,68 @@ type Attachment struct {
 	Content string `json:"content"`
 }
 
+// ToolApproval is one user confirmation for a pending write or action tool.
+type ToolApproval struct {
+	ID       string `json:"id"`
+	Approved bool   `json:"approved"`
+}
+
 // ChatRequest is the assistant chat request.
 type ChatRequest struct {
-	Messages    []Message    `json:"messages"`
-	Attachments []Attachment `json:"attachments,omitempty"`
+	Messages    []Message      `json:"messages"`
+	Attachments []Attachment   `json:"attachments,omitempty"`
+	DocumentIDs []string       `json:"documentIds,omitempty"`
+	PendingID   string         `json:"pendingId,omitempty"`
+	Approvals   []ToolApproval `json:"approvals,omitempty"`
+}
+
+// PendingToolCall is a write/action tool waiting for user confirmation.
+type PendingToolCall struct {
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Risk        tool.Risk       `json:"risk"`
+	Arguments   json.RawMessage `json:"arguments"`
 }
 
 // ChatResponse is the assistant chat response.
 type ChatResponse struct {
-	Reply string   `json:"reply"`
-	Tools []string `json:"tools,omitempty"`
+	Reply         string            `json:"reply"`
+	Tools         []string          `json:"tools,omitempty"`
+	Clarification *Clarification    `json:"clarification,omitempty"`
+	PendingID     string            `json:"pendingId,omitempty"`
+	Pending       []PendingToolCall `json:"pending,omitempty"`
+}
+
+type pendingTurn struct {
+	ownerID       string
+	messages      []chatMessage
+	pending       []toolCall
+	system        string
+	providerTools []tool.Tool
+	toolNames     map[string]string
+	usedTools     []string
+	nextRound     int
+	created       time.Time
 }
 
 // Service runs the bounded assistant tool loop.
 type Service struct {
-	config *aimgr.Service
-	tools  *tool.Registry
+	config    *aimgr.Service
+	tools     *tool.Registry
+	documents *DocumentStore
+
+	pendingMu sync.Mutex
+	pending   map[string]*pendingTurn
 }
 
 // NewService creates an assistant service.
-func NewService(config *aimgr.Service, tools *tool.Registry) *Service {
-	return &Service{config: config, tools: tools}
+func NewService(config *aimgr.Service, tools *tool.Registry, documents ...*DocumentStore) *Service {
+	service := &Service{config: config, tools: tools, pending: make(map[string]*pendingTurn)}
+	if len(documents) > 0 {
+		service.documents = documents[0]
+	}
+	return service
 }
 
 // Chat runs one assistant conversation turn.
@@ -73,34 +119,76 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 		logging.ErrorS(err, "AI assistant model configuration is invalid")
 		return nil, response.ErrAIBusy()
 	}
-	messages := toChatMessages(req.Messages)
-	if len(messages) == 0 {
-		return nil, response.ErrAIProviderInvalid("messages are required")
-	}
-	if err := appendAttachments(messages, req.Attachments); err != nil {
-		return nil, err
-	}
-	available := s.tools.List()
-	providerTools, toolNames, err := providerToolAliases(available)
-	if err != nil {
-		logging.ErrorS(err, "AI assistant tool registration is invalid")
-		return nil, response.ErrAIBusy()
-	}
 	provider := newProvider(model)
-	toolNamesForPrompt := make([]string, 0, len(providerTools))
-	for _, item := range providerTools {
-		toolNamesForPrompt = append(toolNamesForPrompt, item.Name())
-	}
-	system, err := renderSystemPrompt(lang, systemPromptData{
-		Tools: toolNamesForPrompt,
-	})
-	if err != nil {
-		logging.ErrorS(err, "AI assistant prompt rendering failed")
-		return nil, response.ErrAIBusy()
-	}
-	usedTools := make([]string, 0)
 
-	for round := 0; round < maxToolRounds; round++ {
+	var (
+		messages      []chatMessage
+		system        string
+		providerTools []tool.Tool
+		toolNames     map[string]string
+		usedTools     []string
+		startRound    int
+	)
+	if pendingID := strings.TrimSpace(req.PendingID); pendingID != "" {
+		state, err := s.takePending(pendingID, principal.UserID)
+		if err != nil {
+			return nil, err
+		}
+		messages = state.messages
+		system = state.system
+		providerTools = state.providerTools
+		toolNames = state.toolNames
+		usedTools = state.usedTools
+		startRound = state.nextRound
+		approved := make(map[string]bool, len(req.Approvals))
+		for _, item := range req.Approvals {
+			approved[item.ID] = item.Approved
+		}
+		for _, call := range state.pending {
+			content := `{"error":"user denied"}`
+			if approved[call.ID] {
+				usedTools = append(usedTools, call.Name)
+				result, callErr := s.callTool(ctx, principal, call)
+				if callErr != nil {
+					content = fmt.Sprintf(`{"error":%q}`, callErr.Error())
+				} else {
+					content = result
+				}
+			}
+			messages = append(messages, chatMessage{Role: "tool", Content: trimToolResult(call.Name, content), ToolCallID: call.ID})
+		}
+	} else {
+		messages = toChatMessages(req.Messages)
+		if len(messages) == 0 {
+			return nil, response.ErrAIProviderInvalid("messages are required")
+		}
+		if err := s.appendDocuments(ctx, principal, req.DocumentIDs, messages); err != nil {
+			return nil, err
+		}
+		if err := appendAttachments(messages, req.Attachments); err != nil {
+			return nil, err
+		}
+		available := append([]tool.Tool{}, s.tools.List()...)
+		available = append(available, askUserTool{})
+		providerTools, toolNames, err = providerToolAliases(available)
+		if err != nil {
+			logging.ErrorS(err, "AI assistant tool registration is invalid")
+			return nil, response.ErrAIBusy()
+		}
+		toolNamesForPrompt := make([]string, 0, len(providerTools))
+		for _, item := range providerTools {
+			toolNamesForPrompt = append(toolNamesForPrompt, item.Name())
+		}
+		system, err = renderSystemPrompt(lang, systemPromptData{Tools: toolNamesForPrompt})
+		if err != nil {
+			logging.ErrorS(err, "AI assistant prompt rendering failed")
+			return nil, response.ErrAIBusy()
+		}
+		usedTools = make([]string, 0)
+	}
+
+	callSignatureCounts := make(map[string]int)
+	for round := startRound; round < maxToolRounds; round++ {
 		result, err := provider.Chat(ctx, system, messages, providerTools)
 		if err != nil {
 			logging.ErrorS(err, "AI assistant model request failed")
@@ -114,34 +202,129 @@ func (s *Service) Chat(ctx context.Context, principal tool.Principal, lang strin
 			}
 			return &ChatResponse{Reply: reply, Tools: usedTools}, nil
 		}
+		if call := findClarificationCall(result.ToolCalls, toolNames); call != nil {
+			clarification, err := parseClarification(call.Arguments)
+			if err != nil {
+				logging.ErrorS(err, "AI assistant clarification is invalid")
+				return nil, response.ErrAIProviderInvalid(err.Error())
+			}
+			return &ChatResponse{Reply: clarification.Question, Clarification: clarification, Tools: usedTools}, nil
+		}
+		signature := toolCallSignature(result.ToolCalls)
+		if signature != "" {
+			callSignatureCounts[signature]++
+			if callSignatureCounts[signature] > 2 {
+				logging.Warnf("AI assistant repeated tool calls: %v", toolCallNames(result.ToolCalls, toolNames))
+				return s.finalAnswer(ctx, provider, system, messages, usedTools)
+			}
+		}
 		messages = append(messages, chatMessage{
 			Role:      "assistant",
 			Content:   result.Content,
 			ToolCalls: result.ToolCalls,
 		})
+		risky := make([]toolCall, 0)
 		for _, call := range result.ToolCalls {
 			toolName := toolNames[call.Name]
 			if toolName == "" {
 				toolName = call.Name
 			}
+			item, ok := s.tools.Get(toolName)
+			if ok && (item.Risk() == tool.RiskWrite || item.Risk() == tool.RiskAction) {
+				risky = append(risky, toolCall{
+					ID:          call.ID,
+					Name:        toolName,
+					Arguments:   call.Arguments,
+					Risk:        item.Risk(),
+					Description: item.Description(),
+				})
+				continue
+			}
 			usedTools = append(usedTools, toolName)
-			content, callErr := s.callTool(ctx, principal, toolCall{
-				ID:        call.ID,
-				Name:      toolName,
-				Arguments: call.Arguments,
-			})
+			content, callErr := s.callTool(ctx, principal, toolCall{ID: call.ID, Name: toolName, Arguments: call.Arguments})
 			if callErr != nil {
 				content = fmt.Sprintf(`{"error":%q}`, callErr.Error())
 			}
-			messages = append(messages, chatMessage{
-				Role:       "tool",
-				Content:    trimToolResult(content),
-				ToolCallID: call.ID,
+			messages = append(messages, chatMessage{Role: "tool", Content: trimToolResult(call.Name, content), ToolCallID: call.ID})
+		}
+		if len(risky) > 0 {
+			pendingID, err := s.savePending(&pendingTurn{
+				ownerID:       principal.UserID,
+				messages:      messages,
+				pending:       risky,
+				system:        system,
+				providerTools: providerTools,
+				toolNames:     toolNames,
+				usedTools:     usedTools,
+				nextRound:     round + 1,
+				created:       time.Now(),
 			})
+			if err != nil {
+				logging.ErrorS(err, "AI assistant pending tool state failed")
+				return nil, response.ErrAIBusy()
+			}
+			return &ChatResponse{PendingID: pendingID, Pending: pendingCalls(risky)}, nil
 		}
 	}
-	logging.ErrorS(fmt.Errorf("too many tool calls"), "AI assistant tool loop exceeded")
-	return nil, response.ErrAIBusy()
+	logging.Warnf("AI assistant tool loop exceeded: %v", usedTools)
+	return s.finalAnswer(ctx, provider, system, messages, usedTools)
+}
+
+func pendingCalls(calls []toolCall) []PendingToolCall {
+	out := make([]PendingToolCall, 0, len(calls))
+	for _, call := range calls {
+		risk := call.Risk
+		if risk != tool.RiskWrite && risk != tool.RiskAction {
+			risk = tool.RiskAction
+		}
+		out = append(out, PendingToolCall{
+			ID:          call.ID,
+			Name:        call.Name,
+			Description: call.Description,
+			Risk:        risk,
+			Arguments:   call.Arguments,
+		})
+	}
+	return out
+}
+
+func (s *Service) savePending(state *pendingTurn) (string, error) {
+	raw := make([]byte, 24)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	id := hex.EncodeToString(raw)
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	if s.pending == nil {
+		s.pending = make(map[string]*pendingTurn)
+	}
+	if len(s.pending) >= 128 {
+		for key, item := range s.pending {
+			if time.Since(item.created) > pendingTTL {
+				delete(s.pending, key)
+			}
+		}
+		if len(s.pending) >= 128 {
+			return "", fmt.Errorf("too many pending assistant confirmations")
+		}
+	}
+	s.pending[id] = state
+	return id, nil
+}
+
+func (s *Service) takePending(id, ownerID string) (*pendingTurn, error) {
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	state, ok := s.pending[id]
+	if !ok {
+		return nil, response.ErrAIProviderInvalid("pending confirmation is missing or expired")
+	}
+	delete(s.pending, id)
+	if state.ownerID != ownerID || time.Since(state.created) > pendingTTL {
+		return nil, response.ErrAIProviderInvalid("pending confirmation is missing or expired")
+	}
+	return state, nil
 }
 
 type aliasedTool struct {
@@ -249,9 +432,57 @@ func toChatMessages(items []Message) []chatMessage {
 	return out
 }
 
-func trimToolResult(value string) string {
+func trimToolResult(name string, value string) string {
 	if len(value) <= maxToolResultLen {
 		return value
 	}
-	return value[:maxToolResultLen] + `..."`
+	logging.Warnf("AI tool result truncated: tool=%s bytes=%d", name, len(value))
+	encoded, err := json.Marshal(map[string]any{
+		"truncated":     true,
+		"tool":          name,
+		"originalBytes": len(value),
+		"error":         "tool result is too large; narrow the request or use pagination",
+	})
+	if err != nil {
+		return `{"truncated":true,"error":"tool result is too large"}`
+	}
+	return string(encoded)
+}
+
+func toolCallSignature(calls []toolCall) string {
+	if len(calls) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(calls))
+	for _, call := range calls {
+		parts = append(parts, call.Name+"\x00"+string(call.Arguments))
+	}
+	return strings.Join(parts, "\x01")
+}
+
+func toolCallNames(calls []toolCall, names map[string]string) []string {
+	out := make([]string, 0, len(calls))
+	for _, call := range calls {
+		name := names[call.Name]
+		if name == "" {
+			name = call.Name
+		}
+		out = append(out, name)
+	}
+	return out
+}
+
+func (s *Service) finalAnswer(ctx context.Context, provider provider, system string, messages []chatMessage, usedTools []string) (*ChatResponse, error) {
+	instruction := "\n\n工具调用次数已达上限。不要继续调用工具，基于已有工具结果回答；如果信息不足，请明确说明缺少什么，并只问一个必要的问题。"
+	result, err := provider.Chat(ctx, system+instruction, messages, nil)
+	if err != nil {
+		logging.ErrorS(err, "AI assistant final answer failed")
+		return nil, response.ErrAIBusy()
+	}
+	reply := strings.TrimSpace(result.Content)
+	if reply == "" {
+		logging.ErrorS(fmt.Errorf("model returned an empty final response"), "AI assistant final answer failed")
+		return nil, response.ErrAIBusy()
+	}
+	return &ChatResponse{Reply: reply, Tools: usedTools}, nil
 }

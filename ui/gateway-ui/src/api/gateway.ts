@@ -11,6 +11,7 @@ import type {
   AIChatAttachment,
   AIChatMessage,
   AIChatResponse,
+  AIToolApproval,
   AISettings,
   AIModelPayload,
   Collection,
@@ -280,11 +281,32 @@ export function getAISettings(): Promise<AISettings> {
 export function chatWithAssistant(
   messages: AIChatMessage[],
   attachments: AIChatAttachment[] = [],
+  confirmation?: { pendingId: string; approvals: AIToolApproval[] },
 ): Promise<AIChatResponse> {
   return gatewayData<AIChatResponse>('/ai/chat', {
     method: 'POST',
-    body: { messages, attachments },
+    body: {
+      messages,
+      documentIds: attachments.map((item) => item.id),
+      pendingId: confirmation?.pendingId,
+      approvals: confirmation?.approvals,
+    },
   })
+}
+
+export function uploadAssistantDocuments(files: File[]): Promise<AIChatAttachment[]> {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file))
+  return gatewayData<{ documents: AIChatAttachment[] }>('/ai/documents', {
+    method: 'POST',
+    formData,
+  }).then((data) => data.documents)
+}
+
+export function deleteAssistantDocument(id: string): Promise<void> {
+  return gatewayData<Record<string, never>>(`/ai/documents/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }).then(() => undefined)
 }
 
 export function updateAISettings(payload: {

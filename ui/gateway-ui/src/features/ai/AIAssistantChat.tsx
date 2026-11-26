@@ -1,5 +1,13 @@
-import { useEffect, useId, useMemo, useRef, useState, type ClipboardEvent } from 'react'
-import { AtSign, Paperclip, Send, Trash2, X } from 'lucide-react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+} from 'react'
+import { AtSign, Paperclip, Pencil, Send, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -7,23 +15,42 @@ import {
   CopyButton,
   Textarea,
   cn,
+  formatBytes,
   showErrorToast,
   useI18n,
 } from '@harns/core'
-import { chatWithAssistant } from '@/api/gateway'
+import { chatWithAssistant, deleteAssistantDocument, uploadAssistantDocuments } from '@/api/gateway'
 import { useAllCollections } from '@/api/hooks'
-import { ASSISTANT_SESSION_KEY, clearAssistantSession } from '@/lib/assistant-session'
-import type { AIChatAttachment, AIChatMessage, AIChatResponse, Collection } from '@/api/types'
+import {
+  ASSISTANT_ATTACHMENTS_KEY,
+  ASSISTANT_SESSION_KEY,
+  clearAssistantSession,
+} from '@/lib/assistant-session'
+import type {
+  AIChatAttachment,
+  AIChatClarification,
+  AIChatMessage,
+  AIChatResponse,
+  AIPendingTool,
+  AIToolApproval,
+  Collection,
+} from '@/api/types'
 import { AIMarkdown } from './AIMarkdown'
+import {
+  FILE_ACCEPT,
+  MAX_FILES,
+  MAX_FILE_BYTES,
+  MAX_TOTAL_BYTES,
+  isAcceptedFile,
+} from './ai-attachments'
 
 const STORAGE_KEY = ASSISTANT_SESSION_KEY
-const MAX_FILES = 5
-const MAX_FILE_BYTES = 128 << 10
-const MAX_TOTAL_BYTES = 256 << 10
-const ACCEPTED_FILE = /\.(txt|log|json|ya?ml|csv|md|xml)$/i
+const ATTACHMENTS_KEY = ASSISTANT_ATTACHMENTS_KEY
 
 interface UIMessage extends AIChatMessage {
   files?: string[]
+  clarification?: AIChatClarification
+  clarificationAnswered?: boolean
 }
 
 const RECOMMENDATIONS = [
@@ -34,21 +61,169 @@ const RECOMMENDATIONS = [
   'gateway.ai.assistant.recommendDrivers',
 ] as const
 
+function loadAttachments(): AIChatAttachment[] {
+  try {
+    const raw = window.sessionStorage.getItem(ATTACHMENTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as AIChatAttachment[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (item) =>
+        item &&
+        typeof item.id === 'string' &&
+        typeof item.name === 'string' &&
+        typeof item.size === 'number' &&
+        typeof item.textSize === 'number' &&
+        typeof item.chunkCount === 'number',
+    )
+  } catch {
+    return []
+  }
+}
+
+function normalizeClarification(value: unknown): AIChatClarification | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const item = value as Partial<AIChatClarification>
+  if (
+    typeof item.question !== 'string' ||
+    !Array.isArray(item.options) ||
+    !item.options.every((option) => typeof option === 'string')
+  ) {
+    return undefined
+  }
+  return {
+    question: item.question,
+    options: item.options,
+    allowCustom: item.allowCustom !== false,
+  }
+}
+
 function loadMessages(): UIMessage[] {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as UIMessage[]
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (item) =>
-        item &&
-        (item.role === 'user' || item.role === 'assistant') &&
-        typeof item.content === 'string',
-    )
+    return parsed.flatMap((item) => {
+      if (
+        !item ||
+        (item.role !== 'user' && item.role !== 'assistant') ||
+        typeof item.content !== 'string'
+      ) {
+        return []
+      }
+      return [{
+        role: item.role,
+        content: item.content,
+        files: Array.isArray(item.files)
+          ? item.files.filter((file): file is string => typeof file === 'string')
+          : undefined,
+        clarification: normalizeClarification(item.clarification),
+        clarificationAnswered: item.clarificationAnswered === true,
+      }]
+    })
   } catch {
     return []
   }
+}
+
+function ClarificationChoices({
+  clarification,
+  disabled,
+  onChoose,
+}: {
+  clarification: AIChatClarification
+  disabled: boolean
+  onChoose: (value: string) => void
+}) {
+  const { t } = useI18n()
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customValue, setCustomValue] = useState('')
+  const customRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (customOpen) customRef.current?.focus()
+  }, [customOpen])
+
+  const submitCustom = () => {
+    const value = customValue.trim()
+    if (!value || disabled) return
+    onChoose(value)
+  }
+
+  return (
+    <div className="mt-2 border-t border-border/60 pt-2">
+      <div className="flex flex-col gap-1.5">
+        {clarification.options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChoose(option)}
+            className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-left text-[13px] leading-5 text-fg transition-colors hover:border-primary hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {option}
+          </button>
+        ))}
+        {clarification.allowCustom ? (
+          customOpen ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                ref={customRef}
+                value={customValue}
+                disabled={disabled}
+                placeholder={t('gateway.ai.assistant.customAnswerPlaceholder')}
+                onChange={(event) => setCustomValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    submitCustom()
+                  }
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    setCustomOpen(false)
+                    setCustomValue('')
+                  }
+                }}
+                className="min-w-0 flex-1 rounded-md border border-border-strong bg-surface-2 px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50"
+              />
+              <Button
+                type="button"
+                size="icon"
+                disabled={!customValue.trim() || disabled}
+                aria-label={t('gateway.ai.assistant.send')}
+                title={t('gateway.ai.assistant.send')}
+                icon={<Send className="size-3.5" />}
+                onClick={submitCustom}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t('gateway.ai.assistant.customAnswerCancel')}
+                title={t('gateway.ai.assistant.customAnswerCancel')}
+                icon={<X className="size-3.5" />}
+                onClick={() => {
+                  setCustomOpen(false)
+                  setCustomValue('')
+                }}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setCustomOpen(true)}
+              className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border bg-transparent px-2.5 py-1.5 text-left text-[13px] text-muted transition-colors hover:border-primary hover:text-fg disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Pencil className="size-3.5 shrink-0" />
+              {t('gateway.ai.assistant.customAnswer')}
+            </button>
+          )
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 export function AIAssistantChat({
@@ -61,10 +236,14 @@ export function AIAssistantChat({
   const { t } = useI18n()
   const [messages, setMessages] = useState<UIMessage[]>(loadMessages)
   const [input, setInput] = useState('')
-  const [attachments, setAttachments] = useState<AIChatAttachment[]>([])
+  const [attachments, setAttachments] = useState<AIChatAttachment[]>(loadAttachments)
+  const [pending, setPending] = useState<{ id: string; tools: AIPendingTool[] } | null>(null)
   const [sending, setSending] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const dragDepth = useRef(0)
   const inputId = useId()
   const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
@@ -108,6 +287,14 @@ export function AIAssistantChat({
   }, [messages])
 
   useEffect(() => {
+    try {
+      window.sessionStorage.setItem(ATTACHMENTS_KEY, JSON.stringify(attachments))
+    } catch {
+      // Ignore storage quota failures.
+    }
+  }, [attachments])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       const list = listRef.current
       if (list) list.scrollTop = list.scrollHeight
@@ -116,16 +303,17 @@ export function AIAssistantChat({
   }, [messages, sending])
 
   const addFiles = async (files: FileList | File[]) => {
+    if (uploading) return
     const selected = Array.from(files)
     if (selected.length === 0) return
     if (attachments.length + selected.length > MAX_FILES) {
       toast.error(t('gateway.ai.assistant.fileLimit', { count: MAX_FILES }))
       return
     }
-    const next = [...attachments]
-    let total = next.reduce((sum, item) => sum + item.content.length, 0)
+    let total = attachments.reduce((sum, item) => sum + item.size, 0)
+    const accepted: File[] = []
     for (const file of selected) {
-      if (!ACCEPTED_FILE.test(file.name) && !file.type.startsWith('text/')) {
+      if (!isAcceptedFile(file)) {
         toast.error(t('gateway.ai.assistant.fileTypeInvalid', { name: file.name }))
         continue
       }
@@ -133,22 +321,59 @@ export function AIAssistantChat({
         toast.error(t('gateway.ai.assistant.fileTooLarge', { name: file.name }))
         continue
       }
-      total += file.size
-      if (total > MAX_TOTAL_BYTES) {
+      if (total + file.size > MAX_TOTAL_BYTES) {
         toast.error(t('gateway.ai.assistant.fileTotalTooLarge'))
         break
       }
-      try {
-        next.push({ name: file.name, content: await file.text() })
-      } catch {
-        toast.error(t('gateway.ai.assistant.fileReadFailed', { name: file.name }))
-      }
+      total += file.size
+      accepted.push(file)
     }
-    setAttachments(next)
+    if (accepted.length === 0) return
+    setUploading(true)
+    try {
+      const documents = await uploadAssistantDocuments(accepted)
+      setAttachments((current) => [...current, ...documents])
+    } catch (error) {
+      showErrorToast(error)
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const removeAttachment = (name: string) => {
-    setAttachments((current) => current.filter((item) => item.name !== name))
+  const hasFiles = (event: DragEvent<HTMLElement>) =>
+    Array.from(event.dataTransfer.types).includes('Files')
+
+  const onDragEnter = (event: DragEvent<HTMLElement>) => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    dragDepth.current += 1
+    setDragActive(true)
+  }
+
+  const onDragOver = (event: DragEvent<HTMLElement>) => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const onDragLeave = (event: DragEvent<HTMLElement>) => {
+    if (dragDepth.current === 0) return
+    event.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragActive(false)
+  }
+
+  const onDrop = (event: DragEvent<HTMLElement>) => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    dragDepth.current = 0
+    setDragActive(false)
+    void addFiles(event.dataTransfer.files)
+  }
+
+  const removeAttachment = (item: AIChatAttachment) => {
+    setAttachments((current) => current.filter((entry) => entry.id !== item.id))
+    void deleteAssistantDocument(item.id).catch(showErrorToast)
   }
 
   const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -191,12 +416,40 @@ export function AIAssistantChat({
     })
   }
 
+  const applyResponse = (response: AIChatResponse) => {
+    if (response.pending?.length && response.pendingId) {
+      setPending({ id: response.pendingId, tools: response.pending })
+      return
+    }
+    setPending(null)
+    if (response.reply || response.clarification) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: response.reply,
+          clarification: response.clarification,
+        },
+      ])
+    }
+  }
+
   const sendText = async (value: string) => {
     const content = value.trim()
-    if ((!content && attachments.length === 0) || sending) return
+    if ((!content && attachments.length === 0) || sending || uploading || pending) return
     const currentAttachments = attachments
+    let answeredMessages = messages
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index]
+      if (message.role === 'assistant' && message.clarification && !message.clarificationAnswered) {
+        answeredMessages = messages.map((entry, entryIndex) =>
+          entryIndex === index ? { ...entry, clarificationAnswered: true } : entry,
+        )
+        break
+      }
+    }
     const next = [
-      ...messages,
+      ...answeredMessages,
       {
         role: 'user' as const,
         content: content || t('gateway.ai.assistant.analyzeAttachment'),
@@ -205,17 +458,13 @@ export function AIAssistantChat({
     ]
     setMessages(next)
     setInput('')
-    setAttachments([])
     setSending(true)
     try {
       const response: AIChatResponse = await chatWithAssistant(
         next.map((item) => ({ role: item.role, content: item.content })),
         currentAttachments,
       )
-      setMessages((current) => [
-        ...current,
-        { role: 'assistant', content: response.reply },
-      ])
+      applyResponse(response)
     } catch (error) {
       showErrorToast(error)
     } finally {
@@ -223,16 +472,49 @@ export function AIAssistantChat({
     }
   }
 
+  const resolvePending = async (approved: boolean) => {
+    if (!pending || sending) return
+    const approvals: AIToolApproval[] = pending.tools.map((item) => ({
+      id: item.id,
+      approved,
+    }))
+    setSending(true)
+    try {
+      const response = await chatWithAssistant(
+        messages.map((item) => ({ role: item.role, content: item.content })),
+        [],
+        { pendingId: pending.id, approvals },
+      )
+      applyResponse(response)
+    } catch (error) {
+      showErrorToast(error)
+      setPending(null)
+    } finally {
+      setSending(false)
+    }
+  }
+
   const clear = () => {
+    const documentIDs = attachments.map((item) => item.id)
     setMessages([])
     setInput('')
     setAttachments([])
+    setPending(null)
     clearAssistantSession()
+    documentIDs.forEach((id) => {
+      void deleteAssistantDocument(id).catch(() => undefined)
+    })
   }
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
         <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-0 pb-4">
           {messages.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-4">
@@ -244,7 +526,7 @@ export function AIAssistantChat({
                       <button
                         key={key}
                         type="button"
-                        disabled={sending}
+                        disabled={sending || Boolean(pending)}
                         onClick={() => void sendText(label)}
                         className="rounded-lg border border-primary bg-primary px-3 py-1.5 text-left text-[13px] leading-relaxed text-primary-fg transition-colors hover:bg-primary-hover active:translate-y-px disabled:pointer-events-none disabled:opacity-50"
                       >
@@ -285,6 +567,15 @@ export function AIAssistantChat({
                       })}
                     </p>
                   ) : null}
+                  {message.role === 'assistant' &&
+                  message.clarification &&
+                  !message.clarificationAnswered ? (
+                    <ClarificationChoices
+                      clarification={message.clarification}
+                      disabled={sending || uploading}
+                      onChoose={(value) => void sendText(value)}
+                    />
+                  ) : null}
                 </div>
               ))}
               {sending ? (
@@ -300,6 +591,63 @@ export function AIAssistantChat({
             </div>
           )}
         </div>
+        {pending ? (
+          <div className="shrink-0 border-t border-warning/40 bg-warning/5 px-4 py-3">
+            <div className="rounded-lg border border-warning/40 bg-surface p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-fg">
+                    {t('gateway.ai.assistant.approvalTitle')}
+                  </p>
+                  <p className="mt-1 text-[13px] text-muted">
+                    {t('gateway.ai.assistant.approvalDescription')}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded border border-warning/40 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                  AI
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {pending.tools.map((item) => (
+                  <div key={item.id} className="rounded border border-border bg-surface-2 p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[13px] text-fg">{item.name}</span>
+                      <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning">
+                        {t(
+                          item.risk === 'write'
+                            ? 'gateway.ai.assistant.approvalRiskWrite'
+                            : 'gateway.ai.assistant.approvalRiskAction',
+                        )}
+                      </span>
+                    </div>
+                    <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded bg-surface p-2 font-mono text-[11px] text-muted">
+                      {JSON.stringify(item.arguments, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={sending}
+                  onClick={() => void resolvePending(false)}
+                >
+                  {t('gateway.ai.assistant.approvalDeny')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={sending}
+                  onClick={() => void resolvePending(true)}
+                >
+                  {t('gateway.ai.assistant.approvalApprove')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <form
           className="shrink-0 border-t border-border p-3"
@@ -357,7 +705,7 @@ export function AIAssistantChat({
               id={inputId}
               value={input}
               placeholder={t('gateway.ai.assistant.placeholder')}
-              disabled={sending}
+              disabled={sending || Boolean(pending)}
               rows={3}
               className="min-h-[60px] resize-none border-0 bg-transparent px-0 py-0 text-sm focus:ring-0"
               onChange={(event) =>
@@ -400,17 +748,25 @@ export function AIAssistantChat({
               <div className="flex flex-wrap gap-1.5">
                 {attachments.map((item) => (
                   <span
-                    key={item.name}
+                    key={item.id}
+                    title={t('gateway.ai.assistant.documentMeta', {
+                      size: formatBytes(item.textSize),
+                      chunks: item.chunkCount,
+                    })}
                     className="inline-flex items-center gap-1 rounded border border-border bg-surface px-2 py-0.5 text-[13px] text-muted"
                   >
                     <Paperclip className="size-3" />
                     <span className="max-w-48 truncate">{item.name}</span>
+                    <span className="shrink-0 text-[11px] text-faint">
+                      {formatBytes(item.textSize)}
+                    </span>
                     <button
                       type="button"
                       aria-label={t('gateway.ai.assistant.removeFile')}
                       title={t('gateway.ai.assistant.removeFile')}
-                      onClick={() => removeAttachment(item.name)}
-                      className="text-faint transition-colors hover:text-fg"
+                      disabled={sending || uploading}
+                      onClick={() => removeAttachment(item)}
+                      className="text-faint transition-colors hover:text-fg disabled:pointer-events-none disabled:opacity-50"
                     >
                       <X className="size-3" />
                     </button>
@@ -424,8 +780,9 @@ export function AIAssistantChat({
                   ref={fileRef}
                   type="file"
                   multiple
-                  accept=".txt,.log,.json,.yaml,.yml,.csv,.md,.xml,text/*"
+                  accept={FILE_ACCEPT}
                   className="hidden"
+                  disabled={uploading}
                   onChange={(event) => {
                     if (event.currentTarget.files) void addFiles(event.currentTarget.files)
                     event.currentTarget.value = ''
@@ -438,10 +795,13 @@ export function AIAssistantChat({
                   aria-label={t('gateway.ai.assistant.attachFile')}
                   title={t('gateway.ai.assistant.attachFile')}
                   icon={<Paperclip className="size-3.5" />}
+                  disabled={uploading}
                   onClick={() => fileRef.current?.click()}
                 />
                 <p className="truncate text-[13px] text-muted">
-                  {t('gateway.ai.assistant.composerHint')}
+                  {uploading
+                    ? t('gateway.ai.assistant.uploading')
+                    : t('gateway.ai.assistant.composerHint')}
                 </p>
               </div>
               <div className="flex items-center gap-2 pb-1">
@@ -449,7 +809,9 @@ export function AIAssistantChat({
                   type="button"
                   variant="dangerSoft"
                   icon={<Trash2 className="size-3.5" />}
-                  disabled={(messages.length === 0 && attachments.length === 0) || sending}
+                  disabled={
+                    (messages.length === 0 && attachments.length === 0) || sending || uploading
+                  }
                   onClick={clear}
                 >
                   {t('gateway.ai.assistant.clear')}
@@ -459,7 +821,7 @@ export function AIAssistantChat({
                   variant="primary"
                   loading={sending}
                   icon={<Send className="size-3.5" />}
-                  disabled={(!input.trim() && attachments.length === 0) || sending}
+                  disabled={(!input.trim() && attachments.length === 0) || sending || uploading}
                 >
                   {t('gateway.ai.assistant.send')}
                 </Button>
@@ -467,6 +829,16 @@ export function AIAssistantChat({
             </div>
           </div>
         </form>
+        {dragActive && !uploading ? (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded border-2 border-dashed border-primary bg-surface/90">
+            <div className="flex flex-col items-center gap-1.5 text-primary">
+              <Paperclip className="size-5" />
+              <span className="text-[13px] font-medium">
+                {t('gateway.ai.assistant.dropHint')}
+              </span>
+            </div>
+          </div>
+        ) : null}
       </Card>
     </div>
   )

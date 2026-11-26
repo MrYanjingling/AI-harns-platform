@@ -21,6 +21,8 @@ func TestRenderSystemPrompt(t *testing.T) {
 	assert.Contains(t, zh, "dataTopic")
 	assert.Contains(t, zh, "commandTopic")
 	assert.Contains(t, zh, "Markdown")
+	assert.Contains(t, zh, "assistant_ask_user")
+	assert.Contains(t, zh, "一次只问一个问题")
 
 	en, err := renderSystemPrompt("en-US", data)
 	require.NoError(t, err)
@@ -30,6 +32,8 @@ func TestRenderSystemPrompt(t *testing.T) {
 	assert.Contains(t, en, "dataTopic")
 	assert.Contains(t, en, "commandTopic")
 	assert.Contains(t, en, "Markdown")
+	assert.Contains(t, en, "assistant_ask_user")
+	assert.Contains(t, en, "exactly one question")
 
 	fallback, err := renderSystemPrompt("fr-FR", data)
 	require.NoError(t, err)

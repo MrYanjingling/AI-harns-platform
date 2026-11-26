@@ -114,6 +114,7 @@ validate.thing_image_invalid: "Device image key [%s] is invalid: it must not exc
 error.file_too_large: "File exceeds the size limit (%d bytes)."
 error.file_type_invalid: "Unsupported file type."
 error.file_upload_failed: "File upload failed."
+error.ai_document_invalid: "Document [%s] could not be parsed."
 validate.thing_timeseries_thing_required: "Thing thingId is required."
 validate.thing_timeseries_properties_required: "Time series properties are required."
 validate.thing_timeseries_aggregate_invalid: "Invalid aggregate; only raw, min, max and avg are supported."

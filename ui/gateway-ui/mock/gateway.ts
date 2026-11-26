@@ -17,6 +17,7 @@ import type {
   SimulatorPoint,
   SimulatorState,
   GatewayUpdateState,
+  AIChatAttachment,
 } from '../src/api/types'
 import {
   collectionVariables,
@@ -42,6 +43,8 @@ let systemUpdateState: GatewayUpdateState = {
   task: systemUpdate.task ? { ...systemUpdate.task } : undefined,
   settings: { ...systemUpdate.settings },
 }
+
+let aiDocuments: AIChatAttachment[] = []
 
 let aiSettings: AISettings = {
   assistantEnabled: false,
@@ -430,6 +433,47 @@ export async function handleGateway(
       updatedTime: nowIso(),
     }
     send(res, 200, ok(aiSettings))
+    return true
+  }
+
+  if (pathname === '/ai/documents' && method === 'GET') {
+    send(res, 200, ok({ documents: aiDocuments }))
+    return true
+  }
+
+  if (pathname === '/ai/documents' && method === 'POST') {
+    req.resume()
+    const document: AIChatAttachment = {
+      id: ulid(),
+      name: `mock-document-${aiDocuments.length + 1}.docx`,
+      ext: '.docx',
+      size: 1024,
+      textSize: 512,
+      chunkCount: 2,
+      createdTime: nowIso(),
+    }
+    aiDocuments = [document, ...aiDocuments]
+    send(res, 200, ok({ documents: [document] }))
+    return true
+  }
+
+  const documentMatch = pathname.match(/^\/ai\/documents\/([^/]+)$/)
+  if (documentMatch && method === 'DELETE') {
+    aiDocuments = aiDocuments.filter((item) => item.id !== documentMatch[1])
+    send(res, 200, ok({}))
+    return true
+  }
+
+  if (pathname === '/ai/chat' && method === 'POST') {
+    const body = await readObject(req)
+    const rawIds = body?.documentIds
+    const documentIds = Array.isArray(rawIds)
+      ? rawIds.filter((item): item is string => typeof item === 'string')
+      : []
+    const message = documentIds.length > 0
+      ? `已读取 ${documentIds.length} 个文档，并完成检索。`
+      : '这是 mock 助手回复。'
+    send(res, 200, ok({ reply: message, tools: [] }))
     return true
   }
 

@@ -592,6 +592,11 @@ func ErrUpdateFailed(reason string) *responseError {
 	return generateError(ErrCodeUpdateFailed, reason)
 }
 
+// ErrAIDocumentInvalid reports that an uploaded document could not be parsed.
+func ErrAIDocumentInvalid(name string) *responseError {
+	return generateError(ErrCodeAIDocumentInvalid, name)
+}
+
 func ErrLicensePublicKeyUnavailable() *responseError {
 	return generateError(ErrCodeLicensePublicKeyUnavailable)
 }

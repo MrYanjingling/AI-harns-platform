@@ -102,7 +102,7 @@ const (
 	_defaultPort                   = "32200"
 	_defaultWait                   = baseoptions.Duration(15 * time.Second)
 	_defaultConfigFile             = "/etc/gateway/config.yaml"
-	_defaultMaxBodyBytes     int64 = 10 << 20
+	_defaultMaxBodyBytes     int64 = 64 << 20
 	_defaultSQLitePath             = "data/gateway.db"
 	_defaultPluginDir              = "plugins"
 	_defaultUIDir                  = "ui/gateway-ui/dist"
@@ -201,6 +201,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.AIMgr = aimgr.NewService(aiStore)
+	documentStore := assistant.NewDocumentStore(db)
+	if err := documentStore.Initialize(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	licenseStore := licensemgr.NewStore(db)
 	if err := licenseStore.Initialize(context.Background()); err != nil {
@@ -412,7 +417,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		return nil, err
 	}
 	c.ToolRegistry = toolRegistry
-	c.Assistant = assistant.NewService(c.AIMgr, toolRegistry)
+	c.Assistant = assistant.NewService(c.AIMgr, toolRegistry, documentStore)
 	startLicenseRunGuard(stopCh, licenseService, collectionMgr, pushService)
 
 	updateMgr, err := updatemgr.NewService(updatemgr.Options{
