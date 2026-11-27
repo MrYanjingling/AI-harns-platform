@@ -53,17 +53,23 @@ func newNetPool(ctx context.Context, address string, size int, timeout time.Dura
 }
 
 func exchange(ctx context.Context, pool *connpool.Pool, request []byte, timeout time.Duration) ([]byte, error) {
-	client, err := pool.Get(ctx)
-	if err != nil {
-		return nil, collection.ConnectionLost(err)
-	}
-	netConn, ok := client.(*netClient)
-	if !ok {
-		pool.Put(client, true)
-		return nil, fmt.Errorf("invalid modbusTcp connection type")
-	}
-	response, err := exchangeConn(netConn.Conn, request, timeout)
-	pool.Put(client, err != nil)
+	var response []byte
+	err := pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+		netConn, ok := client.(*netClient)
+		if !ok {
+			_ = client.Close()
+			return false, fmt.Errorf("invalid modbusTcp connection type")
+		}
+		resp, exchangeErr := exchangeConn(netConn.Conn, request, timeout)
+		if exchangeErr != nil {
+			if collection.IsConnectionLost(exchangeErr) {
+				return true, collection.ConnectionLost(exchangeErr)
+			}
+			return true, exchangeErr
+		}
+		response = resp
+		return false, nil
+	})
 	if err != nil {
 		if collection.IsConnectionLost(err) {
 			return nil, collection.ConnectionLost(err)

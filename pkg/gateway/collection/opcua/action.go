@@ -8,6 +8,7 @@ import (
 	"github.com/gopcua/opcua/ua"
 
 	"harns-platform/pkg/gateway/collection"
+	"harns-platform/pkg/gateway/collection/connpool"
 	"harns-platform/pkg/gateway/validation"
 )
 
@@ -26,13 +27,16 @@ func (c *OpcUaCollection) DeliverAction(ctx context.Context, actions []collectio
 			Field: "actions", MsgID: "validate.action_value_invalid", Args: []interface{}{"", err.Error()},
 		}})
 	}
-	client, err := runtime.pool.Get(ctx)
-	if err != nil {
-		return collection.DeviceActionError(actions[0], err)
-	}
-	conn := client.(*uaClient)
-	response, err := conn.client.Write(ctx, request)
-	runtime.pool.Put(client, err != nil)
+	var response *ua.WriteResponse
+	err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+		conn := client.(*uaClient)
+		resp, writeErr := conn.client.Write(ctx, request)
+		if writeErr != nil {
+			return true, writeErr
+		}
+		response = resp
+		return false, nil
+	})
 	if err != nil {
 		return collection.DeviceActionError(actions[0], err)
 	}

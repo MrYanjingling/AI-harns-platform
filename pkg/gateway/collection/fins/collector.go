@@ -327,22 +327,25 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		client, err := runtime.pool.Get(ctx)
+		var response []byte
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			conn, ok := client.(connpool.Transport)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid fins transport type")
+			}
+			traceID := c.traceRequest("write", request)
+			started := time.Now()
+			resp, exchangeErr := conn.Exchange(ctx, request)
+			c.traceResponse(traceID, "write", resp, started, exchangeErr)
+			if exchangeErr != nil {
+				return true, exchangeErr
+			}
+			response = resp
+			return false, nil
+		})
 		if err != nil {
 			return collection.DeviceActionError(action, err)
-		}
-		conn, ok := client.(connpool.Transport)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid fins transport type"))
-		}
-		traceID := c.traceRequest("write", request)
-		started := time.Now()
-		response, exchangeErr := conn.Exchange(ctx, request)
-		c.traceResponse(traceID, "write", response, started, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
-		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := validateWriteResponse(response); err != nil {
 			return collection.DeviceActionError(action, err)

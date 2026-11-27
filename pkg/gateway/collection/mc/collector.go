@@ -363,18 +363,24 @@ func (c *Collection) writeCommand(ctx context.Context, area byte, word bool, sta
 
 func (c *Collection) exchangeLocked(ctx context.Context, request []byte) ([]byte, error) {
 	run := c.runtime
-	client, err := run.pool.Get(ctx)
+	var response []byte
+	err := run.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+		transport, ok := client.(connpool.Transport)
+		if !ok {
+			_ = client.Close()
+			return false, fmt.Errorf("invalid MC transport")
+		}
+		resp, exchangeErr := transport.Exchange(ctx, request)
+		if exchangeErr != nil {
+			return true, exchangeErr
+		}
+		response = resp
+		return false, nil
+	})
 	if err != nil {
 		return nil, collection.ConnectionLost(err)
 	}
-	transport, ok := client.(connpool.Transport)
-	if !ok {
-		run.pool.Put(client, true)
-		return nil, fmt.Errorf("invalid MC transport")
-	}
-	response, err := transport.Exchange(ctx, request)
-	run.pool.Put(client, err != nil)
-	return response, err
+	return response, nil
 }
 
 func (run *runtime) nextSerialLocked(family Family) uint16 {

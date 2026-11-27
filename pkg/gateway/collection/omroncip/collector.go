@@ -315,21 +315,24 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		if err != nil {
 			return collection.DeviceActionError(action, err)
 		}
-		client, err := runtime.pool.Get(ctx)
+		var response []byte
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			session, ok := client.(*cipClient)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid omron cip client type")
+			}
+			resp, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
+			traceID := c.traceRequest("write", wireRequest)
+			c.traceResponse(traceID, "write", wireResponse, exchangeErr)
+			if exchangeErr != nil {
+				return true, exchangeErr
+			}
+			response = resp
+			return false, nil
+		})
 		if err != nil {
 			return collection.DeviceActionError(action, err)
-		}
-		session, ok := client.(*cipClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid omron cip client type"))
-		}
-		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
-		traceID := c.traceRequest("write", wireRequest)
-		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
-		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := parseWriteResponse(response); err != nil {
 			return collection.DeviceActionError(action, err)

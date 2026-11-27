@@ -258,21 +258,22 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{Field: fmt.Sprintf("actions[%d].name", action.Index), MsgID: "validate.action_variable_not_writable", Args: []interface{}{action.Variable.Name}}})
 		}
-		poolClient, err := runtime.pool.Get(ctx)
-		if err != nil {
-			return collection.DeviceActionError(action, collection.ConnectionLost(err))
-		}
-		conn, ok := poolClient.(*client)
-		if !ok {
-			runtime.pool.Put(poolClient, true)
-			return collection.DeviceActionError(action, collection.ConnectionLost(fmt.Errorf("invalid IEC 61850 client type")))
-		}
-		err = conn.Write(ctx, address, action.Value, action.Variable.DataType)
-		runtime.pool.Put(poolClient, err != nil && isTransportError(err))
-		if err != nil {
-			if isTransportError(err) {
-				return collection.DeviceActionError(action, collection.ConnectionLost(err))
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(poolClient connpool.Client) (bool, error) {
+			conn, ok := poolClient.(*client)
+			if !ok {
+				_ = poolClient.Close()
+				return false, collection.ConnectionLost(fmt.Errorf("invalid IEC 61850 client type"))
 			}
+			writeErr := conn.Write(ctx, address, action.Value, action.Variable.DataType)
+			if writeErr != nil {
+				if isTransportError(writeErr) {
+					return true, collection.ConnectionLost(writeErr)
+				}
+				return false, writeErr
+			}
+			return false, nil
+		})
+		if err != nil {
 			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))

@@ -274,21 +274,24 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name, err.Error()},
 			}})
 		}
-		client, err := runtime.pool.Get(ctx)
+		var response []byte
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			session, ok := client.(*dnp3Client)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid DNP3 client type")
+			}
+			resp, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, app)
+			traceID := c.traceRequest("write", wireRequest)
+			c.traceResponse(traceID, "write", wireResponse, exchangeErr)
+			if exchangeErr != nil {
+				return true, exchangeErr
+			}
+			response = resp
+			return false, nil
+		})
 		if err != nil {
 			return collection.DeviceActionError(action, err)
-		}
-		session, ok := client.(*dnp3Client)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid DNP3 client type"))
-		}
-		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, app)
-		traceID := c.traceRequest("write", wireRequest)
-		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
-		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if len(response) < 2 || (response[1] != appFunctionResponse && response[1] != appFunctionUnsolicited) {
 			return collection.DeviceActionError(action, fmt.Errorf("unexpected DNP3 control response"))

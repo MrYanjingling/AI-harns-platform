@@ -13,7 +13,9 @@ import (
 	"harns-platform/pkg/utils/binutil"
 )
 
-const frameRetryCount = 3
+const (
+	frameRetryCount = 3
+)
 
 type collectorRuntime struct {
 	mu      sync.Mutex
@@ -21,6 +23,7 @@ type collectorRuntime struct {
 	calcs   []*collection.Calculation
 	calcErr error
 	pool    *connpool.Pool
+	pdu     uint16
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 	started bool
@@ -122,7 +125,7 @@ func (c *S7Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: %v", collection.ErrInvalidConfig, err)
 	}
-	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr, pool: pool}
+	runtime := &collectorRuntime{frames: frames, calcs: calculations, calcErr: calcErr, pool: pool, pdu: pdu}
 	c.runtime = runtime
 	if len(frames) == 0 {
 		_ = pool.Close()
@@ -391,8 +394,12 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 	if runtime == nil || runtime.pool == nil {
 		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
 	}
+	if len(actions) == 0 {
+		return nil
+	}
+	items := make([]writeItem, 0, len(actions))
 	for _, action := range actions {
-		request, err := buildWriteRequest(action.Variable, action.Value)
+		item, err := buildWriteItem(action)
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{
 				Field: fmt.Sprintf("actions[%d].name", action.Index),
@@ -400,22 +407,46 @@ func (c *S7Collection) DeliverAction(ctx context.Context, actions []collection.A
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		client, err := runtime.pool.Get(ctx)
-		if err != nil {
-			return collection.DeviceActionError(action, err)
+		items = append(items, item)
+	}
+	pdu := runtime.pdu
+	if pdu == 0 {
+		if c.PDUSize > 0 {
+			pdu = uint16(c.PDUSize)
+		} else {
+			pdu = DefaultPDUSize
 		}
+	}
+	batches := buildWriteBatches(items, pdu)
+	for _, batch := range batches {
+		if err := c.deliverWriteBatch(ctx, runtime, batch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *S7Collection) deliverWriteBatch(ctx context.Context, runtime *collectorRuntime, batch writeBatch) error {
+	var response []byte
+	err := runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
 		session := client.(*s7Client)
-		traceID := c.traceRequest("write", request)
+		traceID := c.traceRequest("write", batch.request)
 		started := time.Now()
-		response, exchangeErr := session.Exchange(ctx, request)
-		c.traceResponse(traceID, "write", response, started, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
+		resp, exchangeErr := session.Exchange(ctx, batch.request)
+		c.traceResponse(traceID, "write", resp, started, exchangeErr)
 		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
+			return true, exchangeErr
 		}
-		if len(response) < 22 || response[21] != 255 {
-			return collection.DeviceActionError(action, fmt.Errorf("s7 write failed"))
-		}
+		response = resp
+		return false, nil
+	})
+	if err != nil {
+		return collection.DeviceActionError(batch.actions[0], err)
+	}
+	if err := validateWriteResponse(response, batch.actions); err != nil {
+		return err
+	}
+	for _, action := range batch.actions {
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}
 	return nil

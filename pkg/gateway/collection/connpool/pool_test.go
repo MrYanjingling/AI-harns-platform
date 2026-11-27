@@ -166,3 +166,45 @@ func TestPoolWaiterRevivedWhenDialFails(t *testing.T) {
 	}
 	_ = pool.Close()
 }
+
+func TestPoolDoWithRetryReconnectsOnce(t *testing.T) {
+	var created atomic.Int32
+	pool, err := NewPool(context.Background(), 1, func(context.Context) (Client, error) {
+		created.Add(1)
+		return &testClient{available: true}, nil
+	})
+	require.NoError(t, err)
+	defer pool.Close()
+
+	var calls int
+	err = pool.DoWithRetry(context.Background(), DefaultWriteAttempts, func(client Client) (bool, error) {
+		calls++
+		if calls == 1 {
+			return true, errors.New("EOF")
+		}
+		return false, nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, calls)
+	assert.Equal(t, int32(2), created.Load())
+}
+
+func TestPoolDoWithRetrySkipsNonRetryableError(t *testing.T) {
+	var created atomic.Int32
+	pool, err := NewPool(context.Background(), 1, func(context.Context) (Client, error) {
+		created.Add(1)
+		return &testClient{available: true}, nil
+	})
+	require.NoError(t, err)
+	defer pool.Close()
+
+	var calls int
+	protoErr := errors.New("protocol error")
+	err = pool.DoWithRetry(context.Background(), DefaultWriteAttempts, func(client Client) (bool, error) {
+		calls++
+		return false, protoErr
+	})
+	assert.ErrorIs(t, err, protoErr)
+	assert.Equal(t, 1, calls)
+	assert.Equal(t, int32(1), created.Load())
+}

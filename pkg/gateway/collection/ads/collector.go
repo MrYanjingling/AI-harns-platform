@@ -308,28 +308,29 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 		if err != nil {
 			return validation.New([]validation.FieldIssue{{Field: fmt.Sprintf("actions[%d].name", action.Index), MsgID: "validate.action_variable_not_writable", Args: []interface{}{action.Variable.Name}}})
 		}
-		client, err := runtime.pool.Get(ctx)
-		if err != nil {
-			return collection.DeviceActionError(action, collection.ConnectionLost(err))
-		}
-		conn, ok := client.(*adsClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, collection.ConnectionLost(fmt.Errorf("invalid Beckhoff ADS client type")))
-		}
-		_, wireRequest, wireResponse, err := conn.write(ctx, address.IndexGroup, address.IndexOffset, value)
-		traceID := c.traceRequest("write", wireRequest)
-		if traceID != 0 {
-			if err != nil {
-				wireResponse = nil
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			conn, ok := client.(*adsClient)
+			if !ok {
+				_ = client.Close()
+				return false, collection.ConnectionLost(fmt.Errorf("invalid Beckhoff ADS client type"))
 			}
-			c.frameTracer.TraceResponse(traceID, "write", wireResponse, 0, err)
-		}
-		runtime.pool.Put(client, err != nil && isTransportError(err))
-		if err != nil {
-			if isTransportError(err) {
-				return collection.DeviceActionError(action, collection.ConnectionLost(err))
+			_, wireRequest, wireResponse, writeErr := conn.write(ctx, address.IndexGroup, address.IndexOffset, value)
+			traceID := c.traceRequest("write", wireRequest)
+			if traceID != 0 {
+				if writeErr != nil {
+					wireResponse = nil
+				}
+				c.frameTracer.TraceResponse(traceID, "write", wireResponse, 0, writeErr)
 			}
+			if writeErr != nil {
+				if isTransportError(writeErr) {
+					return true, collection.ConnectionLost(writeErr)
+				}
+				return false, writeErr
+			}
+			return false, nil
+		})
+		if err != nil {
 			return collection.DeviceActionError(action, err)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))

@@ -88,17 +88,20 @@ func newMewtocolPool(ctx context.Context, address string, timeout time.Duration)
 }
 
 func exchange(ctx context.Context, pool *connpool.Pool, request []byte) ([]byte, error) {
-	client, err := pool.Get(ctx)
-	if err != nil {
-		return nil, collection.ConnectionLost(err)
-	}
-	transport, ok := client.(*tcpTransport)
-	if !ok {
-		pool.Put(client, true)
-		return nil, fmt.Errorf("invalid mewtocol transport type")
-	}
-	response, err := transport.Exchange(ctx, request)
-	pool.Put(client, err != nil)
+	var response []byte
+	err := pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+		transport, ok := client.(*tcpTransport)
+		if !ok {
+			_ = client.Close()
+			return false, fmt.Errorf("invalid mewtocol transport type")
+		}
+		resp, exchangeErr := transport.Exchange(ctx, request)
+		if exchangeErr != nil {
+			return true, exchangeErr
+		}
+		response = resp
+		return false, nil
+	})
 	if err != nil {
 		return nil, collection.ConnectionLost(err)
 	}

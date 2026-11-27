@@ -10,6 +10,10 @@ import (
 // ErrClosed reports that a pool has been closed.
 var ErrClosed = errors.New("connection pool is closed")
 
+// DefaultWriteAttempts is the default total attempts (1 initial + 1 reconnect retry)
+// for write/control operations on pooled connections.
+const DefaultWriteAttempts = 2
+
 // Client is one reusable protocol connection.
 type Client interface {
 	Available() bool
@@ -185,4 +189,31 @@ func (p *Pool) Close() error {
 	p.idle = nil
 	p.total = 0
 	return nil
+}
+
+// DoWithRetry acquires a client from the pool and invokes fn, retrying up to
+// attempts total times when fn reports a retryable connection error (retry == true).
+// When retry is true, the failed client is discarded via Put(client, true) before
+// acquiring a fresh client on the next attempt.
+func (p *Pool) DoWithRetry(ctx context.Context, attempts int, fn func(client Client) (retry bool, err error)) error {
+	if attempts < 1 {
+		attempts = 1
+	}
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		client, err := p.Get(ctx)
+		if err != nil {
+			return err
+		}
+		retry, err := fn(client)
+		p.Put(client, retry)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if !retry || ctx.Err() != nil {
+			return err
+		}
+	}
+	return lastErr
 }

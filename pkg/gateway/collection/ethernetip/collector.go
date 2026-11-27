@@ -291,21 +291,22 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		client, err := runtime.pool.Get(ctx)
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			session, ok := client.(*cipClient)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid ethernet/ip client type")
+			}
+			wireRequest, wireResponse, writeErr := session.WriteTag(ctx, address, data)
+			traceID := c.traceRequest("write", wireRequest)
+			c.traceResponse(traceID, "write", wireResponse, writeErr)
+			if writeErr != nil {
+				return collection.IsConnectionLost(writeErr), writeErr
+			}
+			return false, nil
+		})
 		if err != nil {
 			return collection.DeviceActionError(action, err)
-		}
-		session, ok := client.(*cipClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid ethernet/ip client type"))
-		}
-		wireRequest, wireResponse, writeErr := session.WriteTag(ctx, address, data)
-		traceID := c.traceRequest("write", wireRequest)
-		c.traceResponse(traceID, "write", wireResponse, writeErr)
-		runtime.pool.Put(client, writeErr != nil && collection.IsConnectionLost(writeErr))
-		if writeErr != nil {
-			return collection.DeviceActionError(action, writeErr)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

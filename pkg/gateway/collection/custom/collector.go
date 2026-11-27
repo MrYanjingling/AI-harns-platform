@@ -342,26 +342,28 @@ func (c *Collector) DeliverAction(ctx context.Context, actions []collection.Acti
 		if err != nil {
 			return collection.DeviceActionError(action, err)
 		}
-		client, err := runtime.pool.Get(ctx)
-		if err != nil {
-			return collection.DeviceActionError(action, err)
-		}
-		transport, ok := client.(*transportClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid custom transport type"))
-		}
-		traceID := c.traceRequest("write", request)
-		started := time.Now()
-		response, err := safeValue(func() ([]byte, error) {
-			return transport.Exchange(ctx, request)
+		var response []byte
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			transport, ok := client.(*transportClient)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid custom transport type")
+			}
+			traceID := c.traceRequest("write", request)
+			started := time.Now()
+			resp, exchangeErr := safeValue(func() ([]byte, error) {
+				return transport.Exchange(ctx, request)
+			})
+			c.traceResponse(traceID, "write", resp, started, exchangeErr)
+			if exchangeErr != nil {
+				return true, exchangeErr
+			}
+			response = resp
+			return false, nil
 		})
-		c.traceResponse(traceID, "write", response, started, err)
 		if err != nil {
-			runtime.pool.Put(client, true)
 			return collection.DeviceActionError(action, err)
 		}
-		runtime.pool.Put(client, false)
 		if err := safeError(func() error { return c.driver.DecodeWrite(response) }); err != nil {
 			return collection.DeviceActionError(action, err)
 		}

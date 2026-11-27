@@ -278,21 +278,24 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 				Args:  []interface{}{action.Variable.Name},
 			}})
 		}
-		client, err := runtime.pool.Get(ctx)
+		var response []byte
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			session, ok := client.(*cipClient)
+			if !ok {
+				_ = client.Close()
+				return false, fmt.Errorf("invalid ethernet/ip 1400 client type")
+			}
+			resp, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
+			traceID := c.traceRequest("write", wireRequest)
+			c.traceResponse(traceID, "write", wireResponse, exchangeErr)
+			if exchangeErr != nil {
+				return true, exchangeErr
+			}
+			response = resp
+			return false, nil
+		})
 		if err != nil {
 			return collection.DeviceActionError(action, err)
-		}
-		session, ok := client.(*cipClient)
-		if !ok {
-			runtime.pool.Put(client, true)
-			return collection.DeviceActionError(action, fmt.Errorf("invalid ethernet/ip 1400 client type"))
-		}
-		response, wireRequest, wireResponse, exchangeErr := session.Exchange(ctx, request)
-		traceID := c.traceRequest("write", wireRequest)
-		c.traceResponse(traceID, "write", wireResponse, exchangeErr)
-		runtime.pool.Put(client, exchangeErr != nil)
-		if exchangeErr != nil {
-			return collection.DeviceActionError(action, exchangeErr)
 		}
 		if err := parseWriteResponse(response); err != nil {
 			return collection.DeviceActionError(action, err)
@@ -307,38 +310,43 @@ func (c *Collection) writeTimerCounterAction(ctx context.Context, runtime *colle
 	if err != nil {
 		return actionNotWritable(action)
 	}
-	client, err := runtime.pool.Get(ctx)
+	var writeResponse []byte
+	var notWritable bool
+	err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+		session, ok := client.(*cipClient)
+		if !ok {
+			_ = client.Close()
+			return false, fmt.Errorf("invalid ethernet/ip 1400 client type")
+		}
+		readResponse, wireRequest, wireResponse, readErr := session.Exchange(ctx, readRequest)
+		traceID := c.traceRequest("read", wireRequest)
+		c.traceResponse(traceID, "read", wireResponse, readErr)
+		if readErr != nil {
+			return true, readErr
+		}
+		current, parseErr := parsePCCCResponse(readResponse)
+		if parseErr != nil {
+			return false, parseErr
+		}
+		request, reqErr := timerCounterWriteRequest(address, current, action.Value, action.Variable.DataType)
+		if reqErr != nil {
+			notWritable = true
+			return false, reqErr
+		}
+		resp, wireRequest, wireResponse, writeErr := session.Exchange(ctx, request)
+		traceID = c.traceRequest("write", wireRequest)
+		c.traceResponse(traceID, "write", wireResponse, writeErr)
+		if writeErr != nil {
+			return true, writeErr
+		}
+		writeResponse = resp
+		return false, nil
+	})
 	if err != nil {
+		if notWritable {
+			return actionNotWritable(action)
+		}
 		return collection.DeviceActionError(action, err)
-	}
-	session, ok := client.(*cipClient)
-	if !ok {
-		runtime.pool.Put(client, true)
-		return collection.DeviceActionError(action, fmt.Errorf("invalid ethernet/ip 1400 client type"))
-	}
-	readResponse, wireRequest, wireResponse, readErr := session.Exchange(ctx, readRequest)
-	traceID := c.traceRequest("read", wireRequest)
-	c.traceResponse(traceID, "read", wireResponse, readErr)
-	if readErr != nil {
-		runtime.pool.Put(client, true)
-		return collection.DeviceActionError(action, readErr)
-	}
-	current, err := parsePCCCResponse(readResponse)
-	if err != nil {
-		runtime.pool.Put(client, false)
-		return collection.DeviceActionError(action, err)
-	}
-	request, err := timerCounterWriteRequest(address, current, action.Value, action.Variable.DataType)
-	if err != nil {
-		runtime.pool.Put(client, false)
-		return actionNotWritable(action)
-	}
-	writeResponse, wireRequest, wireResponse, writeErr := session.Exchange(ctx, request)
-	traceID = c.traceRequest("write", wireRequest)
-	c.traceResponse(traceID, "write", wireResponse, writeErr)
-	runtime.pool.Put(client, writeErr != nil)
-	if writeErr != nil {
-		return collection.DeviceActionError(action, writeErr)
 	}
 	if err := parseWriteResponse(writeResponse); err != nil {
 		return collection.DeviceActionError(action, err)
