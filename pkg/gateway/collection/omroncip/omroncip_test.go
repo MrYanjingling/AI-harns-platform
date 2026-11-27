@@ -288,3 +288,12 @@ func TestConcurrencyDefaultsAndConfig(t *testing.T) {
 		t.Fatalf("unexpected config %s", raw)
 	}
 }
+
+func TestEncapsulationStatusText(t *testing.T) {
+	if got := encapsulationStatusText(1); got != "invalid or unsupported encapsulation command" {
+		t.Fatalf("unexpected status text: %s", got)
+	}
+	if got := encapsulationCommandName(0x0065); got != "RegisterSession (0x0065)" {
+		t.Fatalf("unexpected command text: %s", got)
+	}
+}

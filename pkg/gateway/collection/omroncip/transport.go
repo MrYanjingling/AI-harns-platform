@@ -107,7 +107,7 @@ func (c *cipClient) request(ctx context.Context, command uint16, session uint32,
 	}
 	status := binary.LittleEndian.Uint32(header[8:])
 	if status != 0 {
-		return wire, response, 0, fmt.Errorf("omron cip encapsulation status %d", status)
+		return wire, response, 0, fmt.Errorf("omron cip encapsulation status %d (%s) for %s", status, encapsulationStatusText(status), encapsulationCommandName(command))
 	}
 	return wire, response, binary.LittleEndian.Uint32(header[4:]), nil
 }
@@ -152,4 +152,44 @@ func (c *cipClient) Close() error {
 	conn := c.conn
 	c.conn = nil
 	return conn.Close()
+}
+
+func encapsulationStatusText(status uint32) string {
+	switch status {
+	case 0:
+		return "success"
+	case 1:
+		return "invalid or unsupported encapsulation command"
+	case 2:
+		return "insufficient memory"
+	case 3:
+		return "incorrect data in encapsulation packet"
+	case 4:
+		return "invalid session handle"
+	case 5:
+		return "invalid length"
+	case 6:
+		return "unsupported protocol revision"
+	default:
+		return "unknown encapsulation status"
+	}
+}
+
+func encapsulationCommandName(command uint16) string {
+	switch command {
+	case 0x0063:
+		return "ListServices (0x0063)"
+	case 0x0064:
+		return "ListIdentity (0x0064)"
+	case 0x0065:
+		return "RegisterSession (0x0065)"
+	case 0x0066:
+		return "UnregisterSession (0x0066)"
+	case 0x006F:
+		return "SendRRData (0x006F)"
+	case 0x0070:
+		return "SendUnitData (0x0070)"
+	default:
+		return fmt.Sprintf("command 0x%04X", command)
+	}
 }

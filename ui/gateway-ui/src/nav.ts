@@ -121,7 +121,7 @@ export function createGatewayNav(base = ''): NavSection[] {
         },
         {
           labelKey: 'gateway.nav.ai',
-          icon: createElement(Sparkles, { className: 'size-4 text-primary' }),
+          icon: icon(Sparkles),
           items: [
             {
               to: `${base}/ai/models`,
