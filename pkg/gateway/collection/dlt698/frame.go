@@ -45,7 +45,8 @@ func appendFCS(dst, data []byte) []byte {
 
 func buildGetRequest(meter []byte, client byte, oad [4]byte, piid byte) []byte {
 	address := buildAddressArea(meter, client)
-	apdu := []byte{apduGetRequest, 0x01, piid, oad[0], oad[1], oad[2], oad[3]}
+	// GET-Request-Normal: service(0x05), choice(0x01), PIID, OAD(4B), TimeTag OPTIONAL(0x00).
+	apdu := []byte{apduGetRequest, 0x01, piid, oad[0], oad[1], oad[2], oad[3], 0x00}
 	total := 1 + 2 + 1 + len(address) + 2 + len(apdu) + 2 + 1
 	length := uint16(total - 2)
 	header := []byte{byte(length), byte(length >> 8), controlGetRequest}
@@ -95,6 +96,9 @@ func parseGetResponse(frame []byte, meter []byte, oad [4]byte, piid byte) ([]byt
 		return nil, fmt.Errorf("DL/T 698 response does not match request")
 	}
 	if apdu[7] != 0x01 {
+		if apdu[7] == 0x00 && len(apdu) >= 9 {
+			return nil, fmt.Errorf("DL/T 698 object read failed, dar 0x%02X", apdu[8])
+		}
 		return nil, fmt.Errorf("DL/T 698 object read failed, result 0x%02X", apdu[7])
 	}
 	return apdu[8:], nil

@@ -109,12 +109,26 @@ func parseASDU(asdu []byte, caLen, ioaLen int) (map[uint32]any, bool, error) {
 	}
 	offset := 4 + caLen
 	values := make(map[uint32]any)
-	for i := 0; i < count; i++ {
+	sequential := vsq&0x80 != 0
+	var baseIOA uint32
+	if sequential {
 		if offset+ioaLen > len(asdu) {
-			return values, false, fmt.Errorf("iec101 IOA is too short")
+			return values, false, fmt.Errorf("iec101 sequential IOA is too short")
 		}
-		ioa := readIOA(asdu[offset:], ioaLen)
+		baseIOA = readIOA(asdu[offset:], ioaLen)
 		offset += ioaLen
+	}
+	for i := 0; i < count; i++ {
+		var ioa uint32
+		if sequential {
+			ioa = baseIOA + uint32(i)
+		} else {
+			if offset+ioaLen > len(asdu) {
+				return values, false, fmt.Errorf("iec101 IOA is too short")
+			}
+			ioa = readIOA(asdu[offset:], ioaLen)
+			offset += ioaLen
+		}
 		switch typeID {
 		case typeSinglePoint:
 			if offset >= len(asdu) {
@@ -123,7 +137,7 @@ func parseASDU(asdu []byte, caLen, ioaLen int) (map[uint32]any, bool, error) {
 			values[ioa] = asdu[offset]&1 != 0
 			offset++
 		case typeFloatMeasure:
-			if offset+4 > len(asdu) {
+			if offset+5 > len(asdu) {
 				return values, false, fmt.Errorf("iec101 float measure is too short")
 			}
 			values[ioa] = math.Float32frombits(binary.LittleEndian.Uint32(asdu[offset:]))

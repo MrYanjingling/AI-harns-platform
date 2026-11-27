@@ -63,3 +63,29 @@ func TestWriteRequest(t *testing.T) {
 		t.Fatalf("got %X want %s", apdu, want)
 	}
 }
+
+func TestEncodePointValueNumericTypes(t *testing.T) {
+	// Analog Present_Value accepts int16/int32/uint16/uint32 and encodes as 4-byte REAL (tag 4).
+	for _, val := range []any{int16(12), int32(345), uint16(67), uint32(890)} {
+		got, err := encodePointValue(2, propertyPresentValue, val, "INT16")
+		if err != nil {
+			t.Fatalf("analog encode %T failed: %v", val, err)
+		}
+		if len(got) != 5 || got[0] != 0x44 {
+			t.Fatalf("analog encode %T: got %X, want 5-byte REAL tag 0x44", val, got)
+		}
+	}
+
+	// Multi-State Present_Value accepts non-negative int16/int32 and rejects negative values.
+	got1, err := encodePointValue(19, propertyPresentValue, int16(3), "INT16")
+	if err != nil || hex.EncodeToString(got1) != "2103" {
+		t.Fatalf("MSV int16(3): got %X err=%v", got1, err)
+	}
+	got2, err := encodePointValue(19, propertyPresentValue, int32(300), "INT32")
+	if err != nil || hex.EncodeToString(got2) != "22012c" {
+		t.Fatalf("MSV int32(300): got %X err=%v", got2, err)
+	}
+	if _, err := encodePointValue(19, propertyPresentValue, int16(-1), "INT16"); err == nil {
+		t.Fatalf("expected error for negative MSV value")
+	}
+}

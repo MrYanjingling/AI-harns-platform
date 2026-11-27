@@ -2,6 +2,7 @@ package dlt698
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -28,9 +29,17 @@ func TestBuildGetRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := buildGetRequest(meter, 0, oad, 1)
-	want := []byte{0x68, 0x16, 0x00, 0x43, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0xB3, 0x05, 0x01, 0x01, 0x00, 0x00, 0x02, 0x00, 0x9B, 0x7D, 0x16}
+	if len(request) != 25 || request[0] != 0x68 || request[len(request)-1] != 0x16 {
+		t.Fatalf("unexpected frame envelope: %x", request)
+	}
+	// Verify length(0x0017), control(0x43), reversed meter address, HCS, APDU with trailing TimeTag(0x00), and FCS.
+	header := []byte{0x17, 0x00, 0x43, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	body := appendFCS(append([]byte{}, header...), header)
+	body = append(body, 0x05, 0x01, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00)
+	body = appendFCS(body, body)
+	want := append(append([]byte{0x68}, body...), 0x16)
 	if !bytes.Equal(request, want) {
-		t.Fatalf("request = %x", request)
+		t.Fatalf("request = %x, want %x", request, want)
 	}
 }
 
@@ -66,8 +75,22 @@ func TestParseGetResponseError(t *testing.T) {
 	oad, _ := parseOAD("00000200")
 	apdu := []byte{0x85, 0x01, 0x01, 0x00, 0x00, 0x02, 0x00, 0x06}
 	frame := responseFrame(meter, 0, apdu)
-	if _, err := parseGetResponse(frame, meter, oad, 1); err == nil {
-		t.Fatal("expected result error")
+	if _, err := parseGetResponse(frame, meter, oad, 1); err == nil || !strings.Contains(err.Error(), "result 0x06") {
+		t.Fatalf("expected result 0x06 error, got %v", err)
+	}
+}
+
+func TestParseGetResponseStandardDAR(t *testing.T) {
+	meter, err := parseMeterAddress("000000000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oad, _ := parseOAD("00100200")
+	// Standard DL/T 698.45 Get-Result CHOICE dar [0] followed by DAR=0x06, FollowReport=0x00, TimeTag=0x00.
+	apdu := []byte{0x85, 0x01, 0x01, 0x00, 0x10, 0x02, 0x00, 0x00, 0x06, 0x00, 0x00}
+	frame := responseFrame(meter, 0, apdu)
+	if _, err := parseGetResponse(frame, meter, oad, 1); err == nil || !strings.Contains(err.Error(), "dar 0x06") {
+		t.Fatalf("expected dar 0x06 error, got %v", err)
 	}
 }
 

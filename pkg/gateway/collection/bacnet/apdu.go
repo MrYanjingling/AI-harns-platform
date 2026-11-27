@@ -174,7 +174,19 @@ func numericFloat(value any) (float64, bool) {
 		return float64(typed), true
 	case int:
 		return float64(typed), true
+	case int8:
+		return float64(typed), true
+	case int16:
+		return float64(typed), true
+	case int32:
+		return float64(typed), true
 	case int64:
+		return float64(typed), true
+	case uint8:
+		return float64(typed), true
+	case uint16:
+		return float64(typed), true
+	case uint32:
 		return float64(typed), true
 	case uint64:
 		return float64(typed), true
@@ -203,6 +215,14 @@ func numericInt(value any) (int64, bool) {
 func numericUint(value any) (uint64, bool) {
 	switch typed := value.(type) {
 	case int:
+		return uint64(typed), typed >= 0
+	case int8:
+		return uint64(typed), typed >= 0
+	case int16:
+		return uint64(typed), typed >= 0
+	case int32:
+		return uint64(typed), typed >= 0
+	case int64:
 		return uint64(typed), typed >= 0
 	case uint8:
 		return uint64(typed), true
