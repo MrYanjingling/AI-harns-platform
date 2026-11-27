@@ -1,8 +1,10 @@
 package iec103
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -106,12 +108,14 @@ func parseASDU(asdu []byte) (map[string]any, error) {
 	for i := 0; i < count; i++ {
 		var size int
 		switch typeID {
-		case 1, 2, 5, 7:
+		case 1, 2, 7:
 			size = 1
 		case 3, 9:
 			size = 3
 		case 4:
 			size = 4
+		case 5:
+			size = 13
 		default:
 			return values, nil
 		}
@@ -120,11 +124,15 @@ func parseASDU(asdu []byte) (map[string]any, error) {
 		}
 		data := asdu[offset : offset+size]
 		key := fmt.Sprintf("%d.%d.%d", ca, fun, int(num)+i)
-		switch {
-		case typeID == 3 || typeID == 9:
+		switch typeID {
+		case 3, 9:
 			values[key] = int32((int(data[2]&3) << 13) | (int(data[0]) >> 3) | (int(data[1]) << 5))
-		case typeID == 1 || typeID == 5:
-			values[key] = data[0]&1 != 0
+		case 1, 2:
+			values[key] = data[0] & 0x03
+		case 4:
+			values[key] = math.Float32frombits(binary.LittleEndian.Uint32(data))
+		case 5:
+			values[key] = strings.TrimSpace(string(data[1:13]))
 		default:
 			values[key] = data[0]
 		}

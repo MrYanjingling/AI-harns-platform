@@ -175,9 +175,9 @@ func (a Address) path() string {
 	case kindHandleOverride:
 		return "/v1/overrides/handle"
 	case kindSpindleOverride:
-		return fmt.Sprintf("/v1/overrides/sp/%d", a.Index)
+		return "/v1/overrides/sp/"
 	case kindSpSpeed:
-		return fmt.Sprintf("/v1/sp/speeds/%d", a.Index)
+		return "/v1/sp/speeds/"
 	case kindFeedrate:
 		return "/v1/feedback/F"
 	case kindWorkCoors:
@@ -206,20 +206,62 @@ func extractValue(root any, address Address) any {
 			return value
 		}
 	}
-	if address.Axis >= 0 {
-		if value := lookupAxis(root, address.Axis); value != nil {
-			return value
-		}
-	}
 	switch address.Kind {
-	case kindFeedOverride, kindJogOverride, kindRapidOverride, kindHandleOverride, kindFeedrate:
+	case kindAbsolute, kindMachine, kindRelative, kindWorkCoors:
+		if address.Axis >= 0 {
+			if value := lookupAxis(root, address.Axis); value != nil {
+				return value
+			}
+		}
+	case kindVars:
 		if object, ok := root.(map[string]any); ok {
 			if value, ok := object["val"]; ok {
 				return value
 			}
 		}
-	case kindWorkCoorsCur, kindProgCur:
+	case kindFeedOverride, kindJogOverride, kindRapidOverride, kindHandleOverride:
 		if object, ok := root.(map[string]any); ok {
+			if value, ok := object["ov"]; ok {
+				return value
+			}
+			if value, ok := object["val"]; ok {
+				return value
+			}
+		}
+	case kindSpindleOverride, kindSpSpeed:
+		if object, ok := root.(map[string]any); ok {
+			if value, ok := object[strconv.Itoa(address.Index)]; ok {
+				return value
+			}
+			if value, ok := object["val"]; ok {
+				return value
+			}
+		}
+	case kindFeedrate:
+		if object, ok := root.(map[string]any); ok {
+			if value, ok := object["feedrate"]; ok {
+				return value
+			}
+			if value, ok := object["val"]; ok {
+				return value
+			}
+		}
+	case kindProgCur:
+		if object, ok := root.(map[string]any); ok {
+			if value, ok := object["number"]; ok {
+				return value
+			}
+			if value, ok := object["val"]; ok {
+				return value
+			}
+		}
+	case kindWorkCoorsCur:
+		if object, ok := root.(map[string]any); ok {
+			for _, g := range []string{"G54", "G55", "G56", "G57", "G58", "G59"} {
+				if _, ok := object[g]; ok {
+					return g
+				}
+			}
 			if value, ok := object["val"]; ok {
 				return value
 			}
@@ -312,18 +354,16 @@ func decodePLCBytes(data []byte, address Address, dataType string) (any, error) 
 		return nil, fmt.Errorf("short KND PLC response")
 	}
 	switch strings.ToLower(dataType) {
-	case "bit", "bool", "int8", "uint8":
-		value := data[0]
-		if address.Bit > 0 {
-			value = (value >> address.Bit) & 1
-		}
+	case "bit", "bool":
+		bit := (data[0] >> address.Bit) & 1
 		if strings.EqualFold(dataType, "bit") {
-			return value, nil
+			return bit, nil
 		}
-		if strings.EqualFold(dataType, "bool") {
-			return value != 0, nil
-		}
-		return value, nil
+		return bit != 0, nil
+	case "int8":
+		return int8(data[0]), nil
+	case "uint8":
+		return data[0], nil
 	case "int16":
 		return int16(binary.LittleEndian.Uint16(data)), nil
 	case "uint16":

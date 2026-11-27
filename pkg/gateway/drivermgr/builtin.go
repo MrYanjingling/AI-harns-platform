@@ -32,6 +32,7 @@ const (
 	DriverTypeLSElectric   = "LS Electric"
 	DriverTypeYokogawa     = "Yokogawa"
 	DriverTypeYaskawa      = "Yaskawa"
+	DriverTypeSECSGEM      = "SECS/GEM"
 
 	ModelModbusTCP          = "modbusTcp"
 	ModelModbusRTU          = "modbusRtu"
@@ -51,9 +52,12 @@ const (
 	ModelIEC104             = "IEC104"
 	ModelCOMLI              = "COMLI"
 	ModelMCFX               = "MC-FX"
+	ModelMCFXLinks          = "FX-Links"
 	ModelMC1E               = "MC-1E"
 	ModelMC3E               = "MC-3E"
+	ModelMC3EAscii          = "MC-3E ASCII"
 	ModelMC4E               = "MC-4E"
+	ModelCCLinkIEBasic      = "CC-Link IE Field Basic"
 	ModelEthernetIP         = "ethernetIp"
 	ModelEthernetIP5500     = "EtherNet/IP-ControlLogic 55xx"
 	ModelEthernetIP1400     = "EtherNet/IP-MicroLogix 1400"
@@ -91,6 +95,7 @@ const (
 	ModelLSCnet             = "XGT Cnet"
 	ModelYokogawaLink       = "FA-M3 PC Link"
 	ModelYaskawaMemobus     = "MEMOBUS/TCP"
+	ModelHSMS               = "HSMS"
 
 	DriverModbusTCP          = "modbus-tcp"
 	DriverModbusRTU          = "modbus-rtu"
@@ -150,6 +155,10 @@ const (
 	DriverLSCnet             = "ls-xgt-cnet"
 	DriverYokogawaLink       = "yokogawa-link"
 	DriverYaskawaMemobus     = "yaskawa-memobus"
+	DriverMC3EAscii          = "melsec-mc-ascii"
+	DriverFXLinks            = "melsec-fx-links"
+	DriverCCLinkIEBasic      = "cclink-ie-basic"
+	DriverHSMS               = "hsms"
 
 	BuiltinModbusTCPID          = "01M706HSSR3Q8KY52DPGDWG9KE"
 	BuiltinModbusRTUID          = "01M706HSSR3Q8KY52DPJ6XTA17"
@@ -209,6 +218,10 @@ const (
 	BuiltinLSCnetID             = "01M7Z9X3Q8KY52DPGDWG9KEX45"
 	BuiltinYokogawaLinkID       = "01M7Z9X3Q8KY52DPGDWG9KEX46"
 	BuiltinYaskawaMemobusID     = "01M7Z9X3Q8KY52DPGDWG9KEX47"
+	BuiltinMC3EAsciiID          = "01M7Z9X3Q8KY52DPGDWG9KEX48"
+	BuiltinFXLinksID            = "01M7Z9X3Q8KY52DPGDWG9KEX49"
+	BuiltinCCLinkIEBasicID      = "01M7Z9X3Q8KY52DPGDWG9KEX50"
+	BuiltinHSMSID               = "01M7Z9X3Q8KY52DPGDWG9KEX51"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -2361,6 +2374,81 @@ const memobusSchema = `{
   ]
 }`
 
+const fxLinksSchema = `{
+  "fields": [
+    {"name":"link","labelZh":"连接方式","labelEn":"Link","regex":"^[01]$","sort":1,"type":"select","required":true,"options":[{"value":"1","labelZh":"TCP","labelEn":"TCP"},{"value":"0","labelZh":"串口","labelEn":"Serial"}]},
+    {"name":"location","labelZh":"IP / 串口设备","labelEn":"IP / Serial Port","regex":"^[^\\s]+$","sort":2,"type":"input","required":true,"placeholderZh":"192.168.1.10 / ttyS0","placeholderEn":"192.168.1.10 / ttyS0"},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":3,"type":"input","placeholderZh":"8000","placeholderEn":"8000"},
+    {"name":"station","labelZh":"站号","labelEn":"Station","regex":"^([0-9]|1[0-5])$","sort":4,"type":"input","placeholderZh":"0","placeholderEn":"0"},
+    {"name":"format","labelZh":"协议格式","labelEn":"Format","regex":"^[14]$","sort":5,"type":"select","options":[{"value":"1","labelZh":"格式 1","labelEn":"Format 1"},{"value":"4","labelZh":"格式 4 (CR/LF)","labelEn":"Format 4 (CR/LF)"}]},
+    {"name":"sumCheck","labelZh":"和校验","labelEn":"Sum Check","regex":"^[01]$","sort":6,"type":"select","options":[{"value":"1","labelZh":"启用","labelEn":"Enabled"},{"value":"0","labelZh":"关闭","labelEn":"Disabled"}]},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":7,"type":"input"},
+    {"name":"intervalMs","labelZh":"命令间隔(ms)","labelEn":"Command Interval (ms)","regex":"^[0-9]{1,6}$","sort":8,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"FX-Links 地址","labelEn":"FX-Links Address","placeholderZh":"D0 / M0 / X0 / Y0 / D0.3","placeholderEn":"D0 / M0 / X0 / Y0 / D0.3","descriptionZh":"三菱 FX 计算机链接软元件地址，如 D0、T0、C0、R0、M0、X0、Y0、S0；字内位写作 D0.3","descriptionEn":"Mitsubishi FX-Links device address, e.g. D0, T0, C0, R0, M0, X0, Y0, S0; word bit uses D0.3"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[DTMCRXYMSdtmcrxyms][0-9]{1,4}(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[DTMCRXYMSdtmcrxyms][0-9]{1,4}(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[DTCRdtcr][0-9]{1,4}$"}
+  ]
+}`
+
+const cclinkIESchema = `{
+  "fields": [
+    {"name":"location","labelZh":"从站 IP:端口","labelEn":"Slave IP:Port","regex":"^[^\\s]+$","sort":1,"type":"input","required":true,"placeholderZh":"192.168.1.10:61450","placeholderEn":"192.168.1.10:61450"},
+    {"name":"occupiedStations","labelZh":"占用站数","labelEn":"Occupied Stations","regex":"^[1-4]$","sort":2,"type":"select","options":[{"value":"1","labelZh":"1 站","labelEn":"1 Station"},{"value":"2","labelZh":"2 站","labelEn":"2 Stations"},{"value":"3","labelZh":"3 站","labelEn":"3 Stations"},{"value":"4","labelZh":"4 站","labelEn":"4 Stations"}]},
+    {"name":"groupNo","labelZh":"组号","labelEn":"Group No","regex":"^([1-9]|[1-5][0-9]|6[0-4])$","sort":3,"type":"input","placeholderZh":"1","placeholderEn":"1"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":4,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"CC-Link IE 地址","labelEn":"CC-Link IE Address","placeholderZh":"RX0 / RY0 / RWr0 / RWw0 / RWw0.3","placeholderEn":"RX0 / RY0 / RWr0 / RWw0 / RWw0.3","descriptionZh":"CLPA CC-Link IE Field Basic 循环链接软元件：RX/RY（每站64位）、RWr/RWw（每站32字），支持 0x 十六进制及字内位 .0~.15","descriptionEn":"CLPA CC-Link IE Field Basic cyclic devices: RX/RY (64 bits/station), RWr/RWw (32 words/station), supports 0x hex and .0~.15 word bits"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(RX|RY|RWr|RWw|rx|ry|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(RX|RY|RWr|RWw|rx|ry|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(RWr|RWw|rwr|rww)(0[xX][0-9A-Fa-f]+|[0-9]+)$"}
+  ]
+}`
+
+const hsmsSchema = `{
+  "fields": [
+    {"name":"host","labelZh":"设备 IP / 主机名","labelEn":"Host","regex":"^[^\\s]+$","sort":1,"type":"input","required":true,"placeholderZh":"192.168.1.10","placeholderEn":"192.168.1.10"},
+    {"name":"port","labelZh":"TCP 端口","labelEn":"TCP Port","regex":"^[0-9]{1,5}$","sort":2,"type":"input","required":true,"placeholderZh":"5000","placeholderEn":"5000"},
+    {"name":"deviceId","labelZh":"设备 ID (Session ID)","labelEn":"Device ID","regex":"^[0-9]{1,5}$","sort":3,"type":"input","required":true,"placeholderZh":"0","placeholderEn":"0"},
+    {"name":"establishComm","labelZh":"自动发送 S1F13 建链","labelEn":"Establish Comm (S1F13)","regex":"^[01]$","sort":4,"type":"select","options":[{"value":"1","labelZh":"启用","labelEn":"Enabled"},{"value":"0","labelZh":"关闭","labelEn":"Disabled"}]},
+    {"name":"timeoutMs","labelZh":"T3/T6 超时(ms)","labelEn":"Timeout (ms)","regex":"^[0-9]{1,6}$","sort":5,"type":"input","placeholderZh":"5000","placeholderEn":"5000"},
+    {"name":"linktestIntervalMs","labelZh":"Linktest 心跳间隔(ms)","labelEn":"Linktest Interval (ms)","regex":"^[0-9]{1,6}$","sort":6,"type":"input","placeholderZh":"30000","placeholderEn":"30000"}
+  ],
+  "variableAddress": {"labelZh":"SECS-II 地址","labelEn":"SECS-II Address","placeholderZh":"S1F1 / S1F1[1] / S1F3.1001 / S6F11[3][1]","placeholderEn":"S1F1 / S1F1[1] / S1F3.1001 / S6F11[3][1]","descriptionZh":"SECS-II 消息地址：SxFy（整帧/SML）、SxFy.SVID（如 S1F3.1001 或 S1F12.NAME）、SxFy[i1][i2]...（1-based 列表下标，最多 10 层）","descriptionEn":"SECS-II address: SxFy (full item/SML), SxFy.SVID (e.g. S1F3.1001 or S1F12.NAME), SxFy[i1][i2]... (1-based list path, up to 10 levels)"},
+  "variableDataTypes": [
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"INT8","labelZh":"int8","labelEn":"int8","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"UINT8","labelZh":"uint8","labelEn":"uint8","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[Ss][0-9]{1,3}[Ff][0-9]{1,3}(\\.[^\\s]{1,64}|(\\[[1-9][0-9]{0,2}\\]){1,10})?$"}
+  ]
+}`
+
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
 	ID         string
@@ -2403,9 +2491,12 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinIEC61850ID, DriverTypeIEC, ModelIEC61850, DriverIEC61850, iec61850Schema},
 	{BuiltinCOMLIID, DriverTypeABB, ModelCOMLI, DriverCOMLI, comliSchema},
 	{BuiltinFXID, DriverTypeMitsubishi, ModelMCFX, DriverFX, fxSchema},
+	{BuiltinFXLinksID, DriverTypeMitsubishi, ModelMCFXLinks, DriverFXLinks, fxLinksSchema},
 	{BuiltinA1EID, DriverTypeMitsubishi, ModelMC1E, DriverA1E, mcSchema},
 	{BuiltinQnA3EID, DriverTypeMitsubishi, ModelMC3E, DriverQnA3E, mcSchema},
+	{BuiltinMC3EAsciiID, DriverTypeMitsubishi, ModelMC3EAscii, DriverMC3EAscii, mcSchema},
 	{BuiltinQnA4EID, DriverTypeMitsubishi, ModelMC4E, DriverQnA4E, mcSchema},
+	{BuiltinCCLinkIEBasicID, DriverTypeMitsubishi, ModelCCLinkIEBasic, DriverCCLinkIEBasic, cclinkIESchema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
 	{BuiltinHostlinkFinsID, DriverTypeOmron, ModelHostlinkFins, DriverHostlinkFins, hostlinkFinsSchema},
@@ -2430,4 +2521,5 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinCJT1882004ID, DriverTypeCJT188, ModelCJT1882004, DriverCJT1882004, cjt188Schema},
 	{BuiltinCJT1882018ID, DriverTypeCJT188, ModelCJT1882018, DriverCJT1882018, cjt188Schema},
 	{BuiltinDLT69845ID, DriverTypeDLT698, ModelDLT69845, DriverDLT69845, dlt698Schema},
+	{BuiltinHSMSID, DriverTypeSECSGEM, ModelHSMS, DriverHSMS, hsmsSchema},
 }

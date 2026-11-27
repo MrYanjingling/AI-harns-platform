@@ -98,19 +98,33 @@ func parseASDU(asdu []byte) (map[string]any, error) {
 		return nil, fmt.Errorf("iec102 ASDU is too short")
 	}
 	typeID := asdu[0]
+	sq := asdu[1]&0x80 != 0
 	count := int(asdu[1] & 0x7f)
 	if count == 0 || count > 127 {
 		return nil, fmt.Errorf("iec102 invalid VSQ %d", asdu[1])
 	}
 	ra := asdu[5]
 	offset := 6
-	values := make(map[string]any)
-	for i := 0; i < count; i++ {
+	var firstIOA uint8
+	if sq {
 		if offset >= len(asdu) {
 			return nil, fmt.Errorf("iec102 IOA is missing")
 		}
-		ioa := asdu[offset]
+		firstIOA = asdu[offset]
 		offset++
+	}
+	values := make(map[string]any)
+	for i := 0; i < count; i++ {
+		var ioa uint8
+		if sq {
+			ioa = firstIOA + uint8(i)
+		} else {
+			if offset >= len(asdu) {
+				return nil, fmt.Errorf("iec102 IOA is missing")
+			}
+			ioa = asdu[offset]
+			offset++
+		}
 		var size int
 		switch typeID {
 		case 2, 5, 8, 11:
@@ -120,18 +134,23 @@ func parseASDU(asdu []byte) (map[string]any, error) {
 		case 4, 7, 10, 13:
 			size = 3
 		case 1:
-			size = 1
+			size = 8
 		default:
 			return values, nil
 		}
 		if offset+size > len(asdu) {
 			return nil, fmt.Errorf("iec102 object data is too short")
 		}
+		key := fmt.Sprintf("%d.%d", ra, ioa)
 		switch typeID {
 		case 1:
-			values[fmt.Sprintf("%d.%d", ra, ioa)] = asdu[offset]&1 != 0
-		default:
-			values[fmt.Sprintf("%d.%d", ra, ioa)] = binary.LittleEndian.Uint32(append(asdu[offset:offset+size], 0, 0, 0, 0))
+			values[key] = asdu[offset]&0x80 != 0
+		case 2, 5, 8, 11:
+			values[key] = binary.LittleEndian.Uint32(asdu[offset : offset+4])
+		case 3, 6, 9, 12:
+			values[key] = uint32(asdu[offset]) | uint32(asdu[offset+1])<<8 | uint32(asdu[offset+2])<<16
+		case 4, 7, 10, 13:
+			values[key] = uint32(binary.LittleEndian.Uint16(asdu[offset : offset+2]))
 		}
 		offset += size
 	}

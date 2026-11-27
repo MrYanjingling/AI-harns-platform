@@ -56,7 +56,18 @@ func encodeTag(item *tag) []byte {
 		body = item.Data
 	}
 	out := encodeVarint(item.ID)
-	out = append(out, encodeVarint(len(body))...)
+	sizeBytes := encodeVarint(len(body))
+	out = append(out, sizeBytes...)
+	// CODESYS V3 aligns tag headers (ID + size varint) to 4-byte boundaries using
+	// LEB128 continuation bytes (0x80...0x00) without changing the decoded length.
+	if rem := len(out) % 4; rem != 0 {
+		pad := 4 - rem
+		out[len(out)-1] |= 0x80
+		for i := 0; i < pad-1; i++ {
+			out = append(out, 0x80)
+		}
+		out = append(out, 0x00)
+	}
 	return append(out, body...)
 }
 

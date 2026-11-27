@@ -22,7 +22,7 @@ const (
 	ack byte = 0x06
 )
 
-var hexDigits = "0123456789abcdef"
+var hexDigits = "0123456789ABCDEF"
 
 type fxPoint struct {
 	variable  *collection.Variable
@@ -193,7 +193,7 @@ func parseReadResponse(response []byte, bytes int) ([]byte, error) {
 	if response[0] != stx || response[1+2*bytes] != etx {
 		return nil, fmt.Errorf("FX read response framing mismatch")
 	}
-	if string(checksum(response[1:2+2*bytes])) != string(response[2+2*bytes:]) {
+	if !strings.EqualFold(string(checksum(response[1:2+2*bytes])), string(response[2+2*bytes:])) {
 		return nil, fmt.Errorf("FX read response checksum mismatch")
 	}
 	return hex2bin(response[1 : 1+2*bytes])

@@ -21,8 +21,8 @@ func parseAddress(address, model string) (meterAddress, error) {
 	if len(parts) != 2 {
 		return meterAddress{}, fmt.Errorf("address must be meter#%s", diPattern(model))
 	}
-	meter, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
-	if err != nil {
+	meter, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 64)
+	if err != nil || meter > 999999999999 {
 		return meterAddress{}, fmt.Errorf("meter number is invalid")
 	}
 	diParts := strings.Split(strings.TrimSpace(parts[1]), "-")

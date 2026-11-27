@@ -29,6 +29,7 @@ type Info struct {
 var (
 	InfoA1E            = Info{DriverType: "Mitsubishi", DriverModel: "MC-1E", Family: Family1E}
 	Info3E             = Info{DriverType: "Mitsubishi", DriverModel: "MC-3E", Family: Family3E}
+	Info3EAscii        = Info{DriverType: "Mitsubishi", DriverModel: "MC-3E ASCII", Family: Family3E, ASCII: true}
 	Info4E             = Info{DriverType: "Mitsubishi", DriverModel: "MC-4E", Family: Family4E}
 	InfoPanasonicMC3E  = Info{DriverType: "Panasonic", DriverModel: "Panasonic MC-3E", Family: Family3E}
 	InfoKeyenceMC3EAsc = Info{DriverType: "Keyence", DriverModel: "KV MC-3E ASCII", Family: Family3E, ASCII: true}
@@ -93,40 +94,41 @@ type UpdateReq struct {
 type areaDef struct {
 	code byte
 	word bool
+	hex  bool
 }
 
 var areaDefs = map[string]areaDef{
-	"DX":  {0xA2, false},
-	"DY":  {0xA3, false},
-	"STN": {0xFF, true},
-	"STS": {0xFF, false},
-	"STC": {0xFF, false},
-	"ZR":  {0xB0, true},
-	"SB":  {0xA1, false},
-	"SW":  {0xB5, true},
-	"SM":  {0x91, false},
-	"SD":  {0xA9, true},
-	"TS":  {0xC1, false},
-	"TC":  {0xC0, false},
-	"TN":  {0xC2, true},
-	"SS":  {0xC7, false},
-	"SC":  {0xC6, false},
-	"CS":  {0xC4, false},
-	"CC":  {0xC3, false},
-	"CN":  {0xC5, true},
-	"SN":  {0xC8, true},
-	"X":   {0x9C, false},
-	"Y":   {0x9D, false},
-	"M":   {0x90, false},
-	"L":   {0x92, false},
-	"F":   {0x93, false},
-	"V":   {0x94, false},
-	"B":   {0xA0, false},
-	"S":   {0x98, false},
-	"D":   {0xA8, true},
-	"W":   {0xB4, true},
-	"R":   {0xAF, true},
-	"Z":   {0xCC, true},
+	"DX":  {0xA2, false, true},
+	"DY":  {0xA3, false, true},
+	"STN": {0xFF, true, false},
+	"STS": {0xFF, false, false},
+	"STC": {0xFF, false, false},
+	"ZR":  {0xB0, true, false},
+	"SB":  {0xA1, false, true},
+	"SW":  {0xB5, true, true},
+	"SM":  {0x91, false, false},
+	"SD":  {0xA9, true, false},
+	"TS":  {0xC1, false, false},
+	"TC":  {0xC0, false, false},
+	"TN":  {0xC2, true, false},
+	"SS":  {0xC7, false, false},
+	"SC":  {0xC6, false, false},
+	"CS":  {0xC4, false, false},
+	"CC":  {0xC3, false, false},
+	"CN":  {0xC5, true, false},
+	"SN":  {0xC8, true, false},
+	"X":   {0x9C, false, true},
+	"Y":   {0x9D, false, true},
+	"M":   {0x90, false, false},
+	"L":   {0x92, false, false},
+	"F":   {0x93, false, false},
+	"V":   {0x94, false, false},
+	"B":   {0xA0, false, true},
+	"S":   {0x98, false, false},
+	"D":   {0xA8, true, false},
+	"W":   {0xB4, true, true},
+	"R":   {0xAF, true, false},
+	"Z":   {0xCC, true, false},
 }
 
 var areaPrefixes = func() []string {
@@ -165,6 +167,9 @@ func parseAddress(variable *collection.Variable) (*point, error) {
 		return nil, fmt.Errorf("MC address %q has an unknown device prefix", variable.Address)
 	}
 	def := areaDefs[prefix]
+	if def.code == 0xFF {
+		return nil, fmt.Errorf("MC device %q is not supported", prefix)
+	}
 	rest := address[len(prefix):]
 	numberText := rest
 	bit := -1
@@ -177,7 +182,11 @@ func parseAddress(variable *collection.Variable) (*point, error) {
 		}
 		bit = value
 	}
-	number, err := strconv.ParseUint(numberText, 10, 32)
+	base := 10
+	if def.hex {
+		base = 16
+	}
+	number, err := strconv.ParseUint(numberText, base, 32)
 	if err != nil {
 		return nil, fmt.Errorf("MC device number %q is invalid", numberText)
 	}

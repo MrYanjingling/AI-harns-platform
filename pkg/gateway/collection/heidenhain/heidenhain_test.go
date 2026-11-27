@@ -21,13 +21,21 @@ func TestParseAddress(t *testing.T) {
 	if err != nil || address.Kind != kindMachinePosition || address.Axis != 0 {
 		t.Fatalf("position = %+v err=%v", address, err)
 	}
+	address, err = ParseAddress("spindleOverride", "DOUBLE")
+	if err != nil || address.Kind != kindSpindleOverride {
+		t.Fatalf("spindleOverride = %+v err=%v", address, err)
+	}
+	address, err = ParseAddress("spindleToolLength", "DOUBLE")
+	if err != nil || address.Kind != kindToolLength {
+		t.Fatalf("spindleToolLength = %+v err=%v", address, err)
+	}
 	if _, err := ParseAddress("D2", "UINT32"); err == nil {
 		t.Fatal("expected alignment error")
 	}
 }
 
 func TestDecodePLC(t *testing.T) {
-	value, err := decodePLC([]byte{0x12, 0x34}, Address{Size: 2}, "UINT16")
+	value, err := decodePLC([]byte{0x34, 0x12}, Address{Size: 2}, "UINT16")
 	if err != nil || value != uint16(0x1234) {
 		t.Fatalf("value=%v err=%v", value, err)
 	}

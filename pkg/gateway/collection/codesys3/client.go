@@ -39,9 +39,19 @@ func openCodesysClient(ctx context.Context, host string, port int, username, pas
 	if err != nil {
 		return nil, err
 	}
+	localIP := "0.0.0.0"
+	localPort := port
+	if tcpAddr, ok := conn.LocalAddr().(*net.TCPAddr); ok {
+		if ip4 := tcpAddr.IP.To4(); ip4 != nil {
+			localIP = ip4.String()
+		}
+		if tcpAddr.Port > 0 {
+			localPort = tcpAddr.Port
+		}
+	}
 	client := &codesysClient{
 		conn: conn, host: host, port: port, timeout: timeout,
-		src: nodeAddress("0.0.0.0", port, 0x2ddf),
+		src: nodeAddress(localIP, localPort, 0),
 		dst: nodeAddress(host, port, 0),
 	}
 	if err := client.resolve(); err != nil {
@@ -114,7 +124,11 @@ func (c *codesysClient) login(username, password string) error {
 	if password != "" {
 		children = append(children, &tag{ID: 0x11, Data: hashPassword(password)})
 	}
-	tags := []*tag{u32Tag(tagCrypto, 1), containerTag(0x81, children...)}
+	tags := []*tag{
+		u32Tag(tagCrypto, 1),
+		u32Tag(tagChallenge, passwordChallenge),
+		containerTag(0x81, children...),
+	}
 	_, response, err := c.request(sgDevice, 2, 0, tags)
 	if err != nil {
 		return err
@@ -164,10 +178,10 @@ func (c *codesysClient) readStart(address string) (uint32, error) {
 		body = append(body, 0)
 	}
 	tags := []*tag{
-		{ID: 0x19, Data: body},
-		u32Tag(0x18, 0x03000000),
-		u32Tag(0x3A, c.appID),
 		u32Tag(0x13, 0x48000100),
+		u32Tag(0x3A, c.appID),
+		u32Tag(0x18, 0x03000000),
+		{ID: 0x19, Data: body},
 	}
 	_, response, err := c.request(sgIECVarAccess, 1, c.sessionID, tags)
 	if err != nil {
@@ -243,7 +257,7 @@ func (c *codesysClient) sendMessage(message []byte) error {
 func buildDataFirstPartial(channelID, block, ack int, whole, first []byte) []byte {
 	packet := make([]byte, 20, 20+len(first))
 	packet[0] = l4Data
-	packet[1] = l4FlagFirst
+	packet[1] = l4FlagFirst | l4FlagRequest
 	binary.LittleEndian.PutUint16(packet[2:4], uint16(channelID))
 	binary.LittleEndian.PutUint32(packet[4:8], uint32(block))
 	binary.LittleEndian.PutUint32(packet[8:12], uint32(ack))
@@ -267,17 +281,19 @@ func (c *codesysClient) recvMessage() ([]byte, error) {
 		switch payload[0] {
 		case l4Data:
 			if payload[1]&l4FlagFirst != 0 {
-				data, length, checksum, _, err := parseDataFirst(payload)
+				data, length, checksum, block, err := parseDataFirst(payload)
 				if err != nil {
 					return nil, err
 				}
+				c.ack = block
 				need, want = length, checksum
 				buffer = append(buffer, data...)
 			} else {
-				data, _, err := parseData(payload)
+				data, block, err := parseData(payload)
 				if err != nil {
 					return nil, err
 				}
+				c.ack = block
 				buffer = append(buffer, data...)
 			}
 		case l4Ack, l4Keepalive:
@@ -355,7 +371,10 @@ func hashPassword(password string) []byte {
 		if index < len(password) {
 			value = password[index]
 		}
-		key := byte(passwordKey[index%len(passwordKey)])
+		var key byte
+		if k := index % (len(passwordKey) + 1); k < len(passwordKey) {
+			key = passwordKey[k]
+		}
 		var salt byte
 		if index%4 == 0 {
 			salt = byte(challenge)

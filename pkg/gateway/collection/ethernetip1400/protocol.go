@@ -52,9 +52,9 @@ func timerCounterWriteRequest(address pcccAddress, current []byte, value any, da
 	if err != nil {
 		return nil, err
 	}
-	offset := 0
+	offset := 2
 	if address.SubElement == subElementACC {
-		offset = 2
+		offset = 4
 	}
 	copy(data[offset:offset+2], encoded)
 	mask := make([]byte, 6)
@@ -89,8 +89,8 @@ func buildRequest(address pcccAddress, function byte, size byte, data []byte, ma
 	cip = append(cip, pcccCommandRequest, 0x00, 0x00, 0x00, function)
 	cip = append(cip, size, address.FileNum, address.FileType, address.Element, 0)
 	if function == pcccServiceWrite {
-		cip = append(cip, data...)
 		cip = append(cip, mask...)
+		cip = append(cip, data...)
 	}
 	return cip
 }

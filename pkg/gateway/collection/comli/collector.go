@@ -222,7 +222,7 @@ func (c *Collection) readCommand(ctx context.Context, command *readCommand) ([]b
 		if err != nil {
 			return nil, err
 		}
-		data, err := parseReadResponse(response, command.wireAddress(), byte(command.quantity()), stamp, messageReadRegisters)
+		data, err := parseReadResponse(response, command.wireAddress(), byte(command.quantity()), stamp, messageWriteRegisters)
 		if err == nil {
 			return data, nil
 		}

@@ -47,6 +47,9 @@ func parseXML(data []byte) (*xmlNode, error) {
 			}
 		}
 	}
+	if len(stack) != 1 || len(root.Children) == 0 {
+		return nil, fmt.Errorf("incomplete XML document")
+	}
 	return root, nil
 }
 
@@ -64,6 +67,15 @@ func findXPath(root *xmlNode, expression string) (string, error) {
 	}
 	nodes := []*xmlNode{root}
 	for index, segment := range segments {
+		if index == len(segments)-1 && strings.HasPrefix(strings.TrimSpace(segment), "@") {
+			attrName := localName(strings.TrimPrefix(strings.TrimSpace(segment), "@"))
+			for _, node := range nodes {
+				if val, ok := node.Attrs[attrName]; ok {
+					return strings.TrimSpace(val), nil
+				}
+			}
+			return "", fmt.Errorf("XML attribute %q not found for %q", attrName, expression)
+		}
 		name, attr, value, err := parseSegment(segment)
 		if err != nil {
 			return "", err

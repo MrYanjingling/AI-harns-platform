@@ -22,6 +22,7 @@ const (
 	l4OpenChannel   = 0xC3
 	l4CloseChannel  = 0xC4
 	l4FlagFirst     = 0x01
+	l4FlagRequest   = 0x80
 	protoID         = 0xCD55
 	serviceReplyBit = 0x80
 	sgDevice        = 0x01
@@ -79,10 +80,13 @@ func nodeAddress(ip string, port int, extra int) []byte {
 }
 
 func buildRouterDatagram(payload, src, dst []byte, serviceID, msgID byte) []byte {
-	addrLen := byte(len(src)/2)<<4 | byte(len(dst)/2)
+	addrLen := byte(len(dst)/2)<<4 | byte(len(src)/2)
 	header := []byte{routerMarker, routerFlag1, routerFlag2, serviceID, msgID, addrLen}
-	header = append(header, src...)
 	header = append(header, dst...)
+	header = append(header, src...)
+	for len(header)%4 != 0 {
+		header = append(header, 0)
+	}
 	return append(header, payload...)
 }
 
@@ -92,39 +96,45 @@ func parseRouterDatagram(data []byte) (serviceID byte, payload []byte, src []byt
 	}
 	serviceID = data[3]
 	addrLen := data[5]
-	srcLen := int(addrLen>>4) * 2
-	dstLen := int(addrLen&0x0f) * 2
-	if 6+srcLen+dstLen > len(data) {
+	dstLen := int(addrLen>>4) * 2
+	srcLen := int(addrLen&0x0f) * 2
+	headerLen := 6 + dstLen + srcLen
+	if rem := headerLen % 4; rem != 0 {
+		headerLen += 4 - rem
+	}
+	if headerLen > len(data) {
 		return 0, nil, nil, fmt.Errorf("short CODESYS router address")
 	}
-	src = data[6 : 6+srcLen]
-	payload = data[6+srcLen+dstLen:]
+	src = data[6+dstLen : 6+dstLen+srcLen]
+	payload = data[headerLen:]
 	return serviceID, payload, src, nil
 }
 
 func buildResolveRequest(msgID byte, src, dst []byte) []byte {
 	body := make([]byte, 8)
 	binary.LittleEndian.PutUint16(body[0:2], nsResolveAddr)
-	binary.LittleEndian.PutUint16(body[2:4], 0x0400)
-	binary.LittleEndian.PutUint32(body[4:8], 0x000DE480)
+	binary.LittleEndian.PutUint16(body[2:4], 0x0103)
+	binary.LittleEndian.PutUint32(body[4:8], 0x6D240000)
 	return buildRouterDatagram(body, src, dst, serviceAddress, msgID)
 }
 
 func buildOpenChannelRequest(requestID, bufferSize int) []byte {
-	body := make([]byte, 16)
+	body := make([]byte, 20)
 	body[0] = l4OpenChannel
+	binary.LittleEndian.PutUint16(body[2:4], 0x0101)
 	binary.LittleEndian.PutUint32(body[8:12], uint32(requestID))
 	binary.LittleEndian.PutUint32(body[12:16], uint32(bufferSize))
+	binary.LittleEndian.PutUint32(body[16:20], 5)
 	return applyMetaChecksum(body)
 }
 
 func parseOpenChannelResponse(data []byte) (channelID int, commBuffer int, result uint16, err error) {
-	if len(data) < 24 {
+	if len(data) < 20 {
 		return 0, 0, 0, fmt.Errorf("short CODESYS open channel response")
 	}
-	result = binary.LittleEndian.Uint16(data[10:12])
-	channelID = int(binary.LittleEndian.Uint16(data[12:14]))
-	commBuffer = int(binary.LittleEndian.Uint32(data[14:18]))
+	result = binary.LittleEndian.Uint16(data[12:14])
+	channelID = int(binary.LittleEndian.Uint16(data[14:16]))
+	commBuffer = int(binary.LittleEndian.Uint32(data[16:20]))
 	return channelID, commBuffer, result, nil
 }
 
@@ -142,7 +152,7 @@ func applyMetaChecksum(packet []byte) []byte {
 func buildDataFirst(channelID, block, ack int, message []byte) []byte {
 	packet := make([]byte, 20, 20+len(message))
 	packet[0] = l4Data
-	packet[1] = l4FlagFirst
+	packet[1] = l4FlagFirst | l4FlagRequest
 	binary.LittleEndian.PutUint16(packet[2:4], uint16(channelID))
 	binary.LittleEndian.PutUint32(packet[4:8], uint32(block))
 	binary.LittleEndian.PutUint32(packet[8:12], uint32(ack))
@@ -154,6 +164,7 @@ func buildDataFirst(channelID, block, ack int, message []byte) []byte {
 func buildData(channelID, block, ack int, chunk []byte) []byte {
 	packet := make([]byte, 12, 12+len(chunk))
 	packet[0] = l4Data
+	packet[1] = l4FlagRequest
 	binary.LittleEndian.PutUint16(packet[2:4], uint16(channelID))
 	binary.LittleEndian.PutUint32(packet[4:8], uint32(block))
 	binary.LittleEndian.PutUint32(packet[8:12], uint32(ack))

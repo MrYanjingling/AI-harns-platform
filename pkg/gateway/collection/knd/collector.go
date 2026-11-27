@@ -220,7 +220,10 @@ func (c *Collection) DeliverAction(ctx context.Context, actions []collection.Act
 }
 
 func (a Address) Writable() bool {
-	return a.Kind == kindVars || (a.Kind == kindPLC && a.Area == "R")
+	if a.Kind == kindVars {
+		return true
+	}
+	return a.Kind == kindPLC && a.Area == "R" && a.Number >= 17000 && a.Number+a.Size-1 <= 17099
 }
 
 func (c *Collection) timeout() time.Duration {

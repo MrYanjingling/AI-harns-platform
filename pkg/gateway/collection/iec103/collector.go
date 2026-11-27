@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,6 +130,30 @@ func (c *Collection) loop(ctx context.Context) {
 	}
 }
 
+func (c *Collection) stationAddresses() []uint8 {
+	seen := make(map[uint8]struct{})
+	out := make([]uint8, 0, 4)
+	for _, variable := range c.GetCollectionMeta().GetVariables() {
+		if variable == nil || variable.IsCalculated {
+			continue
+		}
+		parts := strings.Split(strings.TrimSpace(variable.Address), ".")
+		if len(parts) == 3 {
+			if ca, err := strconv.ParseUint(parts[0], 10, 8); err == nil {
+				addr := uint8(ca)
+				if _, ok := seen[addr]; !ok {
+					seen[addr] = struct{}{}
+					out = append(out, addr)
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		out = append(out, defaultLinkAddress)
+	}
+	return out
+}
+
 func (c *Collection) poll(ctx context.Context, port transport) bool {
 	if port == nil {
 		return false
@@ -135,30 +161,32 @@ func (c *Collection) poll(ctx context.Context, port transport) bool {
 	if err := port.SetReadTimeout(200 * time.Millisecond); err != nil {
 		return c.failConnection(err)
 	}
-	if _, err := port.Write(buildFixedFrame(0x5B, defaultLinkAddress)); err != nil {
-		return c.failConnection(err)
-	}
-	for {
-		asdu, err := readLinkFrame(port)
-		if err != nil {
-			if collection.IsConnectionLost(err) && !collection.IsTimeout(err) {
-				return c.failConnection(err)
+	for _, station := range c.stationAddresses() {
+		if _, err := port.Write(buildFixedFrame(0x5B, station)); err != nil {
+			return c.failConnection(err)
+		}
+		for {
+			asdu, err := readLinkFrame(port)
+			if err != nil {
+				if collection.IsConnectionLost(err) && !collection.IsTimeout(err) {
+					return c.failConnection(err)
+				}
+				break
 			}
-			break
-		}
-		if len(asdu) == 0 {
-			continue
-		}
-		values, err := parseASDU(asdu)
-		if err != nil {
-			continue
-		}
-		for _, variable := range c.GetCollectionMeta().GetVariables() {
-			if variable == nil || variable.IsCalculated {
+			if len(asdu) == 0 {
 				continue
 			}
-			if value, ok := values[variable.Address]; ok {
-				c.GetCollectionMeta().SetVariableValue(variable.Name, collection.ApplyTransform(value, variable))
+			values, err := parseASDU(asdu)
+			if err != nil {
+				continue
+			}
+			for _, variable := range c.GetCollectionMeta().GetVariables() {
+				if variable == nil || variable.IsCalculated {
+					continue
+				}
+				if value, ok := values[variable.Address]; ok {
+					c.GetCollectionMeta().SetVariableValue(variable.Name, collection.ApplyTransform(value, variable))
+				}
 			}
 		}
 	}

@@ -235,12 +235,18 @@ func builtinRemark(model string) string {
 		return "适用于用于 ABB AC 系列控制器/PLC。"
 	case ModelMCFX:
 		return "适用于三菱 FX 系列 PLC 编程口。"
+	case ModelMCFXLinks:
+		return "适用于三菱 FX 系列 PLC 计算机链接协议（FX-Links / Computer Link 格式 1/4，支持 TCP/串口）。"
 	case ModelMC1E:
 		return "适用于三菱 A 系列/Q 系列 MC 1E 协议。"
 	case ModelMC3E:
 		return "适用于三菱 Q/L 系列 MC 3E 协议。"
+	case ModelMC3EAscii:
+		return "适用于三菱 Q/L/iQ-R 系列 MC 3E ASCII 协议（TCP/UDP）。"
 	case ModelMC4E:
 		return "适用于三菱 Q/L 系列 MC 4E 协议。"
+	case ModelCCLinkIEBasic:
+		return "适用于支持 CLPA CC-Link IE Field Basic 规范的三菱 PLC 及远程 I/O 从站（UDP 61450 循环通信）。"
 	case ModelFetchWrite:
 		return "适用于西门子 S5/S7 系列工业以太网 Fetch/Write 通信。"
 	case ModelModbusASCIIOverTCP:
@@ -261,6 +267,8 @@ func builtinRemark(model string) string {
 		return "适用于横河 FA-M3 系列 PLC 个人计算机链路（PC Link）以太网协议。"
 	case ModelYaskawaMemobus:
 		return "适用于安川 MP2000/MP3000 系列运动控制器 218IF Extended MEMOBUS/TCP 协议。"
+	case ModelHSMS:
+		return "适用于半导体/光伏/面板设备 SEMI E37 (HSMS-SS) / E5 (SECS-II) / E30 (GEM) TCP 通信。"
 	default:
 		return ""
 	}

@@ -104,7 +104,7 @@ func (c *df1Client) readFrame() ([]byte, error) {
 			return nil, err
 		}
 		frame = append(frame, one[0])
-		if len(frame) >= 3 && frame[len(frame)-3] == 0x10 && frame[len(frame)-2] == 0x03 {
+		if len(frame) >= 2 && frame[len(frame)-2] == 0x10 && frame[len(frame)-1] == 0x03 {
 			var crc [2]byte
 			if _, err := io.ReadFull(c.link, crc[:]); err != nil {
 				return nil, err
@@ -136,9 +136,13 @@ func parseResponse(frame []byte, address Address) ([]byte, error) {
 	data := payload[6:]
 	if address.FileType == fileTimer || address.FileType == fileCounter || address.FileType == fileControl {
 		switch address.Sub {
-		case "ACC":
+		case "PRE":
 			if len(data) >= 4 {
 				data = data[2:]
+			}
+		case "ACC":
+			if len(data) >= 6 {
+				data = data[4:]
 			}
 		}
 	}
@@ -175,19 +179,27 @@ func decode(data []byte, address Address, dataType string) (any, error) {
 	}
 	switch strings.ToLower(strings.TrimSpace(dataType)) {
 	case "bit":
-		return int((data[0] >> address.Bit) & 1), nil
+		word := uint16(data[0])
+		if len(data) >= 2 {
+			word = binary.LittleEndian.Uint16(data)
+		}
+		return int((word >> address.Bit) & 1), nil
 	case "bool":
-		return (data[0]>>address.Bit)&1 != 0, nil
+		word := uint16(data[0])
+		if len(data) >= 2 {
+			word = binary.LittleEndian.Uint16(data)
+		}
+		return (word>>address.Bit)&1 != 0, nil
 	case "int16":
 		return int16(binary.LittleEndian.Uint16(data)), nil
 	case "uint16":
 		return binary.LittleEndian.Uint16(data), nil
 	case "int32":
-		return int32(binary.LittleEndian.Uint32(data)), nil
+		return int32(binary.BigEndian.Uint32(data)), nil
 	case "uint32":
-		return binary.LittleEndian.Uint32(data), nil
+		return binary.BigEndian.Uint32(data), nil
 	case "float":
-		return math.Float32frombits(binary.LittleEndian.Uint32(data)), nil
+		return math.Float32frombits(binary.BigEndian.Uint32(data)), nil
 	case "string":
 		return strings.TrimRight(string(data), "\x00"), nil
 	default:

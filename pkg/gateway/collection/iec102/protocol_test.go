@@ -30,12 +30,21 @@ func TestVariableFrameRoundTrip(t *testing.T) {
 }
 
 func TestParseASDU(t *testing.T) {
-	values, err := parseASDU([]byte{1, 1, 3, 0, 1, 2, 3, 1})
+	// Type 1 (M_SP_TA_2): 1B state (bit7=1) + 7B CP56Time2a
+	values, err := parseASDU([]byte{1, 1, 3, 0, 1, 2, 3, 0x80, 0, 0, 0, 0, 0, 0, 0})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if value, ok := values["2.3"]; !ok || value != true {
 		t.Fatalf("unexpected values %+v", values)
+	}
+	// Type 3 (24-bit counter + 1B status=0xFF): status byte must NOT pollute value
+	values2, err := parseASDU([]byte{3, 1, 3, 0, 1, 2, 5, 0x34, 0x12, 0x00, 0xFF})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := values2["2.5"]; !ok || value != uint32(0x1234) {
+		t.Fatalf("unexpected counter values %+v", values2)
 	}
 }
 

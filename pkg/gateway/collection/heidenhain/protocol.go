@@ -231,21 +231,21 @@ func decodePLC(data []byte, address Address, dataType string) (any, error) {
 	case "uint8":
 		return data[0], nil
 	case "int16":
-		return int16(binary.BigEndian.Uint16(data)), nil
+		return int16(binary.LittleEndian.Uint16(data)), nil
 	case "uint16":
-		return binary.BigEndian.Uint16(data), nil
+		return binary.LittleEndian.Uint16(data), nil
 	case "int32":
-		return int32(binary.BigEndian.Uint32(data)), nil
+		return int32(binary.LittleEndian.Uint32(data)), nil
 	case "uint32":
-		return binary.BigEndian.Uint32(data), nil
+		return binary.LittleEndian.Uint32(data), nil
 	case "float":
-		return math.Float32frombits(binary.BigEndian.Uint32(data)), nil
+		return math.Float32frombits(binary.LittleEndian.Uint32(data)), nil
 	case "int64":
-		return int64(binary.BigEndian.Uint64(data)), nil
+		return int64(binary.LittleEndian.Uint64(data)), nil
 	case "uint64":
-		return binary.BigEndian.Uint64(data), nil
+		return binary.LittleEndian.Uint64(data), nil
 	case "double":
-		return math.Float64frombits(binary.BigEndian.Uint64(data)), nil
+		return math.Float64frombits(binary.LittleEndian.Uint64(data)), nil
 	case "string":
 		return strings.TrimRight(string(data), "\x00"), nil
 	default:

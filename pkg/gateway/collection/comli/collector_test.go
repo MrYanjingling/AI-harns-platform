@@ -80,7 +80,7 @@ func TestPollReadsRegister(t *testing.T) {
 	for i := range data {
 		data[i] = mirrorByte(data[i])
 	}
-	response := []byte{stx, '0', '0', '1', '2', '4', '0', '0', '0', '0', '2'}
+	response := []byte{stx, '0', '0', '1', messageWriteRegisters, '4', '0', '0', '0', '0', '2'}
 	response = append(response, data...)
 	response = append(response, etx)
 	response = append(response, checksum(response))

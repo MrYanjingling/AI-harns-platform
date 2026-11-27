@@ -265,11 +265,8 @@ func (c *mpiClient) buildReadRequest(address parsedAddress) []byte {
 	cmd = append(cmd, 0x32, 0x01, 0x00, 0x00, 0x33, 0x01, 0x00, 0x0e, 0x00, 0x00)
 	cmd = append(cmd, 0x04, 0x01, 0x12, 0x0a, 0x10)
 	cmd = append(cmd, 0x10)
-	typ := address.Type
+	typ := byte(typeByte)
 	start := uint16(address.Start) * 8
-	if typ == typeBool {
-		start += uint16(address.Bit)
-	}
 	if address.Area == areaC || address.Area == areaT || address.Area == areaIECC || address.Area == areaIECT || address.Area == areaIECHC {
 		typ = address.Area
 		start = address.Start

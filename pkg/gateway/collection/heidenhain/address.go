@@ -46,7 +46,7 @@ func ParseAddress(value, dataType string) (Address, error) {
 	if len(upper) >= 2 && upper[1] >= '0' && upper[1] <= '9' && strings.ContainsRune("BWDNUMIOTC", rune(upper[0])) {
 		return parsePLC(value, dataType)
 	}
-	if strings.HasPrefix(upper, "S") {
+	if len(upper) >= 2 && upper[0] == 'S' && upper[1] >= '0' && upper[1] <= '9' {
 		return parseStringPLC(value)
 	}
 	switch strings.ToLower(value) {
@@ -72,7 +72,7 @@ func ParseAddress(value, dataType string) (Address, error) {
 		return Address{Kind: kindToolIndex}, nil
 	case "spindletoolaxis":
 		return Address{Kind: kindToolAxis}, nil
-	case "spindletoolength":
+	case "spindletoollength":
 		return Address{Kind: kindToolLength}, nil
 	case "spindletoolradius":
 		return Address{Kind: kindToolRadius}, nil

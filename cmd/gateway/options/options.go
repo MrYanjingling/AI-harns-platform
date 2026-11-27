@@ -17,6 +17,7 @@ import (
 	"harns-platform/pkg/gateway/collection/ab5000"
 	"harns-platform/pkg/gateway/collection/ads"
 	"harns-platform/pkg/gateway/collection/bacnet"
+	"harns-platform/pkg/gateway/collection/cclinkie"
 	"harns-platform/pkg/gateway/collection/cjt188"
 	"harns-platform/pkg/gateway/collection/codesys3"
 	"harns-platform/pkg/gateway/collection/comli"
@@ -33,9 +34,11 @@ import (
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/focas"
 	"harns-platform/pkg/gateway/collection/fx"
+	"harns-platform/pkg/gateway/collection/fxlinks"
 	"harns-platform/pkg/gateway/collection/heidenhain"
 	"harns-platform/pkg/gateway/collection/hj212"
 	"harns-platform/pkg/gateway/collection/hostlinkcmode"
+	"harns-platform/pkg/gateway/collection/hsms"
 	"harns-platform/pkg/gateway/collection/iec101"
 	"harns-platform/pkg/gateway/collection/iec102"
 	"harns-platform/pkg/gateway/collection/iec103"
@@ -307,8 +310,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&comli.CreateHandler{},
 		a1e.NewCreateHandler(),
 		qna3e.NewCreateHandler(),
+		mc.NewCreateHandler(mc.Info3EAscii),
 		qna4e.NewCreateHandler(),
 		&fx.CreateHandler{},
+		fxlinks.NewCreateHandler(),
+		cclinkie.NewCreateHandler(),
 		&ab5000.CreateHandler{},
 		&df1.CreateHandler{},
 		&hj212.CreateHandler{},
@@ -326,6 +332,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		lsxgt.NewCreateHandler(lsxgt.ModelCnet),
 		&yokogawalink.CreateHandler{},
 		&memobus.CreateHandler{},
+		hsms.NewCreateHandler(),
 	)
 	if err != nil {
 		_ = db.Close()
@@ -371,8 +378,11 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&comli.CollectorFactory{},
 		a1e.NewCollectorFactory(),
 		qna3e.NewCollectorFactory(),
+		mc.NewCollectorFactory(mc.Info3EAscii),
 		qna4e.NewCollectorFactory(),
 		&fx.CollectorFactory{},
+		fxlinks.NewCollectorFactory(),
+		cclinkie.NewCollectorFactory(),
 		&ab5000.CollectorFactory{},
 		&df1.CollectorFactory{},
 		&hj212.CollectorFactory{},
@@ -390,6 +400,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		lsxgt.NewCollectorFactory(lsxgt.ModelCnet),
 		&yokogawalink.CollectorFactory{},
 		&memobus.CollectorFactory{},
+		hsms.NewCollectorFactory(),
 	)
 	if err != nil {
 		_ = db.Close()

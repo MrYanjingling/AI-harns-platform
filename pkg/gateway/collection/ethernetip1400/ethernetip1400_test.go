@@ -125,7 +125,7 @@ func TestWriteRequestLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantTail := []byte{0xAB, 0x02, 0x07, 0x89, 0x00, 0x00, 0x34, 0x12, 0xFF, 0xFF}
+	wantTail := []byte{0xAB, 0x02, 0x07, 0x89, 0x00, 0x00, 0xFF, 0xFF, 0x34, 0x12}
 	if !bytes.HasSuffix(request, wantTail) {
 		t.Fatalf("unexpected write request % X", request)
 	}
@@ -354,11 +354,11 @@ func TestTimerCounterACCRMWRequest(t *testing.T) {
 	if request[18] != 6 {
 		t.Fatalf("unexpected byte size %d", request[18])
 	}
-	if !bytes.Equal(request[23:29], []byte{0x10, 0x00, 0x34, 0x12, 0x30, 0x00}) {
-		t.Fatalf("unexpected element data % X", request[23:29])
+	if !bytes.Equal(request[23:29], []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) {
+		t.Fatalf("unexpected mask % X", request[23:29])
 	}
-	if !bytes.Equal(request[29:35], []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) {
-		t.Fatalf("unexpected mask % X", request[29:35])
+	if !bytes.Equal(request[29:35], []byte{0x10, 0x00, 0x20, 0x00, 0x34, 0x12}) {
+		t.Fatalf("unexpected element data % X", request[29:35])
 	}
 }
 
@@ -404,11 +404,11 @@ func TestTimerCounterACCRMWAction(t *testing.T) {
 		if request[18] != 6 {
 			t.Fatalf("unexpected byte size %d", request[18])
 		}
-		if !bytes.Equal(request[23:29], []byte{0x10, 0x00, 0x34, 0x12, 0x30, 0x00}) {
-			t.Fatalf("unexpected RMW data % X", request[23:29])
+		if !bytes.Equal(request[23:29], []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) {
+			t.Fatalf("unexpected RMW mask % X", request[23:29])
 		}
-		if !bytes.Equal(request[29:35], []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) {
-			t.Fatalf("unexpected RMW mask % X", request[29:35])
+		if !bytes.Equal(request[29:35], []byte{0x10, 0x00, 0x20, 0x00, 0x34, 0x12}) {
+			t.Fatalf("unexpected RMW data % X", request[29:35])
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected RMW write request")

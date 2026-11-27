@@ -39,13 +39,20 @@ func (c *hjClient) Read(ctx context.Context, address Address, st, pw, mn string)
 	if err := c.write(request); err != nil {
 		return nil, collection.ConnectionLost(err)
 	}
-	response, err := c.readFrame()
-	if err != nil {
-		return nil, collection.ConnectionLost(err)
-	}
-	values, err := parseResponse(response)
-	if err != nil {
-		return nil, err
+	var values map[string]string
+	for attempt := 0; attempt < 4; attempt++ {
+		response, err := c.readFrame()
+		if err != nil {
+			return nil, collection.ConnectionLost(err)
+		}
+		if isAckFrame(response) {
+			continue
+		}
+		values, err = parseResponse(response)
+		if err != nil {
+			return nil, err
+		}
+		break
 	}
 	value, ok := values[address.Key]
 	if !ok {
@@ -61,12 +68,17 @@ func (c *hjClient) Read(ctx context.Context, address Address, st, pw, mn string)
 	return value, nil
 }
 
+func isAckFrame(frame []byte) bool {
+	text := string(frame)
+	return strings.Contains(text, "CN=9011") || strings.Contains(text, "CN=9012")
+}
+
 func buildRequest(command int, st, pw, mn string) []byte {
 	now := time.Now()
 	qn := now.Format("20060102150405") + fmt.Sprintf("%03d", now.Nanosecond()/1e6)
 	data := fmt.Sprintf("QN=%s;ST=%s;CN=%d;PW=%s;MN=%s;Flag=4;CP=&&&&", qn, st, command, pw, mn)
 	header := fmt.Sprintf("##%04d", len(data))
-	crc := crc16([]byte(header + data))
+	crc := crc16([]byte(data))
 	return []byte(fmt.Sprintf("%s%s%04X\r\n", header, data, crc))
 }
 
@@ -128,10 +140,10 @@ func parseResponse(frame []byte) (map[string]string, error) {
 func crc16(data []byte) uint16 {
 	var crc uint16 = 0xFFFF
 	for _, value := range data {
-		crc ^= uint16(value)
+		crc = (crc >> 8) ^ uint16(value)
 		for bit := 0; bit < 8; bit++ {
 			if crc&1 != 0 {
-				crc = crc>>1 ^ 0xA001
+				crc = (crc >> 1) ^ 0xA001
 			} else {
 				crc >>= 1
 			}

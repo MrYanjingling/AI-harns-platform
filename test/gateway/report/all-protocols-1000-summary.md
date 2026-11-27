@@ -1,17 +1,17 @@
 # 网关全协议自动化验证汇总报告
 
-- 测试时间：2026-11-27 18:10:00（新增第一类 8 个非 `plcsim` 协议 Docker/开源模拟器实测，新增通过 5 个）
+- 测试时间：2026-11-27 22:02:00（完成 14 个未验证协议按 Neuron C 源码逐字节审计修复，并新增 3 个三菱第一梯队内置驱动且全部完成 `plcsim` 实测）
 - 模拟器：`plcsim 2.2.14` + Docker/开源官方模拟器（`mtconnect/demo`、`net-snmp snmpd`、`cpppo`、`libiec61850 1.6.2`、`opendnp3 3.1.2`、`calimeroproject/knxtestnetwork 3.0-M2`，测试完成后均已停止并清理临时容器）
 - 网关：`http://127.0.0.1:32200`（`version=3.0.0`，`maxVariable=1,000,000`）
-- 约束遵守：测试过程未修改驱动代码；新建采集实例均保留未删除（已停止运行）；仅保留并更新总体汇总报告。
+- 备注：针对 14 个未实测的 Neuron 对齐协议（P0 7 个 + P1 6 个 + P2 `codesys-v3`），已完成与 Neuron C 源码逐字节比对、缺陷修复及单测补齐；新增 3 个三菱驱动均已通过 `plcsim` 实测。
 
-## 总览统计（共 58 个内置驱动）
+## 总览统计（共 62 个内置驱动）
 
-- **实测通过（含只读仪表及模拟器/驱动已知限制备注）**：40 个（较上轮 +7）
-- **未验证（无对应模拟器、协议子类型不匹配或模拟器缺陷）**：18 个（较上轮 -7）
+- **实测通过（含只读仪表及模拟器/驱动已知限制备注）**：44 个（较上轮 +4）
+- **未验证（无对应模拟器、协议子类型不匹配或模拟器缺陷）**：18 个（其中 14 个已完成 Neuron C 源码逐字节审计与修复）
 - **实测未通过/待排查**：0 个
 
-## 一、已实测协议明细（40 个）
+## 一、已实测协议明细（44 个）
 
 | 驱动 | 采集实例 ID | 初始采集 | 反控 | stop/start 回读 | 结论 | 关键说明 / 报告 |
 |---|---|---|---|---|---|---|
@@ -55,26 +55,30 @@
 | `IEC / IEC61850` | `01M8E7HMH2CB2N9TQNVQSHC8F2` | collecting (8/8) | 只读 | 8/8 | **通过** | Docker 源码编译官方 `libiec61850 1.6.2`（`server_example_basic_io`, MMS `:10102`）；`MX`/`ST`/`DC` 功能约束下 `FLOAT32`/`BOOL`/`INT32`/`STRING` 采集与 stop/start 回读 8/8 全通 |
 | `KNX / KNXnet/IP` | `01M8E7N6F5MFSSMC1KSW4B84HR` | 4/4 (0.10s) | 写 ACK 通过 | — | **通过** | 已修复 `knx/protocol.go` Discovery HPAI 填 `0.0.0.0` 问题并支持单播直连回退；实测对接官方 `calimeroproject/knxtestnetwork 3.0-M2` 完成组播发现、隧道建连与 `1/0/1`~`1/0/5` 采集（重启网关后生效） |
 | `dnp3 / dnp3` | `01M8E7MPTWBW85S4EC18CTFQ93` | 93/93 对象 (0.00s) | CROB 1/1 | — | **通过** | 修复 `dnp3/client.go` 链路复位跳过 Unsolicited、自动回复应用层 `CONFIRM` 与多段传输重组，以及 `dnp3/app.go` 索引前缀/标准对象解码；实测对接官方 `opendnp3 3.1.2` 完成 442B Class 0/1/2/3 全召唤（93 对象）与 `CROB.0:1:1000:0` Direct Operate 反控（重启网关后生效） |
+| `Mitsubishi / MC-3E ASCII` | `e2e-plcsim` | collecting (200/200) | 3/3 | 200/200 | **通过** | 新增内置驱动（复用 `pkg/gateway/collection/mc` 3E ASCII TCP/UDP，SH-080008）；`plcsim melsec-mc-ascii` 200 点（100 `D` + 100 `M`）采集（0.20s）、反控与 stop/start 回读全匹配 |
+| `Mitsubishi / FX-Links` | `e2e-plcsim` | collecting (200/200) | 4/4 | 200/200 | **通过** | 新增内置驱动（`pkg/gateway/collection/fxlinks`，JY997D16901 Computer Link Format 1/4，TCP/串口）；`plcsim melsec-fx-links` 200 点（100 `D` + 100 `M`）采集（51ms）、反控与 stop/start 回读全匹配（兼容响应含/不含 STX 校验和） |
+| `Mitsubishi / CC-Link IE Field Basic` | `e2e-plcsim` | collecting (128/128) | 2/2 | 128/128 | **通过** | 新增内置驱动（`pkg/gateway/collection/cclinkie`，CLPA UDP 61450 `0x0E70` 循环数据交换）；`plcsim cclink-ie` 128 点（`RX`/`RY`/`RWr`/`RWw`）采集（<10ms）、反控与 stop/start 回读全匹配 |
+| `SECS/GEM / HSMS` | `e2e-secsgem` | collecting (4/4) | 1/1 | 4/4 | **通过** | 新增内置驱动（`pkg/gateway/collection/hsms`，SEMI E37/E5/E30，对齐 Neuron `hsms`）；`plcsim` 不含 HSMS，改用开源标准 `secsgem 0.3.0` 设备端实测：`Select`、`S1F13/S1F14`、`S1F1[1..2]`、`S1F3.5001/.5002`（51ms）、`S2F15` SML 反控与 stop/start 重连回读全通（并修复只写变量不参与轮询） |
 
 ## 二、未验证协议（18 个）
 
 | 驱动 | 状态 | 原因 |
 |---|---|---|
-| `ABB / COMLI` | **未验证** | plcsim 不支持 |
-| `Allen-Bradley / DF1` | **未验证** | plcsim 不支持串口 DF1 |
-| `CNC / KND` | **未验证** | plcsim 不支持 |
-| `CNC / heidenhain` | **未验证** | plcsim 不支持 |
-| `Codesys / codesys-v3` | **未验证** | plcsim 不支持 |
-| `HJ212 / HJ212` | **未验证** | plcsim 不支持 |
-| `IEC / IEC102` | **未验证** | plcsim 不支持 |
-| `IEC / IEC103` | **未验证** | plcsim 不支持 |
-| `Kuka / Kuka` | **未验证** | plcsim 不支持 |
-| `siemens / mpi` | **未验证** | plcsim 不支持 |
-| `Mitsubishi / MC-FX` | **未验证** | 协议子类型不匹配（实例 `01M8E777HW968KS5PGYNPG9828`）：`plcsim melsec-fx-serial` 为 FX Computer Link（`ENQ 0x05`），网关 `fx` 驱动实现的是 FX CPU Programming Port（`STX 0x02 / ETX 0x03`） |
-| `dlt645 / dlt645_1997` | **未验证** | plcsim 仅模拟 DL/T 645-2007（4B DI），对 1997 帧（0x01 / 2B DI）回异常码 `0xC1 / 0x02` |
+| `ABB / COMLI` | **未验证（已审计修复）** | plcsim 不支持；已修复读响应类型 `'2'->'0'` 并补单测 |
+| `Allen-Bradley / DF1` | **未验证（已审计修复）** | plcsim 不支持串口 DF1；已修复 `DLE ETX` CRC 读多 1B、T/C/R 偏移、16-bit 位及 32-bit 大端 |
+| `CNC / KND` | **未验证（已审计修复）** | plcsim 不支持；已修复 HTTP URL/JSON key、轴查询范围、Bit0 掩码与 `R` 写范围限制 |
+| `CNC / heidenhain` | **未验证（已审计修复）** | plcsim 不支持；已修复 `S` 前缀冲突（解阻塞 `spindle*`）、拼写错误与 PLC 小端解码 |
+| `Codesys / codesys-v3` | **未验证（已审计修复）** | plcsim 不支持；已按 Neuron `codesys3` 重修 Router 头、NameService、OpenChannel、L4DATA、TLV 对齐与 Login 挑战 |
+| `HJ212 / HJ212` | **未验证（已审计修复）** | plcsim 不支持；已按 HJ 212-2017 修复 CRC16 算法与范围，并跳过 `CN=9011/9012` 应答帧 |
+| `IEC / IEC102` | **未验证（已审计修复）** | plcsim 不支持；已补齐 `VSQ.SQ`、修复 Type 1 (8B) 与 Type 2/3/4 计数器解码 |
+| `IEC / IEC103` | **未验证（已审计修复）** | plcsim 不支持；已提取全部不重复 `CA` 站址，修复 Type 1/2 DPI、Type 4 float32、Type 5 12B ASCII |
+| `Kuka / Kuka` | **未验证（已审计修复）** | plcsim 不支持；已补齐 EOF 根标签闭合校验与 `/@attr` XPath 属性提取 |
+| `siemens / mpi` | **未验证（已审计修复）** | plcsim 不支持；已统一 `typeByte` + 字节对齐地址（修复位 1..7 及 `DBW`/`DBD` 长度不匹配） |
+| `Mitsubishi / MC-FX` | **未验证（已审计修复）** | 协议子类型不匹配（实例 `01M8E777HW968KS5PGYNPG9828`）：`plcsim melsec-fx-serial` 为 Computer Link，网关 `fx` 为编程口协议；已修复大写 HEX 编码与校验和大小写不敏感 |
+| `dlt645 / dlt645_1997` | **未验证（已审计修复）** | plcsim 仅模拟 DL/T 645-2007；已将表号升级为 `uint64`（支持 12 位）并补齐 1997 标准 DI 小数位 |
 | `dlt698 / dlt698_45` | **未验证** | 串口帧与 HCS/FCS 交互正常，但 plcsim 未预置常用 OAD 且不读取 TagRegistry，均回 `0x06`；已顺带补齐 `TimeTag=0x00` 与标准 DAR 解析 |
-| `Mitsubishi / MC-4E` | **未验证** | `plcsim` 无 4E Binary 服务端（`melsec-mc` 仅支持 3E `50 00`，对 4E `54 00` 超时无应答）；驱动 4E 报文与 Neuron `qna4e` 逐字节一致 |
-| `Allen-Bradley / EtherNet/IP-MicroLogix 1400` | **未验证** | 抓包确认 `plcsim allen-bradley-pccc` 对 `ForwardOpen(0x54)` 错误返回 14B `ForwardClose` 响应 `0xCE`，非驱动问题 |
+| `Mitsubishi / MC-4E` | **未验证（已审计修复）** | `plcsim` 无 4E Binary 服务端；已补齐 `X/Y/B/W/SB/SW/DX/DY` 十六进制地址解析并拦截 `0xFF` 软元件 |
+| `Allen-Bradley / EtherNet/IP-MicroLogix 1400` | **未验证（已审计修复）** | `plcsim allen-bradley-pccc` 对 `ForwardOpen` 回错误响应；已修复 PCCC `0xAB` 写序 `[MASK][DATA]` 与 T/C `.PRE`/`.ACC` 偏移 |
 | `CNC / fanuc focas` | **未验证** | `plugins/dependencies/focas/libfocas32.so.1` 为 Linux x86-64 ELF，当前驱动 cgo FOCAS API 尚未接入（返回 `ErrLibraryNotWired`），且 macOS 无法加载 Linux `.so`、`plcsim fanuc` 为 Robot 协议非 CNC FOCAS |
 | `omron / hostlinkFins` | **未验证** | 驱动按欧姆龙 W342 标准复用 `fins` 实现 HostLink `FA` 封装；抓包确认 `plcsim omron-host-link` 直接回显请求头 `0800000010` 而非标准结束码 `00` + `C0` 响应头 |
 | `Panasonic / Panasonic MC-3E` | **未验证** | 复用已 1000/1000 通过的 `mc` 3E Binary 协议栈；抓包确认 `plcsim panasonic-mc` 对 3E Binary/ASCII 请求均超时无应答 |
