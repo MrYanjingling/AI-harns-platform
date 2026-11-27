@@ -62,6 +62,7 @@ const (
 	ModelDLT69845         = "dlt698_45"
 	ModelMPI              = "mpi"
 	ModelPPI              = "ppi"
+	ModelFetchWrite       = "FetchWrite"
 	ModelKNXnetIP         = "KNXnet/IP"
 	ModelKND              = "KND"
 	ModelHeidenhain       = "heidenhain"
@@ -111,6 +112,7 @@ const (
 	DriverDLT69845         = "dlt698-45"
 	DriverMPI              = "mpi"
 	DriverPPI              = "ppi"
+	DriverFetchWrite       = "siemens-fetch-write"
 	DriverKNXnetIP         = "knxnet-ip"
 	DriverKND              = "knd"
 	DriverHeidenhain       = "heidenhain"
@@ -155,6 +157,7 @@ const (
 	BuiltinDLT69845ID         = "01M7Z9X3Q8KY52DPGDWG9KEX15"
 	BuiltinMPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX16"
 	BuiltinPPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX17"
+	BuiltinFetchWriteID       = "01M7Z9X3Q8KY52DPGDWG9KEX38"
 	BuiltinKNXID              = "01M7Z9X3Q8KY52DPGDWG9KEX18"
 	BuiltinKNDID              = "01M7Z9X3Q8KY52DPGDWG9KEX19"
 	BuiltinHeidenhainID       = "01M7Z9X3Q8KY52DPGDWG9KEX20"
@@ -2151,6 +2154,72 @@ const mewtocolSchema = `{
   ]
 }`
 
+const fetchWriteSchema = `{
+  "fields": [
+    {
+      "name": "location",
+      "labelZh": "PLC 地址",
+      "labelEn": "PLC Address",
+      "regex": "^\\S+$",
+      "sort": 1,
+      "type": "input",
+      "required": true,
+      "placeholderZh": "127.0.0.1",
+      "placeholderEn": "127.0.0.1"
+    },
+    {
+      "name": "port",
+      "labelZh": "端口",
+      "labelEn": "Port",
+      "regex": "^(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3})$",
+      "sort": 2,
+      "type": "input",
+      "required": true,
+      "placeholderZh": "102",
+      "placeholderEn": "102"
+    },
+    {
+      "name": "timeoutMs",
+      "labelZh": "超时时间(ms)",
+      "labelEn": "Timeout (ms)",
+      "sort": 3,
+      "type": "input",
+      "placeholderZh": "3000",
+      "placeholderEn": "3000"
+    },
+    {
+      "name": "concurrency",
+      "labelZh": "连接数",
+      "labelEn": "Connections",
+      "sort": 4,
+      "type": "input",
+      "placeholderZh": "1",
+      "placeholderEn": "1"
+    }
+  ],
+  "variableAddress": {
+    "labelZh": "变量地址",
+    "labelEn": "Address",
+    "regex": "^(DB[0-9]{1,3}\\.(DBW[0-9]{1,4}(\\.[0-9]{1,3})?|DBD[0-9]{1,4}|DBB[0-9]{1,4}(\\.[0-9]{1,3})?|DBX[0-9]{1,4}\\.[0-7])|(M|I|Q|PEPA)[0-9]{1,4}(\\.[0-9]{1,3})?|(Z|T)[0-9]{1,4}(\\.([0-9]|1[0-5]))?)$",
+    "placeholderZh": "例如 DB1.DBW0、M0.1、I0、Q0",
+    "placeholderEn": "e.g. DB1.DBW0, M0.1, I0, Q0"
+  },
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(DB[0-9]{1,3}\\.(DBW[0-9]{1,4}(\\.([0-9]|1[0-5]))?|DBB[0-9]{1,4}(\\.[0-7])?|DBX[0-9]{1,4}\\.[0-7])|(M|I|Q|PEPA)[0-9]{1,4}(\\.[0-7])?|(Z|T)[0-9]{1,4}(\\.([0-9]|1[0-5]))?)$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(DB[0-9]{1,3}\\.(DBW[0-9]{1,4}(\\.([0-9]|1[0-5]))?|DBB[0-9]{1,4}(\\.[0-7])?|DBX[0-9]{1,4}\\.[0-7])|(M|I|Q|PEPA)[0-9]{1,4}(\\.[0-7])?|(Z|T)[0-9]{1,4}(\\.([0-9]|1[0-5]))?)$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBD|DBB)[0-9]{1,4}|(M|I|Q|PEPA|Z|T)[0-9]{1,4})$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBB)[0-9]{1,4}\\.[0-9]{1,3}|(M|I|Q|PEPA)[0-9]{1,4}\\.[0-9]{1,3})$"},
+    {"value":"BYTE_ARRAY","labelZh":"byte_array","labelEn":"byte_array","addressRegex":"^(DB[0-9]{1,3}\\.(DBW|DBB)[0-9]{1,4}\\.[0-9]{1,3}|(M|I|Q|PEPA)[0-9]{1,4}\\.[0-9]{1,3})$"}
+  ]
+}`
+
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
 	ID         string
@@ -2174,6 +2243,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinS7200ID, DriverTypeS7, ModelS7200, DriverS7200, s7200Schema},
 	{BuiltinMPIID, DriverTypeS7, ModelMPI, DriverMPI, mpiSchema},
 	{BuiltinPPIID, DriverTypeS7, ModelPPI, DriverPPI, ppiSchema},
+	{BuiltinFetchWriteID, DriverTypeS7, ModelFetchWrite, DriverFetchWrite, fetchWriteSchema},
 	{BuiltinKNXID, DriverTypeKNX, ModelKNXnetIP, DriverKNXnetIP, knxSchema},
 	{BuiltinKNDID, DriverTypeCNC, ModelKND, DriverKND, kndSchema},
 	{BuiltinHeidenhainID, DriverTypeCNC, ModelHeidenhain, DriverHeidenhain, heidenhainSchema},

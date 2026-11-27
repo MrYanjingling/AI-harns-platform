@@ -47,6 +47,31 @@ func (c *mcClient) Exchange(ctx context.Context, request []byte) ([]byte, error)
 		}
 		return append([]byte(nil), buffer[:n]...), nil
 	}
+	if c.family == Family1E {
+		header := make([]byte, 2)
+		if _, err := io.ReadFull(c.conn, header); err != nil {
+			return nil, collection.ConnectionLost(err)
+		}
+		if header[1] != 0x00 {
+			if header[1] == 0x5B {
+				extra := make([]byte, 1)
+				if _, err := io.ReadFull(c.conn, extra); err != nil {
+					return nil, collection.ConnectionLost(err)
+				}
+				return append(header, extra...), nil
+			}
+			return header, nil
+		}
+		dataLen := a1eExpectedDataLength(request)
+		response := make([]byte, 2+dataLen)
+		copy(response, header)
+		if dataLen > 0 {
+			if _, err := io.ReadFull(c.conn, response[2:]); err != nil {
+				return nil, collection.ConnectionLost(err)
+			}
+		}
+		return response, nil
+	}
 	headerSize := responseHeaderSize(c.family)
 	header := make([]byte, headerSize)
 	if _, err := io.ReadFull(c.conn, header); err != nil {

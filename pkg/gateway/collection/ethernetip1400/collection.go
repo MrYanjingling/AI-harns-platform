@@ -9,7 +9,7 @@ import (
 
 const (
 	DriverType  = "Allen-Bradley"
-	DriverModel = "ethernetIp1400"
+	DriverModel = "EtherNet/IP-MicroLogix 1400"
 
 	DefaultPort           = 44818
 	DefaultCIPSize        = 500

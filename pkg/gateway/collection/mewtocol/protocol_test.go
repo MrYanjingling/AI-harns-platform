@@ -17,8 +17,9 @@ func TestParseAddress(t *testing.T) {
 		isBit    bool
 	}{
 		{"X0.0", "BOOL", 0, "X", 0, 0, 1, true},
-		{"X1.5", "BIT", 0, "X", 15, 5, 1, true},
-		{"R10", "BOOL", 3, "R", 103, 3, 1, true},
+		{"X1.5", "BIT", 0, "X", 1, 5, 1, true},
+		{"R10", "BOOL", 3, "R", 10, 3, 1, true},
+		{"R1.15", "BOOL", 0, "R", 1, 15, 1, true},
 		{"DT100", "INT16", 0, "DT", 100, 0, 1, false},
 		{"DT100", "FLOAT32", 0, "DT", 100, 0, 2, false},
 		{"DT100", "FLOAT64", 0, "DT", 100, 0, 4, false},
@@ -61,7 +62,7 @@ func TestBuildReadRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected = "%01#RCCX00150015"
+	expected = "%01#RCCX00010001"
 	if string(request[:len(expected)]) != expected {
 		t.Fatalf("unexpected request %q", request)
 	}
@@ -75,6 +76,35 @@ func TestParseResponse(t *testing.T) {
 	}
 	if command != "RD" || len(payload) != 2 || payload[0] != 0 || payload[1] != 10 {
 		t.Fatalf("unexpected response %q % X", command, payload)
+	}
+
+	// Standard MEWTOCOL responses with '$' marker for read and write commands.
+	stdRead := []byte("%01$RD341212\r")
+	command, payload, err = parseResponse(stdRead)
+	if err != nil {
+		t.Fatalf("standard $RD failed: %v", err)
+	}
+	if command != "RD" || len(payload) != 2 || payload[0] != 0x34 || payload[1] != 0x12 {
+		t.Fatalf("unexpected $RD %q % X", command, payload)
+	}
+
+	stdBitRead := []byte("%01$RC000110\r")
+	command, payload, err = parseResponse(stdBitRead)
+	if err != nil {
+		t.Fatalf("standard $RC failed: %v", err)
+	}
+	if command != "RC" || len(payload) != 2 || payload[0] != 0x00 || payload[1] != 0x01 {
+		t.Fatalf("unexpected $RC %q % X", command, payload)
+	}
+
+	for _, frame := range [][]byte{[]byte("%01$WD13\r"), []byte("%01$WC14\r")} {
+		cmd, data, err := parseResponse(frame)
+		if err != nil {
+			t.Fatalf("write response %q failed: %v", frame, err)
+		}
+		if (cmd != "WD" && cmd != "WC") || len(data) != 0 {
+			t.Fatalf("unexpected write response %q % X", cmd, data)
+		}
 	}
 }
 
@@ -123,16 +153,29 @@ func TestBuildWriteRequests(t *testing.T) {
 		t.Fatalf("unexpected write request %q", request)
 	}
 
-	bit, _ := parseAddress("X0.0", "BOOL", 0)
-	data, err = encodeValue(bit, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	request, err = buildWriteRequest(1, bit, data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(request[:len("%01#WCSX00001")]) != "%01#WCSX00001" {
-		t.Fatalf("unexpected bit write request %q", request)
+	for _, tc := range []struct {
+		addr string
+		want string
+	}{
+		{"X0.0", "%01#WCSX00001"},
+		{"X1.5", "%01#WCSX00151"},
+		{"R1", "%01#WCSR00101"},
+		{"R1.15", "%01#WCSR001F1"},
+	} {
+		bit, err := parseAddress(tc.addr, "BOOL", 0)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.addr, err)
+		}
+		data, err = encodeValue(bit, true)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.addr, err)
+		}
+		request, err = buildWriteRequest(1, bit, data)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.addr, err)
+		}
+		if string(request[:len(tc.want)]) != tc.want {
+			t.Fatalf("%s: unexpected bit write request %q, want prefix %q", tc.addr, request, tc.want)
+		}
 	}
 }

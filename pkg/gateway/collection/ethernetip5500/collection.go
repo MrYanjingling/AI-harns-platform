@@ -9,7 +9,7 @@ import (
 
 const (
 	DriverType  = "Allen-Bradley"
-	DriverModel = "ethernetIp5500"
+	DriverModel = "EtherNet/IP-ControlLogic 55xx"
 
 	DefaultPort     = 44818
 	DefaultSlot     = 0

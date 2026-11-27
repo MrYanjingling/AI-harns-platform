@@ -109,9 +109,6 @@ func parseAddress(raw, dataType string, bits uint8) (*pointAddress, error) {
 	default:
 		return nil, fmt.Errorf("unsupported mewtocol data type %q", dataType)
 	}
-	if addr.IsBit && addr.IsBitArea {
-		addr.Word = word*10 + addr.Bit
-	}
 	if addr.Word > 99999 {
 		return nil, fmt.Errorf("mewtocol address is out of range: %q", raw)
 	}
@@ -163,7 +160,7 @@ func buildWriteRequest(unit int, addr *pointAddress, data []byte) ([]byte, error
 		if len(data) > 0 && data[0] != 0 {
 			value = "1"
 		}
-		return buildCommand(unit, cmdWriteBit, addr.Area, addr.Word, 0, 4, value)
+		return buildCommand(unit, cmdWriteBit, addr.Area, addr.Word, addr.Bit, 4, value)
 	}
 	hexData := strings.ToUpper(hex.EncodeToString(data))
 	if addr.IsBitArea {
@@ -193,7 +190,7 @@ func buildCommand(unit int, command, area string, start, end, endWidth int, data
 	case cmdReadBit, cmdWriteBits:
 		fmt.Fprintf(&b, "%04d%04d", start, end)
 	case cmdWriteBit:
-		fmt.Fprintf(&b, "%04d", start)
+		fmt.Fprintf(&b, "%03d%X", start, end)
 	default:
 		return nil, fmt.Errorf("unsupported mewtocol command %q", command)
 	}
@@ -231,11 +228,18 @@ func parseResponse(raw []byte) (string, []byte, error) {
 	if raw[3] == '!' {
 		return "", nil, fmt.Errorf("mewtocol device error %s", string(raw[4:6]))
 	}
-	command := string(raw[3:5])
-	if command != "RD" && command != "RC" {
+	cmdOffset := 3
+	if raw[3] == '$' {
+		cmdOffset = 4
+	}
+	if len(raw) < cmdOffset+4 {
+		return "", nil, fmt.Errorf("mewtocol response is too short")
+	}
+	command := string(raw[cmdOffset : cmdOffset+2])
+	if command != "RD" && command != "RC" && command != "WD" && command != "WC" {
 		return "", nil, fmt.Errorf("unexpected mewtocol response command %q", command)
 	}
-	payload, err := hex.DecodeString(string(raw[5 : len(raw)-2]))
+	payload, err := hex.DecodeString(string(raw[cmdOffset+2 : len(raw)-2]))
 	if err != nil {
 		return "", nil, fmt.Errorf("invalid mewtocol response data: %w", err)
 	}

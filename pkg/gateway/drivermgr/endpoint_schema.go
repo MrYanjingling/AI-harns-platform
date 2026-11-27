@@ -13,6 +13,7 @@ import (
 var endpointDefaultPorts = map[string]int{
 	"s7-1500":                       102,
 	"s7-200":                        102,
+	"FetchWrite":                    102,
 	"opcUa":                         4840,
 	"fins":                          9600,
 	"omronCip":                      44818,

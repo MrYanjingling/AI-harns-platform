@@ -238,6 +238,10 @@ type command struct {
 }
 
 func buildCommands(variables []*collection.Variable) []*command {
+	return buildCommandsForFamily(Family3E, variables)
+}
+
+func buildCommandsForFamily(family Family, variables []*collection.Variable) []*command {
 	points := make([]*point, 0, len(variables))
 	for _, variable := range variables {
 		if variable == nil || variable.IsCalculated || strings.TrimSpace(variable.Address) == "" {
@@ -258,6 +262,12 @@ func buildCommands(variables []*collection.Variable) []*command {
 		}
 		return points[i].number < points[j].number
 	})
+	maxWords := 960
+	maxBits := 7168
+	if family == Family1E {
+		maxWords = 64
+		maxBits = 200
+	}
 	commands := make([]*command, 0)
 	for _, item := range points {
 		if len(commands) > 0 {
@@ -268,9 +278,9 @@ func buildCommands(variables []*collection.Variable) []*command {
 				if end < currentEnd {
 					end = currentEnd
 				}
-				max := 960
+				max := maxWords
 				if !current.word {
-					max = 7168
+					max = maxBits
 				}
 				if int(end-current.start) <= max {
 					current.count = int(end - current.start)

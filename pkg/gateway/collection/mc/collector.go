@@ -120,7 +120,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 	}
 	variables := c.GetCollectionMeta().GetVariables()
 	calcs, calcErr := collection.CompileCalculations(variables)
-	run := &runtime{commands: buildCommands(variables), calcs: calcs, calcErr: calcErr}
+	run := &runtime{commands: buildCommandsForFamily(c.Info.Family, variables), calcs: calcs, calcErr: calcErr}
 	c.runtime = run
 	if len(run.commands) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)

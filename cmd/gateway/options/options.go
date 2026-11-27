@@ -29,6 +29,7 @@ import (
 	"harns-platform/pkg/gateway/collection/ethernetip"
 	"harns-platform/pkg/gateway/collection/ethernetip1400"
 	"harns-platform/pkg/gateway/collection/ethernetip5500"
+	"harns-platform/pkg/gateway/collection/fetchwrite"
 	"harns-platform/pkg/gateway/collection/fins"
 	"harns-platform/pkg/gateway/collection/focas"
 	"harns-platform/pkg/gateway/collection/fx"
@@ -271,6 +272,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		s7.NewS7200CreateHandler(),
 		&mpi.CreateHandler{},
 		&ppi.CreateHandler{},
+		&fetchwrite.CreateHandler{},
 		&fins.CreateHandler{},
 		&iec101.CreateHandler{},
 		&iec102.CreateHandler{},
@@ -325,6 +327,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		s7.NewS7200CollectorFactory(),
 		&mpi.CollectorFactory{},
 		&ppi.CollectorFactory{},
+		&fetchwrite.CollectorFactory{},
 		&fins.CollectorFactory{},
 		&iec101.CollectorFactory{},
 		&iec102.CollectorFactory{},

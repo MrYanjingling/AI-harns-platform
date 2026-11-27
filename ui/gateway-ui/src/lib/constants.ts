@@ -188,6 +188,7 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   's7-200': 'S7-200',
   mpi: 'MPI',
   ppi: 'PPI',
+  FetchWrite: 'Fetch/Write',
   'KNXnet/IP': 'KNXnet/IP',
   KND: 'KND',
   heidenhain: 'Heidenhain',

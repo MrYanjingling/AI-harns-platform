@@ -3,6 +3,7 @@ package ppi
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -13,14 +14,26 @@ import (
 	"harns-platform/pkg/gateway/validation"
 )
 
+const (
+	maxReadBatchBytes = 200
+	maxReadGapBytes   = 8
+)
+
 type tagRef struct {
 	variable *collection.Variable
 	address  mpi.Address
 }
 
+type readBatch struct {
+	address mpi.Address
+	tags    []*tagRef
+	merged  bool
+}
+
 type collectorRuntime struct {
 	mu      sync.Mutex
 	tags    []*tagRef
+	batches []*readBatch
 	pool    *connpool.Pool
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
@@ -59,7 +72,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 		}
 		tags = append(tags, &tagRef{variable: variable, address: address})
 	}
-	runtime := &collectorRuntime{tags: tags}
+	runtime := &collectorRuntime{tags: tags, batches: buildReadBatches(tags)}
 	c.runtime = runtime
 	if len(tags) == 0 {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
@@ -171,8 +184,84 @@ func (c *Collection) loop(ctx context.Context) {
 	}
 }
 
+func isByteMergeableArea(area byte) bool {
+	switch area {
+	case 4, 5, 128, 129, 130, 131, 132, 133:
+		return true
+	default:
+		return false
+	}
+}
+
+func buildReadBatches(tags []*tagRef) []*readBatch {
+	if len(tags) == 0 {
+		return nil
+	}
+	mergeable := make([]*tagRef, 0, len(tags))
+	batches := make([]*readBatch, 0)
+	for _, tag := range tags {
+		if tag == nil {
+			continue
+		}
+		if !isByteMergeableArea(tag.address.Area) || tag.address.Length == 0 || tag.address.Length > maxReadBatchBytes {
+			batches = append(batches, &readBatch{
+				address: tag.address,
+				tags:    []*tagRef{tag},
+				merged:  false,
+			})
+			continue
+		}
+		mergeable = append(mergeable, tag)
+	}
+	sort.SliceStable(mergeable, func(i, j int) bool {
+		a, b := mergeable[i].address, mergeable[j].address
+		if a.Area != b.Area {
+			return a.Area < b.Area
+		}
+		if a.DB != b.DB {
+			return a.DB < b.DB
+		}
+		if a.Start != b.Start {
+			return a.Start < b.Start
+		}
+		return a.Bit < b.Bit
+	})
+	var current *readBatch
+	var batchEnd uint32
+	for _, tag := range mergeable {
+		tagStart := uint32(tag.address.Start)
+		tagEnd := tagStart + uint32(tag.address.Length)
+		if current != nil && current.address.Area == tag.address.Area && current.address.DB == tag.address.DB {
+			newEnd := batchEnd
+			if tagEnd > newEnd {
+				newEnd = tagEnd
+			}
+			if tagStart <= batchEnd+maxReadGapBytes && newEnd-uint32(current.address.Start) <= maxReadBatchBytes {
+				current.tags = append(current.tags, tag)
+				batchEnd = newEnd
+				current.address.Length = uint16(batchEnd - uint32(current.address.Start))
+				continue
+			}
+		}
+		current = &readBatch{
+			address: mpi.Address{
+				Area:   tag.address.Area,
+				DB:     tag.address.DB,
+				Start:  tag.address.Start,
+				Length: tag.address.Length,
+				Type:   2,
+			},
+			tags:   []*tagRef{tag},
+			merged: true,
+		}
+		batchEnd = tagEnd
+		batches = append(batches, current)
+	}
+	return batches
+}
+
 func (c *Collection) poll(ctx context.Context, runtime *collectorRuntime) error {
-	for index, tag := range runtime.tags {
+	for index, batch := range runtime.batches {
 		if index > 0 && c.IntervalMs > 0 {
 			select {
 			case <-ctx.Done():
@@ -189,23 +278,62 @@ func (c *Collection) poll(ctx context.Context, runtime *collectorRuntime) error 
 			runtime.pool.Put(client, true)
 			return collection.ConnectionLost(fmt.Errorf("invalid PPI client type"))
 		}
-		data, err := conn.Read(tag.address)
+		data, err := conn.Read(batch.address)
 		if err != nil {
 			runtime.pool.Put(client, true)
 			return collection.ConnectionLost(err)
 		}
-		value, err := mpi.DecodeValue(data, tag.address, tag.variable)
 		runtime.pool.Put(client, false)
-		if err != nil {
-			return err
+		for _, tag := range batch.tags {
+			payload := data
+			if batch.merged {
+				offset := int(tag.address.Start - batch.address.Start)
+				end := offset + int(tag.address.Length)
+				if offset < 0 || end > len(data) {
+					return fmt.Errorf("PPI batch response too short for variable %s", tag.variable.Name)
+				}
+				payload = data[offset:end]
+			}
+			value, err := mpi.DecodeValue(payload, tag.address, tag.variable)
+			if err != nil {
+				return err
+			}
+			c.GetCollectionMeta().SetVariableValue(tag.variable.Name, collection.ApplyTransform(value, tag.variable))
 		}
-		c.GetCollectionMeta().SetVariableValue(tag.variable.Name, collection.ApplyTransform(value, tag.variable))
 	}
 	return nil
 }
 
 func (c *Collection) DeliverAction(ctx context.Context, actions []collection.ActionValue) error {
-	return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
+	runtime := c.runtime
+	if runtime == nil || runtime.pool == nil || c.GetCollectStatus() != collection.CollectStatusCollecting {
+		return validation.New([]validation.FieldIssue{{Field: "collection", MsgID: "validate.action_collection_not_ready"}})
+	}
+	for _, action := range actions {
+		if action.Variable == nil {
+			continue
+		}
+		address, err := mpi.ParseAddress(action.Variable.Address, action.Variable.DataType)
+		if err != nil {
+			return err
+		}
+		payload, err := encodeWritePayload(address, action.Variable, action.Value)
+		if err != nil {
+			return err
+		}
+		err = runtime.pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
+			conn, ok := client.(*ppiClient)
+			if !ok {
+				return true, fmt.Errorf("invalid PPI client type")
+			}
+			writeErr := conn.Write(address, payload)
+			return writeErr != nil, writeErr
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Collection) timeout() time.Duration {
