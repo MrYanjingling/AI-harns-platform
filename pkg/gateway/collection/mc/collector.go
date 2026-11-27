@@ -126,7 +126,7 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	pool, err := newPool(ctx, ProtocolConfig{Host: c.Host, Port: c.Port, TransportMode: c.TransportMode, SrcPort: c.SrcPort, TimeoutMs: c.TimeoutMs, IntervalMs: c.IntervalMs, Retry: c.Retry}, c.Info.Family)
+	pool, err := newPool(ctx, ProtocolConfig{Host: c.Host, Port: c.Port, TransportMode: c.TransportMode, SrcPort: c.SrcPort, TimeoutMs: c.TimeoutMs, IntervalMs: c.IntervalMs, Retry: c.Retry}, c.Info)
 	if err != nil {
 		c.SetCollectStatus(collection.CollectStatusUnconnected)
 		return err
@@ -294,7 +294,12 @@ func (c *Collection) readCommand(ctx context.Context, cmd *command) ([]byte, err
 		if err != nil {
 			return nil, err
 		}
-		data, err := parseResponse(c.Info.Family, serial, response)
+		var data []byte
+		if c.Info.ASCII {
+			data, err = parse3EASCIIResponse(response, cmd.word)
+		} else {
+			data, err = parseResponse(c.Info.Family, serial, response)
+		}
 		if err != nil {
 			lastErr = err
 			continue
@@ -319,7 +324,12 @@ func (c *Collection) exchangeRead(ctx context.Context, cmd *command) (uint16, []
 	run.mu.Lock()
 	defer run.mu.Unlock()
 	serial := run.nextSerialLocked(c.Info.Family)
-	request := buildReadRequest(c.Info.Family, serial, cmd.area, cmd.word, cmd.start, cmd.count)
+	var request []byte
+	if c.Info.ASCII {
+		request = build3EASCIIRequest(cmd.area, cmd.word, cmd.start, cmd.count, nil)
+	} else {
+		request = buildReadRequest(c.Info.Family, serial, cmd.area, cmd.word, cmd.start, cmd.count)
+	}
 	traceID := c.traceRequest("read", request)
 	started := time.Now()
 	response, err := c.exchangeLocked(ctx, request)
@@ -340,7 +350,12 @@ func (c *Collection) writeCommand(ctx context.Context, area byte, word bool, sta
 	for attempt := 0; attempt < attempts; attempt++ {
 		run.mu.Lock()
 		serial := run.nextSerialLocked(c.Info.Family)
-		request := buildWriteRequest(c.Info.Family, serial, area, word, start, count, data)
+		var request []byte
+		if c.Info.ASCII {
+			request = build3EASCIIRequest(area, word, start, count, data)
+		} else {
+			request = buildWriteRequest(c.Info.Family, serial, area, word, start, count, data)
+		}
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
 		response, err := c.exchangeLocked(ctx, request)
@@ -349,8 +364,14 @@ func (c *Collection) writeCommand(ctx context.Context, area byte, word bool, sta
 		if err != nil {
 			return err
 		}
-		if _, err := parseResponse(c.Info.Family, serial, response); err != nil {
-			lastErr = err
+		var parseErr error
+		if c.Info.ASCII {
+			_, parseErr = parse3EASCIIResponse(response, word)
+		} else {
+			_, parseErr = parseResponse(c.Info.Family, serial, response)
+		}
+		if parseErr != nil {
+			lastErr = parseErr
 			continue
 		}
 		return nil

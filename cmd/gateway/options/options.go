@@ -41,9 +41,13 @@ import (
 	"harns-platform/pkg/gateway/collection/iec103"
 	"harns-platform/pkg/gateway/collection/iec104"
 	"harns-platform/pkg/gateway/collection/iec61850"
+	"harns-platform/pkg/gateway/collection/keyencenano"
 	"harns-platform/pkg/gateway/collection/knd"
 	"harns-platform/pkg/gateway/collection/knx"
 	"harns-platform/pkg/gateway/collection/kuka"
+	"harns-platform/pkg/gateway/collection/lsxgt"
+	"harns-platform/pkg/gateway/collection/mc"
+	"harns-platform/pkg/gateway/collection/memobus"
 	"harns-platform/pkg/gateway/collection/mewtocol"
 	"harns-platform/pkg/gateway/collection/modbusascii"
 	"harns-platform/pkg/gateway/collection/modbusrtu"
@@ -60,6 +64,7 @@ import (
 	"harns-platform/pkg/gateway/collection/s7"
 	"harns-platform/pkg/gateway/collection/snmp"
 	"harns-platform/pkg/gateway/collection/srtp"
+	"harns-platform/pkg/gateway/collection/yokogawalink"
 	"harns-platform/pkg/gateway/collectionmgr"
 	"harns-platform/pkg/gateway/drivermgr"
 	"harns-platform/pkg/gateway/gatewaymgr"
@@ -312,6 +317,15 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&srtp.CreateHandler{},
 		&snmp.CreateHandler{},
 		&iec61850.CreateHandler{},
+		modbusrtuovertcp.NewASCIIOverTCPCreateHandler(),
+		fins.NewCreateHandlerForModel(fins.ModelHostlinkFins),
+		mc.NewCreateHandler(mc.InfoPanasonicMC3E),
+		mc.NewCreateHandler(mc.InfoKeyenceMC3EAsc),
+		&keyencenano.CreateHandler{},
+		lsxgt.NewCreateHandler(lsxgt.ModelFEnet),
+		lsxgt.NewCreateHandler(lsxgt.ModelCnet),
+		&yokogawalink.CreateHandler{},
+		&memobus.CreateHandler{},
 	)
 	if err != nil {
 		_ = db.Close()
@@ -367,6 +381,15 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		&srtp.CollectorFactory{},
 		&snmp.CollectorFactory{},
 		&iec61850.CollectorFactory{},
+		modbusrtuovertcp.NewASCIIOverTCPCollectorFactory(),
+		fins.NewCollectorFactoryForModel(fins.ModelHostlinkFins),
+		mc.NewCollectorFactory(mc.InfoPanasonicMC3E),
+		mc.NewCollectorFactory(mc.InfoKeyenceMC3EAsc),
+		&keyencenano.CollectorFactory{},
+		lsxgt.NewCollectorFactory(lsxgt.ModelFEnet),
+		lsxgt.NewCollectorFactory(lsxgt.ModelCnet),
+		&yokogawalink.CollectorFactory{},
+		&memobus.CollectorFactory{},
 	)
 	if err != nil {
 		_ = db.Close()

@@ -28,156 +28,187 @@ const (
 	DriverTypeADS          = "TwinCAT"
 	DriverTypeSRTP         = "GE/Emerson"
 	DriverTypeSNMP         = "SNMP"
+	DriverTypeKeyence      = "Keyence"
+	DriverTypeLSElectric   = "LS Electric"
+	DriverTypeYokogawa     = "Yokogawa"
+	DriverTypeYaskawa      = "Yaskawa"
 
-	ModelModbusTCP        = "modbusTcp"
-	ModelModbusRTU        = "modbusRtu"
-	ModelModbusRTUOverTCP = "modbusRtuOverTcp"
-	ModelModbusASCII      = "Modbus Ascii"
-	ModelS71500           = "s7-1500"
-	ModelS7200            = "s7-200"
-	ModelOpcUa            = "opcUa"
-	ModelFins             = "fins"
-	ModelHostlinkCmode    = "hostlinkCmode"
-	ModelOmronCip         = "omronCip"
-	ModelMewtocol         = "Mewtocol"
-	ModelIEC101           = "IEC101"
-	ModelIEC102           = "IEC102"
-	ModelIEC103           = "IEC103"
-	ModelIEC104           = "IEC104"
-	ModelCOMLI            = "COMLI"
-	ModelMCFX             = "MC-FX"
-	ModelMC1E             = "MC-1E"
-	ModelMC3E             = "MC-3E"
-	ModelMC4E             = "MC-4E"
-	ModelEthernetIP       = "ethernetIp"
-	ModelEthernetIP5500   = "EtherNet/IP-ControlLogic 55xx"
-	ModelEthernetIP1400   = "EtherNet/IP-MicroLogix 1400"
-	ModelEtherCAT         = "ethercat"
-	ModelProfinet         = "profinet"
-	ModelDNP3             = "dnp3"
-	ModelDLT6452007       = "dlt645_2007"
-	ModelDLT6451997       = "dlt645_1997"
-	ModelCJT1882004       = "cjt188_2004"
-	ModelCJT1882018       = "cjt188_2018"
-	ModelDLT69845         = "dlt698_45"
-	ModelMPI              = "mpi"
-	ModelPPI              = "ppi"
-	ModelFetchWrite       = "FetchWrite"
-	ModelKNXnetIP         = "KNXnet/IP"
-	ModelKND              = "KND"
-	ModelHeidenhain       = "heidenhain"
-	ModelFanucFocas       = "fanuc focas"
-	ModelMTConnect        = "MTConnect"
-	ModelKuka             = "Kuka"
-	ModelCodesysV3        = "codesys-v3"
-	ModelAB5000           = "ab5000"
-	ModelDF1              = "DF1"
-	ModelHJ212            = "HJ212"
-	ModelBACnet           = "BACnet"
-	ModelBeckhoffADS      = "Beckhoff ADS"
-	ModelSRTP             = "SRTP"
-	ModelSNMPV2           = "SNMP-V2"
-	ModelIEC61850         = "IEC61850"
+	ModelModbusTCP          = "modbusTcp"
+	ModelModbusRTU          = "modbusRtu"
+	ModelModbusRTUOverTCP   = "modbusRtuOverTcp"
+	ModelModbusASCII        = "Modbus Ascii"
+	ModelModbusASCIIOverTCP = "Modbus Ascii Over TCP"
+	ModelS71500             = "s7-1500"
+	ModelS7200              = "s7-200"
+	ModelOpcUa              = "opcUa"
+	ModelFins               = "fins"
+	ModelHostlinkCmode      = "hostlinkCmode"
+	ModelOmronCip           = "omronCip"
+	ModelMewtocol           = "Mewtocol"
+	ModelIEC101             = "IEC101"
+	ModelIEC102             = "IEC102"
+	ModelIEC103             = "IEC103"
+	ModelIEC104             = "IEC104"
+	ModelCOMLI              = "COMLI"
+	ModelMCFX               = "MC-FX"
+	ModelMC1E               = "MC-1E"
+	ModelMC3E               = "MC-3E"
+	ModelMC4E               = "MC-4E"
+	ModelEthernetIP         = "ethernetIp"
+	ModelEthernetIP5500     = "EtherNet/IP-ControlLogic 55xx"
+	ModelEthernetIP1400     = "EtherNet/IP-MicroLogix 1400"
+	ModelEtherCAT           = "ethercat"
+	ModelProfinet           = "profinet"
+	ModelDNP3               = "dnp3"
+	ModelDLT6452007         = "dlt645_2007"
+	ModelDLT6451997         = "dlt645_1997"
+	ModelCJT1882004         = "cjt188_2004"
+	ModelCJT1882018         = "cjt188_2018"
+	ModelDLT69845           = "dlt698_45"
+	ModelMPI                = "mpi"
+	ModelPPI                = "ppi"
+	ModelFetchWrite         = "FetchWrite"
+	ModelKNXnetIP           = "KNXnet/IP"
+	ModelKND                = "KND"
+	ModelHeidenhain         = "heidenhain"
+	ModelFanucFocas         = "fanuc focas"
+	ModelMTConnect          = "MTConnect"
+	ModelKuka               = "Kuka"
+	ModelCodesysV3          = "codesys-v3"
+	ModelAB5000             = "ab5000"
+	ModelDF1                = "DF1"
+	ModelHJ212              = "HJ212"
+	ModelBACnet             = "BACnet"
+	ModelBeckhoffADS        = "Beckhoff ADS"
+	ModelSRTP               = "SRTP"
+	ModelSNMPV2             = "SNMP-V2"
+	ModelIEC61850           = "IEC61850"
+	ModelHostlinkFins       = "hostlinkFins"
+	ModelPanasonicMC3E      = "Panasonic MC-3E"
+	ModelKeyenceNano        = "KV Nano"
+	ModelKeyenceMC3EAscii   = "KV MC-3E ASCII"
+	ModelLSFEnet            = "XGT FEnet"
+	ModelLSCnet             = "XGT Cnet"
+	ModelYokogawaLink       = "FA-M3 PC Link"
+	ModelYaskawaMemobus     = "MEMOBUS/TCP"
 
-	DriverModbusTCP        = "modbus-tcp"
-	DriverModbusRTU        = "modbus-rtu"
-	DriverModbusRTUOverTCP = "modbus-rtu-over-tcp"
-	DriverModbusASCII      = "modbus-ascii"
-	DriverS71500           = "s7-1500"
-	DriverS7200            = "s7-200"
-	DriverOpcUa            = "opcua"
-	DriverFins             = "omron-fins"
-	DriverHostlinkCmode    = "omron-hostlink-cmode"
-	DriverOmronCip         = "omron-cip"
-	DriverMewtocol         = "panasonic-mewtocol"
-	DriverIEC101           = "iec101"
-	DriverIEC102           = "iec102"
-	DriverIEC103           = "iec103"
-	DriverIEC104           = "iec104"
-	DriverCOMLI            = "comli"
-	DriverFX               = "fx"
-	DriverA1E              = "a1e"
-	DriverQnA3E            = "qna3e"
-	DriverQnA4E            = "qna4e"
-	DriverEthernetIP       = "ethernet-ip"
-	DriverEthernetIP5500   = "ethernet-ip-5500"
-	DriverEthernetIP1400   = "ethernet-ip-1400"
-	DriverEtherCAT         = "ethercat"
-	DriverProfinet         = "profinet"
-	DriverDNP3             = "dnp3"
-	DriverDLT6452007       = "dlt645-2007"
-	DriverDLT6451997       = "dlt645-1997"
-	DriverCJT1882004       = "cjt188-2004"
-	DriverCJT1882018       = "cjt188-2018"
-	DriverDLT69845         = "dlt698-45"
-	DriverMPI              = "mpi"
-	DriverPPI              = "ppi"
-	DriverFetchWrite       = "siemens-fetch-write"
-	DriverKNXnetIP         = "knxnet-ip"
-	DriverKND              = "knd"
-	DriverHeidenhain       = "heidenhain"
-	DriverFanucFocas       = "fanuc-focas"
-	DriverMTConnect        = "mtconnect"
-	DriverKuka             = "kuka"
-	DriverCodesysV3        = "codesys-v3"
-	DriverAB5000           = "ab5000"
-	DriverDF1              = "df1"
-	DriverHJ212            = "hj212"
-	DriverBACnet           = "bacnet"
-	DriverADS              = "ads"
-	DriverSRTP             = "srtp"
-	DriverSNMP             = "snmp"
-	DriverIEC61850         = "iec61850"
+	DriverModbusTCP          = "modbus-tcp"
+	DriverModbusRTU          = "modbus-rtu"
+	DriverModbusRTUOverTCP   = "modbus-rtu-over-tcp"
+	DriverModbusASCII        = "modbus-ascii"
+	DriverModbusASCIIOverTCP = "modbus-ascii-over-tcp"
+	DriverS71500             = "s7-1500"
+	DriverS7200              = "s7-200"
+	DriverOpcUa              = "opcua"
+	DriverFins               = "omron-fins"
+	DriverHostlinkCmode      = "omron-hostlink-cmode"
+	DriverOmronCip           = "omron-cip"
+	DriverMewtocol           = "panasonic-mewtocol"
+	DriverIEC101             = "iec101"
+	DriverIEC102             = "iec102"
+	DriverIEC103             = "iec103"
+	DriverIEC104             = "iec104"
+	DriverCOMLI              = "comli"
+	DriverFX                 = "fx"
+	DriverA1E                = "a1e"
+	DriverQnA3E              = "qna3e"
+	DriverQnA4E              = "qna4e"
+	DriverEthernetIP         = "ethernet-ip"
+	DriverEthernetIP5500     = "ethernet-ip-5500"
+	DriverEthernetIP1400     = "ethernet-ip-1400"
+	DriverEtherCAT           = "ethercat"
+	DriverProfinet           = "profinet"
+	DriverDNP3               = "dnp3"
+	DriverDLT6452007         = "dlt645-2007"
+	DriverDLT6451997         = "dlt645-1997"
+	DriverCJT1882004         = "cjt188-2004"
+	DriverCJT1882018         = "cjt188-2018"
+	DriverDLT69845           = "dlt698-45"
+	DriverMPI                = "mpi"
+	DriverPPI                = "ppi"
+	DriverFetchWrite         = "siemens-fetch-write"
+	DriverKNXnetIP           = "knxnet-ip"
+	DriverKND                = "knd"
+	DriverHeidenhain         = "heidenhain"
+	DriverFanucFocas         = "fanuc-focas"
+	DriverMTConnect          = "mtconnect"
+	DriverKuka               = "kuka"
+	DriverCodesysV3          = "codesys-v3"
+	DriverAB5000             = "ab5000"
+	DriverDF1                = "df1"
+	DriverHJ212              = "hj212"
+	DriverBACnet             = "bacnet"
+	DriverADS                = "ads"
+	DriverSRTP               = "srtp"
+	DriverSNMP               = "snmp"
+	DriverIEC61850           = "iec61850"
+	DriverHostlinkFins       = "omron-hostlink-fins"
+	DriverPanasonicMC3E      = "panasonic-mc3e"
+	DriverKeyenceNano        = "keyence-nano"
+	DriverKeyenceMC3EAscii   = "keyence-mc-ascii"
+	DriverLSFEnet            = "ls-xgt-fenet"
+	DriverLSCnet             = "ls-xgt-cnet"
+	DriverYokogawaLink       = "yokogawa-link"
+	DriverYaskawaMemobus     = "yaskawa-memobus"
 
-	BuiltinModbusTCPID        = "01M706HSSR3Q8KY52DPGDWG9KE"
-	BuiltinModbusRTUID        = "01M706HSSR3Q8KY52DPJ6XTA17"
-	BuiltinModbusRTUOverTCPID = "01M706HSSR3Q8KY52DPNYR9MW5"
-	BuiltinModbusASCIIID      = "01M7Z9X3Q8KY52DPGDWG9KEXYZ"
-	BuiltinS71500ID           = "01M706HSSR3Q8KY52DPQZHT18E"
-	BuiltinS7200ID            = "01M706HSSR3Q8KY52DPQZHT18F"
-	BuiltinOpcUaID            = "01M706HSSR3Q8KY52DPSV88HRY"
-	BuiltinFinsID             = "01M706HSSR3Q8KY52DPSV88HRZ"
-	BuiltinHostlinkCmodeID    = "01M706HSSR3Q8KY52DPSV88HS1"
-	BuiltinMewtocolID         = "01M8C0MEWT0C0L1A2B3C4D5E6F"
-	BuiltinOmronCipID         = "01M706HSSR3Q8KY52DPSV88HS2"
-	BuiltinIEC101ID           = "01M7Z9X3Q8KY52DPGDWG9KEX01"
-	BuiltinIEC102ID           = "01M7Z9X3Q8KY52DPGDWG9KEX02"
-	BuiltinIEC103ID           = "01M7Z9X3Q8KY52DPGDWG9KEX03"
-	BuiltinIEC104ID           = "01M7Z9X3Q8KY52DPGDWG9KEX04"
-	BuiltinEthernetIPID       = "01M7Z9X3Q8KY52DPGDWG9KEX05"
-	BuiltinEthernetIP5500ID   = "01M7Z9X3Q8KY52DPGDWG9KEX08"
-	BuiltinEthernetIP1400ID   = "01M7Z9X3Q8KY52DPGDWG9KEX09"
-	BuiltinEtherCATID         = "01M7Z9X3Q8KY52DPGDWG9KEX06"
-	BuiltinProfinetID         = "01M7Z9X3Q8KY52DPGDWG9KEX07"
-	BuiltinDNP3ID             = "01M7Z9X3Q8KY52DPGDWG9KEX10"
-	BuiltinDLT6452007ID       = "01M7Z9X3Q8KY52DPGDWG9KEX11"
-	BuiltinDLT6451997ID       = "01M7Z9X3Q8KY52DPGDWG9KEX12"
-	BuiltinCJT1882004ID       = "01M7Z9X3Q8KY52DPGDWG9KEX13"
-	BuiltinCJT1882018ID       = "01M7Z9X3Q8KY52DPGDWG9KEX14"
-	BuiltinDLT69845ID         = "01M7Z9X3Q8KY52DPGDWG9KEX15"
-	BuiltinMPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX16"
-	BuiltinPPIID              = "01M7Z9X3Q8KY52DPGDWG9KEX17"
-	BuiltinFetchWriteID       = "01M7Z9X3Q8KY52DPGDWG9KEX38"
-	BuiltinKNXID              = "01M7Z9X3Q8KY52DPGDWG9KEX18"
-	BuiltinKNDID              = "01M7Z9X3Q8KY52DPGDWG9KEX19"
-	BuiltinHeidenhainID       = "01M7Z9X3Q8KY52DPGDWG9KEX20"
-	BuiltinFanucFocasID       = "01M7Z9X3Q8KY52DPGDWG9KEX21"
-	BuiltinMTConnectID        = "01M7Z9X3Q8KY52DPGDWG9KEX22"
-	BuiltinKukaID             = "01M7Z9X3Q8KY52DPGDWG9KEX23"
-	BuiltinCodesysV3ID        = "01M7Z9X3Q8KY52DPGDWG9KEX24"
-	BuiltinAB5000ID           = "01M7Z9X3Q8KY52DPGDWG9KEX25"
-	BuiltinDF1ID              = "01M7Z9X3Q8KY52DPGDWG9KEX26"
-	BuiltinHJ212ID            = "01M7Z9X3Q8KY52DPGDWG9KEX27"
-	BuiltinBACnetID           = "01M7Z9X3Q8KY52DPGDWG9KEX28"
-	BuiltinADSID              = "01M7Z9X3Q8KY52DPGDWG9KEX29"
-	BuiltinSRTPID             = "01M7Z9X3Q8KY52DPGDWG9KEX30"
-	BuiltinSNMPID             = "01M7Z9X3Q8KY52DPGDWG9KEX31"
-	BuiltinIEC61850ID         = "01M7Z9X3Q8KY52DPGDWG9KEX37"
-	BuiltinCOMLIID            = "01M7Z9X3Q8KY52DPGDWG9KEX32"
-	BuiltinFXID               = "01M7Z9X3Q8KY52DPGDWG9KEX33"
-	BuiltinA1EID              = "01M7Z9X3Q8KY52DPGDWG9KEX34"
-	BuiltinQnA3EID            = "01M7Z9X3Q8KY52DPGDWG9KEX35"
-	BuiltinQnA4EID            = "01M7Z9X3Q8KY52DPGDWG9KEX36"
+	BuiltinModbusTCPID          = "01M706HSSR3Q8KY52DPGDWG9KE"
+	BuiltinModbusRTUID          = "01M706HSSR3Q8KY52DPJ6XTA17"
+	BuiltinModbusRTUOverTCPID   = "01M706HSSR3Q8KY52DPNYR9MW5"
+	BuiltinModbusASCIIID        = "01M7Z9X3Q8KY52DPGDWG9KEXYZ"
+	BuiltinModbusASCIIOverTCPID = "01M7Z9X3Q8KY52DPGDWG9KEX39"
+	BuiltinS71500ID             = "01M706HSSR3Q8KY52DPQZHT18E"
+	BuiltinS7200ID              = "01M706HSSR3Q8KY52DPQZHT18F"
+	BuiltinOpcUaID              = "01M706HSSR3Q8KY52DPSV88HRY"
+	BuiltinFinsID               = "01M706HSSR3Q8KY52DPSV88HRZ"
+	BuiltinHostlinkCmodeID      = "01M706HSSR3Q8KY52DPSV88HS1"
+	BuiltinMewtocolID           = "01M8C0MEWT0C0L1A2B3C4D5E6F"
+	BuiltinOmronCipID           = "01M706HSSR3Q8KY52DPSV88HS2"
+	BuiltinIEC101ID             = "01M7Z9X3Q8KY52DPGDWG9KEX01"
+	BuiltinIEC102ID             = "01M7Z9X3Q8KY52DPGDWG9KEX02"
+	BuiltinIEC103ID             = "01M7Z9X3Q8KY52DPGDWG9KEX03"
+	BuiltinIEC104ID             = "01M7Z9X3Q8KY52DPGDWG9KEX04"
+	BuiltinEthernetIPID         = "01M7Z9X3Q8KY52DPGDWG9KEX05"
+	BuiltinEthernetIP5500ID     = "01M7Z9X3Q8KY52DPGDWG9KEX08"
+	BuiltinEthernetIP1400ID     = "01M7Z9X3Q8KY52DPGDWG9KEX09"
+	BuiltinEtherCATID           = "01M7Z9X3Q8KY52DPGDWG9KEX06"
+	BuiltinProfinetID           = "01M7Z9X3Q8KY52DPGDWG9KEX07"
+	BuiltinDNP3ID               = "01M7Z9X3Q8KY52DPGDWG9KEX10"
+	BuiltinDLT6452007ID         = "01M7Z9X3Q8KY52DPGDWG9KEX11"
+	BuiltinDLT6451997ID         = "01M7Z9X3Q8KY52DPGDWG9KEX12"
+	BuiltinCJT1882004ID         = "01M7Z9X3Q8KY52DPGDWG9KEX13"
+	BuiltinCJT1882018ID         = "01M7Z9X3Q8KY52DPGDWG9KEX14"
+	BuiltinDLT69845ID           = "01M7Z9X3Q8KY52DPGDWG9KEX15"
+	BuiltinMPIID                = "01M7Z9X3Q8KY52DPGDWG9KEX16"
+	BuiltinPPIID                = "01M7Z9X3Q8KY52DPGDWG9KEX17"
+	BuiltinFetchWriteID         = "01M7Z9X3Q8KY52DPGDWG9KEX38"
+	BuiltinKNXID                = "01M7Z9X3Q8KY52DPGDWG9KEX18"
+	BuiltinKNDID                = "01M7Z9X3Q8KY52DPGDWG9KEX19"
+	BuiltinHeidenhainID         = "01M7Z9X3Q8KY52DPGDWG9KEX20"
+	BuiltinFanucFocasID         = "01M7Z9X3Q8KY52DPGDWG9KEX21"
+	BuiltinMTConnectID          = "01M7Z9X3Q8KY52DPGDWG9KEX22"
+	BuiltinKukaID               = "01M7Z9X3Q8KY52DPGDWG9KEX23"
+	BuiltinCodesysV3ID          = "01M7Z9X3Q8KY52DPGDWG9KEX24"
+	BuiltinAB5000ID             = "01M7Z9X3Q8KY52DPGDWG9KEX25"
+	BuiltinDF1ID                = "01M7Z9X3Q8KY52DPGDWG9KEX26"
+	BuiltinHJ212ID              = "01M7Z9X3Q8KY52DPGDWG9KEX27"
+	BuiltinBACnetID             = "01M7Z9X3Q8KY52DPGDWG9KEX28"
+	BuiltinADSID                = "01M7Z9X3Q8KY52DPGDWG9KEX29"
+	BuiltinSRTPID               = "01M7Z9X3Q8KY52DPGDWG9KEX30"
+	BuiltinSNMPID               = "01M7Z9X3Q8KY52DPGDWG9KEX31"
+	BuiltinIEC61850ID           = "01M7Z9X3Q8KY52DPGDWG9KEX37"
+	BuiltinCOMLIID              = "01M7Z9X3Q8KY52DPGDWG9KEX32"
+	BuiltinFXID                 = "01M7Z9X3Q8KY52DPGDWG9KEX33"
+	BuiltinA1EID                = "01M7Z9X3Q8KY52DPGDWG9KEX34"
+	BuiltinQnA3EID              = "01M7Z9X3Q8KY52DPGDWG9KEX35"
+	BuiltinQnA4EID              = "01M7Z9X3Q8KY52DPGDWG9KEX36"
+	BuiltinHostlinkFinsID       = "01M7Z9X3Q8KY52DPGDWG9KEX40"
+	BuiltinPanasonicMC3EID      = "01M7Z9X3Q8KY52DPGDWG9KEX41"
+	BuiltinKeyenceNanoID        = "01M7Z9X3Q8KY52DPGDWG9KEX42"
+	BuiltinKeyenceMC3EAscID     = "01M7Z9X3Q8KY52DPGDWG9KEX43"
+	BuiltinLSFEnetID            = "01M7Z9X3Q8KY52DPGDWG9KEX44"
+	BuiltinLSCnetID             = "01M7Z9X3Q8KY52DPGDWG9KEX45"
+	BuiltinYokogawaLinkID       = "01M7Z9X3Q8KY52DPGDWG9KEX46"
+	BuiltinYaskawaMemobusID     = "01M7Z9X3Q8KY52DPGDWG9KEX47"
 )
 
 const emptySchema = `{"fields":[]}`
@@ -2220,6 +2251,116 @@ const fetchWriteSchema = `{
   ]
 }`
 
+const hostlinkFinsSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"目标地址","labelEn":"Target Address","regex":"^\\S+$","placeholderZh":"127.0.0.1:9601","placeholderEn":"127.0.0.1:9601","sort":1,"type":"input","required":true},
+    {"name":"unit","labelZh":"单元号","labelEn":"Unit No.","regex":"^([0-9]|[12][0-9]|3[01])$","placeholderZh":"0","placeholderEn":"0","sort":2,"type":"input"},
+    {"name":"expires","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"2000","placeholderEn":"2000","sort":3,"type":"input"},
+    {"name":"maxSize","labelZh":"最大读取字节数","labelEn":"Max Read Bytes","regex":"^[1-9][0-9]{0,3}$","placeholderZh":"64","placeholderEn":"64","sort":4,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"变量地址","labelEn":"Address","regex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|TK|D|W|H|A|C|T|E)[0-9]+(\\.([0-9]|1[0-5]))?$","placeholderZh":"例如 D100、W0.1、DM0","placeholderEn":"e.g. D100, W0.1, DM0"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|TK|D|W|H|A|C|T|E)[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|TK|D|W|H|A|C|T|E)[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(CIO|WR|HR|AR|DM|EM[0-9A-Fa-f]?|D|W|H|A|E)[0-9]+\\.[0-9]+$"}
+  ]
+}`
+
+const keyenceNanoSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"目标地址","labelEn":"Target Address","regex":"^\\S+$","placeholderZh":"127.0.0.1:8501","placeholderEn":"127.0.0.1:8501","sort":1,"type":"input","required":true},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":2,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"变量地址","labelEn":"Address","regex":"^(DM|EM|FM|ZF|CM|TM|MR|LR|CR|VB|W|R|B|T|C|Z)[0-9A-Fa-f]+(\\.([0-9]|1[0-5]))?$","placeholderZh":"例如 DM100、R10、MR0","placeholderEn":"e.g. DM100, R10, MR0"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(DM|EM|FM|ZF|CM|TM|MR|LR|CR|VB|W|R|B|T|C|Z)[0-9A-Fa-f]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(DM|EM|FM|ZF|CM|TM|MR|LR|CR|VB|W|R|B|T|C|Z)[0-9A-Fa-f]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(DM|EM|FM|ZF|CM|TM|W|T|C|Z)[0-9A-Fa-f]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(DM|EM|FM|ZF|W)[0-9A-Fa-f]+$"}
+  ]
+}`
+
+const lsXgtSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"目标地址","labelEn":"Target Address","regex":"^\\S+$","placeholderZh":"127.0.0.1:2004","placeholderEn":"127.0.0.1:2004","sort":1,"type":"input","required":true},
+    {"name":"station","labelZh":"站号","labelEn":"Station","regex":"^([0-9]|[12][0-9]|3[01])$","placeholderZh":"0","placeholderEn":"0","sort":2,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":3,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"变量地址","labelEn":"Address","regex":"^%?[PMLKFTCUDZNR][XBWLD]?[0-9]+(\\.([0-9]|1[0-5]))?$","placeholderZh":"例如 %MW100、%MX0、%DW10","placeholderEn":"e.g. %MW100, %MX0, %DW10"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^%?[PMLKFTCUDZNR][XBWLD]?[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^%?[PMLKFTCUDZNR][XBWLD]?[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^%?[PMLKFTCUDZNR][BWLD]?[0-9]+$"}
+  ]
+}`
+
+const yokogawaLinkSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"目标地址","labelEn":"Target Address","regex":"^\\S+$","placeholderZh":"127.0.0.1:2000","placeholderEn":"127.0.0.1:2000","sort":1,"type":"input","required":true},
+    {"name":"cpu","labelZh":"CPU 编号","labelEn":"CPU No.","regex":"^[1-4]$","placeholderZh":"1","placeholderEn":"1","sort":2,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":3,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"变量地址","labelEn":"Address","regex":"^[XYIELMDBFRWZ][0-9]+(\\.([0-9]|1[0-5]))?$","placeholderZh":"例如 D100、M0、W10","placeholderEn":"e.g. D100, M0, W10"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^[XYIELMDBFRWZ][0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^[XYIELMDBFRWZ][0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^[DBFRWZ][0-9]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^[DBFRWZ][0-9]+$"}
+  ]
+}`
+
+const memobusSchema = `{
+  "fields": [
+    {"name":"location","labelZh":"目标地址","labelEn":"Target Address","regex":"^\\S+$","placeholderZh":"127.0.0.1:503","placeholderEn":"127.0.0.1:503","sort":1,"type":"input","required":true},
+    {"name":"cpu","labelZh":"CPU 编号","labelEn":"CPU No.","regex":"^[0-4]$","placeholderZh":"0","placeholderEn":"0","sort":2,"type":"input"},
+    {"name":"timeoutMs","labelZh":"超时(ms)","labelEn":"Timeout (ms)","regex":"^[1-9][0-9]{0,5}$","placeholderZh":"3000","placeholderEn":"3000","sort":3,"type":"input"}
+  ],
+  "variableAddress": {"labelZh":"变量地址","labelEn":"Address","regex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+(\\.([0-9]|1[0-5]))?$","placeholderZh":"例如 MW100、MF200、MB0.1","placeholderEn":"e.g. MW100, MF200, MB0.1"},
+  "variableDataTypes": [
+    {"value":"BOOL","labelZh":"bool","labelEn":"bool","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"BIT","labelZh":"bit","labelEn":"bit","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+(\\.([0-9]|1[0-5]))?$"},
+    {"value":"INT16","labelZh":"int16","labelEn":"int16","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"UINT16","labelZh":"uint16","labelEn":"uint16","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"INT32","labelZh":"int32","labelEn":"int32","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"UINT32","labelZh":"uint32","labelEn":"uint32","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"INT64","labelZh":"int64","labelEn":"int64","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"UINT64","labelZh":"uint64","labelEn":"uint64","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"FLOAT32","labelZh":"float32","labelEn":"float32","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"FLOAT64","labelZh":"float64","labelEn":"float64","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"},
+    {"value":"STRING","labelZh":"string","labelEn":"string","addressRegex":"^(MW|ML|MF|MB|IW|OW|SW|DW|M|D|R)?[0-9]+$"}
+  ]
+}`
+
 // BuiltinDriver is a driver shipped with the gateway binary.
 type BuiltinDriver struct {
 	ID         string
@@ -2235,6 +2376,7 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinModbusRTUID, DriverTypeModbus, ModelModbusRTU, DriverModbusRTU, modbusRtuSchema},
 	{BuiltinModbusRTUOverTCPID, DriverTypeModbus, ModelModbusRTUOverTCP, DriverModbusRTUOverTCP, modbusRtuOverTcpSchema},
 	{BuiltinModbusASCIIID, DriverTypeModbus, ModelModbusASCII, DriverModbusASCII, modbusAsciiSchema},
+	{BuiltinModbusASCIIOverTCPID, DriverTypeModbus, ModelModbusASCIIOverTCP, DriverModbusASCIIOverTCP, modbusRtuOverTcpSchema},
 	{BuiltinIEC101ID, DriverTypeIEC, ModelIEC101, DriverIEC101, iec101Schema},
 	{BuiltinIEC104ID, DriverTypeIEC, ModelIEC104, DriverIEC104, iec104Schema},
 	{BuiltinIEC102ID, DriverTypeIEC, ModelIEC102, DriverIEC102, iec102Schema},
@@ -2266,8 +2408,16 @@ var BuiltinDrivers = []BuiltinDriver{
 	{BuiltinQnA4EID, DriverTypeMitsubishi, ModelMC4E, DriverQnA4E, mcSchema},
 	{BuiltinOpcUaID, DriverTypeOpcUa, ModelOpcUa, DriverOpcUa, opcUaSchema},
 	{BuiltinFinsID, DriverTypeOmron, ModelFins, DriverFins, finsSchema},
+	{BuiltinHostlinkFinsID, DriverTypeOmron, ModelHostlinkFins, DriverHostlinkFins, hostlinkFinsSchema},
 	{BuiltinHostlinkCmodeID, DriverTypeOmron, ModelHostlinkCmode, DriverHostlinkCmode, hostlinkCmodeSchema},
 	{BuiltinMewtocolID, DriverTypePanasonic, ModelMewtocol, DriverMewtocol, mewtocolSchema},
+	{BuiltinPanasonicMC3EID, DriverTypePanasonic, ModelPanasonicMC3E, DriverPanasonicMC3E, mcSchema},
+	{BuiltinKeyenceNanoID, DriverTypeKeyence, ModelKeyenceNano, DriverKeyenceNano, keyenceNanoSchema},
+	{BuiltinKeyenceMC3EAscID, DriverTypeKeyence, ModelKeyenceMC3EAscii, DriverKeyenceMC3EAscii, mcSchema},
+	{BuiltinLSFEnetID, DriverTypeLSElectric, ModelLSFEnet, DriverLSFEnet, lsXgtSchema},
+	{BuiltinLSCnetID, DriverTypeLSElectric, ModelLSCnet, DriverLSCnet, lsXgtSchema},
+	{BuiltinYokogawaLinkID, DriverTypeYokogawa, ModelYokogawaLink, DriverYokogawaLink, yokogawaLinkSchema},
+	{BuiltinYaskawaMemobusID, DriverTypeYaskawa, ModelYaskawaMemobus, DriverYaskawaMemobus, memobusSchema},
 	{BuiltinOmronCipID, DriverTypeOmron, ModelOmronCip, DriverOmronCip, omronCipSchema},
 	{BuiltinEthernetIPID, DriverTypeEthernetIP, ModelEthernetIP, DriverEthernetIP, ethernetIPSchema},
 	{BuiltinEthernetIP5500ID, DriverTypeAllenBradley, ModelEthernetIP5500, DriverEthernetIP5500, ethernetIP5500Schema},

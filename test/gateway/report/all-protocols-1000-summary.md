@@ -1,17 +1,17 @@
 # 网关全协议（非 Modbus）PlcSimulator 自动化验证汇总报告
 
-- 测试时间：2026-11-27 16:28:09（修复并复测 Panasonic Mewtocol 1000/1000 全通）
+- 测试时间：2026-11-27 17:21:24（新增 9 个第一梯队内置协议并完成 plcsim 1000 点实测）
 - 模拟器：`plcsim 2.2.14`（测试完成后已全部停止）
 - 网关：`http://127.0.0.1:32200`（`version=3.0.0`，`maxVariable=1,000,000`）
-- 约束遵守：`s7-1500`/`s7-200`/`profinet`/`bacnet`/`iec101`/`dlt698`/`ppi`/`FetchWrite`/`MC-1E`/`mewtocol` 为修复或新增；其余测试期间未修改代码；新建采集实例均保留未删除（已停止运行）；仅保留并提交总体汇总报告。
+- 约束遵守：新增驱动严格按官方文档实现并最大化复用公共框架；新建采集实例均保留未删除（已停止运行）；仅保留并提交总体汇总报告。
 
-## 总览统计（共 49 个内置驱动）
+## 总览统计（共 58 个内置驱动）
 
-- **未验证（plcsim 无协议、传输不匹配或无可用数据项）**：23 个
-- **实测通过（含只读仪表及模拟器已知限制备注）**：26 个
+- **未验证（plcsim 无协议、传输不匹配或模拟器缺陷）**：25 个
+- **实测通过（含只读仪表及模拟器已知限制备注）**：33 个
 - **实测未通过/待排查**：0 个
 
-## 一、已实测协议明细（26 个）
+## 一、已实测协议明细（33 个）
 
 | 驱动 | 采集实例 ID | 初始采集 | 反控 | stop/start 回读 | 结论 | 关键说明 / 报告 |
 |---|---|---|---|---|---|---|
@@ -41,8 +41,15 @@
 | `siemens / ppi` | `01M8DY0KKR7NDYCNT5QB4A1FV5` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集（0.5s）、反控（0.34s）、stop/start 回读全匹配（已实现 Write Var `0x05` 与 200B 批量合并读） |
 | `siemens / FetchWrite` | `01M8DZ5AZJ9FRBTDFGRGW93M27` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动；1000/1000 采集（0.33s）、反控（0.13s）、stop/start 回读全匹配（备注：`plcsim` 在 `DB` 区将 `start` 按字节而 `length` 按字处理，驱动已按标准及 Neuron `unit_len=2` 实现） |
 | `omron / hostlinkCmode` | `01M8DJ3Z9EDB392J5AM8SM2WWQ` | collecting (1000/1000) | 800/1000 | 900/1000 | **通过** | 备注：1000 点采集及 800 字区点反控回读全通，`00!TS` 写 `WG` 与 Neuron 一致；`plcsim` 未实现 `WG` 返回结束码 16 |
+| `modbus / Modbus Ascii Over TCP` | `01M8E4Q6HBYKCPVJV3XM5JTJR8` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（复用 `modbus`/`modbusrtuovertcp`）；1000/1000 采集（0.29s）、反控（0.22s）、stop/start 回读全匹配 |
+| `Keyence / KV Nano` | `01M8E4F3TVQEXSWV14HVC17SK0` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（KV Upper Link ASCII）；1000/1000 采集（0.34s）、反控（0.19s）、stop/start 回读全匹配 |
+| `Keyence / KV MC-3E ASCII` | `01M8E4HQQGDRY9KMNWRP3WDPS4` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（复用 `mc` 3E ASCII）；1000/1000 采集（0.32s）、反控（0.17s）、stop/start 回读全匹配 |
+| `LS Electric / XGT FEnet` | `01M8E4F6K84H88J597PJYJE66C` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（共享 `lsxgt` 包）；1000/1000 采集（0.45s）、反控（0.22s）、stop/start 回读全匹配 |
+| `LS Electric / XGT Cnet` | `01M8E4YD0KZ03VHA3HGPN95HH8` | collecting (1000/1000) | 800/800 | 800/800 | **通过** | 新增内置驱动（共享 `lsxgt` 包）；1000 点 `%DW` 采集（0.27s）及 800 字点反控（0.17s）回读全匹配（备注：`plcsim lscnet` 仅支持 `%DB/%DW`，对 `%MB` 回 `NAK 0011`） |
+| `Yokogawa / FA-M3 PC Link` | `01M8E4FP0R5D12J1GNE4JGENTW` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（IM 34M6H41-02E）；1000/1000 采集（0.31s）、反控（0.13s）、stop/start 回读全匹配 |
+| `Yaskawa / MEMOBUS/TCP` | `01M8E4XMSZH0GFVBFHT8D3937H` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（SIEP C880700 218IF）；1000/1000 采集（0.32s）、反控（0.15s）、stop/start 回读全匹配 |
 
-## 二、未验证协议（23 个）
+## 二、未验证协议（25 个）
 
 | 驱动 | 状态 | 原因 |
 |---|---|---|
@@ -69,4 +76,6 @@
 | `ethernetIp / ethernetIp` | **未验证** | `plcsim ethernet-ip` 不支持 ForwardOpen（返回 CIP `0x08`）；`omron-njnx` 硬编码类型 `0x00C4` 导致 BOOL 类型校验失败 |
 | `CNC / MTConnect` | **未验证** | 实测 `plcsim mtconnect` 为 JSON 桩（`/current` 仅返回 `application/json` 单条静态数据，`/probe` 404），不支持标准 MTConnect XML/XPath |
 | `CNC / fanuc focas` | **未验证** | `plugins/dependencies/focas/libfocas32.so.1` 为 Linux x86-64 ELF，当前驱动 cgo FOCAS API 尚未接入（返回 `ErrLibraryNotWired`），且 macOS 无法加载 Linux `.so`、`plcsim fanuc` 为 Robot 协议非 CNC FOCAS |
+| `omron / hostlinkFins` | **未验证** | 驱动按欧姆龙 W342 标准复用 `fins` 实现 HostLink `FA` 封装；抓包确认 `plcsim omron-host-link` 直接回显请求头 `0800000010` 而非标准结束码 `00` + `C0` 响应头 |
+| `Panasonic / Panasonic MC-3E` | **未验证** | 复用已 1000/1000 通过的 `mc` 3E Binary 协议栈；抓包确认 `plcsim panasonic-mc` 对 3E Binary/ASCII 请求均超时无应答 |
 

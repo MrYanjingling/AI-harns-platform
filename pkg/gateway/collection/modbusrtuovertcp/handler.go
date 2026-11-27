@@ -11,10 +11,21 @@ import (
 	"harns-platform/pkg/gateway/validation"
 )
 
-type CreateHandler struct{}
+type CreateHandler struct {
+	ascii bool
+}
 
-func (h *CreateHandler) DriverType() string  { return DriverType }
-func (h *CreateHandler) DriverModel() string { return DriverModel }
+func NewASCIIOverTCPCreateHandler() *CreateHandler {
+	return &CreateHandler{ascii: true}
+}
+
+func (h *CreateHandler) DriverType() string { return DriverType }
+func (h *CreateHandler) DriverModel() string {
+	if h != nil && h.ascii {
+		return ModelASCIIOverTCP
+	}
+	return DriverModel
+}
 
 func (h *CreateHandler) DecodeCreate(body []byte) (collection.CreateRequest, error) {
 	var req CreateReq
@@ -29,7 +40,7 @@ func (h *CreateHandler) BuildCreate(raw collection.CreateRequest) (collection.Co
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid modbusRtuOverTcp create request")
 	}
-	item, err := NewCollection(req)
+	item, err := newCollectionWithMode(req, h != nil && h.ascii)
 	if err != nil {
 		return nil, nil, err
 	}

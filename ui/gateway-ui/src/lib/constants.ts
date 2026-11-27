@@ -224,6 +224,15 @@ const DRIVER_MODEL_LABELS: Record<string, string> = {
   'MC-1E': 'MC-1E',
   'MC-3E': 'MC-3E',
   'MC-4E': 'MC-4E',
+  'Modbus Ascii Over TCP': 'Modbus ASCII Over TCP',
+  hostlinkFins: 'HostLink FINS',
+  'Panasonic MC-3E': 'Panasonic MC-3E',
+  'KV Nano': 'KV Nano',
+  'KV MC-3E ASCII': 'KV MC-3E ASCII',
+  'XGT FEnet': 'XGT FEnet',
+  'XGT Cnet': 'XGT Cnet',
+  'FA-M3 PC Link': 'FA-M3 PC Link',
+  'MEMOBUS/TCP': 'MEMOBUS/TCP',
 }
 
 
@@ -280,6 +289,9 @@ export const NUMERIC_PROTOCOL_FIELDS = new Set([
   'srcAdsPort',
   'dstAdsPort',
   'localPort',
+  'unit',
+  'station',
+  'cpu',
 ])
 
 export const HEX_PROTOCOL_FIELDS = new Set(['localTsap', 'remoteTsap'])

@@ -8,11 +8,13 @@ import (
 )
 
 const (
-	DriverType = "omron"
-	ModelFins  = "fins"
+	DriverType        = "omron"
+	ModelFins         = "fins"
+	ModelHostlinkFins = "hostlinkFins"
 
-	TransportTCP = "tcp"
-	TransportUDP = "udp"
+	TransportTCP      = "tcp"
+	TransportUDP      = "udp"
+	TransportHostlink = "hostlink"
 
 	DefaultPort        = 9600
 	DefaultExpiresMs   = 500
@@ -32,6 +34,7 @@ type ProtocolConfig struct {
 	Type        int    `json:"type"`
 	Expires     int    `json:"expires"`
 	MaxSize     int    `json:"maxSize"`
+	Unit        int    `json:"unit,omitempty"`
 }
 
 func (c *ProtocolConfig) Normalize() {
@@ -54,6 +57,8 @@ func normalizeTransport(value string) string {
 	switch value {
 	case TransportUDP:
 		return TransportUDP
+	case TransportHostlink:
+		return TransportHostlink
 	default:
 		return TransportTCP
 	}
@@ -82,21 +87,32 @@ type Collection struct {
 	Expires     int    `json:"expires"`
 	Concurrency int    `json:"concurrency"`
 	MaxSize     int    `json:"maxSize"`
+	Unit        int    `json:"unit,omitempty"`
 
 	runtime     *collectorRuntime
 	frameTracer collection.FrameTracer
 }
 
 func NewCollection(req *CreateReq) (*Collection, error) {
+	return NewCollectionForModel(ModelFins, req)
+}
+
+func NewCollectionForModel(model string, req *CreateReq) (*Collection, error) {
 	if err := collection.NormalizeVariables(req.Variables); err != nil {
 		return nil, err
+	}
+	if model == "" {
+		model = ModelFins
+	}
+	if model == ModelHostlinkFins && req.ProtocolConfig.Transport == "" {
+		req.ProtocolConfig.Transport = TransportHostlink
 	}
 	req.ProtocolConfig.Normalize()
 	return &Collection{
 		CollectionMeta: collection.CollectionMeta{
 			Meta:             collection.Meta{Name: req.Name},
 			DriverType:       DriverType,
-			DriverModel:      ModelFins,
+			DriverModel:      model,
 			CollectStatus:    collection.CollectStatusStopped,
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
@@ -108,10 +124,14 @@ func NewCollection(req *CreateReq) (*Collection, error) {
 		Expires:     req.ProtocolConfig.Expires,
 		Concurrency: req.ProtocolConfig.Concurrency,
 		MaxSize:     req.ProtocolConfig.MaxSize,
+		Unit:        req.ProtocolConfig.Unit,
 	}, nil
 }
 
 func (c *Collection) ApplyUpdate(req *UpdateReq) {
+	if c.DriverModel == ModelHostlinkFins && req.ProtocolConfig.Transport == "" {
+		req.ProtocolConfig.Transport = TransportHostlink
+	}
 	req.ProtocolConfig.Normalize()
 	c.Name = req.Name
 	c.CollectorCycleMs = req.CollectorCycleMs
@@ -122,6 +142,7 @@ func (c *Collection) ApplyUpdate(req *UpdateReq) {
 	c.Expires = req.ProtocolConfig.Expires
 	c.Concurrency = req.ProtocolConfig.Concurrency
 	c.MaxSize = req.ProtocolConfig.MaxSize
+	c.Unit = req.ProtocolConfig.Unit
 }
 
 func (c *Collection) ConfigJSON() ([]byte, error) {
@@ -133,6 +154,7 @@ func (c *Collection) ConfigJSON() ([]byte, error) {
 		Expires:     c.Expires,
 		Concurrency: c.Concurrency,
 		MaxSize:     c.MaxSize,
+		Unit:        c.Unit,
 	}
 	config.Normalize()
 	return json.Marshal(config)
@@ -151,6 +173,7 @@ func (c *Collection) ApplyConfig(raw []byte) error {
 	c.Expires = config.Expires
 	c.Concurrency = config.Concurrency
 	c.MaxSize = config.MaxSize
+	c.Unit = config.Unit
 	return nil
 }
 

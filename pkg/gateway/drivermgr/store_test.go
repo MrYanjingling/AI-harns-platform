@@ -192,11 +192,11 @@ func TestListGroupedAndFuzzyDriverType(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, groups, 1)
 	assert.Equal(t, DriverTypeModbus, groups[0].DriverType)
-	assert.Len(t, groups[0].Models, 4)
+	assert.Len(t, groups[0].Models, 5)
 
 	items, err := service.List(ctx, "MOD")
 	require.NoError(t, err)
-	require.Len(t, items, 4)
+	require.Len(t, items, 5)
 
 	items, err = service.List(ctx, "%")
 	require.NoError(t, err)

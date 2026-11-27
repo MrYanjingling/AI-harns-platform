@@ -46,13 +46,24 @@ type collectorRuntime struct {
 	lastProbe     time.Time
 }
 
-type CollectorFactory struct{}
+type CollectorFactory struct {
+	ascii bool
+}
 
-func (f *CollectorFactory) DriverType() string  { return DriverType }
-func (f *CollectorFactory) DriverModel() string { return DriverModel }
+func NewASCIIOverTCPCollectorFactory() *CollectorFactory {
+	return &CollectorFactory{ascii: true}
+}
+
+func (f *CollectorFactory) DriverType() string { return DriverType }
+func (f *CollectorFactory) DriverModel() string {
+	if f != nil && f.ascii {
+		return ModelASCIIOverTCP
+	}
+	return DriverModel
+}
 
 func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config json.RawMessage) (collection.Collector, error) {
-	item := &ModbusRtuOverTcpCollection{}
+	item := &ModbusRtuOverTcpCollection{ascii: f != nil && f.ascii}
 	item.SetCollectionMeta(meta)
 	if err := item.ApplyConfig(config); err != nil {
 		return nil, err
@@ -88,9 +99,13 @@ func (c *ModbusRtuOverTcpCollection) Connect(ctx context.Context) error {
 	calculations, calcErr := collection.CompileCalculations(variables)
 	wireFrames := make([]*wireFrame, 0, len(frames))
 	for _, frame := range frames {
+		req := modbus.BuildRTURequest(frame)
+		if c.ascii {
+			req = modbus.BuildASCIIRequest(frame)
+		}
 		wireFrames = append(wireFrames, &wireFrame{
 			frame:   frame,
-			request: modbus.BuildRTURequest(frame),
+			request: req,
 		})
 	}
 	runtime := &collectorRuntime{frames: wireFrames, calcs: calculations, calcErr: calcErr}
@@ -313,13 +328,21 @@ func (c *ModbusRtuOverTcpCollection) collectFrame(ctx context.Context, frame *wi
 	for attempt := 0; attempt < frameRetryCount; attempt++ {
 		traceID := c.traceRequest("read", frame.request)
 		started := time.Now()
-		response, exchangeErr := exchange(ctx, runtime.pool, frame.request, false)
+		response, exchangeErr := exchange(ctx, runtime.pool, frame.request, false, c.ascii)
 		c.traceResponse(traceID, "read", response, started, exchangeErr)
 		if exchangeErr != nil {
 			lastErr = exchangeErr
 			continue
 		}
-		payload, err := modbus.ValidateRTUResponse(response, frame.frame)
+		var (
+			payload []byte
+			err     error
+		)
+		if c.ascii {
+			payload, err = modbus.ParseASCIIResponse(response, frame.frame)
+		} else {
+			payload, err = modbus.ValidateRTUResponse(response, frame.frame)
+		}
 		if err != nil {
 			if modbus.IsException(err) {
 				return nil, err
@@ -438,11 +461,15 @@ func (c *ModbusRtuOverTcpCollection) probePrimary(ctx context.Context) bool {
 		return false
 	}
 	frame := runtime.frames[0]
-	response, err := probeTCP(ctx, c.Location, frame.request)
+	response, err := probeTCP(ctx, c.Location, frame.request, c.ascii)
 	if err != nil {
 		return false
 	}
-	_, err = modbus.ValidateRTUResponse(response, frame.frame)
+	if c.ascii {
+		_, err = modbus.ParseASCIIResponse(response, frame.frame)
+	} else {
+		_, err = modbus.ValidateRTUResponse(response, frame.frame)
+	}
 	return err == nil
 }
 
@@ -462,15 +489,24 @@ func (c *ModbusRtuOverTcpCollection) DeliverAction(ctx context.Context, actions 
 			}})
 		}
 		request := modbus.BuildRTUWriteRequest(write)
+		if c.ascii {
+			request = modbus.BuildASCIIWriteRequest(write)
+		}
 		traceID := c.traceRequest("write", request)
 		started := time.Now()
-		response, exchangeErr := exchange(ctx, runtime.pool, request, true)
+		response, exchangeErr := exchange(ctx, runtime.pool, request, true, c.ascii)
 		c.traceResponse(traceID, "write", response, started, exchangeErr)
 		if exchangeErr != nil {
 			return collection.DeviceActionError(action, exchangeErr)
 		}
-		if err := modbus.ValidateRTUWriteResponse(response, write.Slave, write.Function); err != nil {
-			return collection.DeviceActionError(action, err)
+		var validateErr error
+		if c.ascii {
+			validateErr = modbus.ValidateASCIIWriteResponse(response, write)
+		} else {
+			validateErr = modbus.ValidateRTUWriteResponse(response, write.Slave, write.Function)
+		}
+		if validateErr != nil {
+			return collection.DeviceActionError(action, validateErr)
 		}
 		c.GetCollectionMeta().SetVariableValue(action.Variable.Name, collection.ApplyTransform(action.Value, action.Variable))
 	}

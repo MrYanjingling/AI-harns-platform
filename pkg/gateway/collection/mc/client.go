@@ -16,6 +16,7 @@ import (
 type mcClient struct {
 	conn    net.Conn
 	family  Family
+	ascii   bool
 	udp     bool
 	timeout time.Duration
 }
@@ -46,6 +47,24 @@ func (c *mcClient) Exchange(ctx context.Context, request []byte) ([]byte, error)
 			return nil, collection.ConnectionLost(err)
 		}
 		return append([]byte(nil), buffer[:n]...), nil
+	}
+	if c.ascii {
+		header := make([]byte, 18)
+		if _, err := io.ReadFull(c.conn, header); err != nil {
+			return nil, collection.ConnectionLost(err)
+		}
+		length, err := strconv.ParseUint(string(header[14:18]), 16, 16)
+		if err != nil || int(length) > 65535-18 {
+			return nil, fmt.Errorf("MC ASCII response length %q is invalid", string(header[14:18]))
+		}
+		response := make([]byte, 18+int(length))
+		copy(response, header)
+		if length > 0 {
+			if _, err := io.ReadFull(c.conn, response[18:]); err != nil {
+				return nil, collection.ConnectionLost(err)
+			}
+		}
+		return response, nil
 	}
 	if c.family == Family1E {
 		header := make([]byte, 2)
@@ -92,7 +111,7 @@ func (c *mcClient) Exchange(ctx context.Context, request []byte) ([]byte, error)
 	return response, nil
 }
 
-func newPool(ctx context.Context, config ProtocolConfig, family Family) (*connpool.Pool, error) {
+func newPool(ctx context.Context, config ProtocolConfig, info Info) (*connpool.Pool, error) {
 	address := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	timeout := time.Duration(config.TimeoutMs) * time.Millisecond
 	return connpool.NewPool(ctx, 1, func(ctx context.Context) (connpool.Client, error) {
@@ -106,13 +125,13 @@ func newPool(ctx context.Context, config ProtocolConfig, family Family) (*connpo
 			if err != nil {
 				return nil, err
 			}
-			return &mcClient{conn: conn, family: family, udp: true, timeout: timeout}, nil
+			return &mcClient{conn: conn, family: info.Family, ascii: info.ASCII, udp: true, timeout: timeout}, nil
 		}
 		dialer := net.Dialer{Timeout: timeout}
 		conn, err := dialer.DialContext(ctx, "tcp", address)
 		if err != nil {
 			return nil, err
 		}
-		return &mcClient{conn: conn, family: family, timeout: timeout}, nil
+		return &mcClient{conn: conn, family: info.Family, ascii: info.ASCII, timeout: timeout}, nil
 	})
 }

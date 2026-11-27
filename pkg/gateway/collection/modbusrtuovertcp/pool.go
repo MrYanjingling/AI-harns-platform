@@ -44,7 +44,7 @@ func newNetPool(ctx context.Context, address string, size int) (*connpool.Pool, 
 	return pool, nil
 }
 
-func exchange(ctx context.Context, pool *connpool.Pool, request []byte, write bool) ([]byte, error) {
+func exchange(ctx context.Context, pool *connpool.Pool, request []byte, write bool, ascii bool) ([]byte, error) {
 	var response []byte
 	err := pool.DoWithRetry(ctx, connpool.DefaultWriteAttempts, func(client connpool.Client) (bool, error) {
 		netConn, ok := client.(*netClient)
@@ -52,7 +52,7 @@ func exchange(ctx context.Context, pool *connpool.Pool, request []byte, write bo
 			_ = client.Close()
 			return false, fmt.Errorf("invalid modbusRtuOverTcp connection type")
 		}
-		resp, exchangeErr := exchangeConn(netConn.Conn, request, write)
+		resp, exchangeErr := exchangeConn(netConn.Conn, request, write, ascii)
 		if exchangeErr != nil {
 			return true, exchangeErr
 		}
@@ -65,7 +65,7 @@ func exchange(ctx context.Context, pool *connpool.Pool, request []byte, write bo
 	return response, nil
 }
 
-func probeTCP(ctx context.Context, address string, request []byte) ([]byte, error) {
+func probeTCP(ctx context.Context, address string, request []byte, ascii bool) ([]byte, error) {
 	if address == "" {
 		return nil, fmt.Errorf("probe address is empty")
 	}
@@ -75,10 +75,10 @@ func probeTCP(ctx context.Context, address string, request []byte) ([]byte, erro
 		return nil, err
 	}
 	defer conn.Close()
-	return exchangeConn(conn, request, false)
+	return exchangeConn(conn, request, false, ascii)
 }
 
-func exchangeConn(conn net.Conn, request []byte, write bool) ([]byte, error) {
+func exchangeConn(conn net.Conn, request []byte, write bool, ascii bool) ([]byte, error) {
 	if err := conn.SetWriteDeadline(time.Now().Add(tcpConnectTimeout)); err != nil {
 		return nil, err
 	}
@@ -87,6 +87,9 @@ func exchangeConn(conn net.Conn, request []byte, write bool) ([]byte, error) {
 	}
 	if err := conn.SetReadDeadline(time.Now().Add(tcpConnectTimeout)); err != nil {
 		return nil, err
+	}
+	if ascii {
+		return modbus.ReadASCIIResponse(conn)
 	}
 	if write {
 		return modbus.ReadRTUWriteResponse(conn)

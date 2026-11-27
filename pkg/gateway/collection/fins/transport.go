@@ -1,10 +1,13 @@
 package fins
 
 import (
+	"bufio"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +19,7 @@ const tcpMagic = "FINS"
 var (
 	_ connpool.Transport = (*tcpTransport)(nil)
 	_ connpool.Transport = (*udpTransport)(nil)
+	_ connpool.Transport = (*hostlinkTransport)(nil)
 )
 
 type tcpTransport struct {
@@ -232,4 +236,128 @@ func (t *udpTransport) Close() error {
 	conn := t.conn
 	t.conn = nil
 	return conn.Close()
+}
+
+// hostlinkTransport wraps FINS command/response frames inside Omron W342
+// HostLink C-Mode FA framing: @<unit:02d>FA0<ICF><DA2><SA2><SID><FINS><FCS>*\r
+type hostlinkTransport struct {
+	conn    net.Conn
+	reader  *bufio.Reader
+	unit    int
+	timeout time.Duration
+	mu      sync.Mutex
+	sid     byte
+}
+
+func newHostlinkTransport(ctx context.Context, address string, unit int, timeout time.Duration) (*hostlinkTransport, error) {
+	if unit < 0 || unit > 31 {
+		unit = 0
+	}
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	return &hostlinkTransport{
+		conn:    conn,
+		reader:  bufio.NewReader(conn),
+		unit:    unit,
+		timeout: timeout,
+	}, nil
+}
+
+func (t *hostlinkTransport) Exchange(ctx context.Context, request []byte) ([]byte, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.conn == nil {
+		return nil, fmt.Errorf("fins/hostlink connection is closed")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(request) < 12 {
+		return nil, fmt.Errorf("fins request is too short")
+	}
+	t.sid++
+	frame := buildHostlinkFINSRequest(t.unit, request[0], request[5], request[8], t.sid, request[10:])
+	if err := t.conn.SetDeadline(time.Now().Add(t.timeout)); err != nil {
+		return nil, err
+	}
+	if _, err := t.conn.Write(frame); err != nil {
+		return nil, err
+	}
+	line, err := t.reader.ReadString('\r')
+	if err != nil {
+		return nil, err
+	}
+	return parseHostlinkFINSResponse(line)
+}
+
+func (t *hostlinkTransport) Available() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.conn != nil
+}
+
+func (t *hostlinkTransport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.conn == nil {
+		return nil
+	}
+	conn := t.conn
+	t.conn = nil
+	return conn.Close()
+}
+
+func hostlinkFCS(data string) byte {
+	var fcs byte
+	for i := 0; i < len(data); i++ {
+		fcs ^= data[i]
+	}
+	return fcs
+}
+
+func buildHostlinkFINSRequest(unit int, icf, da2, sa2, sid byte, finsBody []byte) []byte {
+	body := fmt.Sprintf("@%02dFA0%02X%02X%02X%02X%s", unit, icf, da2, sa2, sid, strings.ToUpper(hex.EncodeToString(finsBody)))
+	return []byte(fmt.Sprintf("%s%02X*\r", body, hostlinkFCS(body)))
+}
+
+func parseHostlinkFINSResponse(raw string) ([]byte, error) {
+	text := strings.TrimRight(raw, "\r\n")
+	if len(text) < 22 || text[0] != '@' || !strings.HasSuffix(text, "*") {
+		return nil, fmt.Errorf("invalid hostlink FINS response %q", text)
+	}
+	withoutTerm := text[:len(text)-1] // strip '*'
+	payload := withoutTerm[:len(withoutTerm)-2]
+	fcsHex := withoutTerm[len(withoutTerm)-2:]
+	expected := fmt.Sprintf("%02X", hostlinkFCS(payload))
+	if !strings.EqualFold(fcsHex, expected) {
+		return nil, fmt.Errorf("hostlink FINS FCS mismatch: got %s, want %s", fcsHex, expected)
+	}
+	if len(payload) < 15 || payload[3:5] != "FA" {
+		return nil, fmt.Errorf("invalid hostlink FINS header %q", payload)
+	}
+	endCode := payload[5:7]
+	if endCode != "00" {
+		return nil, fmt.Errorf("hostlink FINS end code %s", endCode)
+	}
+	hdrHex := payload[7:15]
+	hdrBytes, err := hex.DecodeString(hdrHex)
+	if err != nil || len(hdrBytes) != 4 {
+		return nil, fmt.Errorf("invalid hostlink FINS header hex %q", hdrHex)
+	}
+	finsBody, err := hex.DecodeString(payload[15:])
+	if err != nil || len(finsBody) < 4 {
+		return nil, fmt.Errorf("invalid hostlink FINS body: %w", err)
+	}
+	// Reconstruct standard 10-byte FINS response header + MRC/SRC/MRES/SRES/data.
+	out := make([]byte, 10+len(finsBody))
+	out[0] = hdrBytes[0] // ICF
+	out[2] = 0x02        // GCT
+	out[5] = hdrBytes[1] // DA2
+	out[8] = hdrBytes[2] // SA2
+	out[9] = hdrBytes[3] // SID
+	copy(out[10:], finsBody)
+	return out, nil
 }

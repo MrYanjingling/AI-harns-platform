@@ -2,7 +2,10 @@ package mc
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -232,4 +235,162 @@ func responseLengthOffset(family Family) int {
 
 func appendU16(dst []byte, value uint16) []byte {
 	return append(dst, byte(value), byte(value>>8))
+}
+
+// mc3eASCIIDevice returns the 2-character ASCII device code and whether the
+// head device address is hexadecimal per Mitsubishi SH-080008.
+func mc3eASCIIDevice(area byte) (string, bool) {
+	switch area {
+	case 0x9C:
+		return "X*", true
+	case 0x9D:
+		return "Y*", true
+	case 0x90:
+		return "M*", false
+	case 0x92:
+		return "L*", false
+	case 0x93:
+		return "F*", false
+	case 0x94:
+		return "V*", false
+	case 0xA0:
+		return "B*", true
+	case 0x98:
+		return "S*", false
+	case 0xA8:
+		return "D*", false
+	case 0xB4:
+		return "W*", true
+	case 0xAF:
+		return "R*", false
+	case 0xB0:
+		return "ZR", false
+	case 0xCC:
+		return "Z*", false
+	case 0xA2:
+		return "DX", true
+	case 0xA3:
+		return "DY", true
+	case 0xA1:
+		return "SB", true
+	case 0xB5:
+		return "SW", true
+	case 0x91:
+		return "SM", false
+	case 0xA9:
+		return "SD", false
+	case 0xC1:
+		return "TS", false
+	case 0xC0:
+		return "TC", false
+	case 0xC2:
+		return "TN", false
+	case 0xC4:
+		return "CS", false
+	case 0xC3:
+		return "CC", false
+	case 0xC5:
+		return "CN", false
+	case 0xC7:
+		return "SS", false
+	case 0xC6:
+		return "SC", false
+	case 0xC8:
+		return "SN", false
+	default:
+		return "D*", false
+	}
+}
+
+func build3EASCIIRequest(area byte, word bool, start uint32, count int, data []byte) []byte {
+	sub := uint16(subWord)
+	if !word {
+		sub = subBit
+	}
+	command := uint16(cmdRead)
+	var payload strings.Builder
+	if data != nil {
+		command = cmdWrite
+		if word {
+			for i := 0; i+1 < len(data); i += 2 {
+				fmt.Fprintf(&payload, "%02X%02X", data[i+1], data[i])
+			}
+		} else {
+			for i := 0; i < count; i++ {
+				b := data[i/2]
+				var bit byte
+				if i%2 == 0 {
+					bit = (b >> 4) & 0x0F
+				} else {
+					bit = b & 0x0F
+				}
+				if bit != 0 {
+					payload.WriteByte('1')
+				} else {
+					payload.WriteByte('0')
+				}
+			}
+		}
+	}
+	devCode, hexAddr := mc3eASCIIDevice(area)
+	var head string
+	if hexAddr {
+		head = fmt.Sprintf("%06X", start)
+	} else {
+		head = fmt.Sprintf("%06d", start)
+	}
+	body := fmt.Sprintf("0010%04X%04X%s%s%04X%s", command, sub, devCode, head, count, payload.String())
+	return []byte(fmt.Sprintf("500000FF03FF00%04X%s", len(body), body))
+}
+
+func parse3EASCIIResponse(response []byte, word bool) ([]byte, error) {
+	text := string(response)
+	if len(text) < 22 {
+		return nil, fmt.Errorf("MC 3E ASCII response is too short")
+	}
+	if !strings.HasPrefix(text, "D000") {
+		return nil, fmt.Errorf("MC 3E ASCII response subheader mismatch")
+	}
+	dataLen, err := strconv.ParseUint(text[14:18], 16, 16)
+	if err != nil || dataLen < 4 || len(text) < 18+int(dataLen) {
+		return nil, fmt.Errorf("MC 3E ASCII response length %d is invalid", len(text))
+	}
+	endCode, err := strconv.ParseUint(text[18:22], 16, 16)
+	if err != nil {
+		return nil, fmt.Errorf("MC 3E ASCII invalid end code %q", text[18:22])
+	}
+	if endCode != 0 {
+		return nil, fmt.Errorf("MC 3E ASCII response end code 0x%04X", endCode)
+	}
+	raw := text[22 : 18+int(dataLen)]
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	if word {
+		if len(raw)%4 != 0 {
+			return nil, fmt.Errorf("MC 3E ASCII word payload length %d is invalid", len(raw))
+		}
+		out := make([]byte, len(raw)/2)
+		for i := 0; i < len(raw); i += 4 {
+			wordBytes, err := hex.DecodeString(raw[i : i+4])
+			if err != nil {
+				return nil, fmt.Errorf("MC 3E ASCII invalid hex word: %w", err)
+			}
+			// ASCII transmits MSB first (HHLL); internal mc decoder expects LE (LLHH).
+			out[i/2] = wordBytes[1]
+			out[i/2+1] = wordBytes[0]
+		}
+		return out, nil
+	}
+	out := make([]byte, (len(raw)+1)/2)
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '1' {
+			if i%2 == 0 {
+				out[i/2] |= 0x10
+			} else {
+				out[i/2] |= 0x01
+			}
+		}
+	}
+	return out, nil
 }

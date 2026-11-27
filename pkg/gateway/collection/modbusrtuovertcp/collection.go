@@ -4,8 +4,9 @@ package modbusrtuovertcp
 import "harns-platform/pkg/gateway/collection"
 
 const (
-	DriverType  = "modbus"
-	DriverModel = "modbusRtuOverTcp"
+	DriverType        = "modbus"
+	DriverModel       = "modbusRtuOverTcp"
+	ModelASCIIOverTCP = "Modbus Ascii Over TCP"
 
 	DefaultConcurrency = 1
 	MaxConcurrency     = 3
@@ -49,19 +50,32 @@ type ModbusRtuOverTcpCollection struct {
 
 	runtime      *collectorRuntime
 	activeBackup bool
+	ascii        bool
 	frameTracer  collection.FrameTracer
 }
 
 func NewCollection(req *CreateReq) (*ModbusRtuOverTcpCollection, error) {
+	return newCollectionWithMode(req, false)
+}
+
+func NewASCIIOverTCPCollection(req *CreateReq) (*ModbusRtuOverTcpCollection, error) {
+	return newCollectionWithMode(req, true)
+}
+
+func newCollectionWithMode(req *CreateReq, ascii bool) (*ModbusRtuOverTcpCollection, error) {
 	if err := collection.NormalizeVariables(req.Variables); err != nil {
 		return nil, err
 	}
 	req.ProtocolConfig.Normalize()
+	model := DriverModel
+	if ascii {
+		model = ModelASCIIOverTCP
+	}
 	return &ModbusRtuOverTcpCollection{
 		CollectionMeta: collection.CollectionMeta{
 			Meta:             collection.Meta{Name: req.Name},
 			DriverType:       DriverType,
-			DriverModel:      DriverModel,
+			DriverModel:      model,
 			CollectStatus:    collection.CollectStatusStopped,
 			CollectorCycleMs: req.CollectorCycleMs,
 			Variables:        req.Variables,
@@ -71,6 +85,7 @@ func NewCollection(req *CreateReq) (*ModbusRtuOverTcpCollection, error) {
 		MemoryLayout:    req.ProtocolConfig.MemoryLayout,
 		PositionAddress: req.ProtocolConfig.PositionAddress,
 		Concurrency:     req.ProtocolConfig.Concurrency,
+		ascii:           ascii,
 	}, nil
 }
 

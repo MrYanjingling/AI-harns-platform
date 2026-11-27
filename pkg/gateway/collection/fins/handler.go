@@ -10,23 +10,48 @@ import (
 	"harns-platform/pkg/gateway/validation"
 )
 
-type CollectorFactory struct{}
+type CollectorFactory struct {
+	model string
+}
 
-func (f *CollectorFactory) DriverType() string  { return DriverType }
-func (f *CollectorFactory) DriverModel() string { return ModelFins }
+func NewCollectorFactoryForModel(model string) *CollectorFactory {
+	return &CollectorFactory{model: model}
+}
+
+func (f *CollectorFactory) DriverType() string { return DriverType }
+func (f *CollectorFactory) DriverModel() string {
+	if f != nil && f.model != "" {
+		return f.model
+	}
+	return ModelFins
+}
 func (f *CollectorFactory) NewCollector(meta *collection.CollectionMeta, config json.RawMessage) (collection.Collector, error) {
 	item := &Collection{}
 	item.SetCollectionMeta(meta)
 	if err := item.ApplyConfig(config); err != nil {
 		return nil, err
 	}
+	if f != nil && f.model == ModelHostlinkFins && item.Transport != TransportHostlink {
+		item.Transport = TransportHostlink
+	}
 	return item, nil
 }
 
-type CreateHandler struct{}
+type CreateHandler struct {
+	model string
+}
 
-func (h *CreateHandler) DriverType() string  { return DriverType }
-func (h *CreateHandler) DriverModel() string { return ModelFins }
+func NewCreateHandlerForModel(model string) *CreateHandler {
+	return &CreateHandler{model: model}
+}
+
+func (h *CreateHandler) DriverType() string { return DriverType }
+func (h *CreateHandler) DriverModel() string {
+	if h != nil && h.model != "" {
+		return h.model
+	}
+	return ModelFins
+}
 func (h *CreateHandler) DecodeCreate(body []byte) (collection.CreateRequest, error) {
 	var req CreateReq
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -40,7 +65,7 @@ func (h *CreateHandler) BuildCreate(raw collection.CreateRequest) (collection.Co
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid fins create request")
 	}
-	item, err := NewCollection(req)
+	item, err := NewCollectionForModel(h.DriverModel(), req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,7 +87,7 @@ func (r *CreateReq) Validate() error {
 	if strings.TrimSpace(r.ProtocolConfig.Location) == "" {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.location", MsgID: "validate.collection_field_required", Args: []interface{}{"protocolConfig.location"}})
 	}
-	if r.ProtocolConfig.Transport != "" && r.ProtocolConfig.Transport != TransportTCP && r.ProtocolConfig.Transport != TransportUDP {
+	if r.ProtocolConfig.Transport != "" && r.ProtocolConfig.Transport != TransportTCP && r.ProtocolConfig.Transport != TransportUDP && r.ProtocolConfig.Transport != TransportHostlink {
 		issues = append(issues, validation.FieldIssue{Field: "protocolConfig.transport", MsgID: "validate.collection_field_invalid", Args: []interface{}{"protocolConfig.transport"}})
 	}
 	if r.ProtocolConfig.MaxSize != 0 && (r.ProtocolConfig.MaxSize < MinMaxSize || r.ProtocolConfig.MaxSize > MaxMaxSize) {

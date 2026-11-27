@@ -45,6 +45,14 @@ var endpointDefaultPorts = map[string]int{
 	"dlt698_45":                     4059,
 	"ppi":                           32502,
 	"HJ212":                         9000,
+	"hostlinkFins":                  9601,
+	"Panasonic MC-3E":               5008,
+	"KV Nano":                       8501,
+	"KV MC-3E ASCII":                5006,
+	"XGT FEnet":                     2004,
+	"XGT Cnet":                      2005,
+	"FA-M3 PC Link":                 2000,
+	"MEMOBUS/TCP":                   503,
 }
 
 func normalizeBuiltinSchema(raw string, model string) (string, error) {

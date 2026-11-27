@@ -3,6 +3,7 @@ package modbus
 import (
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 
 	"harns-platform/pkg/utils/binutil"
@@ -124,4 +125,33 @@ func parseASCIIFrame(raw []byte) (uint8, []byte, error) {
 		return 0, nil, fmt.Errorf("modbusAscii lrc mismatch")
 	}
 	return decoded[0], decoded[1 : len(decoded)-1], nil
+}
+
+// ReadASCIIResponse reads one ':'-prefixed, CRLF-terminated Modbus ASCII frame from r.
+func ReadASCIIResponse(r io.Reader) ([]byte, error) {
+	const maxFrameLen = 515
+	frame := make([]byte, 0, 64)
+	buf := make([]byte, 1)
+	started := false
+	for len(frame) < maxFrameLen {
+		n, err := r.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			continue
+		}
+		b := buf[0]
+		if !started {
+			if b != ':' {
+				continue
+			}
+			started = true
+		}
+		frame = append(frame, b)
+		if len(frame) >= 2 && frame[len(frame)-2] == '\r' && frame[len(frame)-1] == '\n' {
+			return frame, nil
+		}
+	}
+	return nil, fmt.Errorf("modbusAscii response exceeds maximum frame length")
 }

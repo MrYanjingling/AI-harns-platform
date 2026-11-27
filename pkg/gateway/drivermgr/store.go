@@ -241,6 +241,26 @@ func builtinRemark(model string) string {
 		return "适用于三菱 Q/L 系列 MC 3E 协议。"
 	case ModelMC4E:
 		return "适用于三菱 Q/L 系列 MC 4E 协议。"
+	case ModelFetchWrite:
+		return "适用于西门子 S5/S7 系列工业以太网 Fetch/Write 通信。"
+	case ModelModbusASCIIOverTCP:
+		return "适用于经串口服务器 TCP 透传的 Modbus ASCII 仪表与 PLC。"
+	case ModelHostlinkFins:
+		return "适用于欧姆龙 CS/CJ/CP1 系列 HostLink 封装 FINS 协议（TCP 透传）。"
+	case ModelPanasonicMC3E:
+		return "适用于松下 FP7/FP-XH 等兼容三菱 MC 3E Binary 协议的 PLC。"
+	case ModelKeyenceNano:
+		return "适用于基恩士 KV Nano / KV-5000/7000/8000 系列上位链路 ASCII 协议。"
+	case ModelKeyenceMC3EAscii:
+		return "适用于基恩士 KV 系列兼容三菱 MC 3E ASCII 通信的 PLC。"
+	case ModelLSFEnet:
+		return "适用于韩国 LS 产电 XGT/XGK/XGI 系列以太网 FEnet 协议。"
+	case ModelLSCnet:
+		return "适用于韩国 LS 产电 XGT 系列 Cnet ASCII 协议（TCP 透传）。"
+	case ModelYokogawaLink:
+		return "适用于横河 FA-M3 系列 PLC 个人计算机链路（PC Link）以太网协议。"
+	case ModelYaskawaMemobus:
+		return "适用于安川 MP2000/MP3000 系列运动控制器 218IF Extended MEMOBUS/TCP 协议。"
 	default:
 		return ""
 	}

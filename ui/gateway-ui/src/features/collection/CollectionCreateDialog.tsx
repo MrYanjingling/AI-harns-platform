@@ -71,9 +71,17 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
   const drivers = useDriverList()
   const createCollection = useCreateCollection()
   const [step, setStep] = useState<1 | 2>(1)
+  const [selectedType, setSelectedType] = useState('')
   const [selectedModel, setSelectedModel] = useState('')
   const schema = useDriverSchema(selectedModel)
-  const [form, setForm] = useState<CollectionFormValues | null>(null)
+  const [form, setForm] = useState<CollectionFormValues>(() => ({
+    driverType: '',
+    driverModel: '',
+    name: '',
+    collectorCycleMs: '1000',
+    protocol: {},
+    variables: [],
+  }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [variables, setVariables] = useState<VariableFormValues[]>([])
   const [calculated, setCalculated] = useState<VariableFormValues[]>([])
@@ -83,13 +91,21 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const preservedNameRef = useRef('')
+  const appliedModelRef = useRef('')
 
   useEffect(() => {
     if (!open) return
     setStep(1)
+    setSelectedType('')
     setSelectedModel('')
-    setForm(null)
+    setForm({
+      driverType: '',
+      driverModel: '',
+      name: '',
+      collectorCycleMs: '1000',
+      protocol: {},
+      variables: [],
+    })
     setErrors({})
     setVariables([])
     setCalculated([])
@@ -98,24 +114,23 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     setTab('collection')
     setImporting(false)
     setExporting(false)
-    preservedNameRef.current = ''
+    appliedModelRef.current = ''
   }, [open])
 
   useEffect(() => {
-    if (!open || selectedModel || !drivers.data?.length) return
-    setSelectedModel(drivers.data[0].model)
-  }, [open, selectedModel, drivers.data])
-
-  useEffect(() => {
-    if (!open || !selectedModel || !schema.data || form) return
-    const next = createFormValues(
-      schema.data.driverType,
-      schema.data.driverModel,
-      schema.data.schema,
-    )
-    next.name = preservedNameRef.current
-    setForm(next)
-  }, [open, selectedModel, schema.data, form])
+    if (!open || !selectedModel || !schema.data || appliedModelRef.current === selectedModel) return
+    appliedModelRef.current = selectedModel
+    setForm((current) => {
+      const next = createFormValues(
+        schema.data.driverType,
+        schema.data.driverModel,
+        schema.data.schema,
+      )
+      next.name = current.name
+      next.collectorCycleMs = current.collectorCycleMs || next.collectorCycleMs
+      return next
+    })
+  }, [open, selectedModel, schema.data])
 
   const driverTypes = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -130,7 +145,6 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     }))
   }, [drivers.data])
 
-  const selectedType = form?.driverType ?? ''
   const driverTypeOptions = useMemo<SearchSelectOption[]>(
     () => driverTypes.map((item) => ({ value: item.type, label: driverTypeLabel(item.type) })),
     [driverTypes],
@@ -144,25 +158,45 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     [driverTypes, selectedType],
   )
 
-  const driverSchema = schema.data?.schema
+  const driverSchema = selectedModel ? schema.data?.schema : undefined
   const submitting = createCollection.isPending
 
   const update = (patch: Partial<CollectionFormValues>) => {
-    setForm((current) => (current ? { ...current, ...patch } : current))
+    setForm((current) => ({ ...current, ...patch }))
   }
 
   const updateProtocol = (name: string, value: string) => {
-    setForm((current) =>
-      current
-        ? { ...current, protocol: { ...current.protocol, [name]: value } }
-        : current,
-    )
+    setForm((current) => ({
+      ...current,
+      protocol: { ...current.protocol, [name]: value },
+    }))
+  }
+
+  const changeType = (type: string) => {
+    setSelectedType(type)
+    setSelectedModel('')
+    appliedModelRef.current = ''
+    setForm((current) => ({
+      ...current,
+      driverType: type,
+      driverModel: '',
+      protocol: {},
+      variables: [],
+    }))
+    setErrors({})
+    setVariables([])
+    setCalculated([])
   }
 
   const changeModel = (model: string) => {
-    preservedNameRef.current = form?.name ?? preservedNameRef.current
     setSelectedModel(model)
-    setForm(null)
+    appliedModelRef.current = ''
+    setForm((current) => ({
+      ...current,
+      driverModel: model,
+      protocol: {},
+      variables: [],
+    }))
     setErrors({})
     setVariables([])
     setCalculated([])
@@ -276,7 +310,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
         </Button>
         <Button
           variant="primary"
-          disabled={!form || !schema.data}
+          disabled={!selectedModel || !driverSchema}
           onClick={next}
         >
           {t('gateway.form.next')}
@@ -305,9 +339,9 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
     >
       <CreateStepHeader current={step} />
 
-      {schema.isError ? (
-        <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
-      ) : !form || !driverSchema ? (
+      {drivers.isError ? (
+        <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} />
+      ) : drivers.isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-40 w-full" />
@@ -374,15 +408,13 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
                 labelClassName="text-sm"
                 labelWidthClassName="w-[84px]"
                 inline
+                required
               >
                 <SearchSelect
                   id="dialog-driver-type"
                   value={selectedType}
                   options={driverTypeOptions}
-                  onChange={(type) => {
-                    const first = driverTypes.find((item) => item.type === type)
-                    if (first) changeModel(first.models[0])
-                  }}
+                  onChange={changeType}
                   ariaLabel={t('gateway.form.field.driverType')}
                   emptyText={t('common.state.empty')}
                   className="w-full max-w-[200px]"
@@ -394,12 +426,14 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
                 labelClassName="text-sm"
                 labelWidthClassName="w-[84px]"
                 inline
+                required
               >
                 <SearchSelect
                   id="dialog-driver-model"
-                  value={form.driverModel}
+                  value={selectedModel}
                   options={driverModelOptions}
                   onChange={changeModel}
+                  disabled={!selectedType}
                   ariaLabel={t('gateway.form.field.driverModel')}
                   emptyText={t('common.state.empty')}
                   className="w-full max-w-[200px]"
@@ -408,24 +442,34 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('gateway.form.section.protocol')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="app-dialog-error mb-2">{errors.form}</p>
-              <ProtocolFields
-                schema={driverSchema}
-                driverModel={form.driverModel}
-                values={form.protocol}
-                errors={errors}
-                onChange={updateProtocol}
-                columns={2}
-              />
-            </CardContent>
-          </Card>
+          {selectedModel ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('gateway.form.section.protocol')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {schema.isError ? (
+                  <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
+                ) : !driverSchema ? (
+                  <Skeleton className="h-28 w-full" />
+                ) : (
+                  <>
+                    <p className="app-dialog-error mb-2">{errors.form}</p>
+                    <ProtocolFields
+                      schema={driverSchema}
+                      driverModel={form.driverModel}
+                      values={form.protocol}
+                      errors={errors}
+                      onChange={updateProtocol}
+                      columns={2}
+                    />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
         </>
-      ) : (
+      ) : driverSchema ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Tabs<VariableTab>
@@ -513,7 +557,7 @@ export function CollectionCreateDialog({ open, onClose }: CollectionCreateDialog
             />
           )}
         </>
-      )}
+      ) : null}
     </FormDialog>
   )
 }

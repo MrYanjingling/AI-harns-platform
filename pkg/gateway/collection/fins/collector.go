@@ -36,9 +36,12 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusError)
 		return fmt.Errorf("%w: location is required", collection.ErrInvalidConfig)
 	}
-	if c.Transport != TransportTCP && c.Transport != TransportUDP {
+	if c.DriverModel == ModelHostlinkFins && c.Transport != TransportHostlink {
+		c.Transport = TransportHostlink
+	}
+	if c.Transport != TransportTCP && c.Transport != TransportUDP && c.Transport != TransportHostlink {
 		c.SetCollectStatus(collection.CollectStatusError)
-		return fmt.Errorf("%w: transport must be tcp or udp", collection.ErrInvalidConfig)
+		return fmt.Errorf("%w: transport must be tcp, udp or hostlink", collection.ErrInvalidConfig)
 	}
 	if c.Type < 0 || c.Type > 7 {
 		c.SetCollectStatus(collection.CollectStatusError)
@@ -75,6 +78,9 @@ func (c *Collection) Connect(ctx context.Context) error {
 	pool, err := connpool.NewPool(ctx, c.Concurrency, func(ctx context.Context) (connpool.Client, error) {
 		if c.Transport == TransportUDP {
 			return newUDPTransport(ctx, c.Location, c.Port, timeout)
+		}
+		if c.Transport == TransportHostlink {
+			return newHostlinkTransport(ctx, c.endpoint(), c.Unit, timeout)
 		}
 		return newTCPTransport(ctx, c.endpoint(), timeout)
 	})

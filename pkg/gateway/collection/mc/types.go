@@ -23,12 +23,15 @@ type Info struct {
 	DriverType  string
 	DriverModel string
 	Family      Family
+	ASCII       bool
 }
 
 var (
-	InfoA1E = Info{DriverType: "Mitsubishi", DriverModel: "MC-1E", Family: Family1E}
-	Info3E  = Info{DriverType: "Mitsubishi", DriverModel: "MC-3E", Family: Family3E}
-	Info4E  = Info{DriverType: "Mitsubishi", DriverModel: "MC-4E", Family: Family4E}
+	InfoA1E            = Info{DriverType: "Mitsubishi", DriverModel: "MC-1E", Family: Family1E}
+	Info3E             = Info{DriverType: "Mitsubishi", DriverModel: "MC-3E", Family: Family3E}
+	Info4E             = Info{DriverType: "Mitsubishi", DriverModel: "MC-4E", Family: Family4E}
+	InfoPanasonicMC3E  = Info{DriverType: "Panasonic", DriverModel: "Panasonic MC-3E", Family: Family3E}
+	InfoKeyenceMC3EAsc = Info{DriverType: "Keyence", DriverModel: "KV MC-3E ASCII", Family: Family3E, ASCII: true}
 )
 
 const (
