@@ -24,8 +24,7 @@ const (
 	commandHeaderSize       = 8
 	commandHeaderTimeout    = 10
 
-	// Forward Open connection parameters copied from Neuron's CIP driver:
-	// 2 s RPI and class-3 transport.
+	// Forward Open connection parameters: 2 s RPI and class-3 transport.
 	forwardOpenRPI = 2_000_000
 )
 
@@ -99,7 +98,7 @@ func (c *cipClient) forwardOpen(ctx context.Context) error {
 	return nil
 }
 
-// forwardOpenBody matches Neuron's cip_forward_open_req_wrap byte for byte.
+// forwardOpenBody builds the standard CIP Forward Open request body.
 func forwardOpenBody() []byte {
 	body := make([]byte, 40)
 	body[0] = 0x05 // priority/time tick

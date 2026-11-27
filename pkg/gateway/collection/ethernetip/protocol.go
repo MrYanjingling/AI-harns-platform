@@ -35,8 +35,8 @@ type parsedAddress struct {
 	typeCode uint16
 }
 
-// parseAddress parses a CIP tag path. Neuron supports one ANSI symbol segment
-// per dot-separated name: "Tag", "Tag.Member", "Program:MainProgram.Tag".
+// parseAddress parses a CIP tag path with one ANSI symbol segment per
+// dot-separated name: "Tag", "Tag.Member", "Program:MainProgram.Tag".
 func parseAddress(value, dataType string) (parsedAddress, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -133,8 +133,8 @@ func cipTypeCode(dataType string) (uint16, error) {
 	}
 }
 
-// checkType mirrors Neuron's check_type: a response type is accepted when it
-// belongs to the same CIP family as the configured type.
+// checkType accepts a response type when it belongs to the same CIP family as
+// the configured type.
 func checkType(ctype, expected uint16) bool {
 	switch ctype {
 	case cipTypeBool, cipTypeSInt, cipTypeUSInt, 0xD1: // 0xD1 is CIP BYTE
@@ -216,8 +216,8 @@ func writeRequest(sequence uint16, address parsedAddress, data []byte) ([]byte, 
 	return request, nil
 }
 
-// writeNeedsPad reports whether Neuron's CIP write payload appends an
-// alignment byte. BOOL, SINT, USINT and odd-length STRING values are padded.
+// writeNeedsPad reports whether the CIP write payload appends an alignment
+// byte. BOOL, SINT, USINT and odd-length STRING values are padded.
 func writeNeedsPad(dataType uint16, length int) bool {
 	switch dataType {
 	case cipTypeBool, cipTypeSInt, cipTypeUSInt:

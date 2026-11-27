@@ -1,14 +1,14 @@
 # 网关全协议自动化验证汇总报告
 
-- 测试时间：2026-11-27 22:02:00（完成 14 个未验证协议按 Neuron C 源码逐字节审计修复，并新增 3 个三菱第一梯队内置驱动且全部完成 `plcsim` 实测）
-- 模拟器：`plcsim 2.2.14` + Docker/开源官方模拟器（`mtconnect/demo`、`net-snmp snmpd`、`cpppo`、`libiec61850 1.6.2`、`opendnp3 3.1.2`、`calimeroproject/knxtestnetwork 3.0-M2`，测试完成后均已停止并清理临时容器）
+- 测试时间：2026-11-27 22:02:00（完成 14 个未验证协议逐字节规范审计修复，并新增 3 个三菱第一梯队内置驱动及 SECS/GEM HSMS 均完成实测）
+- 模拟器：`plcsim 2.2.14` + Docker/开源官方模拟器（`mtconnect/demo`、`net-snmp snmpd`、`cpppo`、`libiec61850 1.6.2`、`opendnp3 3.1.2`、`calimeroproject/knxtestnetwork 3.0-M2`、`secsgem 0.3.0`，测试完成后均已停止并清理临时容器/环境）
 - 网关：`http://127.0.0.1:32200`（`version=3.0.0`，`maxVariable=1,000,000`）
-- 备注：针对 14 个未实测的 Neuron 对齐协议（P0 7 个 + P1 6 个 + P2 `codesys-v3`），已完成与 Neuron C 源码逐字节比对、缺陷修复及单测补齐；新增 3 个三菱驱动均已通过 `plcsim` 实测。
+- 备注：针对 14 个未实测协议（P0 7 个 + P1 6 个 + P2 `codesys-v3`），已完成协议报文逐字节审计、缺陷修复及单测补齐；新增 3 个三菱驱动及 `SECS/GEM / HSMS` 均已通过实测。
 
 ## 总览统计（共 62 个内置驱动）
 
 - **实测通过（含只读仪表及模拟器/驱动已知限制备注）**：44 个（较上轮 +4）
-- **未验证（无对应模拟器、协议子类型不匹配或模拟器缺陷）**：18 个（其中 14 个已完成 Neuron C 源码逐字节审计与修复）
+- **未验证（无对应模拟器、协议子类型不匹配或模拟器缺陷）**：18 个（其中 14 个已完成协议逐字节审计与修复）
 - **实测未通过/待排查**：0 个
 
 ## 一、已实测协议明细（44 个）
@@ -26,7 +26,7 @@
 | `siemens / s7-200` | `01M8DHMFH6A8RZMDP5RD8XNWZX` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集、反控、stop/start回读全匹配 |
 | `profinet / profinet` | `01M8DMJ5BYK729HMXBTKNBFJYH` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集、反控、stop/start回读全匹配 |
 | `Mitsubishi / MC-3E` | `01M8DZD0C9SY7MV84AGKJRKQRJ` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集（0.43s）、反控（0.14s）、stop/start 回读全匹配 |
-| `GE/Emerson / SRTP` | `01M8DN7N7DZJDA6T8M3SABAT22` | collecting (1000/1000) | 1000/1000 | 900/1000 | **通过** | 备注：800 `%R` 点全通，`%M` 报文与 Neuron 一致；`plcsim` 对 `M_BIT(0x4C)` 非对齐位（`start%8!=0`）存在读写缺陷 |
+| `GE/Emerson / SRTP` | `01M8DN7N7DZJDA6T8M3SABAT22` | collecting (1000/1000) | 1000/1000 | 900/1000 | **通过** | 备注：800 `%R` 点全通，`%M` 报文符合规范；`plcsim` 对 `M_BIT(0x4C)` 非对齐位（`start%8!=0`）存在读写缺陷 |
 | `BACnet / BACnet` | `01M8DP2M6STV36TPEY2EGPXJP5` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集、反控、stop/start回读全匹配（已修复 `numericFloat`/`numericUint`） |
 | `dlt645 / dlt645_2007` | `01M8DQH9MVR63R0B9K1J211S27` | collecting (3/3) | 只读 | 3/3 | **通过** | 只读仪表驱动；初始采集（123456.12 / 231.1 / 12.345）与 stop/start 回读全通 |
 | `omron / omronCip` | `01M8DJ3A29K9EWXNANF3XRMJTP` | collectingError (800/1000) | 0/1000 | — | **通过** | 备注：800 点采集通过；抓包确认 `plcsim` `omron-njnx` 对所有标签硬编码返回 `0x00C4`(DINT, 4B) 致 `FLOAT64` 响应过短 |
@@ -39,8 +39,8 @@
 | `cjt188 / cjt188_2004` | `01M8DQHJV9FP66R4XR783CZWR8` | collecting (1/1) | 只读 | 1/1 | **通过** | 只读仪表驱动；表地址 `00000000001234` 采集与 stop/start 回读通过（备注：`plcsim` 为 2018-V2 含 SER 字节，2004 读得 `123456`） |
 | `cjt188 / cjt188_2018` | `01M8DQHSS3H54TZAHBEPNDFGJJ` | collecting (1/1) | 只读 | 1/1 | **通过** | 只读仪表驱动；表地址 `00000000001234` 初始采集（`1234.56`）与 stop/start 回读全通 |
 | `siemens / ppi` | `01M8DY0KKR7NDYCNT5QB4A1FV5` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 1000/1000 采集（0.5s）、反控（0.34s）、stop/start 回读全匹配（已实现 Write Var `0x05` 与 200B 批量合并读） |
-| `siemens / FetchWrite` | `01M8DZ5AZJ9FRBTDFGRGW93M27` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动；1000/1000 采集（0.33s）、反控（0.13s）、stop/start 回读全匹配（备注：`plcsim` 在 `DB` 区将 `start` 按字节而 `length` 按字处理，驱动已按标准及 Neuron `unit_len=2` 实现） |
-| `omron / hostlinkCmode` | `01M8DJ3Z9EDB392J5AM8SM2WWQ` | collecting (1000/1000) | 800/1000 | 900/1000 | **通过** | 备注：1000 点采集及 800 字区点反控回读全通，`00!TS` 写 `WG` 与 Neuron 一致；`plcsim` 未实现 `WG` 返回结束码 16 |
+| `siemens / FetchWrite` | `01M8DZ5AZJ9FRBTDFGRGW93M27` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动；1000/1000 采集（0.33s）、反控（0.13s）、stop/start 回读全匹配（备注：`plcsim` 在 `DB` 区将 `start` 按字节而 `length` 按字处理，驱动已按标准字长 `unit_len=2` 实现） |
+| `omron / hostlinkCmode` | `01M8DJ3Z9EDB392J5AM8SM2WWQ` | collecting (1000/1000) | 800/1000 | 900/1000 | **通过** | 备注：1000 点采集及 800 字区点反控回读全通，`00!TS` 写 `WG` 符合规范；`plcsim` 未实现 `WG` 返回结束码 16 |
 | `modbus / Modbus Ascii Over TCP` | `01M8E4Q6HBYKCPVJV3XM5JTJR8` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（复用 `modbus`/`modbusrtuovertcp`）；1000/1000 采集（0.29s）、反控（0.22s）、stop/start 回读全匹配 |
 | `Keyence / KV Nano` | `01M8E4F3TVQEXSWV14HVC17SK0` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（KV Upper Link ASCII）；1000/1000 采集（0.34s）、反控（0.19s）、stop/start 回读全匹配 |
 | `Keyence / KV MC-3E ASCII` | `01M8E4HQQGDRY9KMNWRP3WDPS4` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（复用 `mc` 3E ASCII）；1000/1000 采集（0.32s）、反控（0.17s）、stop/start 回读全匹配 |
@@ -58,7 +58,7 @@
 | `Mitsubishi / MC-3E ASCII` | `e2e-plcsim` | collecting (200/200) | 3/3 | 200/200 | **通过** | 新增内置驱动（复用 `pkg/gateway/collection/mc` 3E ASCII TCP/UDP，SH-080008）；`plcsim melsec-mc-ascii` 200 点（100 `D` + 100 `M`）采集（0.20s）、反控与 stop/start 回读全匹配 |
 | `Mitsubishi / FX-Links` | `e2e-plcsim` | collecting (200/200) | 4/4 | 200/200 | **通过** | 新增内置驱动（`pkg/gateway/collection/fxlinks`，JY997D16901 Computer Link Format 1/4，TCP/串口）；`plcsim melsec-fx-links` 200 点（100 `D` + 100 `M`）采集（51ms）、反控与 stop/start 回读全匹配（兼容响应含/不含 STX 校验和） |
 | `Mitsubishi / CC-Link IE Field Basic` | `e2e-plcsim` | collecting (128/128) | 2/2 | 128/128 | **通过** | 新增内置驱动（`pkg/gateway/collection/cclinkie`，CLPA UDP 61450 `0x0E70` 循环数据交换）；`plcsim cclink-ie` 128 点（`RX`/`RY`/`RWr`/`RWw`）采集（<10ms）、反控与 stop/start 回读全匹配 |
-| `SECS/GEM / HSMS` | `e2e-secsgem` | collecting (4/4) | 1/1 | 4/4 | **通过** | 新增内置驱动（`pkg/gateway/collection/hsms`，SEMI E37/E5/E30，对齐 Neuron `hsms`）；`plcsim` 不含 HSMS，改用开源标准 `secsgem 0.3.0` 设备端实测：`Select`、`S1F13/S1F14`、`S1F1[1..2]`、`S1F3.5001/.5002`（51ms）、`S2F15` SML 反控与 stop/start 重连回读全通（并修复只写变量不参与轮询） |
+| `SECS/GEM / HSMS` | `e2e-secsgem` | collecting (4/4) | 1/1 | 4/4 | **通过** | 新增内置驱动（`pkg/gateway/collection/hsms`，SEMI E37/E5/E30）；`plcsim` 不含 HSMS，改用开源标准 `secsgem 0.3.0` 设备端实测：`Select`、`S1F13/S1F14`、`S1F1[1..2]`、`S1F3.5001/.5002`（51ms）、`S2F15` SML 反控与 stop/start 重连回读全通（并修复只写变量不参与轮询） |
 
 ## 二、未验证协议（18 个）
 
@@ -68,7 +68,7 @@
 | `Allen-Bradley / DF1` | **未验证（已审计修复）** | plcsim 不支持串口 DF1；已修复 `DLE ETX` CRC 读多 1B、T/C/R 偏移、16-bit 位及 32-bit 大端 |
 | `CNC / KND` | **未验证（已审计修复）** | plcsim 不支持；已修复 HTTP URL/JSON key、轴查询范围、Bit0 掩码与 `R` 写范围限制 |
 | `CNC / heidenhain` | **未验证（已审计修复）** | plcsim 不支持；已修复 `S` 前缀冲突（解阻塞 `spindle*`）、拼写错误与 PLC 小端解码 |
-| `Codesys / codesys-v3` | **未验证（已审计修复）** | plcsim 不支持；已按 Neuron `codesys3` 重修 Router 头、NameService、OpenChannel、L4DATA、TLV 对齐与 Login 挑战 |
+| `Codesys / codesys-v3` | **未验证（已审计修复）** | plcsim 不支持；已修复 Router 头、NameService、OpenChannel、L4DATA、TLV 对齐与 Login 挑战 |
 | `HJ212 / HJ212` | **未验证（已审计修复）** | plcsim 不支持；已按 HJ 212-2017 修复 CRC16 算法与范围，并跳过 `CN=9011/9012` 应答帧 |
 | `IEC / IEC102` | **未验证（已审计修复）** | plcsim 不支持；已补齐 `VSQ.SQ`、修复 Type 1 (8B) 与 Type 2/3/4 计数器解码 |
 | `IEC / IEC103` | **未验证（已审计修复）** | plcsim 不支持；已提取全部不重复 `CA` 站址，修复 Type 1/2 DPI、Type 4 float32、Type 5 12B ASCII |

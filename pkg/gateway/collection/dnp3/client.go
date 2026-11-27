@@ -107,9 +107,9 @@ func (c *dnp3Client) resetLink() error {
 		case linkFnResetLinkAck, linkFnResetLink, linkFnLinkStatus:
 			return nil
 		case linkFnConfirmedData, linkFnUnconfirmedData:
-			// Like Neuron dnp3_stack_recv, ignore non-ACK frames (e.g. unsolicited
-			// FUNC=4 frames pushed on connect) while waiting for link ACK, but send
-			// Application Layer CONFIRM if CON=1 so the outstation exits ConfirmWait.
+			// Ignore non-ACK frames (e.g. unsolicited FUNC=4 frames pushed on
+			// connect) while waiting for link ACK, but send Application Layer
+			// CONFIRM if CON=1 so the outstation exits ConfirmWait.
 			if _, app, unwrapErr := unwrapTransport(link.Payload); unwrapErr == nil {
 				c.maybeSendAppConfirm(app)
 			}

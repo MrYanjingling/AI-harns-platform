@@ -120,7 +120,7 @@ func buildDataMessage(deviceID uint16, stream, function uint8, wBit bool, system
 	}
 }
 
-// indexKind matches Neuron secs_gem_point.c index types.
+// indexKind identifies how a tag address indexes into a SECS-II message body.
 type indexKind uint8
 
 const (
@@ -137,11 +137,11 @@ type point struct {
 	svid      string
 	svidNum   uint32
 	svidIsNum bool
-	listPath  []int // 1-based indices (matching Neuron [1]..[N], max 10 levels)
+	listPath  []int // 1-based list indices ([1]..[N], max 10 levels)
 	dataType  string
 }
 
-// isReportOnly matches Neuron hsms_check_report (hsms_stack.c:11).
+// isReportOnly reports whether (stream, function) is an equipment-initiated report/event message.
 func isReportOnly(stream, function uint8) bool {
 	switch {
 	case stream == 2 && (function == 33 || function == 35 || function == 37):
@@ -157,7 +157,7 @@ func isReportOnly(stream, function uint8) bool {
 	}
 }
 
-// parseAddress parses Neuron HSMS tag addresses:
+// parseAddress parses SECS-II / HSMS tag addresses:
 //   - S<stream>F<function>               (e.g. S1F1, S6F11)
 //   - S<stream>F<function>.<svid>        (e.g. S1F3.1001, S1F12.MEASURE1)
 //   - S<stream>F<function>[i1][i2]..[i10] (1-based list path, e.g. S1F1[1], S6F11[3][1][2])
@@ -286,7 +286,7 @@ func extractItem(root *Item, stream, function uint8, p *point) (*Item, error) {
 		return cur, nil
 	case indexSVID:
 		// S1F12 (Status Variable Namelist Reply): <L[n] <L[3] <SVID> <SVNAME> <UNITS>> ...>
-		// Neuron hsms_stack.c:657 matches elem[0] == svid and returns elem[1].
+		// Matches elem[0] == svid and returns elem[1].
 		if stream == 1 && function == 12 && root.Type == ItemList {
 			for _, entry := range root.Children {
 				if entry.Type == ItemList && len(entry.Children) >= 2 {

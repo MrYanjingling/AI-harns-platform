@@ -36,12 +36,12 @@ func TestBuildGetRequest(t *testing.T) {
 }
 
 func TestParseResponse(t *testing.T) {
-	response, _ := hex.DecodeString("302c02010104067075626c6963a21f0201010201000201003014301206082b0601020101010004064e6575726f6e")
+	response, _ := hex.DecodeString("302c02010104067075626c6963a21f0201010201000201003014301206082b0601020101010004064861726e7321")
 	value, id, err := parseResponse(response)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id != 1 || value != "Neuron" {
+	if id != 1 || value != "Harns!" {
 		t.Fatalf("id=%d value=%#v", id, value)
 	}
 }
@@ -70,7 +70,7 @@ func TestClientRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
-	response, _ := hex.DecodeString("302c02010104067075626c6963a21f0201010201000201003014301206082b0601020101010004064e6575726f6e")
+	response, _ := hex.DecodeString("302c02010104067075626c6963a21f0201010201000201003014301206082b0601020101010004064861726e7321")
 	go func() {
 		buffer := make([]byte, 1500)
 		n, addr, err := server.ReadFromUDP(buffer)
@@ -89,7 +89,7 @@ func TestClientRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if value != "Neuron" {
+	if value != "Harns!" {
 		t.Fatalf("value=%#v", value)
 	}
 }

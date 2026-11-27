@@ -1,9 +1,9 @@
 // Package ethernetip implements EtherNet/IP CIP collection.
 //
-// The driver follows the Neuron EtherNet/IP plugin: it registers an
-// encapsulation session, opens a class-3 connection with Forward Open and
-// exchanges each tag over connected SendUnitData messaging. Tag addresses are
-// CIP symbolic paths, one ANSI extended-symbol segment per dot-separated name.
+// The driver registers an encapsulation session, opens a class-3 connection
+// with Forward Open and exchanges each tag over connected SendUnitData
+// messaging. Tag addresses are CIP symbolic paths, one ANSI extended-symbol
+// segment per dot-separated name.
 package ethernetip
 
 import (
@@ -22,9 +22,9 @@ const (
 type ProtocolConfig struct {
 	Location string `json:"location"`
 	Port     int    `json:"port"`
-	// Slot is kept for compatibility with Neuron's EtherNet/IP driver
-	// configuration. The generic Forward Open used here does not carry a slot;
-	// 5500-style Large Forward Open is a separate plugin in Neuron.
+	// Slot is kept for configuration compatibility. The generic Forward Open
+	// used here does not carry a slot; 5500-style Large Forward Open is handled
+	// by the ControlLogix 55xx driver.
 	Slot int `json:"slot"`
 }
 

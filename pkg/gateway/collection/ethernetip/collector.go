@@ -61,9 +61,8 @@ func (c *Collection) Connect(ctx context.Context) error {
 		c.SetCollectStatus(collection.CollectStatusEmptyVariable)
 		return nil
 	}
-	// Neuron keeps one class-3 connection per driver and pipelines requests on
-	// it. A pool of one preserves that model while reconnecting after a lost
-	// session.
+	// Keep one class-3 connection per driver and pipeline requests on it.
+	// A pool of one preserves that model while reconnecting after a lost session.
 	pool, err := connpool.NewPool(ctx, 1, func(ctx context.Context) (connpool.Client, error) {
 		return newCIPClient(ctx, c.endpoint(), cipTimeout)
 	})

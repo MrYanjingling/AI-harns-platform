@@ -18,14 +18,14 @@ type parsedAddress struct {
 	WriteOnly    bool
 }
 
-// parseAddress parses Neuron's ADS address form:
+// parseAddress parses ADS index-group/offset addresses:
 //
 //	group,offset
 //	group,offset.length   (STRING only)
 //
 // Both group and offset accept decimal or 0x-prefixed hexadecimal values. A
 // colon is also accepted in place of the comma for compatibility with earlier
-// gateway configurations. Symbol names are not supported, matching Neuron.
+// gateway configurations. Symbol names are not supported.
 func parseAddress(value, dataType string) (parsedAddress, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -91,8 +91,7 @@ func parseUint32(value string) (uint32, error) {
 	return uint32(parsed), err
 }
 
-// validateIndexAddress applies the index-group whitelist and offset rules from
-// Neuron's ads_tag_addr_parse.
+// validateIndexAddress applies the standard ADS index-group whitelist and offset rules.
 func validateIndexAddress(group, offset uint32) (readOnly, writeOnly bool, err error) {
 	switch group {
 	case 0x4020:

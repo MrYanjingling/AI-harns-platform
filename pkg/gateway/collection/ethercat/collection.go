@@ -1,8 +1,7 @@
 // Package ethercat implements EtherCAT process-data collection through a
 // Beckhoff TwinCAT ADS gateway. EtherCAT itself is not an IP protocol; TwinCAT
 // exposes the mapped process image through ADS index groups, which this driver
-// reads and writes. Addressing, index-group validation and data types follow
-// Neuron's ADS plugin.
+// reads and writes with standard ADS addressing, index-group validation and data types.
 package ethercat
 
 import (

@@ -1,5 +1,5 @@
 // Package hsms implements SEMI E37 (HSMS-SS), SEMI E5 (SECS-II), and SEMI E30 (GEM)
-// aligned with Neuron's hsms plugin (plugins/secs_gem/).
+// over TCP.
 package hsms
 
 import (
@@ -124,7 +124,7 @@ func DecodeItem(data []byte) (*Item, int, error) {
 	return &Item{Type: typ, Raw: raw}, pos + length, nil
 }
 
-// FormatSML renders a SECS-II item in Neuron-compatible SML layout text.
+// FormatSML renders a SECS-II item in standard SML layout text.
 func (it *Item) FormatSML() string {
 	var sb strings.Builder
 	it.formatSML(&sb, true)
@@ -199,7 +199,7 @@ func (it *Item) formatSML(sb *strings.Builder, root bool) {
 	}
 }
 
-// ParseSML parses Neuron-style SML text (e.g. "<L[2] <A[4] TEST> <U2 12> >.") into an Item.
+// ParseSML parses SML text (e.g. "<L[2] <A[4] TEST> <U2 12> >.") into an Item.
 func ParseSML(text string) (*Item, error) {
 	p := &smlParser{s: text}
 	it, err := p.parseItem()
@@ -610,7 +610,7 @@ func itemToFloat64(it *Item) (float64, error) {
 }
 
 // EncodeGoValue builds a SECS-II item for writing a Go value with the given DataType.
-// If dataType is STRING and value starts with "<L", it parses Neuron SML syntax.
+// If dataType is STRING and value starts with "<L", it parses SML syntax.
 func EncodeGoValue(dataType string, value any) (*Item, error) {
 	dt := strings.ToUpper(strings.TrimSpace(dataType))
 	switch dt {

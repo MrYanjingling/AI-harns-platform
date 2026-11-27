@@ -225,8 +225,8 @@ Driver `schema` 使用对象结构：`{"fields":[...],"variableAddress":{...},"v
 - `ethernetIp`（`driverType=ethernetIp`）：EtherNet/IP CIP 标签地址，支持点号成员、数组 `[n]`、`Program:MainProgram.Tag`，`concurrency` 多 session 并发读帧
 - `EtherNet/IP-ControlLogic 55xx`（`driverType=Allen-Bradley`）：ControlLogix/CompactLogix 5500 CIP 显式消息，`slot` 写入 Forward Open 连接路径，读走 SendUnitData 连接报文，支持数组 `[n]`、`Program:MainProgram.Tag` 和指令间隔 `interval`
 - `EtherNet/IP-MicroLogix 1400`（`driverType=Allen-Bradley`）：MicroLogix 1400 PCCC over CIP，`0x4B` Execute PCCC 读写 N/F/B/T/C/I/O/S 文件；T/C 支持 .PRE/.ACC 读写，ACC 写入使用 read-modify-write
-- `ethernetIp`（`driverType=ethernetIp`）：参照 Neuron C 插件实现的 EtherNet/IP CIP 标签采集，点号符号路径，RegisterSession → Forward Open → 连接型 SendUnitData 逐标签读写
-- `ethercat`（`driverType=ethercat`）：参照 Neuron ADS C 插件实现，经 Beckhoff TwinCAT ADS（TCP 48898）按 `索引组,索引偏移[.长度]` 直接读写 EtherCAT 过程映像，校验 ADS 索引组白名单与 800–899 端口
+- `ethernetIp`（`driverType=ethernetIp`）：EtherNet/IP CIP 标签采集，点号符号路径，RegisterSession → Forward Open → 连接型 SendUnitData 逐标签读写
+- `ethercat`（`driverType=ethercat`）：经 Beckhoff TwinCAT ADS（TCP 48898）按 `索引组,索引偏移[.长度]` 直接读写 EtherCAT 过程映像，校验 ADS 索引组白名单与 800–899 端口
 - `DF1`（`driverType=Allen-Bradley`）：串口全双工 DF1 文件采集，支持 N/F/B/T/C/R/S/A/U/I/O；当前只读
 - `ab5000`（`driverType=Allen-Bradley`）：Logix 5000 CIP 标签采集，支持符号路径、数组和结构体成员；当前只读
 - `HJ212`（`driverType=HJ212`）：HJ 212-2017 ASCII 帧，串口/TCP 客户端，按 `RT!/MIN!/HOUR!/DAY!` 污染物地址读取；当前只读
