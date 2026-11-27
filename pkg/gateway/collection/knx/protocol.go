@@ -61,7 +61,7 @@ func (c *knxClient) discover(ip string, port int) error {
 	if destination.IP == nil {
 		return fmt.Errorf("invalid KNX discovery IP %q", ip)
 	}
-	local := c.localAddress()
+	local := c.localAddressFor(destination)
 	request := makeHeader(serviceSearchRequest, 14)
 	request = append(request, encodeHPAI(local)...)
 	if err := c.writePacket(request, destination); err != nil {
@@ -71,6 +71,14 @@ func (c *knxClient) discover(ip string, port int) error {
 	for {
 		packet, source, err := c.readPacket(deadline)
 		if err != nil {
+			// Strict KNXnet/IP servers (e.g. Calimero) only accept SEARCH_REQUEST (0x0201)
+			// on the multicast discovery endpoint (224.0.23.12:3671) and ignore it on the
+			// unicast control port. When the user specifies a unicast gateway IP directly,
+			// fall back to connecting to that control endpoint directly.
+			if !destination.IP.IsMulticast() {
+				c.gateway = destination
+				return nil
+			}
 			return err
 		}
 		service, total, err := parseHeader(packet)
@@ -93,7 +101,7 @@ func (c *knxClient) connect() error {
 	if c.gateway == nil {
 		return fmt.Errorf("KNX gateway is not discovered")
 	}
-	local := c.localAddress()
+	local := c.localAddressFor(c.gateway)
 	request := makeHeader(serviceConnectRequest, 26)
 	request = append(request, encodeHPAI(local)...)
 	request = append(request, encodeHPAI(local)...)
@@ -193,11 +201,60 @@ func buildTunnelAck(channel, sequence byte) []byte {
 	return append(ack, 0x04, channel, sequence, 0x00)
 }
 
-func (c *knxClient) localAddress() *net.UDPAddr {
-	if address, ok := c.conn.LocalAddr().(*net.UDPAddr); ok {
-		return address
+func (c *knxClient) localAddressFor(destination *net.UDPAddr) *net.UDPAddr {
+	port := 0
+	var localIP net.IP
+	if c.conn != nil {
+		if address, ok := c.conn.LocalAddr().(*net.UDPAddr); ok {
+			port = address.Port
+			if ip := address.IP.To4(); ip != nil && !ip.IsUnspecified() {
+				localIP = ip
+			}
+		}
 	}
-	return &net.UDPAddr{IP: net.IPv4zero, Port: 0}
+	if localIP == nil && destination != nil && destination.IP != nil {
+		if probe, err := net.DialUDP("udp4", nil, destination); err == nil {
+			if addr, ok := probe.LocalAddr().(*net.UDPAddr); ok {
+				if ip := addr.IP.To4(); ip != nil && !ip.IsUnspecified() {
+					localIP = ip
+				}
+			}
+			_ = probe.Close()
+		}
+	}
+	if localIP == nil {
+		localIP = firstNonLoopbackIPv4()
+	}
+	if localIP == nil {
+		localIP = net.IPv4(127, 0, 0, 1)
+	}
+	return &net.UDPAddr{IP: localIP, Port: port}
+}
+
+func firstNonLoopbackIPv4() net.IP {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			if ip := ipNet.IP.To4(); ip != nil && !ip.IsLoopback() && !ip.IsUnspecified() {
+				return ip
+			}
+		}
+	}
+	return nil
 }
 
 func (c *knxClient) writePacket(packet []byte, destination *net.UDPAddr) error {

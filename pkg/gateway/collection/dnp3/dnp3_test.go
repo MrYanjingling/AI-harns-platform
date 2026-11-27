@@ -218,3 +218,70 @@ func serveFakeDNP3Once(listener net.Listener) error {
 		return nil
 	}
 }
+
+func TestDNP3ResetLinkSkipsUnsolicitedAndAllowsOptionalTCPReset(t *testing.T) {
+	// Case 1: Outstation sends unsolicited FUNC=4 before Link ACK.
+	l1, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l1.Close()
+	go func() {
+		conn, err := l1.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _, err = readLinkFrame(conn, 2*time.Second)
+		if err != nil {
+			return
+		}
+		unsol, _ := buildLinkFrame(1, 2, 0x44, wrapTransport(0, []byte{0xD0, 0x82, 0x80, 0x00}))
+		_, _ = conn.Write(unsol)
+		ack, _ := buildLinkFrame(1, 2, 0x00, nil)
+		_, _ = conn.Write(ack)
+	}()
+	c1, err := newDNP3Client(context.Background(), l1.Addr().String(), 1, 2, time.Second)
+	if err != nil {
+		t.Fatalf("expected resetLink to skip unsolicited frame, got %v", err)
+	}
+	_ = c1.Close()
+
+	// Case 2: TCP outstation ignores RESET_LINK_STATES and answers Class 0 poll directly.
+	l2, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l2.Close()
+	go func() {
+		conn, err := l2.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			link, _, err := readLinkFrame(conn, 2*time.Second)
+			if err != nil {
+				return
+			}
+			if linkFunction(link.Control) == linkFnUnconfirmedData {
+				app := []byte{0xC0, 0x81, 0x00, 0x00, 1, 1, 0x00, 0, 1, 0x01, 0x00}
+				resp, _ := buildLinkFrame(1, 2, 0x44, wrapTransport(0, app))
+				_, _ = conn.Write(resp)
+			}
+		}
+	}()
+	c2, err := newDNP3Client(context.Background(), l2.Addr().String(), 1, 2, 300*time.Millisecond)
+	if err != nil {
+		t.Fatalf("expected resetLink to tolerate ignored TCP reset, got %v", err)
+	}
+	defer c2.Close()
+	resp, _, _, err := c2.Exchange(context.Background(), buildClassPoll(0, []byte{1}))
+	if err != nil {
+		t.Fatalf("exchange after optional reset failed: %v", err)
+	}
+	vals, err := parseAppResponse(resp)
+	if err != nil || len(vals) != 2 {
+		t.Fatalf("unexpected values: %+v err=%v", vals, err)
+	}
+}

@@ -2,6 +2,7 @@ package knx
 
 import (
 	"bytes"
+	"net"
 	"testing"
 )
 
@@ -106,5 +107,27 @@ func TestEncodeWriteValue(t *testing.T) {
 	}
 	if !bytes.Equal(data, []byte{0x81}) {
 		t.Fatalf("bool = %x", data)
+	}
+}
+
+func TestLocalAddressForResolvesNonZeroIPv4(t *testing.T) {
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	client := &knxClient{conn: conn}
+	dest := &net.UDPAddr{IP: net.IPv4(224, 0, 23, 12), Port: 3671}
+	local := client.localAddressFor(dest)
+	if local.IP == nil || local.IP.IsUnspecified() {
+		t.Fatalf("expected non-zero IPv4 for discovery HPAI, got %v", local.IP)
+	}
+	if local.Port == 0 {
+		t.Fatalf("expected non-zero UDP port, got %d", local.Port)
+	}
+	hpai := encodeHPAI(local)
+	if bytes.Equal(hpai[2:6], []byte{0, 0, 0, 0}) {
+		t.Fatalf("encoded HPAI still has 0.0.0.0: %x", hpai)
 	}
 }

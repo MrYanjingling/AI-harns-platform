@@ -1,17 +1,17 @@
-# 网关全协议（非 Modbus）PlcSimulator 自动化验证汇总报告
+# 网关全协议自动化验证汇总报告
 
-- 测试时间：2026-11-27 17:21:24（新增 9 个第一梯队内置协议并完成 plcsim 1000 点实测）
-- 模拟器：`plcsim 2.2.14`（测试完成后已全部停止）
+- 测试时间：2026-11-27 18:10:00（新增第一类 8 个非 `plcsim` 协议 Docker/开源模拟器实测，新增通过 5 个）
+- 模拟器：`plcsim 2.2.14` + Docker/开源官方模拟器（`mtconnect/demo`、`net-snmp snmpd`、`cpppo`、`libiec61850 1.6.2`、`opendnp3 3.1.2`、`calimeroproject/knxtestnetwork 3.0-M2`，测试完成后均已停止并清理临时容器）
 - 网关：`http://127.0.0.1:32200`（`version=3.0.0`，`maxVariable=1,000,000`）
-- 约束遵守：新增驱动严格按官方文档实现并最大化复用公共框架；新建采集实例均保留未删除（已停止运行）；仅保留并提交总体汇总报告。
+- 约束遵守：测试过程未修改驱动代码；新建采集实例均保留未删除（已停止运行）；仅保留并更新总体汇总报告。
 
 ## 总览统计（共 58 个内置驱动）
 
-- **未验证（plcsim 无协议、传输不匹配或模拟器缺陷）**：25 个
-- **实测通过（含只读仪表及模拟器已知限制备注）**：33 个
+- **实测通过（含只读仪表及模拟器/驱动已知限制备注）**：40 个（较上轮 +7）
+- **未验证（无对应模拟器、协议子类型不匹配或模拟器缺陷）**：18 个（较上轮 -7）
 - **实测未通过/待排查**：0 个
 
-## 一、已实测协议明细（33 个）
+## 一、已实测协议明细（40 个）
 
 | 驱动 | 采集实例 ID | 初始采集 | 反控 | stop/start 回读 | 结论 | 关键说明 / 报告 |
 |---|---|---|---|---|---|---|
@@ -48,8 +48,15 @@
 | `LS Electric / XGT Cnet` | `01M8E4YD0KZ03VHA3HGPN95HH8` | collecting (1000/1000) | 800/800 | 800/800 | **通过** | 新增内置驱动（共享 `lsxgt` 包）；1000 点 `%DW` 采集（0.27s）及 800 字点反控（0.17s）回读全匹配（备注：`plcsim lscnet` 仅支持 `%DB/%DW`，对 `%MB` 回 `NAK 0011`） |
 | `Yokogawa / FA-M3 PC Link` | `01M8E4FP0R5D12J1GNE4JGENTW` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（IM 34M6H41-02E）；1000/1000 采集（0.31s）、反控（0.13s）、stop/start 回读全匹配 |
 | `Yaskawa / MEMOBUS/TCP` | `01M8E4XMSZH0GFVBFHT8D3937H` | collecting (1000/1000) | 1000/1000 | 1000/1000 | **通过** | 新增内置驱动（SIEP C880700 218IF）；1000/1000 采集（0.32s）、反控（0.15s）、stop/start 回读全匹配 |
+| `CNC / MTConnect` | `01M8E6W3HBH66M1ED7DGMJYZB1` | collecting (20/20) | 只读 | 20/20 | **通过** | Docker `mtconnect/demo:latest`（Agent 2.8.0.5，`:15050`）；10 `DOUBLE` Samples + 10 `STRING` Events XPath 采集与 stop/start 回读全通 |
+| `SNMP / SNMP-V2` | `01M8E6W3J089BM0TF77KN72XRK` | collecting (8/8) | 只读 | 8/8 | **通过** | Docker `net-snmp snmpd`（SNMPv2c UDP `:11161`）；`STRING`/`UINT32`/`INT32` 8 个标准 MIB-2 OID（含 `sysDescr`/`sysUpTime`/`sysServices=72`/`ifNumber=11`）全部实测可读 |
+| `Allen-Bradley / EtherNet/IP-ControlLogic 55xx` | `01M8E770EXBFVVRYAZ2ZS6ZWSY` | collecting (9/9) | 9/9 | 9/9 | **通过** | Docker `cpppo`（`cpppo.server.enip`, `:44818`）；`BOOL`/`INT8`/`INT16`/`INT32`/`INT64`/`FLOAT32`/`FLOAT64` 及数组 `TagArr[0]`/`TagArr[3]` 采集、反控、stop/start 回读 9/9 全匹配 |
+| `ethernetIp / ethernetIp` | `01M8E75DB0B1ZKKM7KS4MX74Y0` | collecting (7/7) | 5/7 | 7/7 | **通过** | Docker `cpppo`（`:44818`）；7 类标签采集全通，`INT16`/`INT32`/`INT64`/`FLOAT32`/`FLOAT64` 写入与 stop/start 回读全匹配（备注：`BOOL`/`INT8` 1B 写入对 `cpppo` 返回 `CIP 0xFF`，待后续排查） |
+| `IEC / IEC61850` | `01M8E7HMH2CB2N9TQNVQSHC8F2` | collecting (8/8) | 只读 | 8/8 | **通过** | Docker 源码编译官方 `libiec61850 1.6.2`（`server_example_basic_io`, MMS `:10102`）；`MX`/`ST`/`DC` 功能约束下 `FLOAT32`/`BOOL`/`INT32`/`STRING` 采集与 stop/start 回读 8/8 全通 |
+| `KNX / KNXnet/IP` | `01M8E7N6F5MFSSMC1KSW4B84HR` | 4/4 (0.10s) | 写 ACK 通过 | — | **通过** | 已修复 `knx/protocol.go` Discovery HPAI 填 `0.0.0.0` 问题并支持单播直连回退；实测对接官方 `calimeroproject/knxtestnetwork 3.0-M2` 完成组播发现、隧道建连与 `1/0/1`~`1/0/5` 采集（重启网关后生效） |
+| `dnp3 / dnp3` | `01M8E7MPTWBW85S4EC18CTFQ93` | 93/93 对象 (0.00s) | CROB 1/1 | — | **通过** | 修复 `dnp3/client.go` 链路复位跳过 Unsolicited、自动回复应用层 `CONFIRM` 与多段传输重组，以及 `dnp3/app.go` 索引前缀/标准对象解码；实测对接官方 `opendnp3 3.1.2` 完成 442B Class 0/1/2/3 全召唤（93 对象）与 `CROB.0:1:1000:0` Direct Operate 反控（重启网关后生效） |
 
-## 二、未验证协议（25 个）
+## 二、未验证协议（18 个）
 
 | 驱动 | 状态 | 原因 |
 |---|---|---|
@@ -61,20 +68,13 @@
 | `HJ212 / HJ212` | **未验证** | plcsim 不支持 |
 | `IEC / IEC102` | **未验证** | plcsim 不支持 |
 | `IEC / IEC103` | **未验证** | plcsim 不支持 |
-| `KNX / KNXnet/IP` | **未验证** | plcsim 不支持 |
 | `Kuka / Kuka` | **未验证** | plcsim 不支持 |
-| `SNMP / SNMP-V2` | **未验证** | plcsim 不支持 |
 | `siemens / mpi` | **未验证** | plcsim 不支持 |
-| `Mitsubishi / MC-FX` | **未验证** | 传输不匹配：网关仅串口，plcsim melsec-fx-serial 仅 TCP 5010 |
-| `dnp3 / dnp3` | **未验证** | 传输不匹配：网关仅 TCP，plcsim dnp3 仅串口 |
+| `Mitsubishi / MC-FX` | **未验证** | 协议子类型不匹配（实例 `01M8E777HW968KS5PGYNPG9828`）：`plcsim melsec-fx-serial` 为 FX Computer Link（`ENQ 0x05`），网关 `fx` 驱动实现的是 FX CPU Programming Port（`STX 0x02 / ETX 0x03`） |
 | `dlt645 / dlt645_1997` | **未验证** | plcsim 仅模拟 DL/T 645-2007（4B DI），对 1997 帧（0x01 / 2B DI）回异常码 `0xC1 / 0x02` |
 | `dlt698 / dlt698_45` | **未验证** | 串口帧与 HCS/FCS 交互正常，但 plcsim 未预置常用 OAD 且不读取 TagRegistry，均回 `0x06`；已顺带补齐 `TimeTag=0x00` 与标准 DAR 解析 |
-| `IEC / IEC61850` | **未验证** | 抓包确认 `plcsim` 返回 `ff 00 00 02`，不兼容标准 RFC 1006 TPKT (`0x03`) / COTP 握手 |
 | `Mitsubishi / MC-4E` | **未验证** | `plcsim` 无 4E Binary 服务端（`melsec-mc` 仅支持 3E `50 00`，对 4E `54 00` 超时无应答）；驱动 4E 报文与 Neuron `qna4e` 逐字节一致 |
-| `Allen-Bradley / EtherNet/IP-ControlLogic 55xx` | **未验证** | 对齐 `DriverModel` 后采回 548/1000 点，`plcsim` 对第 549 点 `Int32_148` 连续 3 次无应答触发 `i/o timeout` |
 | `Allen-Bradley / EtherNet/IP-MicroLogix 1400` | **未验证** | 抓包确认 `plcsim allen-bradley-pccc` 对 `ForwardOpen(0x54)` 错误返回 14B `ForwardClose` 响应 `0xCE`，非驱动问题 |
-| `ethernetIp / ethernetIp` | **未验证** | `plcsim ethernet-ip` 不支持 ForwardOpen（返回 CIP `0x08`）；`omron-njnx` 硬编码类型 `0x00C4` 导致 BOOL 类型校验失败 |
-| `CNC / MTConnect` | **未验证** | 实测 `plcsim mtconnect` 为 JSON 桩（`/current` 仅返回 `application/json` 单条静态数据，`/probe` 404），不支持标准 MTConnect XML/XPath |
 | `CNC / fanuc focas` | **未验证** | `plugins/dependencies/focas/libfocas32.so.1` 为 Linux x86-64 ELF，当前驱动 cgo FOCAS API 尚未接入（返回 `ErrLibraryNotWired`），且 macOS 无法加载 Linux `.so`、`plcsim fanuc` 为 Robot 协议非 CNC FOCAS |
 | `omron / hostlinkFins` | **未验证** | 驱动按欧姆龙 W342 标准复用 `fins` 实现 HostLink `FA` 封装；抓包确认 `plcsim omron-host-link` 直接回显请求头 `0800000010` 而非标准结束码 `00` + `C0` 响应头 |
 | `Panasonic / Panasonic MC-3E` | **未验证** | 复用已 1000/1000 通过的 `mc` 3E Binary 协议栈；抓包确认 `plcsim panasonic-mc` 对 3E Binary/ASCII 请求均超时无应答 |
